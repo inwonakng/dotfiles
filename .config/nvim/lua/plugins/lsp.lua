@@ -2,16 +2,17 @@ return {
   -- add pyright to lspconfig
   "neovim/nvim-lspconfig",
   ---@class PluginLspOpts
-  dependencies = {
-    "jose-elias-alvarez/typescript.nvim",
-    init = function()
-      require("lazyvim.util").lsp.on_attach(function(_, buffer)
-          -- stylua: ignore
-          vim.keymap.set( "n", "<leader>co", "TypescriptOrganizeImports", { buffer = buffer, desc = "Organize Imports" })
-        vim.keymap.set("n", "<leader>cR", "TypescriptRenameFile", { desc = "Rename File", buffer = buffer })
-      end)
-    end,
-  },
+  -- dependencies = {
+  --   "jose-elias-alvarez/typescript.nvim",
+  --   init = function()
+  --     require("lazyvim.util").lsp.on_attach(function(client, buffer)
+  --       -- stylua: ignore
+  --       vim.keymap.set( "n", "<leader>co", "TypescriptOrganizeImports", { buffer = buffer, desc = "Organize Imports" })
+  --       vim.keymap.set("n", "<leader>cR", "TypescriptRenameFile", { desc = "Rename File", buffer = buffer })
+  --       client.server_capabilities.semanticTokensProvider = nil
+  --     end)
+  --   end,
+  -- },
   ---@class PluginLspOpts
   opts = {
     ---@type lspconfig.options
@@ -35,6 +36,11 @@ return {
           },
         },
       },
+      -- texlab = {
+      --   keys = {
+      --     { "<Leader>K", "<plug>(vimtex-doc-package)", desc = "Vimtex Docs", silent = true },
+      --   },
+      -- },
     },
     setup = {
       -- example to setup with typescript.nvim

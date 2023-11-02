@@ -10,10 +10,7 @@ ln -s ~/dotfiles/.zshrc  ~/.zshrc
 
 ```bash
 ln -s ~/dotfiles/nvim  ~/.config/nvim
-```
-
-
-```bash
+ln -s ~/dotfiles/.latexmkrc  ~/.latexmkrc
 ln -s ~/dotfiles/.ipython  ~/.ipython
 ```
 
