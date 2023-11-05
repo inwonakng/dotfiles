@@ -15,7 +15,7 @@ vim.opt.rtp:prepend(vim.env.LAZY or lazypath)
 
 local plugins = {
     -- add LazyVim and import its plugins
-    -- { "LazyVim/LazyVim", import = "lazyvim.plugins" },
+    { "LazyVim/LazyVim", import = "lazyvim.plugins" },
     { import = "plugins" },
     -- { import = "inwon.plugins.lsp" },
 }
@@ -31,6 +31,7 @@ local opts = {
     -- version = "*", -- try installing the latest stable version for plugins that support semver
   },
   install = { colorscheme = { "tokyonight", "habamax" } },
+  ui = { border = "rounded" },
   checker = { enabled = true }, -- automatically check for plugin updates
   performance = {
     rtp = {
@@ -50,3 +51,7 @@ local opts = {
 }
 
 require("lazy").setup(plugins, opts)
+
+-- stop netrw from showing when opening in directory
+-- vim.g.loaded_netrwPlugin = 1
+-- vim.g.loaded_netrw = 1
