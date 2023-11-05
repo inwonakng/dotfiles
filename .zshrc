@@ -151,8 +151,7 @@ export PATH="$PATH:$(yarn global bin)"
 
 # Custom aliases
 alias code="/Applications/Visual\ Studio\ Code.app/Contents/Resources/app/bin/code"
-alias latex="latexmk -pvc -quiet -silent"
-
+alias latex="latexmk -pvc -quiet -silent -output-directory=.cache"
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
 # export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:60%:wrap'
