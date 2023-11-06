@@ -1,7 +1,6 @@
 # For NVM setup
 
 export NVM_DIR=~/.nvm
-source $(brew --prefix nvm)/nvm.sh
 
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
@@ -77,7 +76,6 @@ ZSH_THEME="jovial"
 # Add wisely, as too many plugins slow down shell startup.
 plugins=(
   zsh-history-enquirer
-
   git
   autojump
   urltools
@@ -115,8 +113,6 @@ source $ZSH/oh-my-zsh.sh
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
-export HOMEBREW_NO_AUTO_UPDATE=true
-
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
 __conda_setup="$('/Users/inwon/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
@@ -135,10 +131,7 @@ unset __conda_setup
 # Created by `pipx` on 2023-04-14 22:35:32
 export PATH="$PATH:/Users/inwon/.local/bin"
 
-
-
 # I ADDED THESE!!
-
 # for docker
 # export DOCKER_HOST=unix:///var/run/docker.sock
 # export PATH="/usr/local/bin/docker:$PATH"
@@ -150,14 +143,8 @@ export PATH="$PATH:$(yarn global bin)"
 # export DOCKER_HOST=unix:///Users/inwon/.docker/run/docker.sock
 
 # Custom aliases
-alias code="/Applications/Visual\ Studio\ Code.app/Contents/Resources/app/bin/code"
-alias skim='/Applications/Skim.app/Contents/MacOS/Skim'
 alias latex="latexmk -pvc -quiet -silent -output-directory=.cache"
-test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
 # export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:60%:wrap'
-
-
 set -o vi
-
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
