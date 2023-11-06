@@ -1,18 +1,6 @@
-## Symlinking the files
+## Setting up:
 
-
-```bash
-ln -s ~/dotfiles/.zshrc  ~/.zshrc
-```
-
-
-## Needs to be linked:
-
-```bash
-ln -s ~/dotfiles/nvim  ~/.config/nvim
-ln -s ~/dotfiles/.latexmkrc  ~/.latexmkrc
-ln -s ~/dotfiles/.ipython  ~/.ipython
-```
+Use platform specific .sh file in the root directory
 
 ## Notes
 
