@@ -51,6 +51,14 @@ return {
       -- Specify * to use this function as a fallback for any server
       -- ["*"] = function(server, opts) end,
     },
+    diagnostics = {
+      underline = true,
+      virtual_text = false,
+      virtual_lines = {
+        only_current_line = true,
+        highlight_whole_line = false,
+      },
+    },
     autoformat = false,
   },
 }
