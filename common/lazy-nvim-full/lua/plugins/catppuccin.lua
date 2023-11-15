@@ -4,6 +4,21 @@ return {
     lazy = true,
     name = "catppuccin",
     opts = {
+      flavour = "frappe",
+      dim_inactive = {
+        enabled = true,
+        shade = "dark",
+        percentage = 0.2,
+      },
+      custom_highlights = function(colors)
+        return {
+          -- Comment = { fg = colors.flamingo },
+          TabLineSel = { bg = colors.pink },
+          CmpBorder = { fg = colors.surface2 },
+          -- Pmenu = { bg = colors.none },
+          Special = { fg = colors.flamingo },
+        }
+      end,
       integrations = {
         aerial = true,
         alpha = true,
@@ -44,7 +59,7 @@ return {
   {
     "LazyVim/LazyVim",
     opts = {
-      colorscheme = "catppuccin-macchiato"
-    }
-  }
+      colorscheme = "catppuccin",
+    },
+  },
 }

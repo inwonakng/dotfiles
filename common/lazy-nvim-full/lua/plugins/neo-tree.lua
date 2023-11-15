@@ -14,7 +14,6 @@ return {
         },
         never_show = {},
       },
-      -- hijack_netrw_behavior = 'disabled'
     },
     window = {
       mappings = {

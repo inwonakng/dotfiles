@@ -2,6 +2,10 @@ return {
   "nvim-lualine/lualine.nvim",
   optional = true,
   event = "VeryLazy",
+  options = {
+    theme = "catppuccin-frappe",
+    -- ... the rest of your lualine config
+  },
   opts = function(_, opts)
     local Util = require("lazyvim.util")
     local colors = {
@@ -47,8 +51,8 @@ return {
       },
       sections = {
         lualine_a = { "mode" },
-        lualine_b = { 
-          "branch" , 
+        lualine_b = {
+          "branch",
           {
             "diff",
             symbols = {
