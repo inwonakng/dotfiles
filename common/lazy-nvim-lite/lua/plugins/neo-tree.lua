@@ -3,6 +3,7 @@ return {
   opts = {
     filesystem = {
       filtered_items = {
+        hijack_netrw_behavior = "disabled",
         visible = true,
         show_hidden_count = true,
         hide_dotfiles = false,
@@ -14,7 +15,6 @@ return {
         },
         never_show = {},
       },
-      -- hijack_netrw_behavior = 'disabled'
     },
     window = {
       mappings = {
