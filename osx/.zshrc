@@ -132,8 +132,7 @@ fi
 unset __conda_setup
 # <<< conda initialize <<<
 
-# Created by `pipx` on 2023-04-14 22:35:32
-export PATH="$PATH:/Users/inwon/.local/bin"
+export PATH="$PATH:$HOME/.local/bin"
 
 # I ADDED THESE!!
 # for docker

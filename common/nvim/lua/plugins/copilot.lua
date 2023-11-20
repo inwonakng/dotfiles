@@ -1,0 +1,15 @@
+return {
+  "zbirenbaum/copilot.lua",
+  lazy = false,
+  cmd = "Copilot",
+  build = ":Copilot auth",
+  opts = {
+    suggestion = { enabled = true },
+    panel = { enabled = false },
+    filetypes = {
+      markdown = true,
+      help = true,
+    },
+    fix_pairs = true,
+  },
+}
