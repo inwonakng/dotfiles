@@ -1,12 +1,5 @@
 return {
   "hrsh7th/nvim-cmp",
-  -- dependencies = {
-  --   "copliot-cmp"
-  -- },
-  -- sources = {
-  --   { name = 'vimtex', group_index = 2}
-  -- },
-  -- @param opts cmp.ConfigSchema
   opts = function(_, opts)
     local cmp = require("cmp")
     opts.window = {
@@ -34,10 +27,5 @@ return {
       group_index = 1,
       priority = 100,
     })
-    -- table.insert(opts.sources, 1, {
-    --   name = "vimtex",
-    --   group_index = 1,
-    --   priority = 100,
-    -- })
   end,
 }
