@@ -14,10 +14,10 @@ end
 vim.opt.rtp:prepend(vim.env.LAZY or lazypath)
 
 local plugins = {
-    -- add LazyVim and import its plugins
-    { "LazyVim/LazyVim", import = "lazyvim.plugins"},
-    { import = "plugins" },
-    -- { import = "inwon.plugins.lsp" },
+  -- add LazyVim and import its plugins
+  { "LazyVim/LazyVim", import = "lazyvim.plugins" },
+  { import = "plugins" },
+  -- { import = "inwon.plugins.lsp" },
 }
 
 local opts = {

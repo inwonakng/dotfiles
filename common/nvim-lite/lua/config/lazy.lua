@@ -50,7 +50,3 @@ local opts = {
 }
 
 require("lazy").setup(plugins, opts)
-
--- stop netrw from showing when opening in directory
--- vim.g.loaded_netrwPlugin = 1
--- vim.g.loaded_netrw = 1
