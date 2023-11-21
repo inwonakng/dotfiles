@@ -30,5 +30,7 @@ if [ -d "$HOME/bin" ] ; then
     PATH="$HOME/.local/bin:$PATH"
 fi
 
+export PATH="$PATH:$HOME/.local/bin"
+
 # set input to vi mode
 set -o vi
