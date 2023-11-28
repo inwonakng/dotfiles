@@ -154,3 +154,7 @@ test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell
 
 set -o vi
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+
+# let ipython use plot..
+export MPLBACKEND="module://itermplot"
+export ITERMPLOT="rv"

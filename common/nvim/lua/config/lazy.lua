@@ -15,9 +15,18 @@ vim.opt.rtp:prepend(vim.env.LAZY or lazypath)
 
 local plugins = {
   -- add LazyVim and import its plugins
-  { "LazyVim/LazyVim", import = "lazyvim.plugins" },
+  { "LazyVim/LazyVim", 
+    import = "lazyvim.plugins",  
+    opts = {
+      colorscheme = "catppuccin",
+      icons = {
+        kinds = {
+          Folder = "󰉋 ",
+        }
+      }
+    },
+  },
   { import = "plugins" },
-  -- { import = "inwon.plugins.lsp" },
 }
 
 local opts = {

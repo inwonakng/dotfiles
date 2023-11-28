@@ -25,6 +25,11 @@ return {
       ["<leader>w"] = { name = "+windows" },
       ["<leader>x"] = { name = "+diagnostics/quickfix" },
       ["<leader>h"] = { name = "+harpoon" },
+      ["<leader>o"] = { name = "+obsidian" },
+      ["<leader>t"] = { name = "+table mode" },
+      ["<leader>td"] = { name = "+delete" },
+      ["<leader>tf"] = { name = "+formula" },
+      ["<leader>ti"] = { name = "+insert column" },
     },
   }
 }
