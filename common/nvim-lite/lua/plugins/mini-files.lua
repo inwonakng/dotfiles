@@ -1,5 +1,6 @@
 return {
   "echasnovski/mini.files",
+  version = false,
   opts = {
     windows = {
       preview = true,
@@ -11,6 +12,14 @@ return {
       -- Whether to use for editing directories
       -- Disabled by default in LazyVim because neo-tree is used for that
       use_as_default_explorer = true,
+    },
+    content = {
+      prefix = function(fs_entry)
+        if fs_entry.fs_type == "directory" then
+          return "󰉋 ", "MiniFilesDirectory"
+        end
+        return MiniFiles.default_prefix(fs_entry)
+      end,
     },
   },
   keys = {
