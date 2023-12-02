@@ -14,10 +14,20 @@ end
 vim.opt.rtp:prepend(vim.env.LAZY or lazypath)
 
 local plugins = {
-    -- add LazyVim and import its plugins
-    { "LazyVim/LazyVim", import = "lazyvim.plugins" },
-    { import = "plugins" },
-    -- { import = "inwon.plugins.lsp" },
+  -- add LazyVim and import its plugins
+  { "LazyVim/LazyVim", 
+    import = "lazyvim.plugins",  
+    opts = {
+      colorscheme = "catppuccin",
+      icons = {
+        kinds = {
+          Folder = "󰉋 ",
+        }
+      }
+    },
+  },
+  { import = "lazyvim.plugins.extras.vscode" },
+  { import = "plugins" },
 }
 
 local opts = {
@@ -39,7 +49,7 @@ local opts = {
         "gzip",
         -- "matchit",
         -- "matchparen",
-        -- "netrwPlugin",
+        "netrwPlugin",
         "tarPlugin",
         "tohtml",
         "tutor",
@@ -50,3 +60,4 @@ local opts = {
 }
 
 require("lazy").setup(plugins, opts)
+

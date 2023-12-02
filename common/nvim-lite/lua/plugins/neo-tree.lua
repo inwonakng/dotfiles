@@ -2,8 +2,8 @@ return {
   "nvim-neo-tree/neo-tree.nvim",
   opts = {
     filesystem = {
+      hijack_netrw_behavior = "disabled",
       filtered_items = {
-        hijack_netrw_behavior = "disabled",
         visible = true,
         show_hidden_count = true,
         hide_dotfiles = false,
@@ -23,5 +23,14 @@ return {
         ["h"] = "close_all_subnodes",
       },
     },
+    default_component_configs = {
+      icon = {
+        folder_closed = "󰉋",
+        folder_open = "󰝰",
+        folder_empty = "󰉖",
+        folder_empty_open = "󰷏",
+      }
+    }
   },
 }
+
