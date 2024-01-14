@@ -59,4 +59,5 @@ local opts = {
   },
 }
 
+require("config.filetypes")
 require("lazy").setup(plugins, opts)

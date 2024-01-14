@@ -13,6 +13,10 @@ return {
   --     end)
   --   end,
   -- },
+  init = function()
+    -- turn off format on save
+    vim.g.autoformat = false;
+  end,
   ---@class PluginLspOpts
   opts = {
     ---@type lspconfig.options
@@ -94,7 +98,7 @@ return {
         highlight_whole_line = false,
       },
     },
-    autoformat = false,
+    -- autoformat = false,
     severity_sort = true,
   },
 }

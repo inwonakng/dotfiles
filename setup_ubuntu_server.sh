@@ -1,4 +1,5 @@
 bash install/conda.sh
+bash install/pynvim.sh
 
 # ln -sf ~/dotfiles/ubuntu-server/.zshrc ~/.zshrc
 ln -sf ~/dotfiles/ubuntu-server/.bashrc ~/.bashrc
