@@ -1,5 +1,5 @@
 -- https://www.hammerspoon.org/go/
 
-hs.hotkey.bind({"shift", "alt" }, "space", function()
+hs.hotkey.bind({"alt" }, "space", function()
   hs.application.launchOrFocus("Wezterm")
 end)

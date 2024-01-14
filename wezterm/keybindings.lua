@@ -73,8 +73,8 @@ return {
 		-- Key table for moving tabs around
 		{ key = "m", mods = "LEADER", action = act.ActivateKeyTable({ name = "move_tab", one_shot = false }) },
 		-- Or shortcuts to move tab w/o move_tab table. SHIFT is for when caps lock is on
-		{ key = "{", mods = "LEADER", action = act.MoveTabRelative(-1) },
-		{ key = "}", mods = "LEADER", action = act.MoveTabRelative(1) },
+		{ key = "[", mods = "SHIFT|CTRL", action = act.MoveTabRelative(-1) },
+		{ key = "]", mods = "SHIFT|CTRL", action = act.MoveTabRelative(1) },
 	},
 	key_tables = {
 		copy_mode = copy_mode,
