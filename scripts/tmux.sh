@@ -1,59 +1,17 @@
-#!/bin/bash
+# /usr/bin/bash
+source ~/miniconda3/bin/activate;
+echo "Conda activated";
 
-# https://zijishi.xyz/post/linux/installing-tmux-without-root-access/
+TMUX_VERSION = "3.3a"
 
-# Script for installing tmux on systems where you don't have root access.
-# tmux will be installed in $HOME/.local/bin.
-# It's assumed that wget and a C/C++ compiler are installed.
+function install_and_link(){
+  conda install -c conda-forge tmux=${TMUX_VERSION} -y;
+  ln -sf ~/miniconda3/bin/tmux ~/.local/bin/tmux;
+}
 
-# exit on error
-set -e
-
-TMUX_VERSION=3.3a
-
-# create our directories
-mkdir -p $HOME/.local $HOME/tmux_tmp
-cd $HOME/tmux_tmp
-
-# download source files for tmux, libevent, and ncurses
-wget -O tmux-${TMUX_VERSION}.tar.gz https://github.com/tmux/tmux/archive/${TMUX_VERSION}.tar.gz 
-wget https://github.com/downloads/libevent/libevent/libevent-2.0.19-stable.tar.gz
-wget ftp://ftp.gnu.org/gnu/ncurses/ncurses-5.9.tar.gz
-
-# extract files, configure, and compile
-
-############
-# libevent #
-############
-tar xvzf libevent-2.0.19-stable.tar.gz
-cd libevent-2.0.19-stable
-./configure --prefix=$HOME/.local --disable-shared
-make -j
-make install
-cd ..
-
-############
-# ncurses  #
-############
-tar xvzf ncurses-5.9.tar.gz
-cd ncurses-5.9
-./configure --prefix=$HOME/.local
-make -j
-make install
-cd ..
-
-############
-# tmux     #
-############
-tar xvzf tmux-${TMUX_VERSION}.tar.gz
-cd tmux-${TMUX_VERSION}
-./autogen.sh
-./configure CFLAGS="-I$HOME/.local/include -I$HOME/local/include/ncurses" LDFLAGS="-L$HOME/local/lib -L$HOME/local/include/ncurses -L$HOME/local/include"
-CPPFLAGS="-I$HOME/.local/include -I$HOME/local/include/ncurses" LDFLAGS="-static -L$HOME/local/include -L$HOME/local/include/ncurses -L$HOME/local/lib" make
-cp tmux $HOME/.local/bin
-cd ..
-
-# cleanup
-rm -rf $HOME/tmux_tmp
-
-echo "$HOME/.local/bin/tmux is now available. You can optionally add $HOME/local/bin to your PATH."
+if conda env list | grep -q "tmux.*${TMUX_VERSION}"; then
+  echo "Tmux ${TMUX_VERSION} is already installed on conda. Won't do anything";
+else 
+  echo "Tmux ${TMUX_VERSION} is not installed. Will install to base";
+  install_and_link;
+fi
