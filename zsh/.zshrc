@@ -1,3 +1,10 @@
+# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+# Initialization code that may require console input (password prompts, [y/n]
+# confirmations, etc.) must go above this block; everything else may go below.
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
 # For NVM setup
 
 export NVM_DIR=~/.nvm
@@ -13,7 +20,7 @@ export ZSH="$HOME/.oh-my-zsh"
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-ZSH_THEME="jovial"
+ZSH_THEME="powerlevel10k/powerlevel10k"
 
 # Set list of themes to pick from when loading at random
 # Setting this variable when ZSH_THEME=random will cause zsh to load
@@ -75,17 +82,7 @@ ZSH_THEME="jovial"
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(
-  zsh-history-enquirer
-
-  git
-  autojump
-  urltools
-  bgnotify
-  zsh-autosuggestions
-  zsh-syntax-highlighting
-  jovial
-)
+plugins=()
 
 source $ZSH/oh-my-zsh.sh
 
@@ -132,7 +129,7 @@ fi
 unset __conda_setup
 # <<< conda initialize <<<
 
-export PATH="$PATH:$HOME/.local/bin"
+export PATH="$HOME/.local/bin:$PATH"
 
 # I ADDED THESE!!
 # for docker
@@ -152,9 +149,11 @@ test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell
 
 # export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:60%:wrap'
 
+# sets the terminal at bottom
+print ${(pl:$LINES::\n:):-}
+
 set -o vi
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
-# let ipython use plot..
-export MPLBACKEND="module://itermplot"
-export ITERMPLOT="rv"
+# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
+[[ ! -f ~/dotfiles/zsh/.p10k.zsh ]] || source ~/dotfiles/zsh/.p10k.zsh
