@@ -149,9 +149,6 @@ test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell
 
 # export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:60%:wrap'
 
-# sets the terminal at bottom
-print ${(pl:$LINES::\n:):-}
-
 set -o vi
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
