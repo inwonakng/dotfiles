@@ -11,6 +11,16 @@ if [ ! -d ~/powerlevel10k ]; then
 fi
 source ~/powerlevel10k/powerlevel10k.zsh-theme
 
+if [ ! -d ~/.zsh/zsh-autosuggestions ]; then
+  git clone https://github.com/zsh-users/zsh-autosuggestions ~/.zsh/zsh-autosuggestions
+fi
+source ~/.zsh/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+if [ ! -d ~/.zsh/zsh-syntax-highlighting ]; then
+  git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ~/.zsh/zsh-syntax-highlighting
+fi
+source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
 # For NVM setup
 export NVM_DIR=~/.nvm
 source $(brew --prefix nvm)/nvm.sh
@@ -51,6 +61,11 @@ export PATH="$PATH:$(yarn global bin)"
 # Custom aliases
 alias code="/Applications/Visual\ Studio\ Code.app/Contents/Resources/app/bin/code"
 alias latex="latexmk -bibtex -pdf -pvc -output-directory=.cache -quiet -silent"
+
+# Add wezterm if it exists
+if [ -d /Applications/WezTerm.app ]; then
+  PATH="$PATH:/Applications/WezTerm.app/Contents/MacOS"
+fi
 
 # export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:60%:wrap'
 
