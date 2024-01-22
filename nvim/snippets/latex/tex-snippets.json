@@ -7,7 +7,7 @@
       "\t{\\small",
       "\t\\begin{tabular}[c]{ll}",
       "\t\\toprule",
-      "\t\\textbf{$3} & \\textbf{$4} \\\\\\midrule",
+      "\t\\textbf{$3} & \\textbf{$4} \\\\\\\\ \\midrule",
       "\ta & b \\\\\\\\",
       "\tc & d \\\\\\\\",
       "\t$5",
@@ -17,6 +17,15 @@
       "\t\\caption{$1}",
       "\t\\label{tab:$2}",
       "\\end{table}",
+      "$0"
+    ],
+    "description": "Add a table"
+  },
+  "Minipage": {
+    "prefix": "minipage",
+    "body": [
+      "\\begin{minipage}[t]{0.5\\textwidth}",
+      "\\end{minipage}",
       "$0"
     ],
     "description": "Add a table"
