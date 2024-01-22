@@ -30,6 +30,7 @@ return {
       ["<leader>td"] = { name = "+delete" },
       ["<leader>tf"] = { name = "+formula" },
       ["<leader>ti"] = { name = "+insert column" },
+      ["<leader>d"] = { name = "+debug" },
     },
   }
 }

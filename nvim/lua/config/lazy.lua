@@ -27,7 +27,15 @@ local plugins = {
     },
   },
   { import = "lazyvim.plugins.extras.vscode" },
-  { import = "plugins" },
+  -- { import = "plugins" },
+  { import = "plugins.ui" },
+  { import = "plugins.navigation" },
+  { import = "plugins.editor" },
+  { import = "plugins.copilot" },
+  { import = "plugins.lang" },
+  { import = "plugins.lang.markdown" },
+  { import = "plugins.lang.latex" },
+  { import = "plugins.debugging" },
 }
 
 local opts = {

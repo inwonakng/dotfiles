@@ -21,6 +21,17 @@ if [ ! -d ~/.zsh/zsh-syntax-highlighting ]; then
 fi
 source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
+autoload -Uz compinit && compinit
+
+# For case-insensitive tab completion
+zstyle ':completion:*' matcher-list '' 'm:{a-zA-Z}={A-Za-z}'
+
+# for highlighting tab selection
+zstyle ':completion:*' menu select
+
+# for completion of directory names
+zstyle -e ':completion:*' special-dirs '[[ $PREFIX = (../)#(|.|..) ]] && reply=(..)'
+
 # For NVM setup
 export NVM_DIR=~/.nvm
 source $(brew --prefix nvm)/nvm.sh
@@ -66,6 +77,8 @@ alias latex="latexmk -bibtex -pdf -pvc -output-directory=.cache -quiet -silent"
 if [ -d /Applications/WezTerm.app ]; then
   PATH="$PATH:/Applications/WezTerm.app/Contents/MacOS"
 fi
+
+
 
 # export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:60%:wrap'
 

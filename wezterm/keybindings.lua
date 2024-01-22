@@ -24,6 +24,10 @@ return {
 		{ key = "-", mods = "CTRL", action = act.DisableDefaultAssignment },
 		{ key = "=", mods = "CTRL", action = act.DisableDefaultAssignment },
 		{ key = "+", mods = "CTRL", action = act.DisableDefaultAssignment },
+		{ key = "h", mods = "CTRL|SHIFT", action = act.DisableDefaultAssignment },
+		{ key = "j", mods = "CTRL|SHIFT", action = act.DisableDefaultAssignment },
+		{ key = "k", mods = "CTRL|SHIFT", action = act.DisableDefaultAssignment },
+		{ key = "l", mods = "CTRL|SHIFT", action = act.DisableDefaultAssignment },
 		-- split windows
 		{ key = "|", mods = "LEADER", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
 		{ key = "-", mods = "LEADER", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
@@ -51,8 +55,8 @@ return {
 
 		-- Tab keybindings
 		{ key = "t", mods = "LEADER", action = act.SpawnTab("CurrentPaneDomain") },
-		{ key = "[", mods = "LEADER", action = act.ActivateTabRelative(-1) },
-		{ key = "]", mods = "LEADER", action = act.ActivateTabRelative(1) },
+		{ key = "h", mods = "LEADER|CTRL", action = act.ActivateTabRelative(-1) },
+		{ key = "l", mods = "LEADER|CTRL", action = act.ActivateTabRelative(1) },
 		{ key = "n", mods = "LEADER", action = act.ShowTabNavigator },
 		{
 			key = "e",

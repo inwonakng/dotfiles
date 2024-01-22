@@ -59,8 +59,8 @@ return {
 	font_size = 18,
 	-- hide_tab_bar_if_only_one_tab = true,
 	window_padding = {
-		left = 0,
-		right = 0,
+		left = 2,
+		right = 2,
 		top = 0,
 		bottom = 0,
 	},

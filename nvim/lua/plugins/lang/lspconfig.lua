@@ -15,14 +15,27 @@ return {
   -- },
   init = function()
     -- turn off format on save
-    vim.g.autoformat = false;
+    vim.g.autoformat = false
   end,
   ---@class PluginLspOpts
   opts = {
     ---@type lspconfig.options
     servers = {
       -- pyright will be automatically installed with mason and loaded with lspconfig
-      pyright = {},
+      pyright = {
+        settings = {
+          python = {
+            analysis = {
+              useLibraryCodeForTypes = true,
+              typeCheckingMode = "off",
+              diagnosticMode = "off",
+              diagnosticSeverityOverrides = {
+                reportUnusedVariable = "warning", -- or anything
+              },
+            },
+          },
+        },
+      },
       -- tsserver will be automatically installed with mason and loaded with lspconfig
       ---@type lspconfig.options.tsserver
       tsserver = {
