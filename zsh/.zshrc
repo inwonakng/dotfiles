@@ -21,6 +21,9 @@ if [ ! -d ~/.zsh/zsh-syntax-highlighting ]; then
 fi
 source ~/.zsh/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
+#=====================================
+# ZSH Tweaks
+#=====================================
 autoload -Uz compinit && compinit
 
 # For case-insensitive tab completion
@@ -32,18 +35,13 @@ zstyle ':completion:*' menu select
 # for completion of directory names
 zstyle -e ':completion:*' special-dirs '[[ $PREFIX = (../)#(|.|..) ]] && reply=(..)'
 
+#=====================================
+# Environment Managers
+#=====================================
+
 # For NVM setup
 export NVM_DIR=~/.nvm
 source $(brew --prefix nvm)/nvm.sh
-
-# Preferred editor for local and remote sessions
-if [[ -n $SSH_CONNECTION ]]; then
-  export EDITOR='vim'
-else
-  export EDITOR='mvim'
-fi
-
-export HOMEBREW_NO_AUTO_UPDATE=true
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
@@ -59,6 +57,19 @@ else
 fi
 unset __conda_setup
 # <<< conda initialize <<<
+
+#=====================================
+# CUSTOM Settings
+#=====================================
+
+export HOMEBREW_NO_AUTO_UPDATE=true
+
+# Preferred editor for local and remote sessions
+if [[ -n $SSH_CONNECTION ]]; then
+  export EDITOR='vim'
+else
+  export EDITOR='mvim'
+fi
 
 # add my preferred local path (for neovim, lazygit etc.)
 export PATH="$HOME/.local/bin:$PATH"
