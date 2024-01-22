@@ -7,8 +7,8 @@ return {
     history = true,
     delete_check_events = "TextChanged",
   },
-  -- config = function()
-  --   local luasnip_loader = require("luasnip.loaders.from_vscode")
-  --   luasnip_loader.lazy_load({ paths = { "./snippets" }})
-  -- end,
+  config = function()
+    local luasnip_loader = require("luasnip.loaders.from_vscode")
+    luasnip_loader.lazy_load({ paths = { "./snippets" }})
+  end,
 }

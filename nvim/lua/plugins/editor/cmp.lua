@@ -1,7 +1,16 @@
 return {
   "hrsh7th/nvim-cmp",
+  dependencies = {
+    "zbirenbaum/copilot-cmp",
+    "hrsh7th/cmp-nvim-lsp",
+    "hrsh7th/cmp-buffer",
+    "hrsh7th/cmp-path",
+    "saddparwaiz1/cmp_luasnip",
+    "hrsh7th/cmp-omni",
+  },
   opts = function(_, opts)
     local cmp = require("cmp")
+    local compare = require("cmp.config.compare")
     return {
       window = {
         completion = cmp.config.window.bordered(),
@@ -15,16 +24,28 @@ return {
         return not disabled
       end,
       sources = cmp.config.sources({
-        {
-          name = "copilot",
-          group_index = 1,
-          priority = 100,
-        },
-        { name = "nvim_lsp" },
-        { name = "luasnip" },
+        { name = "nvim_lsp", priority = 10 },
+        { name = "omni", priority = 9 },
+        { name = "luasnip", priority = 9 },
       }, {
-        { name = "buffer" },
+        { name = "copilot", priority = 6 },
+        { name = "path", priority = 5 },
+        { name = "buffer", priority = 5 },
       }),
+      sorting = {
+        priority_weight = 2.0,
+        comparators = {
+          compare.offset,
+          compare.exact,
+          compare.score, -- based on :  score = score + ((#sources - (source_index - 1)) * sorting.priority_weight)
+          compare.locality,
+          compare.recently_used,
+          compare.kind,
+          compare.order,
+          -- compare.length,
+          -- compare.sort_text,
+        },
+      },
       completion = {
         completeopt = "menu,menuone,noinsert",
       },
@@ -58,5 +79,11 @@ return {
         end),
       }),
     }
+  end,
+  config = function(_, opts)
+    for _, source in ipairs(opts.sources) do
+      source.group_index = source.group_index or 1
+    end
+    require("cmp").setup(opts)
   end,
 }
