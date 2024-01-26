@@ -84,6 +84,8 @@ export PATH="$PATH:$(yarn global bin)"
 alias code="/Applications/Visual\ Studio\ Code.app/Contents/Resources/app/bin/code"
 alias latex="latexmk -bibtex -pdf -pvc -output-directory=.cache -quiet -silent"
 
+alias ls="ls --color"
+
 # Add wezterm if it exists
 if [ -d /Applications/WezTerm.app ]; then
   PATH="$PATH:/Applications/WezTerm.app/Contents/MacOS"

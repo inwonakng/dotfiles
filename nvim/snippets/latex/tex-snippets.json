@@ -29,5 +29,17 @@
       "$0"
     ],
     "description": "Add a table"
+  },
+  "Frame": {
+    "prefix": "frame",
+    "body": [
+      "\\begin{frame}",
+      "\t\\frametitle{$1}",
+      "\\end{frame}",
+      "$0"
+    ],
+    "description": "Add a beamer frame"
+
+
   }
 }
