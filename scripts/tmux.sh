@@ -2,7 +2,7 @@
 source ~/miniconda3/bin/activate;
 echo "Conda activated";
 
-TMUX_VERSION = "3.3a"
+TMUX_VERSION="3.3a"
 
 function install_and_link(){
   conda install -c conda-forge tmux=${TMUX_VERSION} -y;

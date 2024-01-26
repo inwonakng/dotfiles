@@ -2,7 +2,7 @@
 source ~/miniconda3/bin/activate;
 echo "Conda activated";
 
-ZSH_VERSION = "5.9"
+ZSH_VERSION="5.9"
 
 function install_and_link(){
   conda install -c conda-forge zsh=${ZSH_VERSION} -y;

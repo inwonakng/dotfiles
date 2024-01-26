@@ -1,5 +1,8 @@
 bash scripts/conda.sh
+bash scripts/tmux.sh
 bash scripts/pynvim.sh
+bash scripts/zsh.sh
+bash scripts/git.sh
 
 # files
 ln -sf ~/dotfiles/ubuntu-server/.bashrc ~/.bashrc

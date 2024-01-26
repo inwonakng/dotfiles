@@ -2,7 +2,7 @@
 source ~/miniconda3/bin/activate;
 echo "Conda activated";
 
-GIT_VERSION = "2.40.1"
+GIT_VERSION="2.40.1"
 
 function install_and_link(){
   conda install -c conda-forge git=${GIT_VERSION} -y;
