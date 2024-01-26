@@ -2,6 +2,8 @@
 source ~/miniconda3/bin/activate;
 echo "Conda activated";
 
+conda activate base;
+
 TMUX_VERSION="3.3a"
 
 function install_and_link(){

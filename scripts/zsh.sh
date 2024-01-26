@@ -2,6 +2,8 @@
 source ~/miniconda3/bin/activate;
 echo "Conda activated";
 
+conda activate base;
+
 ZSH_VERSION="5.9"
 
 function install_and_link(){

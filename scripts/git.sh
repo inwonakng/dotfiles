@@ -2,6 +2,8 @@
 source ~/miniconda3/bin/activate;
 echo "Conda activated";
 
+conda activate base;
+
 GIT_VERSION="2.40.1"
 
 function install_and_link(){
