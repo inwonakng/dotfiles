@@ -6,7 +6,7 @@ return {
     "hrsh7th/cmp-buffer",
     "hrsh7th/cmp-path",
     "saadparwaiz1/cmp_luasnip",
-    "hrsh7th/cmp-omni",
+    -- "hrsh7th/cmp-omni",
   },
   opts = function(_, opts)
     local cmp = require("cmp")
@@ -28,7 +28,7 @@ return {
         { name = "omni", priority = 9 },
         { name = "luasnip", priority = 9 },
       }, {
-        -- { name = "copilot", priority = 6 },
+        { name = "copilot", priority = 6 },
         { name = "path", priority = 5 },
         { name = "buffer", priority = 5 },
       }),

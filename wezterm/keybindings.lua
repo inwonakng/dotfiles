@@ -10,7 +10,7 @@ end
 utils.list_extend(copy_mode, {
 	-- { key = "[", mods = "CTRL", action = act.CopyMode("Close") },
 	-- { key = "Escape", mods = "NONE", action = act.CopyMode("Close") },
-	{ key = "v", mods = "LEADER", action = act.CopyMode("Close") },
+	{ key = "q", mods = "NONE", action = act.CopyMode("Close") },
 })
 
 return {
@@ -43,7 +43,7 @@ return {
 		{ key = "j", mods = "LEADER", action = act.ActivatePaneDirection("Down") },
 		{ key = "z", mods = "LEADER", action = act.TogglePaneZoomState },
 		{ key = "d", mods = "LEADER", action = act.CloseCurrentPane({ confirm = false }) },
-		{ key = "v", mods = "LEADER", action = act.ActivateCopyMode },
+		{ key = "[", mods = "LEADER", action = act.ActivateCopyMode },
 		{
 			key = "r",
 			mods = "LEADER",

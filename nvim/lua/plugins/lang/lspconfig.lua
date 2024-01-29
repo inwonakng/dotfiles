@@ -1,18 +1,5 @@
 return {
-  -- add pyright to lspconfig
   "neovim/nvim-lspconfig",
-  ---@class PluginLspOpts
-  -- dependencies = {
-  --   "jose-elias-alvarez/typescript.nvim",
-  --   init = function()
-  --     require("lazyvim.util").lsp.on_attach(function(client, buffer)
-  --       -- stylua: ignore
-  --       vim.keymap.set("n", "<leader>co", "TypescriptOrganizeImports", { buffer = buffer, desc = "Organize Imports" })
-  --       vim.keymap.set("n", "<leader>cR", "TypescriptRenameFile", { desc = "Rename File", buffer = buffer })
-  --       client.server_capabilities.semanticTokensProvider = nil
-  --     end)
-  --   end,
-  -- },
   init = function()
     -- turn off format on save
     vim.g.autoformat = false

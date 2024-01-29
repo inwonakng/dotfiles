@@ -1,26 +1,79 @@
 return {
-  -- add pyright to lspconfig
   "neovim/nvim-lspconfig",
-  ---@class PluginLspOpts
-  dependencies = {
-    "jose-elias-alvarez/typescript.nvim",
-    init = function()
-      require("lazyvim.util").lsp.on_attach(function(client, buffer)
-        -- stylua: ignore
-        vim.keymap.set("n", "<leader>co", "TypescriptOrganizeImports", { buffer = buffer, desc = "Organize Imports" })
-        vim.keymap.set("n", "<leader>cR", "TypescriptRenameFile", { desc = "Rename File", buffer = buffer })
-        client.server_capabilities.semanticTokensProvider = nil
-      end)
-    end,
-  },
+  init = function()
+    -- turn off format on save
+    vim.g.autoformat = false
+  end,
   ---@class PluginLspOpts
   opts = {
     ---@type lspconfig.options
     servers = {
       -- pyright will be automatically installed with mason and loaded with lspconfig
-      pyright = {},
+      pyright = {
+        settings = {
+          python = {
+            analysis = {
+              useLibraryCodeForTypes = true,
+              typeCheckingMode = "off",
+              diagnosticMode = "off",
+              diagnosticSeverityOverrides = {
+                reportUnusedVariable = "warning", -- or anything
+              },
+            },
+          },
+        },
+      },
       -- tsserver will be automatically installed with mason and loaded with lspconfig
-      tsserver = {},
+      ---@type lspconfig.options.tsserver
+      tsserver = {
+        keys = {
+          {
+            "<leader>co",
+            function()
+              vim.lsp.buf.code_action({
+                apply = true,
+                context = {
+                  only = { "source.organizeImports.ts" },
+                  diagnostics = {},
+                },
+              })
+            end,
+            desc = "Organize Imports",
+          },
+          {
+            "<leader>cR",
+            function()
+              vim.lsp.buf.code_action({
+                apply = true,
+                context = {
+                  only = { "source.removeUnused.ts" },
+                  diagnostics = {},
+                },
+              })
+            end,
+            desc = "Remove Unused Imports",
+          },
+        },
+        settings = {
+          typescript = {
+            format = {
+              indentSize = vim.o.shiftwidth,
+              convertTabsToSpaces = vim.o.expandtab,
+              tabSize = vim.o.tabstop,
+            },
+          },
+          javascript = {
+            format = {
+              indentSize = vim.o.shiftwidth,
+              convertTabsToSpaces = vim.o.expandtab,
+              tabSize = vim.o.tabstop,
+            },
+          },
+          completions = {
+            completeFunctionCalls = true,
+          },
+        },
+      },
       jsonls = {
         -- lazy-load schemastore when needed
         on_new_config = function(new_config)
@@ -36,21 +89,16 @@ return {
           },
         },
       },
-      -- texlab = {
-      --   keys = {
-      --     { "<Leader>K", "<plug>(vimtex-doc-package)", desc = "Vimtex Docs", silent = true },
-      --   },
-      -- },
     },
-    setup = {
-      -- example to setup with typescript.nvim
-      tsserver = function(_, opts)
-        require("typescript").setup({ server = opts })
-        return true
-      end,
-      -- Specify * to use this function as a fallback for any server
-      -- ["*"] = function(server, opts) end,
+    diagnostics = {
+      underline = true,
+      virtual_text = false,
+      virtual_lines = {
+        only_current_line = true,
+        highlight_whole_line = false,
+      },
     },
-    autoformat = false,
+    -- autoformat = false,
+    severity_sort = true,
   },
 }
