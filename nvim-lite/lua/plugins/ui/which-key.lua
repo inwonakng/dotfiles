@@ -13,7 +13,7 @@ return {
       ["gs"] = { name = "+surround" },
       ["]"] = { name = "+next" },
       ["["] = { name = "+prev" },
-      -- ["<leader><tab>"] = { name = "+tabs" },
+      ["<leader><tab>"] = { name = "+tabs" },
       ["<leader>b"] = { name = "+buffer" },
       ["<leader>c"] = { name = "+code" },
       ["<leader>f"] = { name = "+file/find" },
@@ -25,6 +25,9 @@ return {
       ["<leader>w"] = { name = "+windows" },
       ["<leader>x"] = { name = "+diagnostics/quickfix" },
       ["<leader>h"] = { name = "+harpoon" },
+      -- ["<leader>o"] = { name = "+obsidian" },
+      ["<leader>t"] = { name = "+table mode" },
+      ["<leader>d"] = { name = "+debug" },
     },
   }
 }

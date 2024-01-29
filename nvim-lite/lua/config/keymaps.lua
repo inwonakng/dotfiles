@@ -4,7 +4,6 @@
 
 local map = vim.keymap.set
 
-
 -- Resize window using <ctrl> and shift
 map("n", "<C-S-k>", "<cmd>resize +2<cr>", { desc = "Increase window height" })
 map("n", "<C-S-j>", "<cmd>resize -2<cr>", { desc = "Decrease window height" })
@@ -31,4 +30,3 @@ map('n', '0',
   end,
   { desc = 'smart zero movement' }
 )
-

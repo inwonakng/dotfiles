@@ -13,7 +13,7 @@ return {
       ["gs"] = { name = "+surround" },
       ["]"] = { name = "+next" },
       ["["] = { name = "+prev" },
-      -- ["<leader><tab>"] = { name = "+tabs" },
+      ["<leader><tab>"] = { name = "+tabs" },
       ["<leader>b"] = { name = "+buffer" },
       ["<leader>c"] = { name = "+code" },
       ["<leader>f"] = { name = "+file/find" },
@@ -27,9 +27,6 @@ return {
       ["<leader>h"] = { name = "+harpoon" },
       ["<leader>o"] = { name = "+obsidian" },
       ["<leader>t"] = { name = "+table mode" },
-      ["<leader>td"] = { name = "+delete" },
-      ["<leader>tf"] = { name = "+formula" },
-      ["<leader>ti"] = { name = "+insert column" },
       ["<leader>d"] = { name = "+debug" },
     },
   }
