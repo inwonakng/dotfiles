@@ -8,9 +8,20 @@ return {
       quiet = false, -- not recommended to change
     },
     formatters_by_ft = {
-      python = { "black" },
-      sh = { "shfmt" },
-      tex = {"latexindent"},
+      ["python"] = { "black" },
+      ["sh"] = { "shfmt" },
+      ["tex"] = { "latexindent" },
+      ["html"] = { "prettier" },
+      ["css"] = { "prettier" },
+      ["javascript"] = { "prettier" },
+      ["javascriptreact"] = { "prettier" },
+      ["typescript"] = { "prettier" },
+      ["typescriptreact"] = { "prettier" },
+      ["json"] = { "prettier" },
+      ["jsonc"] = { "prettier" },
+      ["yaml"] = { "prettier" },
+      ["markdown"] = { "prettier" },
+      ["markdown.mdx"] = { "prettier" },
     },
   },
 }
