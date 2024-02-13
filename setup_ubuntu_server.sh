@@ -1,4 +1,4 @@
-bash scripts/install_conda.sh;
+# bash scripts/install_conda.sh;
 bash scripts/setup_pynvim.sh;
 bash scripts/install_using_conda.sh --program git --version 2.40.1;
 bash scripts/install_using_conda.sh --program tmux --version 3.3a;
