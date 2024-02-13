@@ -26,7 +26,6 @@ echo "Conda activated";
 
 conda activate base;
 
-
 function install_and_link(){
   conda install -c conda-forge ${program}=${version} -y;
   ln -sf ~/miniconda3/bin/${program} ~/.local/bin/${program};
