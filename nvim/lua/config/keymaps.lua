@@ -14,19 +14,25 @@ map("n", "<C-S-l>", "<cmd>vertical resize +2<cr>", { desc = "Increase window wid
 
 -- from https://www.reddit.com/r/neovim/comments/187q160/togglehomezero_keymap/
 -- use 0 to do both ^ and 0
-map('n', '0', 
-  function() 
-    if vim.fn.reg_recording() ~= "" then 
-      vim.api.nvim_feedkeys('0', 'n', true)
-    else 
-      local pos = vim.fn.col('.')
-      if pos == 1 then 
-        vim.api.nvim_feedkeys('^', 'n', true)
-      elseif pos == vim.fn.col('$') - 1 then 
-        vim.api.nvim_feedkeys('0', 'n', true)
-      else vim.api.nvim_feedkeys('$', 'n', true)
-      end 
+map("n", "0", function()
+  if vim.fn.reg_recording() ~= "" then
+    vim.api.nvim_feedkeys("0", "n", true)
+  else
+    local pos = vim.fn.col(".")
+    if pos == 1 then
+      vim.api.nvim_feedkeys("^", "n", true)
+    elseif pos == vim.fn.col("$") - 1 then
+      vim.api.nvim_feedkeys("0", "n", true)
+    else
+      vim.api.nvim_feedkeys("$", "n", true)
     end
-  end,
-  { desc = 'smart zero movement' }
-)
+  end
+end, { desc = "smart zero movement" })
+
+-- Override lazyvim behavior to use kitty navigation
+vim.g.kitty_navigator_no_mappings = 1
+
+map("n", "<C-h>", ":KittyNavigateLeft<cr>", { silent = true })
+map("n", "<C-l>", ":KittyNavigateRight<cr>", { silent = true })
+map("n", "<C-j>", ":KittyNavigateDown<cr>", { silent = true })
+map("n", "<C-k>", ":KittyNavigateUp<cr>", { silent = true })
