@@ -29,10 +29,10 @@ map("n", "0", function()
   end
 end, { desc = "smart zero movement" })
 
--- https://github.com/christoomey/vim-tmux-navigator
-vim.g.tmux_navigator_no_mappings = 1
+-- -- https://github.com/christoomey/vim-tmux-navigator
+-- vim.g.tmux_navigator_no_mappings = 1
 
-map("n", "<C-S-h>", ":TmuxNavigateLeft<cr>", { silent = true })
-map("n", "<C-S-l>", ":TmuxNavigateRight<cr>", { silent = true })
-map("n", "<C-S-j>", ":TmuxNavigateDown<cr>", { silent = true })
-map("n", "<C-S-k>", ":TmuxNavigateUp<cr>", { silent = true })
+-- map("n", "<C-h>", ":TmuxNavigateLeft<cr>", { silent = true })
+-- map("n", "<C-l>", ":TmuxNavigateRight<cr>", { silent = true })
+-- map("n", "<C-j>", ":TmuxNavigateDown<cr>", { silent = true })
+-- map("n", "<C-k>", ":TmuxNavigateUp<cr>", { silent = true })
