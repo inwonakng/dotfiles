@@ -28,3 +28,12 @@ map("n", "0", function()
     end
   end
 end, { desc = "smart zero movement" })
+
+-- vim-tmux-navigator
+if os.getenv("TMUX") then
+  map("n", "<C-h>", "<cmd>TmuxNavigateLeft<cr>")
+  map("n", "<C-j>", "<cmd>TmuxNavigateDown<cr>")
+  map("n", "<C-k>", "<cmd>TmuxNavigateUp<cr>")
+  map("n", "<C-l>", "<cmd>TmuxNavigateRight<cr>")
+  map("n", "<C-\\>", "<cmd>TmuxNavigatePrevious<cr>")
+end
