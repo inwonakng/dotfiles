@@ -44,7 +44,7 @@ export NVM_DIR=~/.nvm
 if [[ "$OSTYPE" == "darwin"* ]]; then
   nvim_prefix=$(brew --prefix nvm)
 else
-  nvim_prefix="~/.nvm"
+  nvim_prefix="${HOME}/.nvm"
 fi
 
 source "${nvim_prefix}/nvm.sh"
