@@ -41,8 +41,13 @@ zstyle -e ':completion:*' special-dirs '[[ $PREFIX = (../)#(|.|..) ]] && reply=(
 
 # For NVM setup
 export NVM_DIR=~/.nvm
-source $(brew --prefix nvm)/nvm.sh
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  nvim_prefix=$(brew --prefix nvm)
+else
+  nvim_prefix="~/.nvim"
+fi
 
+source "${nvim_prefix}/nvm.sh"
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
 __conda_setup="$('/Users/inwon/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"
