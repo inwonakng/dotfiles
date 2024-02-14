@@ -3,6 +3,8 @@ return {
   config = function()
     -- Use the conda env currently activated.
     local conda_prefix = vim.fn.getenv("CONDA_PREFIX")
-    require("dap-python").setup(conda_prefix .. "/bin/python")
+    if not s == nil and not s == "" then
+      require("dap-python").setup(conda_prefix .. "/bin/python")
+    end
   end,
 }

@@ -35,6 +35,7 @@ local plugins = {
   { import = "plugins.lang.markdown" },
   -- { import = "plugins.lang.latex" },
   { import = "plugins.debugging" },
+  { import = "plugins.terminal" },
 }
 
 local opts = {
