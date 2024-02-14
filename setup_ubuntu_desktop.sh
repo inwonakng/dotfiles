@@ -1,6 +1,10 @@
-ln -sf ~/dotfiles/ubuntu-desktop/.zshrc ~/.zshrc
-ln -sf ~/dotfiles/ubuntu-desktop/.latexmkrc ~/.latexmkrc
-ln -sf ~/dotfiles/common/.vimrc ~/.vimrc
-ln -sf ~/dotfiles/common/.tmux.conf ~/.tmux.conf
-ln -snf ~/dotfiles/common/.ipython ~/.ipython
-ln -snf ~/dotfiles/common/nvim ~/.config/nvim
+# files
+ln -sf ~/dotfiles/zsh/.zshrc ~/.zshrc
+ln -sf ~/dotfiles/zsh/.zshenv ~/.zshenv
+ln -sf ~/dotfiles/osx/.latexmkrc ~/.latexmkrc
+ln -sf ~/dotfiles/.vimrc ~/.vimrc
+ln -sf ~/dotfiles/.tmux.conf ~/.tmux.conf
+
+# folders
+ln -snf ~/dotfiles/.ipython ~/.ipython
+ln -snf ~/dotfiles/nvim ~/.config/nvim
