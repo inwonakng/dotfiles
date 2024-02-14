@@ -1,9 +1,9 @@
 -- https://www.hammerspoon.org/go/
 
 hs.hotkey.bind({"alt" }, "space", function()
-  local term = hs.application.get("Wezterm")
+  local term = hs.application.get("kitty")
   if term == nil then
-    hs.application.launchOrFocus("Wezterm")
+    hs.application.launchOrFocus("kitty")
     return
   else
     if term:isFrontmost() then
