@@ -36,3 +36,12 @@ map("n", "<C-h>", ":KittyNavigateLeft<cr>", { silent = true })
 map("n", "<C-l>", ":KittyNavigateRight<cr>", { silent = true })
 map("n", "<C-j>", ":KittyNavigateDown<cr>", { silent = true })
 map("n", "<C-k>", ":KittyNavigateUp<cr>", { silent = true })
+
+-- vim-tmux-navigator
+if os.getenv("TMUX") then
+  map("n", "<C-h>", "<cmd>TmuxNavigateLeft<cr>")
+  map("n", "<C-j>", "<cmd>TmuxNavigateDown<cr>")
+  map("n", "<C-k>", "<cmd>TmuxNavigateUp<cr>")
+  map("n", "<C-l>", "<cmd>TmuxNavigateRight<cr>")
+  map("n", "<C-\\>", "<cmd>TmuxNavigatePrevious<cr>")
+end
