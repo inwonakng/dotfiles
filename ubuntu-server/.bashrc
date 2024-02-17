@@ -26,11 +26,12 @@ unset __conda_setup
 # <<< conda initialize <<<
 
 # set PATH so it includes user's private bin if it exists
-if [ -d "$HOME/bin" ] ; then
-    PATH="$HOME/.local/bin:$PATH"
+if [ -d "$HOME/.local/bin" ] ; then
+    export PATH="$HOME/.local/bin:$PATH"
 fi
-
-export PATH="$HOME/.local/bin:$PATH"
 
 # set input to vi mode
 set -o vi
+
+export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:50%:wrap'
+[ -f ~/.fzf.bash ] && source ~/.fzf.bash

@@ -101,7 +101,7 @@ if [ -d /Applications/WezTerm.app ]; then
 fi
 
 
-# export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:60%:wrap'
+export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:50%:wrap'
 
 set -o vi
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
