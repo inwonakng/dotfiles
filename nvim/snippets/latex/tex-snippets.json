@@ -23,21 +23,25 @@
   },
   "Minipage": {
     "prefix": "minipage",
-    "body": [
-      "\\begin{minipage}[t]{0.5\\textwidth}",
-      "\\end{minipage}",
-      "$0"
-    ],
+    "body": ["\\begin{minipage}[t]{$0\\textwidth}", "\\end{minipage}%"],
     "description": "Add a table"
   },
   "Frame": {
     "prefix": "frame",
+    "body": ["\\begin{frame}", "\t\\frametitle{$1}", "\\end{frame}", "$0"],
+    "description": "Add a beamer frame"
+  },
+  "Figure": {
+    "prefix": "table",
     "body": [
-      "\\begin{frame}",
-      "\t\\frametitle{$1}",
-      "\\end{frame}",
+      "\\begin{figure}",
+      "\t\\centering",
+      "\t\\includegraphics[width=0.9\\textwidth]{./figures/$1}",
+      "\t\\caption{$1}",
+      "\t\\label{fig:$2}",
+      "\\end{figure}",
       "$0"
     ],
-    "description": "Add a beamer frame"
+    "description": "Add a table"
   }
 }
