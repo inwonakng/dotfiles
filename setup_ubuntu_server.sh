@@ -10,4 +10,4 @@ ln -sf ~/dotfiles/.tmux.conf ~/.tmux.conf;
 
 # folders
 ln -snf ~/dotfiles/.ipython ~/.ipython;
-ln -snf ~/dotfiles/nvim-lite ~/.config/nvim;
+ln -snf ~/dotfiles/nvim ~/.config/nvim;
