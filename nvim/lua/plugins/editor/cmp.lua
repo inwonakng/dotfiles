@@ -29,6 +29,7 @@ return {
         { name = "luasnip", priority = 9 },
       }, {
         { name = "copilot", priority = 6 },
+        { name = "codeium", priority = 6 },
         { name = "path", priority = 5 },
         { name = "buffer", priority = 5 },
       }),

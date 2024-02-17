@@ -11,6 +11,7 @@
   "cmp-omni": { "branch": "main", "commit": "4ef610bbd85a5ee4e97e09450c0daecbdc60de86" },
   "cmp-path": { "branch": "main", "commit": "91ff86cd9c29299a64f968ebb45846c485725f23" },
   "cmp_luasnip": { "branch": "master", "commit": "05a9ab28b53f71d1aece421ef32fee2cb857a843" },
+  "codeium.nvim": { "branch": "main", "commit": "cd5913ff5481229b15186293d1d46dd9500789f9" },
   "conform.nvim": { "branch": "master", "commit": "61cff430c9f15770d0c5e68c1b08067223bd94ab" },
   "copilot-cmp": { "branch": "master", "commit": "72fbaa03695779f8349be3ac54fa8bd77eed3ee3" },
   "copilot.lua": { "branch": "master", "commit": "03f825956ec49e550d07875d867ea6e7c4dc8c00" },
