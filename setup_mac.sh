@@ -1,4 +1,4 @@
-bash scripts/install_conda.sh
+bash ~/dotfiles/scripts/install_conda.sh
 
 # folders
 ln -snf ~/dotfiles/.ipython ~/.ipython
