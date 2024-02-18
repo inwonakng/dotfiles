@@ -1,42 +1,71 @@
+local fzf_winopts = require("utils.fzf_winopts")
+
 return {
   "ibhagwan/fzf-lua",
   -- optional for icon support
-  dependencies = { "nvim-tree/nvim-web-devicons" },
+  dependencies = {
+    "nvim-tree/nvim-web-devicons",
+  },
   config = function()
     -- calling `setup` is optional for customization
     require("fzf-lua").setup({})
   end,
   keys = {
-    { "<leader>r", "<cmd>lua require('fzf-lua').resume()<cr>", desc = "Resume previous search" },
+    {
+      "<leader>r",
+      function()
+        require("fzf-lua").resume()
+      end,
+      desc = "Resume previous search",
+    },
     {
       "<leader><space>",
-      "<cmd>lua require('fzf-lua').files()<cr>",
+      function()
+        require("fzf-lua").files({winopts=fzf_winopts.medium.flex})
+      end,
       desc = "Search Files",
     },
     {
       "<leader>/",
-      "<cmd>lua require('fzf-lua').grep()<cr>",
+      function()
+        require("fzf-lua").grep()
+      end,
       desc = "Search File Contents",
     },
     {
       "<leader>sb",
-      "<cmd>lua require('fzf-lua').buffers()<cr>",
+      function()
+        require("fzf-lua").buffers()
+      end,
       desc = "Search Buffers",
     },
     {
       "<leader>ss",
-      "<cmd>lua require('fzf-lua').builtin()<cr>",
+      function()
+        require("fzf-lua").builtin()
+      end,
       desc = "fzf-lua Built-in Commands",
     },
     {
       "<leader>sm",
-      "<cmd>lua require('fzf-lua').tmux_buffers()<cr>",
-      desc = "List Tmux paste buffers",
+      function()
+        require("fzf-lua").tmux_buffers()
+      end,
+      desc = "List Tmux Paste Buffers",
+    },
+    {
+      "<leader>sl",
+      function()
+        require("fzf-lua").lsp_finder({ winopts = fzf_winopts.large.vertical })
+      end,
+      desc = "View LSP finder",
     },
     {
       "<leader>dd",
-      "<cmd>lua require('fzf-lua').dap_commands()<cr>",
+      function()
+        require("fzf-lua").dap_commands()
+      end,
       desc = "Debugger Commands",
     },
-  }
+  },
 }

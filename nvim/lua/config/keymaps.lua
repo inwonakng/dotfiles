@@ -29,6 +29,10 @@ map("n", "0", function()
   end
 end, { desc = "smart zero movement" })
 
+-- Override telescop lsp navigation for fzf-lua
+-- map("n", "<gr>", "<cmd>lua require('fzf-lua').lsp_references()<cr>", { silent = true })
+-- map("n", "<gd>", "<cmd>lua require('fzf-lua').lsp_definitions()<cr>", { silent = true })
+
 -- Override lazyvim behavior to use kitty navigation
 vim.g.kitty_navigator_no_mappings = 1
 

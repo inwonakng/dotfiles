@@ -1,8 +1,50 @@
+local fzf_winopts = require("utils.fzf_winopts")
+
 return {
   "neovim/nvim-lspconfig",
   init = function()
     -- turn off format on save
     vim.g.autoformat = false
+
+    -- override lsp keymaps
+    local keys = require("lazyvim.plugins.lsp.keymaps").get()
+    vim.list_extend(keys, {
+      {
+        "gr",
+        function()
+          require("fzf-lua").lsp_references({ jump_to_single_result = true, winopts = fzf_winopts.large.vertical })
+        end,
+        desc = "View References",
+      },
+      {
+        "gd",
+        function()
+          require("fzf-lua").lsp_definitions({ jump_to_single_result = true, winopts = fzf_winopts.large.vertical })
+        end,
+        desc = "View Definitions",
+      },
+      {
+        "gD",
+        function()
+          require("fzf-lua").lsp_declarations({ jump_to_single_result = true, winopts = fzf_winopts.large.vertical })
+        end,
+        desc = "View Declarations",
+      },
+      {
+        "gi",
+        function()
+          require("fzf-lua").lsp_implementations({ jump_to_single_result = true, winopts = fzf_winopts.large.vertical })
+        end,
+        desc = "View Implementations",
+      },
+      {
+        "gy",
+        function()
+          require("fzf-lua").lsp_typedefs({ jump_to_single_result = true, winopts = fzf_winopts.large.vertical })
+        end,
+        desc = "View Type Definitions",
+      },
+    })
   end,
   ---@class PluginLspOpts
   opts = {

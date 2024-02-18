@@ -15,6 +15,7 @@ vim.opt.rtp:prepend(vim.env.LAZY or lazypath)
 
 local plugins = {
   -- add LazyVim and import its plugins
+  -- override the theme and some icons
   { "LazyVim/LazyVim",
     import = "lazyvim.plugins",
     opts = {
@@ -27,7 +28,6 @@ local plugins = {
     },
   },
   { import = "lazyvim.plugins.extras.vscode" },
-  -- { import = "plugins" },
   { import = "plugins.ui" },
   { import = "plugins.navigation" },
   { import = "plugins.editor" },
