@@ -21,7 +21,7 @@ return {
     {
       "<leader><space>",
       function()
-        require("fzf-lua").files({winopts=fzf_winopts.medium.flex})
+        require("fzf-lua").files()
       end,
       desc = "Search Files",
     },
