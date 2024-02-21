@@ -8,7 +8,3 @@ return {
     { "<C-k>", "<cmd><C-U>KittyNavigateUp<cr>" },
   },
 }
--- map("n", "<C-h>", ":KittyNavigateLeft<cr>", { silent = true })
--- map("n", "<C-l>", ":KittyNavigateRight<cr>", { silent = true })
--- map("n", "<C-j>", ":KittyNavigateDown<cr>", { silent = true })
--- map("n", "<C-k>", ":KittyNavigateUp<cr>", { silent = true })

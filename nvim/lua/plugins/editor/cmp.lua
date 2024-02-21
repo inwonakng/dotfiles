@@ -28,6 +28,7 @@ return {
         { name = "omni", priority = 9 },
         { name = "luasnip", priority = 9 },
       }, {
+        { name = "hledger", priority = 6 },
         { name = "copilot", priority = 6 },
         { name = "codeium", priority = 6 },
         { name = "path", priority = 5 },

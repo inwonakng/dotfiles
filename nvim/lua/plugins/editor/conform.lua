@@ -22,6 +22,13 @@ return {
       ["yaml"] = { "prettier" },
       ["markdown"] = { "prettier" },
       ["markdown.mdx"] = { "prettier" },
+      ["ledger"] = { "ledger-formatter" },
     },
+    formatters = {
+      ledger_formatter = {
+        command = "ledger-formatter",
+
+      },
+    }
   },
 }
