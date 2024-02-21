@@ -71,7 +71,6 @@ unset __conda_setup
 # CUSTOM Settings
 #=====================================
 
-export HOMEBREW_NO_AUTO_UPDATE=true
 
 # Preferred editor for local and remote sessions
 if [[ -n $SSH_CONNECTION ]]; then
@@ -95,11 +94,10 @@ alias latex="latexmk -bibtex -pdf -pvc -output-directory=.cache -quiet -silent"
 
 alias ls="ls --color"
 
-# Add wezterm if it exists
-if [ -d /Applications/WezTerm.app ]; then
-  PATH="$PATH:/Applications/WezTerm.app/Contents/MacOS"
-fi
-
+# # Add wezterm if it exists
+# if [ -d /Applications/WezTerm.app ]; then
+#   PATH="$PATH:/Applications/WezTerm.app/Contents/MacOS"
+# fi
 
 export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:50%:wrap'
 
@@ -109,6 +107,9 @@ set -o vi
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/dotfiles/zsh/.p10k.zsh ]] || source ~/dotfiles/zsh/.p10k.zsh
 
-
-# rebind ssh to kitten for mac
-alias s='kitten ssh'
+# OS Specific stuff
+if [[ "$OSTYPE" == "darwin"* ]]; then
+  export HOMEBREW_NO_AUTO_UPDATE=true
+  # rebind ssh to kitten for mac
+  alias s='kitten ssh'
+fi
