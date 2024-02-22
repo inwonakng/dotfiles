@@ -28,6 +28,7 @@ return {
       ["<leader>o"] = { name = "+obsidian" },
       ["<leader>t"] = { name = "+table mode" },
       ["<leader>d"] = { name = "+debug" },
+      ["<leader>n"] = { name = "+neogen" },
     },
   }
 }
