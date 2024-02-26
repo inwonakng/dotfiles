@@ -17,4 +17,4 @@ end)
 
 local movewindows = hs.hotkey.modal.new()
 
-hyper:bind({}, 'm', nil, function() movewindows:enter() end)
+-- hyper:bind({}, 'm', nil, function() movewindows:enter() end)

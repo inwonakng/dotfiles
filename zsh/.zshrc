@@ -76,7 +76,7 @@ unset __conda_setup
 if [[ -n $SSH_CONNECTION ]]; then
   export EDITOR='vim'
 else
-  export EDITOR='mvim'
+  export EDITOR='nvim'
 fi
 
 # add my preferred local path (for neovim, lazygit etc.)
@@ -101,7 +101,9 @@ alias ls="ls --color"
 
 export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:50%:wrap'
 
-set -o vi
+bindkey -v
+export KEYTIMEOUT=1
+# set -o vi
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.

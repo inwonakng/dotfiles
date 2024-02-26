@@ -1,8 +1,8 @@
 return {
-  "Exafunction/codeium.nvim",
-  cmd = "Codeium",
-  build = ":Codeium Auth",
-  opts = {},
+  -- "Exafunction/codeium.nvim",
+  -- cmd = "Codeium",
+  -- build = ":Codeium Auth",
+  -- opts = {},
   -- event = "BufEnter",
   -- config = function()
   --   vim.g.codeium_disable_binding = 1
