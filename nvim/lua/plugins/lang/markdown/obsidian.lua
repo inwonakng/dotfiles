@@ -6,6 +6,7 @@ return {
   keys = {
     {"<leader>ot", "<cmd>ObsidianTemplate<cr>", desc = "Insert template"},
     {"<leader>od", "<cmd>ObsidianTemplate default.md<cr>", desc = "Insert default template"},
+    {"<leader>oo", "<cmd>ObsidianOpen<cr>", desc = "Open in Obsidian"},
   },
   -- Replace the above line with this if you only want to load obsidian.nvim for markdown files in your vault:
   -- event = {

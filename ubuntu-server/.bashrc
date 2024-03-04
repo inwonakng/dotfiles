@@ -33,5 +33,8 @@ fi
 # set input to vi mode
 set -o vi
 
+# alias for pretty ls
+alias ls="ls --color"
+
 export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:50%:wrap'
 [ -f ~/.fzf.bash ] && source ~/.fzf.bash
