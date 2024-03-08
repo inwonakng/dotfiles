@@ -4,9 +4,10 @@ return {
   lazy = true,
   ft = "markdown",
   keys = {
-    {"<leader>ot", "<cmd>ObsidianTemplate<cr>", desc = "Insert template"},
-    {"<leader>od", "<cmd>ObsidianTemplate default.md<cr>", desc = "Insert default template"},
-    {"<leader>oo", "<cmd>ObsidianOpen<cr>", desc = "Open in Obsidian"},
+    { "<leader>ot", "<cmd>ObsidianTemplate<cr>", desc = "Insert template" },
+    { "<leader>od", "<cmd>ObsidianTemplate default.md<cr>", desc = "Insert default template" },
+    { "<leader>oo", "<cmd>ObsidianOpen<cr>", desc = "Open in Obsidian" },
+    { "<C-CR>", "<cmd>ObsidianFollowLink<cr>", desc = "Follow link" },
   },
   -- Replace the above line with this if you only want to load obsidian.nvim for markdown files in your vault:
   -- event = {
@@ -39,10 +40,10 @@ return {
       -- A map for custom variables, the key should be the variable and the value a function
       substitutions = {},
     },
-    disable_frontmatter=true,
+    disable_frontmatter = true,
     note_frontmatter_func = function(note)
       -- This is equivalent to the default frontmatter function.
-      local out = { tags=note.tags, title="", summary="", anoterhone="" }
+      local out = { tags = note.tags, title = "", summary = "", anoterhone = "" }
       -- `note.metadata` contains any manually added fields in the frontmatter.
       -- So here we just make sure those fields are kept in the frontmatter.
       if note.metadata ~= nil and not vim.tbl_isempty(note.metadata) then
@@ -56,6 +57,9 @@ return {
       print("inserted to table!")
       return out
     end,
+    picker = {
+      name = "fzf-lua",
+    },
 
     -- see below for full list of options 👇
   },

@@ -3,7 +3,7 @@ return {
   lazy = true,
   name = "catppuccin",
   opts = {
-    flavour = "macchiato",
+    flavour = "mocha",
     dim_inactive = {
       enabled = true,
       shade = "dark",

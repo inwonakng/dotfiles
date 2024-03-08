@@ -1,10 +1,10 @@
 return {
   "hrsh7th/nvim-cmp",
   dependencies = {
-    "zbirenbaum/copilot-cmp",
-    "hrsh7th/cmp-nvim-lsp",
     "hrsh7th/cmp-buffer",
     "hrsh7th/cmp-path",
+    "zbirenbaum/copilot-cmp",
+    "hrsh7th/cmp-nvim-lsp",
     "saadparwaiz1/cmp_luasnip",
     "hrsh7th/cmp-omni",
   },
@@ -24,16 +24,16 @@ return {
         return not disabled
       end,
       sources = cmp.config.sources({
-        { name = "nvim_lsp", priority = 10 },
+        { name = "nvim_lsp", priority = 20 },
+        { name = "vimtex", priority = 15 },
+        { name = "path", priority = 10 },
+        { name = "buffer", priority = 10 },
         { name = "omni", priority = 9 },
         { name = "luasnip", priority = 9 },
-      }, {
         { name = "hledger", priority = 6 },
         { name = "copilot", priority = 6 },
-        { name = "codeium", priority = 6 },
-        { name = "path", priority = 5 },
-        { name = "buffer", priority = 5 },
-      }),
+        -- { name = "codeium", priority = 6 },
+      }, {}),
       sorting = {
         priority_weight = 2.0,
         comparators = {

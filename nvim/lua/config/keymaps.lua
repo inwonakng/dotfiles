@@ -49,3 +49,7 @@ if os.getenv("TMUX") then
   map("n", "<C-l>", "<cmd>TmuxNavigateRight<cr>")
   map("n", "<C-\\>", "<cmd>TmuxNavigatePrevious<cr>")
 end
+
+
+-- Backspace to go back to previous file
+-- map("n", "<bs>", ":e #<cr>", {silent=true})
