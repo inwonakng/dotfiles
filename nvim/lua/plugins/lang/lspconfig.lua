@@ -44,6 +44,9 @@ return {
         end,
         desc = "View Type Definitions",
       },
+      -- unbind for comment
+      { "<leader>cc", false },
+      { "<leader>cl", vim.lsp.codelens.run, desc = "Run Codelens", mode = { "n", "v" }, has = "codeLens" },
     })
   end,
   ---@class PluginLspOpts
