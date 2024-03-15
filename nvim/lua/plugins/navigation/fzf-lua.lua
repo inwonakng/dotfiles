@@ -8,7 +8,42 @@ return {
   },
   config = function()
     -- calling `setup` is optional for customization
-    require("fzf-lua").setup({})
+    require("fzf-lua").setup({
+      keymap = {
+        -- These override the default tables completely
+        -- no need to set to `false` to disable a bind
+        -- delete or modify is sufficient
+        builtin = {
+          -- neovim `:tmap` mappings for the fzf win
+          ["<F1>"]        = "toggle-help",
+          ["<F2>"]        = "toggle-fullscreen",
+          -- Only valid with the 'builtin' previewer
+          ["<F3>"]        = "toggle-preview-wrap",
+          ["<F4>"]        = "toggle-preview",
+          -- Rotate preview clockwise/counter-clockwise
+          ["<F5>"]        = "toggle-preview-ccw",
+          ["<F6>"]        = "toggle-preview-cw",
+          ["}"]    = "preview-page-down",
+          ["{"]      = "preview-page-up",
+          ["<S-left>"]    = "preview-page-reset",
+        },
+        fzf = {
+          -- fzf '--bind=' options
+          -- ["ctrl-z"]      = "abort",
+          -- ["ctrl-u"]      = "unix-line-discard",
+          ["ctrl-d"]      = "half-page-down",
+          ["ctrl-u"]      = "half-page-up",
+          ["ctrl-a"]      = "beginning-of-line",
+          ["ctrl-e"]      = "end-of-line",
+          ["alt-a"]       = "toggle-all",
+          -- Only valid with fzf previewers (bat/cat/git/etc)
+          ["f3"]          = "toggle-preview-wrap",
+          ["f4"]          = "toggle-preview",
+          ["}"]  = "preview-page-down",
+          ["{"]    = "preview-page-up",
+        },
+      },
+    })
   end,
   keys = {
     {
@@ -28,7 +63,7 @@ return {
     {
       "<leader>/",
       function()
-        require("fzf-lua").grep()
+        require("fzf-lua").live_grep()
       end,
       desc = "Search File Contents",
     },
