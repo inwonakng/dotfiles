@@ -2,6 +2,12 @@
 -- Default options that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/options.lua
 -- Add any additional options here
 
+vim.filetype.add({
+  extension = {
+    mdx = 'mdx'
+  }
+})
+
 local opt = vim.opt
 
 opt.linebreak = true
@@ -26,4 +32,4 @@ vim.cmd("highlight! HarpoonNumberActive guibg=NONE guifg=#7aa2f7")
 vim.cmd("highlight! HarpoonNumberInactive guibg=NONE guifg=#7aa2f7")
 vim.cmd("highlight! TabLineFill guibg=NONE guifg=white")
 
-opt.conceallevel = 2
+-- opt.conceallevel = 2

@@ -16,15 +16,16 @@ vim.opt.rtp:prepend(vim.env.LAZY or lazypath)
 local plugins = {
   -- add LazyVim and import its plugins
   -- override the theme and some icons
-  { "LazyVim/LazyVim",
+  {
+    "LazyVim/LazyVim",
     import = "lazyvim.plugins",
     opts = {
       colorscheme = "catppuccin",
       icons = {
         kinds = {
           Folder = "󰉋 ",
-        }
-      }
+        },
+      },
     },
   },
   { import = "lazyvim.plugins.extras.vscode" },
@@ -70,5 +71,4 @@ local opts = {
   },
 }
 
-require("config.filetypes")
 require("lazy").setup(plugins, opts)
