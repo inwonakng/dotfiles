@@ -1,3 +1,3 @@
 return {
-  "micangl/cmp-vimtex",
+  -- "micangl/cmp-vimtex",
 }
