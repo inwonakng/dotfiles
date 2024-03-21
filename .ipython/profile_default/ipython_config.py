@@ -812,7 +812,9 @@ c.TerminalInteractiveShell.editing_mode = 'vi'
 #          command identifiers and filters is available under
 #          :ref:`terminal-shortcuts-list`.
 #  Default: []
-# c.TerminalInteractiveShell.shortcuts = []
+c.TerminalInteractiveShell.shortcuts = [
+    {"command": "Ipython:autosugest.accept_or_jump_to_end", "new_keys": ["c-e"]}
+]
 
 ## Show rewritten input, e.g. for autocall.
 #  See also: InteractiveShell.show_rewritten_input
