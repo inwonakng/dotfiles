@@ -635,7 +635,7 @@ c.TerminalInteractiveShell.editing_mode = 'vi'
 
 ## Add shortcuts from 'emacs' insert mode to 'vi' insert mode.
 #  Default: True
-# c.TerminalInteractiveShell.emacs_bindings_in_vi_insert_mode = True
+# c.TerminalInteractiveShell.emacs_bindings_in_vi_insert_mode = False
 
 ## Allows to enable/disable the prompt toolkit history search
 #  Default: True
@@ -813,7 +813,7 @@ c.TerminalInteractiveShell.editing_mode = 'vi'
 #          :ref:`terminal-shortcuts-list`.
 #  Default: []
 c.TerminalInteractiveShell.shortcuts = [
-    {"command": "Ipython:autosugest.accept_or_jump_to_end", "new_keys": ["c-e"]}
+    {"command": "IPython:auto_suggest.accept_or_jump_to_end", "match_keys": ["c-a"]}
 ]
 
 ## Show rewritten input, e.g. for autocall.
