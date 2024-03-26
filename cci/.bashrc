@@ -38,6 +38,10 @@ unset __conda_setup
 # <<< conda initialize <<<
 
 
+# port forwarding for cci
+export http_proxy=http://proxy:8888
+export https_proxy=$http_proxy
+
 # set input to vi mode
 set -o vi
 
