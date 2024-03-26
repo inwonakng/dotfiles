@@ -10,9 +10,9 @@ fi
 
 # User specific aliases and functions
 
-arch=$(uname -i)
+ARCH=$(uname -i)
 
-case $arch in
+case $ARCH in
 x86_64)
 	CONDA_DIR="miniconda-x86"
 	;;
@@ -37,10 +37,6 @@ fi
 unset __conda_setup
 # <<< conda initialize <<<
 
-# set PATH so it includes user's private bin if it exists
-if [ -d "$HOME/.local/bin" ]; then
-	export PATH="$HOME/.local/bin:$PATH"
-fi
 
 # set input to vi mode
 set -o vi
@@ -48,5 +44,13 @@ set -o vi
 # alias for pretty ls
 alias ls="ls --color"
 
-export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:50%:wrap'
-[ -f ~/.fzf.bash ] && source ~/.fzf.bash
+# auxiliary stuff that only works in x86
+if [ $ARCH != "x86_64" ]; then
+  # set PATH so it includes user's private bin if it exists
+  if [ -d "$HOME/.local/bin" ]; then
+    export PATH="$HOME/.local/bin:$PATH"
+  fi
+
+  export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:50%:wrap'
+  [ -f ~/.fzf.bash ] && source ~/.fzf.bash
+fi
