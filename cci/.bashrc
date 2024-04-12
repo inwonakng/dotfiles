@@ -51,6 +51,7 @@ set -o vi
 
 # alias for pretty ls
 alias ls="ls --color"
+alias yank="bash $HOME/dotfiles/scripts/yank"
 
 # FZF option (trigger by ctrl+r)
 export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:50%:wrap';

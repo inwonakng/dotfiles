@@ -7,6 +7,7 @@ return {
       "markdownlint",
       "marksman",
       "prettier",
+      "stylua",
     })
   end,
 }
