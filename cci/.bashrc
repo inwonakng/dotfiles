@@ -12,13 +12,18 @@ fi
 
 ARCH=$(uname -i)
 
+# you can store architecture specific binaries in ~/.local/bin/$ARCH
+# and add to path so you can use system-wide
 case $ARCH in
 x86_64)
 	CONDA_DIR="miniconda-x86"
+	[ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin/x86:$PATH"
+	[ -f ~/.fzf-x86.bash ] && source ~/.fzf-x86.bash
 	;;
 ppc64le)
-	echo "is ppc"
-	CONDA_DIR="miniconda-ppc"
+	CONDA_DIR="miniconda-ppc";
+	[ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin/ppc:$PATH";
+	[ -f ~/.fzf-ppc.bash ] && source ~/.fzf-ppc.bash
 	;;
 esac
 
@@ -37,7 +42,6 @@ fi
 unset __conda_setup
 # <<< conda initialize <<<
 
-
 # port forwarding for cci
 export http_proxy=http://proxy:8888
 export https_proxy=$http_proxy
@@ -48,13 +52,5 @@ set -o vi
 # alias for pretty ls
 alias ls="ls --color"
 
-# auxiliary stuff that only works in x86
-if [ $ARCH != "x86_64" ]; then
-  # set PATH so it includes user's private bin if it exists
-  if [ -d "$HOME/.local/bin" ]; then
-    export PATH="$HOME/.local/bin:$PATH"
-  fi
-
-  export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:50%:wrap'
-  [ -f ~/.fzf.bash ] && source ~/.fzf.bash
-fi
+# FZF option (trigger by ctrl+r)
+export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:50%:wrap';
