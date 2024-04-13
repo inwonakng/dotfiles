@@ -199,7 +199,6 @@ export PATH="$PATH:$(yarn global bin)"
 # Custom aliases
 alias code="/Applications/Visual\ Studio\ Code.app/Contents/Resources/app/bin/code"
 alias latex="latexmk -bibtex -pdf -pvc -output-directory=.cache -quiet -silent"
-alias yank="bash $HOME/dotfiles/scripts/yank"
 
 alias ls="ls --color"
 
