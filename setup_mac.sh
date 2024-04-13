@@ -1,8 +1,8 @@
 bash ~/dotfiles/scripts/install_conda.sh
+bash ~/dotfiles/nvim/install-full.sh
 
 # folders
 ln -snf ~/dotfiles/.ipython ~/.ipython
-ln -snf ~/dotfiles/nvim ~/.config/nvim
 ln -snf ~/dotfiles/wezterm ~/.config/wezterm
 ln -snf ~/dotfiles/kitty ~/.config/kitty
 
