@@ -13,6 +13,8 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(vim.env.LAZY or lazypath)
 
+require("config.commands")
+
 local plugins = {
   -- add LazyVim and import its plugins
   -- override the theme and some icons
@@ -36,6 +38,7 @@ local plugins = {
   { import = "plugins.lang.markdown" },
   { import = "plugins.lang.latex" },
   { import = "plugins.lang.hledger" },
+  { import = "plugins.lang.rust" },
   -- { import = "plugins.lang.python" },
   { import = "plugins.debugging" },
   { import = "plugins.terminal" },

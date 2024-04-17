@@ -8,6 +8,7 @@ return {
       "marksman",
       "prettier",
       "stylua",
+      "codelldb"
     })
   end,
 }

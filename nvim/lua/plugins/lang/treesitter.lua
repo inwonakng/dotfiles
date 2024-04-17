@@ -11,6 +11,7 @@ return {
         "latex",
         "ninja",
         "python",
+        "ron",
         "rst",
         "toml",
         "typescript",

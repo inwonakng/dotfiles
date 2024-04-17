@@ -7,6 +7,7 @@ return {
     "hrsh7th/cmp-nvim-lsp",
     "saadparwaiz1/cmp_luasnip",
     "hrsh7th/cmp-omni",
+    "Saecki/crates.nvim",
   },
   event="InsertEnter",
   opts = function()
@@ -48,6 +49,7 @@ return {
       }),
       sources = cmp.config.sources({
         { name = "nvim_lsp", priority = 20, group=1 },
+        { name = "crates", priority = 20, group=1 },
         { name = "vimtex", priority = 15, group=1 },
         { name = "path", priority = 10, group=1 },
         { name = "buffer", priority = 10, group=1 },
