@@ -19,10 +19,13 @@ x86_64)
 	CONDA_DIR="miniconda-x86"
 	[ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin/x86:$PATH"
 	[ -f ~/.fzf-x86.bash ] && source ~/.fzf-x86.bash
+	export LD_LIBRARY_PATH="/usr/local/cuda-11.2/targets/x86_64-linux/"
+	# export NVM_DIR=~/.nvm
+	# source "${HOME}/.nvm/nvm.sh"
 	;;
 ppc64le)
-	CONDA_DIR="miniconda-ppc";
-	[ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin/ppc:$PATH";
+	CONDA_DIR="miniconda-ppc"
+	[ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin/ppc:$PATH"
 	[ -f ~/.fzf-ppc.bash ] && source ~/.fzf-ppc.bash
 	;;
 esac
@@ -53,4 +56,4 @@ set -o vi
 alias ls="ls --color"
 
 # FZF option (trigger by ctrl+r)
-export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:50%:wrap';
+export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:50%:wrap'

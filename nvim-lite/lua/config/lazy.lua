@@ -28,16 +28,10 @@ local plugins = {
       },
     },
   },
-  { import = "lazyvim.plugins.extras.vscode" },
   { import = "plugins.ui" },
   { import = "plugins.navigation" },
   { import = "plugins.editor" },
   { import = "plugins.lang" },
-  { import = "plugins.lang.markdown" },
-  { import = "plugins.lang.latex" },
-  { import = "plugins.lang.hledger" },
-  -- { import = "plugins.lang.python" },
-  { import = "plugins.debugging" },
   { import = "plugins.terminal" },
 }
 
