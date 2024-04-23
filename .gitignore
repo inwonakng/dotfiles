@@ -4,3 +4,4 @@
 .ipython/profile_default/security
 *.log
 *.sqlite
+tmux/plugins
