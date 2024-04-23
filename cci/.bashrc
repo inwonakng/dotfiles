@@ -51,6 +51,7 @@ export https_proxy=$http_proxy
 
 # set input to vi mode
 set -o vi
+export EDITOR="vim"
 
 # alias for pretty ls
 alias ls="ls --color"
