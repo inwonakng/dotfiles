@@ -1,4 +1,7 @@
 import IPython
+from IPython.core import ultratb
+
+ultratb.VerboseTB._tb_highlight = 'bg:ansired'
 
 ipython = IPython.get_ipython()
 if ipython is not None:
