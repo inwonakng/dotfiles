@@ -33,6 +33,7 @@ fi
 # set input to vi mode
 set -o vi
 export EDITOR="vim"
+bindkey "^E" edit-command-line 
 
 # alias for pretty ls
 alias ls="ls --color"

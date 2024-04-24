@@ -210,7 +210,9 @@ alias ls="ls --color"
 export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:50%:wrap'
 
 export KEYTIMEOUT=1
-# set -o vi
+set -o vi
+export EDITOR=nvim
+bindkey "^E" edit-command-line 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
