@@ -14,7 +14,7 @@ local get_fzf_opts = function()
     fzf_opts = {
       -- process ansi colors
       ["--ansi"] = "",
-      ["--with-nth"] = "1..",
+      ["--with-nth"] = "2..",
       ["--delimiter"] = "\\s",
       ["--tiebreak"] = "begin,index",
     }
@@ -102,12 +102,9 @@ return {
       desc = "Search Files",
     },
     {
-      "<leader>bb",
+      "<leader>sb",
       function()
-        local opts = get_fzf_opts()
-        -- print("search buffers")
-        opts.winopts = fzf_winopts.large.vertical
-        require("fzf-lua").buffers(opts)
+        require("fzf-lua").buffers()
       end,
       desc = "Search Buffers",
     },
