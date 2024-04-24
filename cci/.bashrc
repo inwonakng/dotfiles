@@ -52,7 +52,27 @@ export https_proxy=$http_proxy
 # set input to vi mode
 set -o vi
 export EDITOR="vim"
-bindkey "^E" edit-command-line 
+
+edit_command_line() {
+	# Create a temporary file
+	local TMP_FILE=$(mktemp)
+
+	# Save current command line to the temporary file
+	echo "$READLINE_LINE" >"$TMP_FILE"
+
+	# Open vim to edit the command line
+	vim "$TMP_FILE"
+
+	# Set the command line to the modified contents of the temporary file
+	READLINE_LINE=$(cat "$TMP_FILE")
+	READLINE_POINT=${#READLINE_LINE} # Move the cursor to the end of the line
+
+	# Clean up
+	rm "$TMP_FILE"
+}
+
+# Bind Ctrl+E to the custom function
+bind -x '"\C-e": edit_command_line'
 
 # alias for pretty ls
 alias ls="ls --color"
