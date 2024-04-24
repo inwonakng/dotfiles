@@ -95,6 +95,7 @@ wezterm.on(
       { Background = { Color = background } },
       { Foreground = { Color = foreground } },
       { Attribute = { Intensity = "Bold" } },
+      { Text = tab.index },
       { Text = title },
       { Background = { Color = edge_background } },
       { Foreground = { Color = edge_foreground } },
@@ -132,4 +133,5 @@ return {
 		},
 	},
   show_new_tab_button_in_tab_bar = false,
+  show_tab_index_in_tab_bar = true,
 }
