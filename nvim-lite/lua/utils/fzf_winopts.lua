@@ -34,6 +34,14 @@ return {
         vertical = "up:65%",
       },
     },
+    vertical_reverse = {
+      height = 0.9,
+      width = 0.9,
+      preview = {
+        layout = "vertical",
+        vertical = "down:65%",
+      },
+    },
   },
   full = {
     vertical = {

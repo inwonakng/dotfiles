@@ -7,14 +7,14 @@ local get_fzf_opts = function()
     local fzfutils = require("fzf-lua.utils")
     -- fzf-lua.defaults#defaults.files.fd_opts
     cmd = string.format(
-      [[fd --color=never --type f --hidden --follow --exclude .git -x printf "{}: {/} %s\n"]],
-      -- [[fd --color=never --type f --follow --exclude .git -x echo {} | awk -F/ '{printf "%%s: ", $0; printf "%%s ", $NF; gsub(/^\.\//,"",$0); gsub($NF,"",$0); printf "%s ", $0; print ""}']],
+      -- [[fd --color=never --type f --hidden --follow --exclude .git -x printf "{}: {/} %s\n"]],
+      [[fd --color=never --type f --hidden --follow --exclude .git -x echo {} | awk -F/ '{printf "%%s: ", $0; printf "%%s ", $NF; gsub(/^\.\//,"",$0); gsub($NF,"",$0); printf "%s ", $0; print ""}']],
       fzfutils.ansi_codes.grey("{//}")
     )
     fzf_opts = {
       -- process ansi colors
       ["--ansi"] = "",
-      ["--with-nth"] = "2..",
+      ["--with-nth"] = "1..",
       ["--delimiter"] = "\\s",
       ["--tiebreak"] = "begin,index",
     }
@@ -102,9 +102,12 @@ return {
       desc = "Search Files",
     },
     {
-      "<leader>sb",
+      "<leader>bb",
       function()
-        require("fzf-lua").buffers()
+        local opts = get_fzf_opts()
+        -- print("search buffers")
+        opts.winopts = fzf_winopts.large.vertical
+        require("fzf-lua").buffers(opts)
       end,
       desc = "Search Buffers",
     },

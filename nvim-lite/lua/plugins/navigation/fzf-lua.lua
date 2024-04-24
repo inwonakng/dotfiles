@@ -7,8 +7,8 @@ local get_fzf_opts = function()
     local fzfutils = require("fzf-lua.utils")
     -- fzf-lua.defaults#defaults.files.fd_opts
     cmd = string.format(
-      [[fd --color=never --type f --hidden --follow --exclude .git -x printf "{}: {/} %s\n"]],
-      -- [[fd --color=never --type f --follow --exclude .git -x echo {} | awk -F/ '{printf "%%s: ", $0; printf "%%s ", $NF; gsub(/^\.\//,"",$0); gsub($NF,"",$0); printf "%s ", $0; print ""}']],
+      -- [[fd --color=never --type f --hidden --follow --exclude .git -x printf "{}: {/} %s\n"]],
+      [[fd --color=never --type f --hidden --follow --exclude .git -x echo {} | awk -F/ '{printf "%%s: ", $0; printf "%%s ", $NF; gsub(/^\.\//,"",$0); gsub($NF,"",$0); printf "%s ", $0; print ""}']],
       fzfutils.ansi_codes.grey("{//}")
     )
     fzf_opts = {

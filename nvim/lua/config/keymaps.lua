@@ -10,8 +10,6 @@ map("n", "<C-S-j>", "<cmd>resize -2<cr>", { desc = "Decrease window height" })
 map("n", "<C-S-h>", "<cmd>vertical resize +2<cr>", { desc = "Increase window width" })
 map("n", "<C-S-l>", "<cmd>vertical resize -2<cr>", { desc = "Decrease window width" })
 
--- map("n", "<leader>r", "<cmd>Telescope resume<cr>", { desc = "Resume previous search" })
-
 -- from https://www.reddit.com/r/neovim/comments/187q160/togglehomezero_keymap/
 -- use 0 to do both ^ and 0
 map("n", "0", function()
@@ -29,27 +27,14 @@ map("n", "0", function()
   end
 end, { desc = "smart zero movement" })
 
--- Override telescop lsp navigation for fzf-lua
--- map("n", "<gr>", "<cmd>lua require('fzf-lua').lsp_references()<cr>", { silent = true })
--- map("n", "<gd>", "<cmd>lua require('fzf-lua').lsp_definitions()<cr>", { silent = true })
-
--- Override lazyvim behavior to use kitty navigation
-vim.g.kitty_navigator_no_mappings = 1
-
-map("n", "<C-h>", ":KittyNavigateLeft<cr>", { silent = true })
-map("n", "<C-l>", ":KittyNavigateRight<cr>", { silent = true })
-map("n", "<C-j>", ":KittyNavigateDown<cr>", { silent = true })
-map("n", "<C-k>", ":KittyNavigateUp<cr>", { silent = true })
-
--- vim-tmux-navigator
-if os.getenv("TMUX") then
-  map("n", "<C-h>", "<cmd>TmuxNavigateLeft<cr>")
-  map("n", "<C-j>", "<cmd>TmuxNavigateDown<cr>")
-  map("n", "<C-k>", "<cmd>TmuxNavigateUp<cr>")
-  map("n", "<C-l>", "<cmd>TmuxNavigateRight<cr>")
-  map("n", "<C-\\>", "<cmd>TmuxNavigatePrevious<cr>")
+-- disabled bufferline, using bo to close all other buffers
+map("n", "<leader>bo", function()
+  local bufs = vim.api.nvim_list_bufs()
+  local current_buf = vim.api.nvim_get_current_buf()
+  for _, i in ipairs(bufs) do
+    if i ~= current_buf then
+      vim.api.nvim_buf_delete(i, {})
+    end
+  end
 end
-
-
--- Backspace to go back to previous file
--- map("n", "<bs>", ":e #<cr>", {silent=true})
+, { desc = "delete other buffers" })
