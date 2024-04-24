@@ -80,7 +80,6 @@ wezterm.on(
     end
 
     local edge_foreground = background
-
     local title = tab_title(tab)
 
     -- ensure that the titles fit in the available space,
@@ -95,7 +94,7 @@ wezterm.on(
       { Background = { Color = background } },
       { Foreground = { Color = foreground } },
       { Attribute = { Intensity = "Bold" } },
-      { Text = tab.index },
+      -- { Text = tab.index },
       { Text = title },
       { Background = { Color = edge_background } },
       { Foreground = { Color = edge_foreground } },

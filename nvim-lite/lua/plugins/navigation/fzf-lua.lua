@@ -14,7 +14,7 @@ local get_fzf_opts = function()
     fzf_opts = {
       -- process ansi colors
       ["--ansi"] = "",
-      ["--with-nth"] = "2..",
+      ["--with-nth"] = "1..",
       ["--delimiter"] = "\\s",
       ["--tiebreak"] = "begin,index",
     }
@@ -102,7 +102,7 @@ return {
       desc = "Search Files",
     },
     {
-      "<leader>sb",
+      "<C-s>",
       function()
         require("fzf-lua").buffers()
       end,

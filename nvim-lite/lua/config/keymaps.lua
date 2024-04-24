@@ -3,6 +3,7 @@
 -- Add any additional keymaps here
 
 local map = vim.keymap.set
+local del = vim.keymap.del
 
 -- Resize window using <ctrl> and shift
 map("n", "<C-S-k>", "<cmd>resize +2<cr>", { desc = "Increase window height" })
@@ -30,11 +31,19 @@ end, { desc = "smart zero movement" })
 -- disabled bufferline, using bo to close all other buffers
 map("n", "<leader>bo", function()
   local bufs = vim.api.nvim_list_bufs()
-  local current_buf = vim.api.nvim_get_current_buf()
+  -- local current_buf = vim.api.nvim_get_current_buf()
+  local non_hidden_buffer = {}
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    non_hidden_buffer[vim.api.nvim_win_get_buf(win)] = true
+  end
   for _, i in ipairs(bufs) do
-    if i ~= current_buf then
+    if non_hidden_buffer[i] == nil then
       vim.api.nvim_buf_delete(i, {})
     end
   end
-end
-, { desc = "delete other buffers" })
+end, { desc = "delete hidden buffers" })
+
+-- undo lazyvim keybinds
+del("t", "<esc><esc>")
+del("n", "<leader>w|")
+map("n", "<leader>w\\", "<C-W>v", { desc = "Split Window Right", remap = true })
