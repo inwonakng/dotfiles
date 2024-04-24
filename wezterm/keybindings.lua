@@ -9,12 +9,12 @@ if wezterm.gui then
 end
 utils.list_extend(copy_mode, {
 	{ key = "[", mods = "CTRL", action = act.CopyMode("Close") },
-  {
-    key = 'y',
-    action = act.Multiple({
-      {CopyTo = "ClipboardAndPrimarySelection"},
-    })
-  },
+	{
+		key = "y",
+		action = act.Multiple({
+			{ CopyTo = "ClipboardAndPrimarySelection" },
+		}),
+	},
 	-- { key = "Escape", mods = "NONE", action = act.CopyMode("Close") },
 	{ key = "q", mods = "NONE", action = act.CopyMode("Close") },
 })
@@ -59,6 +59,12 @@ return {
 		-- activation pane selection mode
 		{
 			key = "p",
+			mods = "CMD",
+			action = act.PaneSelect,
+		},
+		-- Just in case I forget how to...
+		{
+			key = "p",
 			mods = "LEADER",
 			action = act.PaneSelect,
 		},
@@ -97,8 +103,8 @@ return {
 		{ key = "m", mods = "LEADER", action = act.ActivateKeyTable({ name = "move_tab", one_shot = false }) },
 		{ key = "s", mods = "LEADER", action = act.ActivateKeyTable({ name = "rotate_pane", one_shot = false }) },
 		-- Or shortcuts to move tab w/o move_tab table. SHIFT is for when caps lock is on
-		{ key = "[", mods = "SHIFT|CTRL", action = act.MoveTabRelative(-1) },
-		{ key = "]", mods = "SHIFT|CTRL", action = act.MoveTabRelative(1) },
+		{ key = "[", mods = "CMD|CTRL", action = act.MoveTabRelative(-1) },
+		{ key = "]", mods = "CMD|CTRL", action = act.MoveTabRelative(1) },
 	},
 	key_tables = {
 		copy_mode = copy_mode,
@@ -127,7 +133,6 @@ return {
 			{ key = "j", action = act.RotatePanes("Clockwise") },
 			{ key = "k", action = act.RotatePanes("CounterClockwise") },
 			{ key = "l", action = act.RotatePanes("Clockwise") },
-
 			{ key = "Escape", action = "PopKeyTable" },
 			{ key = "Enter", action = "PopKeyTable" },
 			{ key = "q", action = "PopKeyTable" },

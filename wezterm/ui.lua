@@ -94,6 +94,7 @@ wezterm.on(
       { Text = wezterm.nerdfonts.ple_left_half_circle_thick },
       { Background = { Color = background } },
       { Foreground = { Color = foreground } },
+      { Attribute = { Intensity = "Bold" } },
       { Text = title },
       { Background = { Color = edge_background } },
       { Foreground = { Color = edge_foreground } },
