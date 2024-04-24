@@ -221,4 +221,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   export HOMEBREW_NO_AUTO_UPDATE=true
   # rebind ssh to kitten for mac
   alias s='kitten ssh'
+  # add wezterm to path
+  export PATH="$PATH:/Applications/WezTerm.app/Contents/MacOS"
 fi
