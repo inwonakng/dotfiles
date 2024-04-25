@@ -32,6 +32,7 @@ local plugins = {
   },
   { import = "lazyvim.plugins.extras.vscode" },
   { import = "plugins.ui" },
+  { import = "plugins.utility" },
   { import = "plugins.navigation" },
   { import = "plugins.editor" },
   { import = "plugins.lang" },
