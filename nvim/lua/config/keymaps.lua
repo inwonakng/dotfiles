@@ -55,4 +55,6 @@ end, { desc = "delete hidden buffers" })
 -- undo lazyvim keybinds
 del("t", "<esc><esc>")
 del("n", "<leader>w|")
+del("n", "<leader>|")
 map("n", "<leader>w\\", "<C-W>v", { desc = "Split Window Right", remap = true })
+map("n", "<leader>\\", "<C-W>v", { desc = "Split Window Right", remap = true })
