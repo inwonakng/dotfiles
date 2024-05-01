@@ -1,118 +1,243 @@
 -- https://www.hammerspoon.org/go/
 local yabai = require("yabai")
 hs.loadSpoon("RecursiveBinder")
-hs.loadSpoon("hs_select_window")
 
-spoon.RecursiveBinder.escapeKeys = { { {}, "escape" }, { { "ctrl" }, "[" } }
+spoon.RecursiveBinder.escapeKeys = {
+	{ {}, "escape" },
+	{ { "ctrl" }, "[" },
+	{ { "cmd" }, "space" },
+}
 
 local singleKey = spoon.RecursiveBinder.singleKey
 
-local function focusTerminal()
-	print("i want to show terminal")
-	local term = hs.application.get("wezterm")
-	print(term)
-	if term == nil then
-		hs.application.launchOrFocus("wezterm")
-		return
-	else
-		if not term:isFrontmost() then
-			-- 	term:hide()
+-- local function focusTerminal()
+-- 	local term = hs.application.get("wezterm")
+-- 	if term == nil then
+-- 		hs.application.launchOrFocus("wezterm")
+-- 		return
+-- 	else
+-- 		if not term:isFrontmost() then
+-- 			term:setFrontmost()
+-- 		end
+-- 	end
+-- end
+
+local function getWindowsCallback(condition)
+	return function(stdout, stderr)
+		windows = hs.json.decode(stdout)
+
+		-- local currentWindow = nil
+		local availableWindows = {}
+		-- get current window
+		for i, w in ipairs(windows) do
+			-- if w["has-focus"] then
+			-- 	currentWindow = w
 			-- else
-			term:setFrontmost()
+			if condition(w) then
+				local text = w["app"]
+				if w["title"] ~= "" then
+					text = w["title"] .. " ‑ " .. w["app"]
+				end
+				appBundleId = hs.application.get(w["app"]):bundleID()
+				appImage = hs.image.imageFromAppBundle(appBundleId)
+				table.insert(availableWindows, {
+					text = text,
+					image = appImage,
+					winId = tostring(w["id"]),
+				})
+				print("available" .. w["app"] .. " ‑ " .. w["app"])
+			end
 		end
+
+		local windowChooser = hs.chooser.new(function(choice)
+			if not choice then
+				return
+			else
+				yabai({ "-m", "window", "--focus", choice["winId"] })
+			end
+		end)
+		windowChooser:choices(availableWindows)
+		windowChooser:rows(10)
+		windowChooser:query(nil)
+		windowChooser:show()
 	end
 end
 
+local function getAppWindows(stdout, stderr)
+	current = hs.json.decode(stdout)
+	yabai(
+		{ "-m", "query", "--windows" },
+		getWindowsCallback(function(w)
+			return w["app"] == current["app"]
+		end)
+	)
+end
+
 local keyMap = {
-	[singleKey({}, "space", "terminal")] = focusTerminal,
-	[singleKey({}, "return", "terminal")] = function()
+	[singleKey({}, "space", "balance")] = function()
 		yabai({ "-m", "space", "balance" })
 	end,
-	[singleKey({}, "l", "w-right")] = function()
-		yabai({ "-m", "window", "--focus", "east" })
+	[singleKey({}, "h", "move left")] = function()
+		yabai({ "-m", "window", "--swap", "west" }, function(_, _)
+			yabai({ "-m", "window", "--display", "west" }, function(_, _)
+				yabai({ "-m", "display", "--focus", "west" })
+			end)
+		end)
 	end,
-	[singleKey({}, "h", "w-left")] = function()
-		yabai({ "-m", "window", "--focus", "west" })
+	[singleKey({}, "l", "move right")] = function()
+		yabai({ "-m", "window", "--swap", "east" }, function(_, _)
+			yabai({ "-m", "window", "--display", "east" }, function(_, _)
+				yabai({ "-m", "display", "--focus", "east" })
+			end)
+		end)
 	end,
-	[singleKey({}, "k", "w-up")] = function()
-		yabai({ "-m", "window", "--focus", "north" })
-	end,
-	[singleKey({}, "j", "w-down")] = function()
-		yabai({ "-m", "window", "--focus", "south" })
-	end,
-	[singleKey({}, "]", "d-left")] = function()
-		yabai({ "-m", "display", "--focus", "east" })
-	end,
-	[singleKey({}, "[", "d-right")] = function()
-		yabai({ "-m", "display", "--focus", "west" })
-	end,
-	[singleKey({}, "f", "float")] = function()
-		yabai({ "-m", "window", "--float", "--grid", "4:4:1:1:2:2" })
-	end,
-	[singleKey({}, "z", "zoom")] = function()
-		yabai({ "-m", "window", "--toggle", "zoom-fullscreen" })
-	end,
-	[singleKey({ "shift" }, "z", "zoom parent")] = function()
-		yabai({ "-m", "window", "--toggle", "zoom-parent" })
-	end,
-	[singleKey({ "control" }, "h", "move left")] = function()
-		yabai({ "-m", "window", "--swap", "west" })
-		yabai({ "-m", "window", "--display", "west" })
-		yabai({ "-m", "display", "--focus", "west" })
-	end,
-	[singleKey({ "control" }, "l", "move right")] = function()
-		yabai({ "-m", "window", "--swap", "east" })
-		yabai({ "-m", "window", "--display", "east" })
-		yabai({ "-m", "display", "--focus", "east" })
-	end,
-	[singleKey({}, "m", "move+")] = {
-		[singleKey({}, "h", "switch left")] = function()
-			yabai({ "-m", "window", "--swap", "west" })
+	[singleKey({}, "s", "search windows+")] = {
+		[singleKey({}, "return", "search all")] = function()
+			yabai(
+				{ "-m", "query", "--windows" },
+				getWindowsCallback(function(_)
+					return true
+				end)
+			)
 		end,
-		[singleKey({}, "l", "switch right")] = function()
-			yabai({ "-m", "window", "--swap", "east" })
+		[singleKey({}, "d", "search in display")] = function()
+			yabai(
+				{ "-m", "query", "--windows", "--display" },
+				getWindowsCallback(function(_)
+					return true
+				end)
+			)
 		end,
-		[singleKey({}, "k", "switch up")] = function()
-			yabai({ "-m", "window", "--swap", "north" })
+		[singleKey({}, "s", "search in space")] = function()
+			yabai(
+				{ "-m", "query", "--windows", "--space" },
+				getWindowsCallback(function(_)
+					return true
+				end)
+			)
 		end,
-		[singleKey({}, "j", "switch down")] = function()
-			yabai({ "-m", "window", "--swap", "south" })
-		end,
-		[singleKey({ "control" }, "h", "switch left")] = function()
-			yabai({ "-m", "window", "--warp", "west" })
-		end,
-		[singleKey({ "control" }, "l", "switch right")] = function()
-			yabai({ "-m", "window", "--warp", "east" })
-		end,
-		[singleKey({ "control" }, "k", "switch up")] = function()
-			yabai({ "-m", "window", "--warp", "north" })
-		end,
-		[singleKey({ "control" }, "j", "switch down")] = function()
-			yabai({ "-m", "window", "--warp", "south" })
+		[singleKey({}, "a", "search in app")] = function()
+			yabai({ "-m", "query", "--windows", "--window" }, getAppWindows)
 		end,
 	},
-	[singleKey({}, "r", "resize+")] = {
-		[singleKey({}, "h", "increase-left")] = function()
-			yabai({ "-m", "window", "--resize", "left:-20:0" })
-		end,
-		[singleKey({}, "l", "increase-right")] = function()
-			yabai({ "-m", "window", "--resize", "right:20:0" })
-		end,
-		[singleKey({}, "k", "increase-top")] = function()
-			yabai({ "-m", "window", "--resize", "top:0:-20" })
-		end,
-		[singleKey({}, "j", "increase-bottom")] = function()
-			yabai({ "-m", "window", "--resize", "bottom:0:20" })
-		end,
-	},
-	[singleKey({}, "s", "search+")] = {
-		[singleKey({}, "s", "search all")] = function()
-			spoon.hs_select_window:selectWindow(false, false)
-		end,
-		[singleKey({}, "a", "search current app")] = function()
-			spoon.hs_select_window:selectWindow(true, false)
-		end,
-	},
+	-- [singleKey({}, "n", "new space")] = function()
+	-- 	yabai({ "-m", "space", "--create" })
+	-- 	yabai({ "-m", "query", "--spaces", "--display" }, function(stdout, stderr)
+	-- 		spaces = hs.json.decode(stdout)
+	-- 		local target_index = nil
+	-- 		for index = 1, #spaces do
+	-- 			local space = spaces[#spaces + 1 - index]
+	-- 			if not space["is-native-fullscreen"] then
+	-- 				target_index = space["index"]
+	-- 				break
+	-- 			end
+	-- 		end
+	-- 		if target_index == nil then
+	-- 			return
+	-- 		else
+	-- 			yabai({ "-m", "space", "--focus", tostring(target_index) })
+	-- 		end
+	-- 	end)
+	-- end,
+	[singleKey({}, "n", "new space")] = function()
+		yabai({ "-m", "space", "--create" })
+	end,
+	[singleKey({}, "d", "delete space")] = function()
+		yabai({ "-m", "space", "--destroy" })
+	end,
 }
 
 hs.hotkey.bind({ "cmd" }, "space", spoon.RecursiveBinder.recursiveBind(keyMap))
+hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "r", function()
+	hs.reload()
+end)
+
+--- Window movments
+hs.hotkey.bind({ "cmd", "ctrl" }, "l", function()
+	yabai({ "-m", "window", "--focus", "east" })
+end)
+hs.hotkey.bind({ "cmd", "ctrl" }, "h", function()
+	yabai({ "-m", "window", "--focus", "west" })
+end)
+hs.hotkey.bind({ "cmd", "ctrl" }, "k", function()
+	yabai({ "-m", "window", "--focus", "north" })
+end)
+hs.hotkey.bind({ "cmd", "ctrl" }, "j", function()
+	yabai({ "-m", "window", "--focus", "south" })
+end)
+
+--- Resize Windows
+hs.hotkey.bind({ "cmd", "alt" }, "h", function()
+	yabai({ "-m", "window", "--resize", "left:-20:0" })
+end)
+hs.hotkey.bind({ "cmd", "alt" }, "l", function()
+	yabai({ "-m", "window", "--resize", "right:20:0" })
+end)
+hs.hotkey.bind({ "cmd", "alt" }, "k", function()
+	yabai({ "-m", "window", "--resize", "top:0:-20" })
+end)
+hs.hotkey.bind({ "cmd", "alt" }, "j", function()
+	yabai({ "-m", "window", "--resize", "bottom:0:20" })
+end)
+
+--- Pin window
+hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "p", function()
+	yabai({ "-m", "window", "--toggle", "sticky" })
+end)
+
+--- Window swapping
+hs.hotkey.bind({ "cmd", "alt", "shift" }, "l", function()
+	yabai({ "-m", "window", "--swap", "east" })
+end)
+hs.hotkey.bind({ "cmd", "alt", "shift" }, "h", function()
+	yabai({ "-m", "window", "--swap", "west" })
+end)
+hs.hotkey.bind({ "cmd", "alt", "shift" }, "k", function()
+	yabai({ "-m", "window", "--swap", "north" })
+end)
+hs.hotkey.bind({ "cmd", "alt", "shift" }, "j", function()
+	yabai({ "-m", "window", "--swap", "south" })
+end)
+
+--- Window warping
+hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "l", function()
+	yabai({ "-m", "window", "--warp", "east" })
+end)
+hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "h", function()
+	yabai({ "-m", "window", "--warp", "west" })
+end)
+hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "k", function()
+	yabai({ "-m", "window", "--warp", "north" })
+end)
+hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "j", function()
+	yabai({ "-m", "window", "--warp", "south" })
+end)
+
+--- Simple window zooms
+hs.hotkey.bind({ "cmd", "ctrl" }, "return", function()
+	yabai({ "-m", "window", "--toggle", "zoom-fullscreen" })
+end)
+hs.hotkey.bind({ "cmd", "alt", "shift" }, "return", function()
+	yabai({ "-m", "window", "--toggle", "zoom-parent" })
+end)
+hs.hotkey.bind({ "alt", "ctrl", "shift" }, "return", function()
+	yabai({ "-m", "window", "--toggle", "float", "--grid", "4:4:1:1:2:2" })
+end)
+
+--- Display movements
+hs.hotkey.bind({ "cmd", "ctrl" }, "]", function()
+	yabai({ "-m", "display", "--focus", "east" })
+end)
+
+hs.hotkey.bind({ "cmd", "ctrl" }, "[", function()
+	yabai({ "-m", "display", "--focus", "west" })
+end)
+
+--- Space movements
+hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "]", function()
+	yabai({ "-m", "space", "--focus", "next" })
+end)
+
+hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "[", function()
+	yabai({ "-m", "space", "--focus", "prev" })
+end)
