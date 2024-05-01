@@ -34,14 +34,18 @@ return {
 		{ key = "j", mods = "CTRL|SHIFT", action = act.DisableDefaultAssignment },
 		{ key = "k", mods = "CTRL|SHIFT", action = act.DisableDefaultAssignment },
 		{ key = "l", mods = "CTRL|SHIFT", action = act.DisableDefaultAssignment },
+		{ key = "]", mods = "CMD|SHIFT", action = act.DisableDefaultAssignment },
+		{ key = "[", mods = "CMD|SHIFT", action = act.DisableDefaultAssignment },
+		{ key = "}", mods = "CMD", action = act.DisableDefaultAssignment },
+		{ key = "{", mods = "CMD", action = act.DisableDefaultAssignment },
 		-- split windows
 		{ key = "\\", mods = "LEADER", action = act.SplitHorizontal({ domain = "CurrentPaneDomain" }) },
 		{ key = "-", mods = "LEADER", action = act.SplitVertical({ domain = "CurrentPaneDomain" }) },
 		-- artifacts from iterm2
 		{ key = "Enter", mods = "CMD|SHIFT", action = act.TogglePaneZoomState },
 		-- { key = "d", mods = "CMD", action = act.CloseCurrentPane({ confirm = false }) },
-		{ key = "]", mods = "CMD", action = act.ActivatePaneDirection("Next") },
-		{ key = "[", mods = "CMD", action = act.ActivatePaneDirection("Prev") },
+		-- { key = "]", mods = "CMD", action = act.ActivatePaneDirection("Next") },
+		-- { key = "[", mods = "CMD", action = act.ActivatePaneDirection("Prev") },
 		-- vim bindings for pane navigation
 		{ key = "h", mods = "LEADER", action = act.ActivatePaneDirection("Left") },
 		{ key = "l", mods = "LEADER", action = act.ActivatePaneDirection("Right") },
@@ -50,6 +54,7 @@ return {
 		{ key = "z", mods = "LEADER", action = act.TogglePaneZoomState },
 		{ key = "d", mods = "LEADER", action = act.CloseCurrentPane({ confirm = false }) },
 		{ key = "v", mods = "LEADER", action = act.ActivateCopyMode },
+		{ key = "f", mods = "LEADER", action = act.ToggleFullScreen },
 		-- bring up command palette
 		{
 			key = ":",
@@ -57,11 +62,11 @@ return {
 			action = wezterm.action.ActivateCommandPalette,
 		},
 		-- activation pane selection mode
-		{
-			key = "p",
-			mods = "CMD",
-			action = act.PaneSelect,
-		},
+		-- {
+		-- 	key = "p",
+		-- 	mods = "CMD",
+		-- 	action = act.PaneSelect,
+		-- },
 		-- Just in case I forget how to...
 		{
 			key = "p",
@@ -147,10 +152,11 @@ return {
 		},
 		-- Key table for moving tabs around
 		{ key = "m", mods = "LEADER", action = act.ActivateKeyTable({ name = "move_tab", one_shot = false }) },
-		{ key = "s", mods = "LEADER", action = act.ActivateKeyTable({ name = "rotate_pane", one_shot = false }) },
+    -- commented out for now, seems bugged
+		-- { key = "s", mods = "LEADER", action = act.ActivateKeyTable({ name = "rotate_pane", one_shot = false }) },
 		-- Or shortcuts to move tab w/o move_tab table. SHIFT is for when caps lock is on
-		{ key = "[", mods = "CMD|CTRL", action = act.MoveTabRelative(-1) },
-		{ key = "]", mods = "CMD|CTRL", action = act.MoveTabRelative(1) },
+		-- { key = "[", mods = "CMD|CTRL", action = act.MoveTabRelative(-1) },
+		-- { key = "]", mods = "CMD|CTRL", action = act.MoveTabRelative(1) },
 	},
 	key_tables = {
 		copy_mode = copy_mode,
@@ -174,15 +180,15 @@ return {
 			{ key = "q", action = "PopKeyTable" },
 			{ key = "[", mods = "CTRL", action = "PopKeyTable" },
 		},
-		rotate_pane = {
-			{ key = "h", action = act.RotatePanes("CounterClockwise") },
-			{ key = "j", action = act.RotatePanes("Clockwise") },
-			{ key = "k", action = act.RotatePanes("CounterClockwise") },
-			{ key = "l", action = act.RotatePanes("Clockwise") },
-			{ key = "Escape", action = "PopKeyTable" },
-			{ key = "Enter", action = "PopKeyTable" },
-			{ key = "q", action = "PopKeyTable" },
-			{ key = "[", mods = "CTRL", action = "PopKeyTable" },
-		},
+		-- rotate_pane = {
+		-- 	{ key = "h", action = act.RotatePanes("CounterClockwise") },
+		-- 	{ key = "j", action = act.RotatePanes("Clockwise") },
+		-- 	{ key = "k", action = act.RotatePanes("CounterClockwise") },
+		-- 	{ key = "l", action = act.RotatePanes("Clockwise") },
+		-- 	{ key = "Escape", action = "PopKeyTable" },
+		-- 	{ key = "Enter", action = "PopKeyTable" },
+		-- 	{ key = "q", action = "PopKeyTable" },
+		-- 	{ key = "[", mods = "CTRL", action = "PopKeyTable" },
+		-- },
 	},
 }

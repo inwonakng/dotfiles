@@ -1,3 +1,8 @@
+# start profiling
+if [ -n "${ZSH_DEBUGRC+1}" ]; then
+    zmodload zsh/zprof
+fi
+
 # Start configuration added by Zim install {{{
 #
 # User configuration sourced by interactive shells
@@ -187,14 +192,8 @@ else
   export EDITOR='nvim'
 fi
 
-# add my preferred local path (for neovim, lazygit etc.)
-export PATH="$HOME/.local/bin:$PATH"
-
-# symlink for docker sock
-export PATH="$PATH:$HOME/.docker/bin"
-
-# for using yarn global packages
-export PATH="$PATH:$(yarn global bin)"
+# add my preferred local path (for neovim, lazygit etc.), docker sock and yarn
+export PATH="$HOME/.local/bin:$PATH:$HOME/.docker/bin:$(yarn global bin)"
 
 # Custom aliases
 alias code="/Applications/Visual\ Studio\ Code.app/Contents/Resources/app/bin/code"
@@ -202,10 +201,6 @@ alias latex="latexmk -bibtex -pdf -pvc -output-directory=.cache -quiet -silent"
 
 alias ls="ls --color"
 
-# # Add wezterm if it exists
-# if [ -d /Applications/WezTerm.app ]; then
-#   PATH="$PATH:/Applications/WezTerm.app/Contents/MacOS"
-# fi
 
 export FZF_DEFAULT_OPTS='--height=40% --preview="cat {}" --preview-window=right:50%:wrap'
 
@@ -223,6 +218,12 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   export HOMEBREW_NO_AUTO_UPDATE=true
   # rebind ssh to kitten for mac
   alias s='kitten ssh'
-  # add wezterm to path
-  export PATH="$PATH:/Applications/WezTerm.app/Contents/MacOS"
+  # add wezterm to path if it exists
+  if [ -d /Applications/WezTerm.app ]; then
+    PATH="$PATH:/Applications/WezTerm.app/Contents/MacOS"
+  fi
+fi
+
+if [ -n "${ZSH_DEBUGRC+1}" ]; then
+    zprof
 fi
