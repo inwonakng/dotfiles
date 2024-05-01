@@ -10,25 +10,14 @@ spoon.RecursiveBinder.escapeKeys = {
 
 local singleKey = spoon.RecursiveBinder.singleKey
 
--- local function focusTerminal()
--- 	local term = hs.application.get("wezterm")
--- 	if term == nil then
--- 		hs.application.launchOrFocus("wezterm")
--- 		return
--- 	else
--- 		if not term:isFrontmost() then
--- 			term:setFrontmost()
--- 		end
--- 	end
--- end
+----------------------------------------
+-- Builds callback function to show the windows in chooser
+----------------------------------------
 
 local function getWindowsCallback(condition)
 	return function(stdout, stderr)
 		windows = hs.json.decode(stdout)
-
-		-- local currentWindow = nil
 		local availableWindows = {}
-		-- get current window
 		for i, w in ipairs(windows) do
 			-- if w["has-focus"] then
 			-- 	currentWindow = w
@@ -63,6 +52,9 @@ local function getWindowsCallback(condition)
 	end
 end
 
+----------------------------------------
+-- Special case for searching for specific app
+----------------------------------------
 local function getAppWindows(stdout, stderr)
 	current = hs.json.decode(stdout)
 	yabai(
@@ -145,6 +137,9 @@ local keyMap = {
 	[singleKey({}, "d", "delete space")] = function()
 		yabai({ "-m", "space", "--destroy" })
 	end,
+	[singleKey({}, "o", "open app")] = function()
+		yabai({ "-m", "space", "--destroy" })
+	end,
 }
 
 hs.hotkey.bind({ "cmd" }, "space", spoon.RecursiveBinder.recursiveBind(keyMap))
@@ -152,7 +147,10 @@ hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "r", function()
 	hs.reload()
 end)
 
---- Window movments
+
+----------------------------------------
+-- Window movments
+----------------------------------------
 hs.hotkey.bind({ "cmd", "ctrl" }, "l", function()
 	yabai({ "-m", "window", "--focus", "east" })
 end)
@@ -166,7 +164,9 @@ hs.hotkey.bind({ "cmd", "ctrl" }, "j", function()
 	yabai({ "-m", "window", "--focus", "south" })
 end)
 
---- Resize Windows
+----------------------------------------
+-- Resize Windows
+----------------------------------------
 hs.hotkey.bind({ "cmd", "alt" }, "h", function()
 	yabai({ "-m", "window", "--resize", "left:-20:0" })
 end)
@@ -180,12 +180,16 @@ hs.hotkey.bind({ "cmd", "alt" }, "j", function()
 	yabai({ "-m", "window", "--resize", "bottom:0:20" })
 end)
 
---- Pin window
-hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "p", function()
-	yabai({ "-m", "window", "--toggle", "sticky" })
+----------------------------------------
+-- Pin window
+----------------------------------------
+hs.hotkey.bind({ "alt", "ctrl" }, "return", function()
+	yabai({ "-m", "window","--toggle","float","--grid", "4:4:1:1:2:2", "--toggle", "sticky" })
 end)
 
---- Window swapping
+----------------------------------------
+-- Window swapping
+----------------------------------------
 hs.hotkey.bind({ "cmd", "alt", "shift" }, "l", function()
 	yabai({ "-m", "window", "--swap", "east" })
 end)
@@ -199,7 +203,9 @@ hs.hotkey.bind({ "cmd", "alt", "shift" }, "j", function()
 	yabai({ "-m", "window", "--swap", "south" })
 end)
 
---- Window warping
+----------------------------------------
+-- Window warping
+----------------------------------------
 hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "l", function()
 	yabai({ "-m", "window", "--warp", "east" })
 end)
@@ -213,7 +219,9 @@ hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "j", function()
 	yabai({ "-m", "window", "--warp", "south" })
 end)
 
---- Simple window zooms
+----------------------------------------
+-- Simple window zooms
+----------------------------------------
 hs.hotkey.bind({ "cmd", "ctrl" }, "return", function()
 	yabai({ "-m", "window", "--toggle", "zoom-fullscreen" })
 end)
@@ -224,7 +232,9 @@ hs.hotkey.bind({ "alt", "ctrl", "shift" }, "return", function()
 	yabai({ "-m", "window", "--toggle", "float", "--grid", "4:4:1:1:2:2" })
 end)
 
---- Display movements
+----------------------------------------
+-- Display movements
+----------------------------------------
 hs.hotkey.bind({ "cmd", "ctrl" }, "]", function()
 	yabai({ "-m", "display", "--focus", "east" })
 end)
@@ -233,11 +243,13 @@ hs.hotkey.bind({ "cmd", "ctrl" }, "[", function()
 	yabai({ "-m", "display", "--focus", "west" })
 end)
 
---- Space movements
-hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "]", function()
+----------------------------------------
+-- Space movements
+----------------------------------------
+hs.hotkey.bind({ "alt", "ctrl" }, "]", function()
 	yabai({ "-m", "space", "--focus", "next" })
 end)
 
-hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "[", function()
+hs.hotkey.bind({ "alt", "ctrl" }, "[", function()
 	yabai({ "-m", "space", "--focus", "prev" })
 end)
