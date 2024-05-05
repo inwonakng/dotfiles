@@ -24,13 +24,12 @@ yabai -m signal --add event=space_changed action="yabai -m window --focus \$(yab
 # focus window after active display changes
 yabai -m signal --add event=display_changed action="yabai -m window --focus \$(yabai -m query --windows --space | jq .[0].id)"
 
-# Space labels
-yabai -m space 1 --label "Main"
-yabai -m space 2 --label "Browser"
+border_options=(
+  style=round
+  width=3.0
+  hidpi=off
+  active_color=0xff51d677
+  inactive_color=0xff363842
+)
 
-# Start
-yabai -m rule --add app="Slack" space="Start"
-yabai -m rule --add app="WezTerm" space="Start"
-
-# Browser
-yabai -m rule --add app="Safari" space="Browser"
+borders "${border_options[@]}" &

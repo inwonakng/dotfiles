@@ -1,35 +1,5 @@
 local fzf_winopts = require("utils.fzf_winopts")
 
-local get_fzf_opts = function()
-  local cmd = nil
-  local fzf_opts = nil
-  if vim.fn.executable("fd") == 1 then
-    local fzfutils = require("fzf-lua.utils")
-    -- fzf-lua.defaults#defaults.files.fd_opts
-    cmd = string.format(
-      -- [[fd --color=never --type f --hidden --follow --exclude .git -x printf "{}: {/} %s\n"]],
-      [[fd --color=never --type f --hidden --follow --exclude .git -x echo {} | awk -F/ '{printf "%%s: ", $0; printf "%%s ", $NF; gsub(/^\.\//,"",$0); gsub($NF,"",$0); printf "%s ", $0; print ""}']],
-      fzfutils.ansi_codes.grey("{//}")
-    )
-    fzf_opts = {
-      -- process ansi colors
-      ["--ansi"] = "",
-      ["--with-nth"] = "1..",
-      ["--delimiter"] = "\\s",
-      ["--tiebreak"] = "begin,index",
-    }
-    -- opts._fmt = opts._fmt or {}
-    -- opts._fmt.from = function(entry, _opts)
-    --   local s = fzfutils.strsplit(entry, ' ')
-    --   return s[3]
-    -- end
-  end
-  return {
-    cmd = cmd,
-    fzf_opts = fzf_opts,
-  }
-end
-
 return {
   "ibhagwan/fzf-lua",
   -- optional for icon support
@@ -95,9 +65,10 @@ return {
     {
       "<leader>ff",
       function()
-        local opts = get_fzf_opts()
-        opts.winopts = fzf_winopts.large.vertical
-        require("fzf-lua").files(opts)
+        require("fzf-lua").files({
+          winopts = fzf_winopts.large.vertical,
+          formatter = "path.filename_first",
+        })
       end,
       desc = "Search Files",
     },

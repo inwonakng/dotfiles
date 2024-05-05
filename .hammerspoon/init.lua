@@ -5,7 +5,7 @@ hs.loadSpoon("RecursiveBinder")
 spoon.RecursiveBinder.escapeKeys = {
 	{ {}, "escape" },
 	{ { "ctrl" }, "[" },
-	{ { "cmd" }, "space" },
+	{ { "alt" }, "space" },
 }
 
 local singleKey = spoon.RecursiveBinder.singleKey
@@ -45,9 +45,30 @@ local function getWindowsCallback(condition)
 				yabai({ "-m", "window", "--focus", choice["winId"] })
 			end
 		end)
+
+		local function handleChooserCancel(event)
+			local mods = event:getFlags()
+			local key = event:getCharacters()
+			local keycode = event:getKeyCode()
+			if not windowChooser:isVisible() then
+				return
+			end
+			-- "[" is keycode 33
+			if keycode == 33 and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
+				-- If 'ctrl+[' is pressed without any modifiers, hide the chooser
+				windowChooser:hide()
+				return true
+			end
+			return false
+		end
+
+		windowChooser:width(50)
 		windowChooser:choices(availableWindows)
 		windowChooser:rows(10)
 		windowChooser:query(nil)
+		windowChooser:showCallback(function()
+			hs.eventtap.new({ hs.eventtap.event.types.keyDown }, handleChooserCancel):start()
+		end)
 		windowChooser:show()
 	end
 end
@@ -65,9 +86,26 @@ local function getAppWindows(stdout, stderr)
 	)
 end
 
-local keyMap = {
+----------------------------------------
+-- Recursive keymap similar to which-keys of nvim
+----------------------------------------
+local baseKeyMap = {
 	[singleKey({}, "space", "balance")] = function()
 		yabai({ "-m", "space", "balance" })
+	end,
+	[singleKey({}, "w", "select window")] = function()
+		visibleWindows = hs.window.visibleWindows()
+		validWindows = {}
+		for i, window in ipairs(visibleWindows) do
+			if window:isVisible() and not window:isMinimized() then
+				table.insert(validWindows, window)
+			end
+		end
+		-- hs.spaces.toggleMissionControl()
+		hs.hints.showTitleThresh = 10
+		hs.hints.titleMaxSize = 30
+		hs.hints.windowHints(validWindows)
+		-- print("screen"..screen..", space"..space)
 	end,
 	[singleKey({}, "h", "move left")] = function()
 		yabai({ "-m", "window", "--swap", "west" }, function(_, _)
@@ -112,28 +150,29 @@ local keyMap = {
 			yabai({ "-m", "query", "--windows", "--window" }, getAppWindows)
 		end,
 	},
+	[singleKey({}, "n", "new space")] = function()
+		yabai({ "-m", "space", "--create" }, function(_, _)
+			yabai({ "-m", "query", "--spaces", "--display" }, function(stdout, stderr)
+				spaces = hs.json.decode(stdout)
+				local target_index = nil
+				for index = 1, #spaces do
+					local space = spaces[#spaces + 1 - index]
+					if not space["is-native-fullscreen"] then
+						target_index = space["index"]
+						break
+					end
+				end
+				if target_index == nil then
+					return
+				else
+					yabai({ "-m", "space", "--focus", tostring(target_index) })
+				end
+			end)
+		end)
+	end,
 	-- [singleKey({}, "n", "new space")] = function()
 	-- 	yabai({ "-m", "space", "--create" })
-	-- 	yabai({ "-m", "query", "--spaces", "--display" }, function(stdout, stderr)
-	-- 		spaces = hs.json.decode(stdout)
-	-- 		local target_index = nil
-	-- 		for index = 1, #spaces do
-	-- 			local space = spaces[#spaces + 1 - index]
-	-- 			if not space["is-native-fullscreen"] then
-	-- 				target_index = space["index"]
-	-- 				break
-	-- 			end
-	-- 		end
-	-- 		if target_index == nil then
-	-- 			return
-	-- 		else
-	-- 			yabai({ "-m", "space", "--focus", tostring(target_index) })
-	-- 		end
-	-- 	end)
 	-- end,
-	[singleKey({}, "n", "new space")] = function()
-		yabai({ "-m", "space", "--create" })
-	end,
 	[singleKey({}, "d", "delete space")] = function()
 		yabai({ "-m", "space", "--destroy" })
 	end,
@@ -142,11 +181,25 @@ local keyMap = {
 	end,
 }
 
-hs.hotkey.bind({ "cmd" }, "space", spoon.RecursiveBinder.recursiveBind(keyMap))
+hs.hotkey.bind({ "alt" }, "space", spoon.RecursiveBinder.recursiveBind(baseKeyMap))
+
+-- local movementKeyMap = {
+-- 	[singleKey({}, "space", "balance")] = function()
+-- 		yabai({ "-m", "space", "balance" })
+-- 	end,
+-- }
+
+-- hs.hotkey.bind({ "ctrl" }, "e", spoon.RecursiveBinder.recursiveBind(baseKeyMap))
 hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "r", function()
 	hs.reload()
 end)
 
+----------------------------------------
+-- Show Mission Control
+----------------------------------------
+hs.hotkey.bind({ "cmd", "ctrl" }, "space", function()
+	hs.spaces.toggleMissionControl()
+end)
 
 ----------------------------------------
 -- Window movments
@@ -167,16 +220,16 @@ end)
 ----------------------------------------
 -- Resize Windows
 ----------------------------------------
-hs.hotkey.bind({ "cmd", "alt" }, "h", function()
+hs.hotkey.bind({ "alt", "shift" }, "h", function()
 	yabai({ "-m", "window", "--resize", "left:-20:0" })
 end)
-hs.hotkey.bind({ "cmd", "alt" }, "l", function()
+hs.hotkey.bind({ "alt", "shift" }, "l", function()
 	yabai({ "-m", "window", "--resize", "right:20:0" })
 end)
-hs.hotkey.bind({ "cmd", "alt" }, "k", function()
+hs.hotkey.bind({ "alt", "shift" }, "k", function()
 	yabai({ "-m", "window", "--resize", "top:0:-20" })
 end)
-hs.hotkey.bind({ "cmd", "alt" }, "j", function()
+hs.hotkey.bind({ "alt", "shift" }, "j", function()
 	yabai({ "-m", "window", "--resize", "bottom:0:20" })
 end)
 
@@ -184,7 +237,14 @@ end)
 -- Pin window
 ----------------------------------------
 hs.hotkey.bind({ "alt", "ctrl" }, "return", function()
-	yabai({ "-m", "window","--toggle","float","--grid", "4:4:1:1:2:2", "--toggle", "sticky" })
+	yabai({ "-m", "window", "--toggle", "float", "--grid", "4:4:1:1:2:2", "--toggle", "sticky" })
+end)
+
+----------------------------------------
+-- Rotate window
+----------------------------------------
+hs.hotkey.bind({ "alt", "shift" }, "return", function()
+	yabai({ "-m", "window", "--toggle", "split" })
 end)
 
 ----------------------------------------
@@ -225,11 +285,8 @@ end)
 hs.hotkey.bind({ "cmd", "ctrl" }, "return", function()
 	yabai({ "-m", "window", "--toggle", "zoom-fullscreen" })
 end)
-hs.hotkey.bind({ "cmd", "alt", "shift" }, "return", function()
+hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "return", function()
 	yabai({ "-m", "window", "--toggle", "zoom-parent" })
-end)
-hs.hotkey.bind({ "alt", "ctrl", "shift" }, "return", function()
-	yabai({ "-m", "window", "--toggle", "float", "--grid", "4:4:1:1:2:2" })
 end)
 
 ----------------------------------------

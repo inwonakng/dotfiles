@@ -84,10 +84,10 @@ return {
 			}),
 		},
 		-- Tab keybindings
-		{ key = "t", mods = "LEADER", action = act.SpawnTab("CurrentPaneDomain") },
+		{ key = "n", mods = "LEADER", action = act.SpawnTab("CurrentPaneDomain") },
 		{ key = "h", mods = "LEADER|CTRL", action = act.ActivateTabRelative(-1) },
 		{ key = "l", mods = "LEADER|CTRL", action = act.ActivateTabRelative(1) },
-		{ key = "n", mods = "LEADER", action = act.ShowTabNavigator },
+		{ key = "t", mods = "LEADER", action = act.ShowTabNavigator },
 		{
 			key = "e",
 			mods = "LEADER",
@@ -152,7 +152,22 @@ return {
 		},
 		-- Key table for moving tabs around
 		{ key = "m", mods = "LEADER", action = act.ActivateKeyTable({ name = "move_tab", one_shot = false }) },
-    -- commented out for now, seems bugged
+		{
+			key = "s",
+			mods = "LEADER",
+			action = wezterm.action_callback(function(win, pane)
+				local tab, window = pane:move_to_new_tab()
+			end),
+		},
+		{
+			key = "s",
+			mods = "LEADER|SHIFT",
+			action = wezterm.action_callback(function(win, pane)
+				local tab, window = pane:move_to_new_window()
+			end),
+		},
+
+		-- commented out for now, seems bugged
 		-- { key = "s", mods = "LEADER", action = act.ActivateKeyTable({ name = "rotate_pane", one_shot = false }) },
 		-- Or shortcuts to move tab w/o move_tab table. SHIFT is for when caps lock is on
 		-- { key = "[", mods = "CMD|CTRL", action = act.MoveTabRelative(-1) },
