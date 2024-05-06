@@ -1,6 +1,8 @@
+yabai -m config debug_output on
+
 # bsp, stack or float
 yabai -m config layout bsp
-yabai -m config window_placement second_child
+yabai -m config window_placement first_child
 
 
 # Padding
@@ -24,12 +26,34 @@ yabai -m signal --add event=space_changed action="yabai -m window --focus \$(yab
 # focus window after active display changes
 yabai -m signal --add event=display_changed action="yabai -m window --focus \$(yabai -m query --windows --space | jq .[0].id)"
 
-border_options=(
-  style=round
-  width=3.0
-  hidpi=off
-  active_color=0xff51d677
-  inactive_color=0xff363842
-)
+# config
+# yabai -m config window_placement first_child
+# yabai -m config mouse_follows_focus on
+# yabai -m config layout bsp
+# yabai -m config window_gap 20
+# yabai -m config top_padding 20
+# yabai -m config bottom_padding 20
+# yabai -m config left_padding 20
+# yabai -m config right_padding 20
 
-borders "${border_options[@]}" &
+# rules
+# yabai -m rule --add app="(^Finder$)" title="(^Finder$)" manage=off
+# yabai -m rule --add app="(^Safari$)" title="(^Safari)" manage=off
+
+# signals
+# yabai -m signal --add event=window_focused action="hs -c \"yabaidirectcall.window_focused(\`printenv YABAI_WINDOW_ID\`)\""
+# yabai -m signal --add event=application_activated action="hs -c \"yabaidirectcall.application_activated(\`printenv YABAI_PROCESS_ID\`)\""
+# yabai -m signal --add event=window_resized action="hs -c \"yabaidirectcall.window_resized(\`printenv YABAI_WINDOW_ID\`)\""
+# yabai -m signal --add event=window_moved action="hs -c \"yabaidirectcall.window_moved(\`printenv YABAI_WINDOW_ID\`)\""
+# yabai -m signal --add event=window_destroyed action="hs -c \"yabaidirectcall.window_destroyed(\`printenv YABAI_WINDOW_ID\`)\""
+
+#
+# border_options=(
+#   style=round
+#   width=3.0
+#   hidpi=off
+#   active_color=0xff51d677
+#   inactive_color=0xff363842
+# )
+#
+# borders "${border_options[@]}" &

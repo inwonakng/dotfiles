@@ -1,20 +1,138 @@
 -- https://www.hammerspoon.org/go/
 local yabai = require("yabai")
-hs.loadSpoon("RecursiveBinder")
+-- local windowAction = require("windowAction")
 
-spoon.RecursiveBinder.escapeKeys = {
-	{ {}, "escape" },
-	{ { "ctrl" }, "[" },
-	{ { "alt" }, "space" },
-}
+local function getSafariTabs()
+	local chooser_data = {}
+	local stat, data = hs.osascript.applescript(
+		'tell application "Safari"\nset winlist to tabs of windows\nset tablist to {}\nrepeat with i in winlist\nif (count of i) > 0 then\nrepeat with currenttab in i\nset tabinfo to {name of currenttab as unicode text, URL of currenttab}\ncopy tabinfo to the end of tablist\nend repeat\nend if\nend repeat\nreturn tablist\nend tell'
+	)
+	-- Notice `output` key and its `arg`. The built-in output contains `browser`, `safari`, `chrome`, `firefon`, `clipboard`, `keystrokes`. You can define new output type if you like.
+	if stat then
+		chooser_data = hs.fnutils.imap(data, function(item)
+			return {
+				text = item[1] .. "-" .. item[2],
+				subText = item[2],
+				image = hs.image.imageFromAppBundle("com.apple.Safari"),
+				output = "safari",
+				arg = item[2],
+			}
+		end)
+	end
+	return chooser_data
+end
 
-local singleKey = spoon.RecursiveBinder.singleKey
+-- hs.loadSpoon("HSearch")
+-- hs.hotkey.bind({ "alt", "shift" }, "space", "Launch Hammerspoon Search", function()
+-- 	spoon.HSearch:toggleShow()
+-- end)
+
+windowCornerRadius = 10
 
 ----------------------------------------
 -- Builds callback function to show the windows in chooser
 ----------------------------------------
 
-local function getWindowsCallback(condition)
+local function bindChooserCancel(chooser)
+	local sendEscape = function(event)
+		local mods = event:getFlags()
+		local key = event:getCharacters()
+		local keycode = event:getKeyCode()
+		if not chooser:isVisible() then
+			return
+		end
+		-- "[" is keycode 33
+		if keycode == 33 and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
+			-- If 'ctrl+[' is pressed without any modifiers, hide the chooser
+			chooser:hide()
+			return true
+		end
+		return false
+	end
+
+	chooser:showCallback(function()
+		hs.eventtap.new({ hs.eventtap.event.types.keyDown }, sendEscape):start()
+	end)
+end
+
+----------------------------------------
+-- Build chooser searching Safari tabs
+----------------------------------------
+
+local function buildTabsChooser()
+	local tabs = getSafariTabs()
+	local tabsChooser = hs.chooser
+		.new(function(chosen)
+			hs.urlevent.openURLWithBundle(chosen.arg, "com.apple.Safari")
+		end)
+		:choices(tabs)
+	bindChooserCancel(tabsChooser)
+	return tabsChooser
+end
+
+----------------------------------------
+-- Build chooser opening app in new tab
+----------------------------------------
+
+local appsChooserMenu = {
+	{
+		text = "Safari",
+		image = hs.image.imageFromAppBundle("com.apple.Safari"),
+		func = function()
+			hs.osascript.applescript('tell application "Safari"\nmake new document\nactivate\nend tell')
+		end,
+	},
+	{
+		text = "Finder",
+		image = hs.image.imageFromAppBundle("com.apple.Finder"),
+		func = function()
+			hs.osascript.applescript('tell application "Finder"\nmake new Finder window\nactivate\nend tell')
+		end,
+	},
+	{
+		text = "WezTerm",
+		image = hs.image.imageFromAppBundle("com.github.wez.WezTerm"),
+		func = function()
+			-- hs.application.open("WezTerm")
+			-- hs.osascript.applescript('tell application "Finder"\nmake new Finder window\nactivate\nend tell')
+			hs.task
+				.new(
+					"/usr/bin/open",
+					function(err, stdout, stderr) end,
+					function(task, stdout, stderr) return true end,
+					{ "-na", "WezTerm" }
+				)
+				:start()
+		end,
+	},
+}
+
+local appsChooserDescription = {}
+local appsChooserActions = {}
+
+for _, menuItem in ipairs(appsChooserMenu) do
+	table.insert(appsChooserDescription, {
+		text = menuItem.text,
+		subText = menuItem.subText,
+		image = menuItem.image,
+	})
+	appsChooserActions[menuItem.text] = menuItem.func
+end
+
+local appsChooser = hs.chooser
+	.new(function(choice)
+		if choice ~= nil then
+			appsChooserActions[choice.text]()
+		end
+	end)
+	:choices(appsChooserDescription)
+bindChooserCancel(appsChooser)
+
+----------------------------------------
+-- Build and show chooser for windows given condition
+----------------------------------------
+
+local function buildAndShowWindowsChooser(condition)
 	return function(stdout, stderr)
 		windows = hs.json.decode(stdout)
 		local availableWindows = {}
@@ -38,7 +156,7 @@ local function getWindowsCallback(condition)
 			end
 		end
 
-		local windowChooser = hs.chooser.new(function(choice)
+		local windowsChooser = hs.chooser.new(function(choice)
 			if not choice then
 				return
 			else
@@ -46,149 +164,172 @@ local function getWindowsCallback(condition)
 			end
 		end)
 
-		local function handleChooserCancel(event)
-			local mods = event:getFlags()
-			local key = event:getCharacters()
-			local keycode = event:getKeyCode()
-			if not windowChooser:isVisible() then
-				return
-			end
-			-- "[" is keycode 33
-			if keycode == 33 and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
-				-- If 'ctrl+[' is pressed without any modifiers, hide the chooser
-				windowChooser:hide()
-				return true
-			end
-			return false
-		end
-
-		windowChooser:width(50)
-		windowChooser:choices(availableWindows)
-		windowChooser:rows(10)
-		windowChooser:query(nil)
-		windowChooser:showCallback(function()
-			hs.eventtap.new({ hs.eventtap.event.types.keyDown }, handleChooserCancel):start()
-		end)
-		windowChooser:show()
+		windowsChooser:choices(availableWindows)
+		windowsChooser:width(50)
+		windowsChooser:rows(10)
+		windowsChooser:query(nil)
+		bindChooserCancel(windowsChooser)
+		windowsChooser:show()
 	end
 end
 
 ----------------------------------------
 -- Special case for searching for specific app
 ----------------------------------------
+
 local function getAppWindows(stdout, stderr)
 	current = hs.json.decode(stdout)
 	yabai(
 		{ "-m", "query", "--windows" },
-		getWindowsCallback(function(w)
+		buildAndShowWindowsChooser(function(w)
 			return w["app"] == current["app"]
 		end)
 	)
 end
 
-----------------------------------------
--- Recursive keymap similar to which-keys of nvim
-----------------------------------------
-local baseKeyMap = {
-	[singleKey({}, "space", "balance")] = function()
-		yabai({ "-m", "space", "balance" })
-	end,
-	[singleKey({}, "w", "select window")] = function()
-		visibleWindows = hs.window.visibleWindows()
-		validWindows = {}
-		for i, window in ipairs(visibleWindows) do
-			if window:isVisible() and not window:isMinimized() then
-				table.insert(validWindows, window)
-			end
-		end
-		-- hs.spaces.toggleMissionControl()
-		hs.hints.showTitleThresh = 10
-		hs.hints.titleMaxSize = 30
-		hs.hints.windowHints(validWindows)
-		-- print("screen"..screen..", space"..space)
-	end,
-	[singleKey({}, "h", "move left")] = function()
-		yabai({ "-m", "window", "--swap", "west" }, function(_, _)
-			yabai({ "-m", "window", "--display", "west" }, function(_, _)
-				yabai({ "-m", "display", "--focus", "west" })
-			end)
-		end)
-	end,
-	[singleKey({}, "l", "move right")] = function()
-		yabai({ "-m", "window", "--swap", "east" }, function(_, _)
-			yabai({ "-m", "window", "--display", "east" }, function(_, _)
-				yabai({ "-m", "display", "--focus", "east" })
-			end)
-		end)
-	end,
-	[singleKey({}, "s", "search windows+")] = {
-		[singleKey({}, "return", "search all")] = function()
-			yabai(
-				{ "-m", "query", "--windows" },
-				getWindowsCallback(function(_)
-					return true
-				end)
-			)
+local mainChooserMenu = {
+	{
+		action = "open_app_window",
+		text = "Open new app window",
+		subText = "Search windows in the current app",
+		func = function()
+			appsChooser:show()
 		end,
-		[singleKey({}, "d", "search in display")] = function()
-			yabai(
-				{ "-m", "query", "--windows", "--display" },
-				getWindowsCallback(function(_)
-					return true
-				end)
-			)
-		end,
-		[singleKey({}, "s", "search in space")] = function()
-			yabai(
-				{ "-m", "query", "--windows", "--space" },
-				getWindowsCallback(function(_)
-					return true
-				end)
-			)
-		end,
-		[singleKey({}, "a", "search in app")] = function()
+	},
+	{
+		action = "search_in_app",
+		text = "Search in app",
+		subText = "Search windows in the current app",
+		func = function()
 			yabai({ "-m", "query", "--windows", "--window" }, getAppWindows)
 		end,
 	},
-	[singleKey({}, "n", "new space")] = function()
-		yabai({ "-m", "space", "--create" }, function(_, _)
-			yabai({ "-m", "query", "--spaces", "--display" }, function(stdout, stderr)
-				spaces = hs.json.decode(stdout)
-				local target_index = nil
-				for index = 1, #spaces do
-					local space = spaces[#spaces + 1 - index]
-					if not space["is-native-fullscreen"] then
-						target_index = space["index"]
-						break
-					end
-				end
-				if target_index == nil then
-					return
-				else
-					yabai({ "-m", "space", "--focus", tostring(target_index) })
-				end
+	{
+		action = "search_in_space",
+		text = "Search in space",
+		subText = "Search windows in the current space",
+		func = function()
+			yabai(
+				{ "-m", "query", "--windows", "--space" },
+				buildAndShowWindowsChooser(function(_)
+					return true
+				end)
+			)
+		end,
+	},
+	{
+		action = "search_all_windows",
+		text = "Search all windows",
+		subText = "Search all windows",
+		func = function()
+			yabai(
+				{ "-m", "query", "--windows" },
+				buildAndShowWindowsChooser(function(_)
+					return true
+				end)
+			)
+		end,
+	},
+	{
+		action = "search_in_window",
+		text = "Search in display",
+		subText = "Search windows in the current display",
+		func = function()
+			yabai(
+				{ "-m", "query", "--windows", "--display" },
+				buildAndShowWindowsChooser(function(_)
+					return true
+				end)
+			)
+		end,
+	},
+	{
+		action = "reload",
+		text = "Reload",
+		subText = "Reload Hammerspoon configuration",
+		func = function()
+			hs.reload()
+		end,
+	},
+	{
+		action = "toggle_gap",
+		text = "Toggle Gap",
+		subText = "Toggles padding and gaps around the current space",
+		func = function()
+			yabai({ "-m", "space", "--toggle", "padding" }, function()
+				yabai({ "-m", "space", "--toggle", "gap" })
 			end)
-		end)
-	end,
-	-- [singleKey({}, "n", "new space")] = function()
-	-- 	yabai({ "-m", "space", "--create" })
-	-- end,
-	[singleKey({}, "d", "delete space")] = function()
-		yabai({ "-m", "space", "--destroy" })
-	end,
-	[singleKey({}, "o", "open app")] = function()
-		yabai({ "-m", "space", "--destroy" })
-	end,
+		end,
+	},
+	{
+		action = "search_tabs",
+		text = "Search Safari Tabs",
+		subText = "Search for open tabs in safari",
+		func = function()
+			buildTabsChooser():show()
+		end,
+	},
 }
 
-hs.hotkey.bind({ "alt" }, "space", spoon.RecursiveBinder.recursiveBind(baseKeyMap))
+local descriptions = {}
+local actions = {}
+for _, menuItem in ipairs(mainChooserMenu) do
+	table.insert(descriptions, {
+		action = menuItem.action,
+		text = menuItem.text,
+		subText = menuItem.subText,
+	})
+	actions[menuItem.action] = menuItem.func
+end
 
--- local movementKeyMap = {
--- 	[singleKey({}, "space", "balance")] = function()
--- 		yabai({ "-m", "space", "balance" })
--- 	end,
--- }
+----------------------------------------
+-- Quick Menu
+----------------------------------------
+local mainChooser = hs.chooser.new(function(option)
+	print("option is detected")
+	print(option)
+	for k, v in pairs(option) do
+		print(k, v)
+	end
+	if option ~= nil then
+		print(option[1])
+		print(option["action"])
+		actions[option["action"]]()
+	end
+end)
+mainChooser:choices(descriptions)
+-- mainChooser:choices(mainChooserMenu)
+bindChooserCancel(mainChooser)
 
+--# reload config
+hs.hotkey.bind({ "alt" }, "return", nil, function()
+	hs.reload()
+end)
+
+--# open main chooser
+hs.hotkey.bind({ "alt" }, "space", nil, function()
+	mainChooser:show()
+end)
+--
+
+----------------------------------------
+-- Show windows
+----------------------------------------
+
+hs.hotkey.bind({ "alt" }, "w", function()
+	visibleWindows = hs.window.visibleWindows()
+	validWindows = {}
+	for i, window in ipairs(visibleWindows) do
+		if window:isVisible() and not window:isMinimized() then
+			table.insert(validWindows, window)
+		end
+	end
+	-- hs.spaces.toggleMissionControl()
+	hs.hints.showTitleThresh = 10
+	hs.hints.titleMaxSize = 30
+	hs.hints.windowHints(validWindows)
+	-- print("screen"..screen..", space"..space)
+end)
 -- hs.hotkey.bind({ "ctrl" }, "e", spoon.RecursiveBinder.recursiveBind(baseKeyMap))
 hs.hotkey.bind({ "cmd", "ctrl", "shift" }, "r", function()
 	hs.reload()
@@ -197,6 +338,7 @@ end)
 ----------------------------------------
 -- Show Mission Control
 ----------------------------------------
+
 hs.hotkey.bind({ "cmd", "ctrl" }, "space", function()
 	hs.spaces.toggleMissionControl()
 end)
@@ -204,6 +346,7 @@ end)
 ----------------------------------------
 -- Window movments
 ----------------------------------------
+
 hs.hotkey.bind({ "cmd", "ctrl" }, "l", function()
 	yabai({ "-m", "window", "--focus", "east" })
 end)
@@ -215,6 +358,26 @@ hs.hotkey.bind({ "cmd", "ctrl" }, "k", function()
 end)
 hs.hotkey.bind({ "cmd", "ctrl" }, "j", function()
 	yabai({ "-m", "window", "--focus", "south" })
+end)
+
+----------------------------------------
+-- Move windows through displays
+----------------------------------------
+
+hs.hotkey.bind({ "cmd", "shift" }, "h", function()
+	yabai({ "-m", "window", "--swap", "west" }, function(_, _)
+		yabai({ "-m", "window", "--display", "west" }, function(_, _)
+			yabai({ "-m", "display", "--focus", "west" })
+		end)
+	end)
+end)
+
+hs.hotkey.bind({ "cmd", "shift" }, "l", function()
+	yabai({ "-m", "window", "--swap", "east" }, function(_, _)
+		yabai({ "-m", "window", "--display", "east" }, function(_, _)
+			yabai({ "-m", "display", "--focus", "east" })
+		end)
+	end)
 end)
 
 ----------------------------------------
@@ -298,6 +461,35 @@ end)
 
 hs.hotkey.bind({ "cmd", "ctrl" }, "[", function()
 	yabai({ "-m", "display", "--focus", "west" })
+end)
+
+----------------------------------------
+-- Create/Delete space
+----------------------------------------
+
+hs.hotkey.bind({ "alt", "ctrl" }, "n", function()
+	yabai({ "-m", "space", "--create" }, function(_, _)
+		yabai({ "-m", "query", "--spaces", "--display" }, function(stdout, stderr)
+			spaces = hs.json.decode(stdout)
+			local target_index = nil
+			for index = 1, #spaces do
+				local space = spaces[#spaces + 1 - index]
+				if not space["is-native-fullscreen"] then
+					target_index = space["index"]
+					break
+				end
+			end
+			if target_index == nil then
+				return
+			else
+				yabai({ "-m", "space", "--focus", tostring(target_index) })
+			end
+		end)
+	end)
+end)
+
+hs.hotkey.bind({ "alt", "ctrl" }, "d", function()
+	yabai({ "-m", "space", "--destroy" })
 end)
 
 ----------------------------------------
