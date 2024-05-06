@@ -22,12 +22,6 @@ local function getSafariTabs()
 	return chooser_data
 end
 
--- hs.loadSpoon("HSearch")
--- hs.hotkey.bind({ "alt", "shift" }, "space", "Launch Hammerspoon Search", function()
--- 	spoon.HSearch:toggleShow()
--- end)
-
-windowCornerRadius = 10
 
 ----------------------------------------
 -- Builds callback function to show the windows in chooser
@@ -41,8 +35,15 @@ local function bindChooserCancel(chooser)
 		if not chooser:isVisible() then
 			return
 		end
+    print(keycode)
+    print(key)
 		-- "[" is keycode 33
 		if keycode == 33 and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
+			-- If 'ctrl+[' is pressed without any modifiers, hide the chooser
+			chooser:hide()
+			return true
+		end
+		if keycode == 49 and mods.alt and not (mods.cmd or mods.shift or mods.ctrl) then
 			-- If 'ctrl+[' is pressed without any modifiers, hide the chooser
 			chooser:hide()
 			return true
@@ -137,9 +138,6 @@ local function buildAndShowWindowsChooser(condition)
 		windows = hs.json.decode(stdout)
 		local availableWindows = {}
 		for i, w in ipairs(windows) do
-			-- if w["has-focus"] then
-			-- 	currentWindow = w
-			-- else
 			if condition(w) then
 				local text = w["app"]
 				if w["title"] ~= "" then
@@ -286,14 +284,7 @@ end
 -- Quick Menu
 ----------------------------------------
 local mainChooser = hs.chooser.new(function(option)
-	print("option is detected")
-	print(option)
-	for k, v in pairs(option) do
-		print(k, v)
-	end
 	if option ~= nil then
-		print(option[1])
-		print(option["action"])
 		actions[option["action"]]()
 	end
 end)
