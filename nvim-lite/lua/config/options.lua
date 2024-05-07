@@ -2,6 +2,8 @@
 -- Default options that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/options.lua
 -- Add any additional options here
 
+vim.g.autoformat = false
+
 vim.filetype.add({
   extension = {
     mdx = 'mdx'
@@ -24,3 +26,11 @@ vim.diagnostic.config({
   update_in_insert = false, -- default to false
   severity_sort = false, -- default to false
 })
+
+-- change colors for harpoon.nvim
+vim.cmd("highlight! HarpoonInactive guibg=NONE guifg=#63698c")
+vim.cmd("highlight! HarpoonActive guibg=NONE guifg=white")
+vim.cmd("highlight! HarpoonNumberActive guibg=NONE guifg=#7aa2f7")
+vim.cmd("highlight! HarpoonNumberInactive guibg=NONE guifg=#7aa2f7")
+vim.cmd("highlight! TabLineFill guibg=NONE guifg=white")
+

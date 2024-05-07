@@ -43,7 +43,19 @@ map("n", "<leader>bo", function()
   end
 end, { desc = "delete hidden buffers" })
 
+-- close all other windows 
+map("n", "<leader>wo", function()
+  local wins = vim.api.nvim_list_wins()
+  for _, i in ipairs(wins) do
+    if i ~= vim.api.nvim_get_current_win() then
+      vim.api.nvim_win_hide(i)
+    end
+  end
+end, { desc = "delete hidden buffers" })
 -- undo lazyvim keybinds
 del("t", "<esc><esc>")
 del("n", "<leader>w|")
+del("n", "<leader>|")
+del("n", "<leader>-")
 map("n", "<leader>w\\", "<C-W>v", { desc = "Split Window Right", remap = true })
+-- map("n", "<leader>\\", "<C-W>v", { desc = "Split Window Right", remap = true })

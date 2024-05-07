@@ -3,9 +3,6 @@ local fzf_winopts = require("utils.fzf_winopts")
 return {
   "neovim/nvim-lspconfig",
   init = function()
-    -- turn off format on save
-    vim.g.autoformat = false
-
     -- override lsp keymaps
     local keys = require("lazyvim.plugins.lsp.keymaps").get()
     vim.list_extend(keys, {
