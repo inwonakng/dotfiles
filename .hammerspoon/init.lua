@@ -22,7 +22,6 @@ local function getSafariTabs()
 	return chooser_data
 end
 
-
 ----------------------------------------
 -- Builds callback function to show the windows in chooser
 ----------------------------------------
@@ -35,8 +34,8 @@ local function bindChooserCancel(chooser)
 		if not chooser:isVisible() then
 			return
 		end
-    print(keycode)
-    print(key)
+		print(keycode)
+		print(key)
 		-- "[" is keycode 33
 		if keycode == 33 and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
 			-- If 'ctrl+[' is pressed without any modifiers, hide the chooser
@@ -97,12 +96,9 @@ local appsChooserMenu = {
 			-- hs.application.open("WezTerm")
 			-- hs.osascript.applescript('tell application "Finder"\nmake new Finder window\nactivate\nend tell')
 			hs.task
-				.new(
-					"/usr/bin/open",
-					function(err, stdout, stderr) end,
-					function(task, stdout, stderr) return true end,
-					{ "-na", "WezTerm" }
-				)
+				.new("/usr/bin/open", function(err, stdout, stderr) end, function(task, stdout, stderr)
+					return true
+				end, { "-na", "WezTerm" })
 				:start()
 		end,
 	},
@@ -393,6 +389,9 @@ end)
 hs.hotkey.bind({ "alt", "ctrl" }, "return", function()
 	yabai({ "-m", "window", "--toggle", "float", "--grid", "4:4:1:1:2:2", "--toggle", "sticky" })
 end)
+hs.hotkey.bind({ "alt" }, "return", function()
+	yabai({ "-m", "window", "--toggle", "float", "--grid", "4:4:1:1:2:2", "--layer", "above" })
+end)
 
 ----------------------------------------
 -- Rotate window
@@ -460,27 +459,54 @@ end)
 
 hs.hotkey.bind({ "alt", "ctrl" }, "n", function()
 	yabai({ "-m", "space", "--create" }, function(_, _)
-		yabai({ "-m", "query", "--spaces", "--display" }, function(stdout, stderr)
-			spaces = hs.json.decode(stdout)
-			local target_index = nil
-			for index = 1, #spaces do
-				local space = spaces[#spaces + 1 - index]
-				if not space["is-native-fullscreen"] then
-					target_index = space["index"]
-					break
+		yabai({ "-m", "query", "--spaces", "--space" }, function(stdout, stderr)
+			current_space = hs.json.decode(stdout)["index"]
+
+			yabai({ "-m", "query", "--spaces", "--display" }, function(stdout, stderr)
+				spaces = hs.json.decode(stdout)
+				local target_index = nil
+				for index = 1, #spaces do
+					local space = spaces[#spaces + 1 - index]
+					if not space["is-native-fullscreen"] then
+						target_index = space["index"]
+						break
+					end
 				end
-			end
-			if target_index == nil then
-				return
-			else
-				yabai({ "-m", "space", "--focus", tostring(target_index) })
-			end
+				if target_index == nil then
+					return
+				else
+					yabai(
+						{ "-m", "space", tostring(target_index), "--move", tostring(current_space + 1) },
+						function(_, _)
+							yabai({ "-m", "space", "--focus", tostring(current_space + 1) })
+						end
+					)
+				end
+			end)
 		end)
 	end)
 end)
 
 hs.hotkey.bind({ "alt", "ctrl" }, "d", function()
-	yabai({ "-m", "space", "--destroy" })
+	yabai({ "-m", "query", "--spaces", "--space" }, function(stdout, stderr)
+		current_space = hs.json.decode(stdout)["index"]
+		yabai({ "-m", "space", "--focus", tostring(current_space - 1) }, function(_, _)
+			yabai({ "-m", "space", tostring(current_space), "--destroy" })
+		end)
+	end)
+end)
+
+hs.hotkey.bind({ "alt", "shift" }, "space", function()
+	yabai({ "-m", "query", "--spaces", "--space" }, function(stdout, stderr)
+		layout = hs.json.decode(stdout)["type"]
+		if layout == "bsp" then
+			yabai({ "-m", "space", "--layout", "float" })
+		else
+			yabai({ "-m", "space", "--layout", "bsp" }, function()
+				yabai({ "-m", "space", "--balance" })
+			end)
+		end
+	end)
 end)
 
 ----------------------------------------
@@ -492,4 +518,15 @@ end)
 
 hs.hotkey.bind({ "alt", "ctrl" }, "[", function()
 	yabai({ "-m", "space", "--focus", "prev" })
+end)
+
+----------------------------------------
+-- Space swapping
+----------------------------------------
+hs.hotkey.bind({ "alt", "ctrl", "shift" }, "]", function()
+	yabai({ "-m", "space", "--move", "next" })
+end)
+
+hs.hotkey.bind({ "alt", "ctrl", "shift" }, "[", function()
+	yabai({ "-m", "space", "--move", "prev" })
 end)
