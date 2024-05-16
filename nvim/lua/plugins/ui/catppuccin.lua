@@ -11,11 +11,12 @@ return {
     },
     custom_highlights = function(colors)
       return {
-        -- Comment = { fg = colors.flamingo },
-        TabLineSel = { bg = colors.pink },
-        CmpBorder = { fg = colors.surface2 },
+        Comment = {fg = "#a3a3a3"}
+        -- Comment = { fg = colors.surface2 },
+        -- TabLineSel = { bg = colors.pink },
+        -- CmpBorder = { fg = colors.surface2 },
         -- Pmenu = { bg = colors.none },
-        Special = { fg = colors.flamingo },
+        -- Special = { fg = colors.flamingo },
       }
     end,
     integrations = {

@@ -1,51 +1,29 @@
 yabai -m config debug_output on
 
 # bsp, stack or float
-yabai -m config layout bsp
-yabai -m config window_placement first_child
-
+yabai -m config layout              bsp
+yabai -m config window_placement    first_child
 
 # Padding
-yabai -m config top_padding 0
-yabai -m config bottom_padding 0
-yabai -m config left_padding 0
-yabai -m config right_padding 0
-yabai -m config window_gap 8
+yabai -m config top_padding         0
+yabai -m config bottom_padding      0
+yabai -m config left_padding        0
+yabai -m config right_padding       0
+yabai -m config window_gap          8
+
+yabai -m window_zoom_persist        on
+yabai -m window_animation_duration  0.0
+yabai -m window_animation_easing    ease_out_circ
+yabai -m window_opacity_duration    0.0
+yabai -m active_window_opacity      1.0
+yabai -m normal_window_opacity      0.90
+yabai -m window_opacity             off
 
 
-# Mouse settings
-# yabai -m config mouse_follows_focus         off
-# yabai -m config focus_follows_mouse         off
-
-# Focus selected window
-yabai -m window --opacity 0.1 && sleep $(yabai -m config window_opacity_duration) && yabai -m window --opacity 0.0
-yabai -m signal --add event=window_destroyed action="yabai -m window --focus \$(yabai -m query --windows --space | jq .[0].id)"
-# focus window after active space changes
-yabai -m signal --add event=space_changed action="yabai -m window --focus \$(yabai -m query --windows --space | jq .[0].id)"
-
-# focus window after active display changes
-yabai -m signal --add event=display_changed action="yabai -m window --focus \$(yabai -m query --windows --space | jq .[0].id)"
-
-# config
-# yabai -m config window_placement first_child
-# yabai -m config mouse_follows_focus on
-# yabai -m config layout bsp
-# yabai -m config window_gap 20
-# yabai -m config top_padding 20
-# yabai -m config bottom_padding 20
-# yabai -m config left_padding 20
-# yabai -m config right_padding 20
-
-# rules
-# yabai -m rule --add app="(^Finder$)" title="(^Finder$)" manage=off
-# yabai -m rule --add app="(^Safari$)" title="(^Safari)" manage=off
-
-# signals
-# yabai -m signal --add event=window_focused action="hs -c \"yabaidirectcall.window_focused(\`printenv YABAI_WINDOW_ID\`)\""
-# yabai -m signal --add event=application_activated action="hs -c \"yabaidirectcall.application_activated(\`printenv YABAI_PROCESS_ID\`)\""
-# yabai -m signal --add event=window_resized action="hs -c \"yabaidirectcall.window_resized(\`printenv YABAI_WINDOW_ID\`)\""
-# yabai -m signal --add event=window_moved action="hs -c \"yabaidirectcall.window_moved(\`printenv YABAI_WINDOW_ID\`)\""
-# yabai -m signal --add event=window_destroyed action="hs -c \"yabaidirectcall.window_destroyed(\`printenv YABAI_WINDOW_ID\`)\""
+# don't control certain apps
+yabai -m rule --add app="^System Settings" manage=off
+yabai -m rule --add app="^Mail"            manage=off
+yabai -m rule --add app="^Calendar"        manage=off
 
 #
 # border_options=(

@@ -351,7 +351,7 @@ end)
 -- Move windows through displays
 ----------------------------------------
 
-hs.hotkey.bind({ "cmd", "shift" }, "h", function()
+hs.hotkey.bind({ "alt", "ctrl" }, "h", function()
 	yabai({ "-m", "window", "--swap", "west" }, function(_, _)
 		yabai({ "-m", "window", "--display", "west" }, function(_, _)
 			yabai({ "-m", "display", "--focus", "west" })
@@ -359,7 +359,7 @@ hs.hotkey.bind({ "cmd", "shift" }, "h", function()
 	end)
 end)
 
-hs.hotkey.bind({ "cmd", "shift" }, "l", function()
+hs.hotkey.bind({ "alt", "ctrl" }, "l", function()
 	yabai({ "-m", "window", "--swap", "east" }, function(_, _)
 		yabai({ "-m", "window", "--display", "east" }, function(_, _)
 			yabai({ "-m", "display", "--focus", "east" })
@@ -509,15 +509,53 @@ hs.hotkey.bind({ "alt", "shift" }, "space", function()
 	end)
 end)
 
+local function get_space_in_display_direction(windows, direction)
+	-- local current_space = nil
+	local target_space = nil
+	for i, space in ipairs(spaces) do
+		if space["has-focus"] then
+			-- current_space = space["index"]
+			if direction == "next" then
+				if i < #spaces then
+					target_space = i + 1
+				else
+					target_space = 1
+				end
+			else
+				if i > 1 then
+					target_space = i - 1
+				else
+					target_space = #spaces
+				end
+			end
+			break
+		end
+	end
+	if target_space ~= nil then
+		return spaces[target_space]["index"]
+	else
+		return nil
+	end
+end
+
 ----------------------------------------
 -- Space movements
 ----------------------------------------
 hs.hotkey.bind({ "alt", "ctrl" }, "]", function()
-	yabai({ "-m", "space", "--focus", "next" })
+	yabai({ "-m", "query", "--spaces", "--display" }, function(stdout, stderr)
+    print(stdout)
+		spaces = hs.json.decode(stdout)
+    new_space = get_space_in_display_direction(spaces, "next")
+    yabai({ "-m", "space", "--focus", tostring(new_space) })
+	end)
 end)
 
 hs.hotkey.bind({ "alt", "ctrl" }, "[", function()
-	yabai({ "-m", "space", "--focus", "prev" })
+	yabai({ "-m", "query", "--spaces", "--display" }, function(stdout, stderr)
+		spaces = hs.json.decode(stdout)
+    new_space = get_space_in_display_direction(spaces, "prev")
+    yabai({ "-m", "space", "--focus", tostring(new_space) })
+	end)
 end)
 
 ----------------------------------------
