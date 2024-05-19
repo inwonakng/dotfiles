@@ -509,23 +509,23 @@ hs.hotkey.bind({ "alt", "shift" }, "space", function()
 	end)
 end)
 
-local function get_space_in_display_direction(windows, direction)
-	-- local current_space = nil
+local function get_space_in_display_direction(spaces, direction)
 	local target_space = nil
 	for i, space in ipairs(spaces) do
 		if space["has-focus"] then
-			-- current_space = space["index"]
 			if direction == "next" then
 				if i < #spaces then
 					target_space = i + 1
 				else
-					target_space = 1
+          target_space = #spaces
+					-- target_space = 1
 				end
 			else
 				if i > 1 then
 					target_space = i - 1
 				else
-					target_space = #spaces
+          target_space = 1
+					-- target_space = #spaces
 				end
 			end
 			break
@@ -538,14 +538,23 @@ local function get_space_in_display_direction(windows, direction)
 	end
 end
 
+local function get_space_by_index(spaces, index)
+  if index > #spaces then return nil
+  else
+    return spaces[index]["index"]
+  end
+end
+
 ----------------------------------------
 -- Space movements
 ----------------------------------------
 hs.hotkey.bind({ "alt", "ctrl" }, "]", function()
 	yabai({ "-m", "query", "--spaces", "--display" }, function(stdout, stderr)
-    print(stdout)
 		spaces = hs.json.decode(stdout)
-    new_space = get_space_in_display_direction(spaces, "next")
+    local new_space = get_space_in_display_direction(spaces, "next")
+    if new_space == nil then
+      return
+    end
     yabai({ "-m", "space", "--focus", tostring(new_space) })
 	end)
 end)
@@ -553,10 +562,31 @@ end)
 hs.hotkey.bind({ "alt", "ctrl" }, "[", function()
 	yabai({ "-m", "query", "--spaces", "--display" }, function(stdout, stderr)
 		spaces = hs.json.decode(stdout)
-    new_space = get_space_in_display_direction(spaces, "prev")
+    local new_space = get_space_in_display_direction(spaces, "prev")
+    if new_space == nil then
+      return
+    end
     yabai({ "-m", "space", "--focus", tostring(new_space) })
 	end)
 end)
+
+for i = 1, 10 do
+  local key = tostring(i)
+  if i == 10 then
+    key = "0"
+  end
+  hs.hotkey.bind({"alt", "ctrl"}, key, function()
+    print("we ant to go 1")
+    yabai({ "-m", "query", "--spaces", "--display" }, function(stdout, stderr)
+      spaces = hs.json.decode(stdout)
+      local new_space = get_space_by_index(spaces, i)
+      if new_space == nil then
+        return
+      end
+      yabai({ "-m", "space", "--focus", tostring(new_space) })
+    end)
+  end)
+end
 
 ----------------------------------------
 -- Space swapping
