@@ -16,15 +16,15 @@ ARCH=$(uname -i)
 # and add to path so you can use system-wide
 case $ARCH in
 x86_64)
-	CONDA_DIR="miniconda-x86"
   POSTFIX="x86"
 	export LD_LIBRARY_PATH="/usr/local/cuda-11.2/targets/x86_64-linux/"
 	;;
 ppc64le)
-	CONDA_DIR="miniconda-ppc"
   POSTFIX="ppc"
 	;;
 esac
+
+CONDA_DIR="miniconda-$POSTFIX"
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
