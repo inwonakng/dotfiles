@@ -192,8 +192,8 @@ else
   export EDITOR='nvim'
 fi
 
-# add my preferred local path (for neovim, lazygit etc.), docker sock and yarn
-export PATH="$HOME/.local/bin:$PATH:$HOME/.docker/bin:$(yarn global bin)"
+# add my preferred local path (for neovim, lazygit etc.), docker sock 
+export PATH="$HOME/.local/bin:$PATH:$HOME/.docker/bin"
 
 # Custom aliases
 alias code="/Applications/Visual\ Studio\ Code.app/Contents/Resources/app/bin/code"
@@ -227,3 +227,4 @@ fi
 if [ -n "${ZSH_DEBUGRC+1}" ]; then
     zprof
 fi
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion

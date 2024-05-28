@@ -18,7 +18,7 @@ case $ARCH in
 x86_64)
 	CONDA_DIR="miniconda-x86"
   POSTFIX="x86"
-	export LD_LIBRARY_PATH="/usr/local/cuda-11.2/targets/x86_64-linux/"
+	# export LD_LIBRARY_PATH="/usr/local/cuda-11.2/targets/x86_64-linux/"
 	;;
 ppc64le)
 	CONDA_DIR="miniconda-ppc"
@@ -28,14 +28,14 @@ esac
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$("$HOME/scratch/$CONDA_DIR/bin/conda" 'shell.bash' 'hook' 2>/dev/null)"
+__conda_setup="$("$HOME/$CONDA_DIR/bin/conda" 'shell.bash' 'hook' 2>/dev/null)"
 if [ $? -eq 0 ]; then
 	eval "$__conda_setup"
 else
-	if [ -f "$HOME/scratch/$CONDA_DIR/etc/profile.d/conda.sh" ]; then
-		. "$HOME/scratch/$CONDA_DIR/etc/profile.d/conda.sh"
+	if [ -f "$HOME/$CONDA_DIR/etc/profile.d/conda.sh" ]; then
+		. "$HOME/$CONDA_DIR/etc/profile.d/conda.sh"
 	else
-		export PATH="$HOME/scratch/$CONDA_DIR/bin:$PATH"
+		export PATH="$HOME/$CONDA_DIR/bin:$PATH"
 	fi
 fi
 unset __conda_setup
