@@ -44,10 +44,6 @@ unset __conda_setup
 [ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin/$POSTFIX:$PATH"
 [ -f "~/.fzf-$POSTFIX.bash" ] && source "~/.fzf-$POSTFIX.bash"
 
-# port forwarding for cci
-export http_proxy=http://proxy:8888
-export https_proxy=$http_proxy
-
 # set input to vi mode
 set -o vi
 export EDITOR="vim"
