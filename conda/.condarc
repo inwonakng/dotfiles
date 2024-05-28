@@ -1,0 +1,5 @@
+channels:
+  - https://ftp.osuosl.org/pub/open-ce/current/
+  - conda-forge
+  - defaults
+auto_activate_base: false
