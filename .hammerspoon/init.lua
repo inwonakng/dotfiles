@@ -26,32 +26,38 @@ end
 -- Builds callback function to show the windows in chooser
 ----------------------------------------
 
-local function bindChooserCancel(chooser)
-	local sendEscape = function(event)
+local function bindChooserKeys(chooser)
+	local captureHotkeys = function(event)
 		local mods = event:getFlags()
-		local key = event:getCharacters()
+		local key = event:getCharacters(true) -- the true arg cleans any modifiers from the key
 		local keycode = event:getKeyCode()
 		if not chooser:isVisible() then
 			return
 		end
-		print(keycode)
-		print(key)
+    -- print("keypress!!!")
+		-- print(keycode)
+		-- print("keychar: '"..key.."'")
 		-- "[" is keycode 33
-		if keycode == 33 and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
-			-- If 'ctrl+[' is pressed without any modifiers, hide the chooser
+		if key == "[" and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
 			chooser:hide()
 			return true
-		end
-		if keycode == 49 and mods.alt and not (mods.cmd or mods.shift or mods.ctrl) then
-			-- If 'ctrl+[' is pressed without any modifiers, hide the chooser
+    elseif key == " " and mods.alt and not (mods.cmd or mods.shift or mods.ctrl) then
 			chooser:hide()
 			return true
-		end
+    elseif key == "d" and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
+      local selected = chooser:selectedRow()
+      chooser:selectedRow(selected + 5)
+      return true
+    elseif key == "u" and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
+      local selected = chooser:selectedRow()
+      chooser:selectedRow(selected - 5)
+      return true
+    end
 		return false
 	end
 
 	chooser:showCallback(function()
-		hs.eventtap.new({ hs.eventtap.event.types.keyDown }, sendEscape):start()
+		hs.eventtap.new({ hs.eventtap.event.types.keyDown }, captureHotkeys):start()
 	end)
 end
 
@@ -66,7 +72,7 @@ local function buildTabsChooser()
 			hs.urlevent.openURLWithBundle(chosen.arg, "com.apple.Safari")
 		end)
 		:choices(tabs)
-	bindChooserCancel(tabsChooser)
+	bindChooserKeys(tabsChooser)
 	return tabsChooser
 end
 
@@ -123,7 +129,7 @@ local appsChooser = hs.chooser
 		end
 	end)
 	:choices(appsChooserDescription)
-bindChooserCancel(appsChooser)
+bindChooserKeys(appsChooser)
 
 ----------------------------------------
 -- Build and show chooser for windows given condition
@@ -162,7 +168,7 @@ local function buildAndShowWindowsChooser(condition)
 		windowsChooser:width(50)
 		windowsChooser:rows(10)
 		windowsChooser:query(nil)
-		bindChooserCancel(windowsChooser)
+		bindChooserKeys(windowsChooser)
 		windowsChooser:show()
 	end
 end
@@ -286,7 +292,7 @@ local mainChooser = hs.chooser.new(function(option)
 end)
 mainChooser:choices(descriptions)
 -- mainChooser:choices(mainChooserMenu)
-bindChooserCancel(mainChooser)
+bindChooserKeys(mainChooser)
 
 --# reload config
 hs.hotkey.bind({ "alt" }, "return", nil, function()

@@ -25,6 +25,8 @@ yabai -m rule --add app="^System Settings"  manage=off
 yabai -m rule --add app="^Mail"             manage=off
 yabai -m rule --add app="^Calendar"         manage=off
 yabai -m rule --add app="^Activity Monitor" manage=off
+yabai -m rule --add app="^Cisco AnyConnect Secure Mobility Client" manage=off
+yabai -m rule --add app="^FaceTime" manage=off
 
 #
 # border_options=(

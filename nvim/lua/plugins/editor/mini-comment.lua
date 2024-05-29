@@ -1,14 +1,13 @@
 return {
   "echasnovski/mini.comment",
-  event="VeryLazy",
+  event = "VeryLazy",
   dependencies = {
     {
-      "JoosepAlviste/nvim-ts-context-commentstring",
-      lazy = true,
-      opts = {
-        enable_autocmd = false,
-      },
-    }
+      "folke/ts-comments.nvim",
+      opts = {},
+      event = "VeryLazy",
+      enabled = vim.fn.has("nvim-0.10.0") == 1,
+    },
   },
   opts = {
     options = {
@@ -20,14 +19,14 @@ return {
     mappings = {
       -- Toggle comment (like `gcip` - comment inner paragraph) for both
       -- Normal and Visual modes
-      comment = '<leader>cc',
+      comment = "<leader>cc",
       -- Toggle comment on current line
-      comment_line = '<leader>cc',
+      comment_line = "<leader>cc",
       -- Toggle comment on visual selection
-      comment_visual = '<leader>cc',
+      comment_visual = "<leader>cc",
       -- Define 'comment' textobject (like `dgc` - delete whole comment block)
       -- Works also in Visual mode if mapping differs from `comment_visual`
-      textobject = '<leader>cc',
+      textobject = "<leader>cc",
     },
-  }
+  },
 }

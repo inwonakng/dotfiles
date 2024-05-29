@@ -44,6 +44,7 @@ return {
       -- unbind for comment
       { "<leader>cc", false },
       { "<leader>cl", vim.lsp.codelens.run, desc = "Run Codelens", mode = { "n", "v" }, has = "codeLens" },
+      -- { "<leader>cc", function() print("U typed cc!") end, desc = "test override", mode = { "n", "v" } },
     })
   end,
   ---@class PluginLspOpts

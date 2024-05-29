@@ -58,12 +58,8 @@ del("n", "<leader>w|")
 del("n", "<leader>|")
 del("n", "<leader>-")
 
-
--- del("n", "<leader>sr")
+-- remap window split key from lazyvim
 map("n", "<leader>w\\", "<C-W>v", { desc = "Split Window Right", remap = true })
--- map("n", "<leader>\\", "<C-W>v", { desc = "Split Window Right", remap = true })
---
-
 
 -- Tab Management
 del("n", "<leader><tab>l")
