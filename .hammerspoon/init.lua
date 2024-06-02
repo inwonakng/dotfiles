@@ -470,75 +470,44 @@ local function getCurrentScreen()
 end
 
 hs.hotkey.bind({ "alt", "ctrl" }, "n", function()
-	local current = getCurrentScreen():id()
-	hs.spaces.addSpaceToScreen(current)
-	-- yabai({ "-m", "space", "--create" }, function(_, _)
-	-- 	yabai({ "-m", "query", "--spaces", "--space" }, function(stdout, stderr)
-	-- 		current_space = hs.json.decode(stdout)["index"]
+	-- local current = getCurrentScreen():id()
+	-- hs.spaces.addSpaceToScreen(current)
+	yabai({ "-m", "space", "--create" }, function(_, _)
+		yabai({ "-m", "query", "--spaces", "--space" }, function(stdout, stderr)
+			current_space = hs.json.decode(stdout)["index"]
 
-	-- 		yabai({ "-m", "query", "--spaces", "--display" }, function(stdout, stderr)
-	-- 			spaces = hs.json.decode(stdout)
-	-- 			local target_index = nil
-	-- 			for index = 1, #spaces do
-	-- 				local space = spaces[#spaces + 1 - index]
-	-- 				if not space["is-native-fullscreen"] then
-	-- 					target_index = space["index"]
-	-- 					break
-	-- 				end
-	-- 			end
-	-- 			if target_index == nil then
-	-- 				return
-	-- 			else
-	-- 				yabai(
-	-- 					{ "-m", "space", tostring(target_index), "--move", tostring(current_space + 1) },
-	-- 					function(_, _)
-	-- 						yabai({ "-m", "space", "--focus", tostring(current_space + 1) })
-	-- 					end
-	-- 				)
-	-- 			end
-	-- 		end)
-	-- 	end)
-	-- end)
+			yabai({ "-m", "query", "--spaces", "--display" }, function(stdout, stderr)
+				spaces = hs.json.decode(stdout)
+				local target_index = nil
+				for index = 1, #spaces do
+					local space = spaces[#spaces + 1 - index]
+					if not space["is-native-fullscreen"] then
+						target_index = space["index"]
+						break
+					end
+				end
+				if target_index == nil then
+					return
+				else
+					yabai(
+						{ "-m", "space", tostring(target_index), "--move", tostring(current_space + 1) },
+						function(_, _)
+							yabai({ "-m", "space", "--focus", tostring(current_space + 1) })
+						end
+					)
+				end
+			end)
+		end)
+	end)
 end)
 
 hs.hotkey.bind({ "alt", "ctrl" }, "d", function()
-	local currentScreenUUID = getCurrentScreen():getUUID()
-	local currentSpaceId = hs.spaces.focusedSpace()
-	local allSpacesOnScreen = hs.spaces.allSpaces()[currentScreenUUID]
-	print("current screen id " .. currentScreenUUID)
-	-- no space to move to, don't delete.
-	if #allSpacesOnScreen == 1 then
-		return
-	end
-	local currentSpaceIndex = nil
-	for i, space in ipairs(allSpacesOnScreen) do
-		if space == currentSpaceId then
-			currentSpaceIndex = i
-			break
-		end
-	end
-	if currentSpaceIndex == nil then
-		return
-	end
-	print("my index " .. tostring(currentSpaceIndex) .. " and " .. tostring(allSpacesOnScreen[currentSpaceIndex]))
-	if currentSpaceIndex == 1 and #allSpacesOnScreen > 1 then
-		print("I am the first one, I want " .. allSpacesOnScreen[2])
-		hs.spaces.gotoSpace(allSpacesOnScreen[2])
-	else
-		print("I am NOT the first one, I want " .. allSpacesOnScreen[currentSpaceIndex - 1])
-		hs.spaces.gotoSpace(allSpacesOnScreen[currentSpaceIndex - 1])
-	end
-	print("I am going to delete " .. tostring(currentSpaceId) .. " " .. currentSpaceIndex)
-	-- hs.timer.doAfter(1, function()
-  hs.spaces.removeSpace(currentSpaceId, false)
-	-- end)
-	-- hs.spaces.removeSpace(currentSpaceIndex)
-	-- print("first goto "..allSpacesOnScreen[currentSpaceIndex])
-	-- print(allSpacesOnScreen[currentSpaceIndex] == currentSpaceId)
-	-- hs.spaces.gotoSpace(allSpacesOnScreen[currentSpaceIndex])
-	-- print("second goto "..currentSpaceId)
-	-- hs.spaces.gotoSpace(currentSpaceId)
-	-- hs.spaces.gotoSpace(currentSpaceId)
+  yabai({ "-m", "query", "--spaces", "--space" }, function(stdout, stderr)
+		current_space = hs.json.decode(stdout)["index"]
+		yabai({ "-m", "space", "--focus", tostring(current_space - 1) }, function(_, _)
+			yabai({ "-m", "space", tostring(current_space), "--destroy" })
+		end)
+	end)
 end)
 
 hs.hotkey.bind({ "alt", "shift" }, "space", function()
