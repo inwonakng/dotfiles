@@ -8,6 +8,12 @@ function parse_conda_env {
 function parse_cwd {
 	local dir=$PWD
 	local max_length=40
+  local home_dir=$HOME
+
+  # Replace home directory with ~
+  if [[ $dir == $home_dir* ]]; then
+      dir="~${dir#$home_dir}"
+  fi
 
 	if [ ${#dir} -le $max_length ]; then
 		echo "$dir"
