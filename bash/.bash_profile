@@ -5,6 +5,6 @@ if [ -f ~/.bashrc ]; then
 	. ~/.bashrc
 fi
 
-if [ -f ~/.bash_custom_prompt ]; then
-	. ~/.bash_custom_prompt
+if [ -f ~/.bash_utils/prompt ]; then
+	. ~/.bash_utils/prompt
 fi
