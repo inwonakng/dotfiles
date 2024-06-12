@@ -30,6 +30,25 @@ function parse_cwd {
 	fi
 }
 
+function newline_if_needed {
+    # Save the cursor position
+    echo -ne '\e7'
+    # Move the cursor to the beginning of the current line
+    echo -ne '\e[1G'
+    # Check if the cursor is at the beginning of the line (column 1)
+    echo -ne '\e[6n'
+    read -sdR cursor_position
+    cursor_position=${cursor_position#*[}
+    cursor_position=${cursor_position%;*}
+    if [ "$cursor_position" -gt 1 ]; then
+        # Restore the cursor position and print a newline if not at the top
+        echo -ne '\e8\n'
+    else
+        # Restore the cursor position
+        echo -ne '\e8'
+    fi
+}
+
 WHITE="\[\e[0m\]"
 GREEN="\[\e[32m\]"
 BROWN="\[\e[33m\]"
@@ -42,3 +61,7 @@ PS1="$GREEN"' \D{%Y-%m-%d} '
 PS1+="$BLUE"'  $(parse_cwd) '
 PS1+="$BROWN"'$(parse_conda_env)\n'
 PS1+="$WHITE"'\u@\h'"$CYAN"' → '"$WHITE"
+
+# Print newline AFTER executing a command
+PROMPT_COMMAND="export PROMPT_COMMAND=echo"
+alias clear="unset PROMPT_COMMAND; clear; PROMPT_COMMAND='export PROMPT_COMMAND=echo'"
