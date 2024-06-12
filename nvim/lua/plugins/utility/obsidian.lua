@@ -40,6 +40,11 @@ return {
       -- A map for custom variables, the key should be the variable and the value a function
       substitutions = {},
     },
+    daily_notes={
+      folder="daily",
+      date_format="%Y-%m-%d",
+      template="default",
+    },
     disable_frontmatter = true,
     note_frontmatter_func = function(note)
       -- This is equivalent to the default frontmatter function.
