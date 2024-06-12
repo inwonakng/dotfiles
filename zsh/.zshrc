@@ -195,14 +195,14 @@ autoload -Uz promptinit && promptinit
 #=====================================
 
 # For NVM setup
-export NVM_DIR=~/.nvm
+export NVM_DIR="$HOME/.nvm"
 if [[ "$OSTYPE" == "darwin"* ]]; then
-  nvim_prefix=$(brew --prefix nvm)
+  nvm_prefix=$(brew --prefix nvm)
 else
-  nvim_prefix="${HOME}/.nvm"
+  nvm_prefix="${HOME}/.nvm"
 fi
 
-source "${nvim_prefix}/nvm.sh"
+source "${nvm_prefix}/nvm.sh"
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
 __conda_setup="$('/Users/inwon/miniconda3/bin/conda' 'shell.zsh' 'hook' 2> /dev/null)"

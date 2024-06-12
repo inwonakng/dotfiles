@@ -1,0 +1,44 @@
+# Function to get current conda environment name
+function parse_conda_env {
+	if [[ -n $CONDA_DEFAULT_ENV ]]; then
+		echo "($CONDA_DEFAULT_ENV)"
+	fi
+}
+
+function parse_cwd {
+	local dir=$PWD
+	local max_length=40
+
+	if [ ${#dir} -le $max_length ]; then
+		echo "$dir"
+	else
+		# Split the path into an array of directories
+		IFS='/' read -r -a parts <<<"$dir"
+		local length=${#parts[@]}
+
+		# Keep the first part, last three parts, and truncate the middle
+		local first_part=${parts[0]}
+		local truncated_parts=("${parts[@]: -3}")
+
+		# Join the truncated parts with slashes
+		local joined_parts=$(
+			IFS='/'
+			echo "${truncated_parts[*]}"
+		)
+
+		echo "…/$joined_parts"
+	fi
+}
+
+WHITE="\[\e[0m\]"
+GREEN="\[\e[32m\]"
+BROWN="\[\e[33m\]"
+BLUE="\[\e[34m\]"
+PURPLE="\[\e[35m\]"
+CYAN="\[\e[36m\]"
+
+# Custom PS1
+PS1="$GREEN"' \D{%Y-%m-%d} '
+PS1+="$BLUE"'  $(parse_cwd) '
+PS1+="$BROWN"'$(parse_conda_env)\n'
+PS1+="$WHITE"'\u@\h'"$CYAN"' → '"$WHITE"
