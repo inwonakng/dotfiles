@@ -67,23 +67,28 @@ else
 	export SESSION_TYPE=local
 fi
 
+# color reference: https://misc.flogisoft.com/bash/tip_colors_and_formatting
+
 WHITE="\[\e[0m\]"
 GREEN="\[\e[32m\]"
 BROWN="\[\e[33m\]"
 BLUE="\[\e[34m\]"
 PURPLE="\[\e[35m\]"
 CYAN="\[\e[36m\]"
+LIGHTPURPLE="\[\e[38;5;105m\]"
 
-USERNAME_COLOR=$WHITE
+HOST_COLOR=$CYAN
 if [ "$SESSION_TYPE" == "remote/ssh" ]; then
-  USERNAME_COLOR=$PURPLE
+  HOST_COLOR=$PINK
 fi
 
 # Custom PS1
 PS1="$GREEN"' \D{%Y-%m-%d} '
 PS1+="$BLUE"'  $(parse_cwd) '
 PS1+="$BROWN"'$(parse_conda_env)\n'
-PS1+="$USERNAME_COLOR"'\u@\h'"$CYAN"' → '"$WHITE"
+PS1+="$WHITE"'\u'
+PS1+="$LIGHTPURPLE"'@'"$HOST_COLOR"'\h'
+PS1+="$CYAN"' → '"$WHITE"
 
 # Print newline AFTER executing a command
 PROMPT_COMMAND="export PROMPT_COMMAND=echo"
