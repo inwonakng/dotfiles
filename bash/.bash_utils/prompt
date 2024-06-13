@@ -74,11 +74,16 @@ BLUE="\[\e[34m\]"
 PURPLE="\[\e[35m\]"
 CYAN="\[\e[36m\]"
 
+USERNAME_COLOR=$WHITE
+if [ "$SESSION_TYPE" == "remote/ssh" ]; then
+  USERNAME_COLOR=$PURPLE
+fi
+
 # Custom PS1
 PS1="$GREEN"' \D{%Y-%m-%d} '
 PS1+="$BLUE"'  $(parse_cwd) '
 PS1+="$BROWN"'$(parse_conda_env)\n'
-PS1+="$WHITE"'\u@\h'"$CYAN"' → '"$WHITE"'$SESSION_TYPE'
+PS1+="$USERNAME_COLOR"'\u@\h'"$CYAN"' → '"$WHITE"
 
 # Print newline AFTER executing a command
 PROMPT_COMMAND="export PROMPT_COMMAND=echo"
