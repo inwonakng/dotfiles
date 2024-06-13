@@ -8,12 +8,12 @@ function parse_conda_env {
 function parse_cwd {
 	local dir=$PWD
 	local max_length=40
-  local home_dir=$HOME
+	local home_dir=$HOME
 
-  # Replace home directory with ~
-  if [[ $dir == $home_dir* ]]; then
-      dir="~${dir#$home_dir}"
-  fi
+	# Replace home directory with ~
+	if [[ $dir == $home_dir* ]]; then
+		dir="~${dir#$home_dir}"
+	fi
 
 	if [ ${#dir} -le $max_length ]; then
 		echo "$dir"
@@ -37,23 +37,35 @@ function parse_cwd {
 }
 
 function newline_if_needed {
-    # Save the cursor position
-    echo -ne '\e7'
-    # Move the cursor to the beginning of the current line
-    echo -ne '\e[1G'
-    # Check if the cursor is at the beginning of the line (column 1)
-    echo -ne '\e[6n'
-    read -sdR cursor_position
-    cursor_position=${cursor_position#*[}
-    cursor_position=${cursor_position%;*}
-    if [ "$cursor_position" -gt 1 ]; then
-        # Restore the cursor position and print a newline if not at the top
-        echo -ne '\e8\n'
-    else
-        # Restore the cursor position
-        echo -ne '\e8'
-    fi
+	# Save the cursor position
+	echo -ne '\e7'
+	# Move the cursor to the beginning of the current line
+	echo -ne '\e[1G'
+	# Check if the cursor is at the beginning of the line (column 1)
+	echo -ne '\e[6n'
+	read -sdR cursor_position
+	cursor_position=${cursor_position#*[}
+	cursor_position=${cursor_position%;*}
+	if [ "$cursor_position" -gt 1 ]; then
+		# Restore the cursor position and print a newline if not at the top
+		echo -ne '\e8\n'
+	else
+		# Restore the cursor position
+		echo -ne '\e8'
+	fi
 }
+
+# detect session type
+if [ -n "$SSH_CLIENT" ] || [ -n "$SSH_TTY" ]; then
+	# SSH session
+	export SESSION_TYPE=remote/ssh
+else
+	case $(ps -o comm= -p "$PPID") in
+	sshd | */sshd) export SESSION_TYPE=remote/ssh ;;
+	esac
+	# Local session
+	export SESSION_TYPE=local
+fi
 
 WHITE="\[\e[0m\]"
 GREEN="\[\e[32m\]"
@@ -66,7 +78,7 @@ CYAN="\[\e[36m\]"
 PS1="$GREEN"' \D{%Y-%m-%d} '
 PS1+="$BLUE"'  $(parse_cwd) '
 PS1+="$BROWN"'$(parse_conda_env)\n'
-PS1+="$WHITE"'\u@\h'"$CYAN"' → '"$WHITE"
+PS1+="$WHITE"'\u@\h'"$CYAN"' → '"$WHITE"'$SESSION_TYPE'
 
 # Print newline AFTER executing a command
 PROMPT_COMMAND="export PROMPT_COMMAND=echo"
