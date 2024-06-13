@@ -75,11 +75,12 @@ BROWN="\[\e[33m\]"
 BLUE="\[\e[34m\]"
 PURPLE="\[\e[35m\]"
 CYAN="\[\e[36m\]"
-LIGHTPURPLE="\[\e[38;5;105m\]"
+PINKORANGE="\[\e[38;5;212m\]"
+DARKPINKORANGE="\[\e[38;5;167m\]"
 
 HOST_COLOR=$CYAN
 if [ "$SESSION_TYPE" == "remote/ssh" ]; then
-  HOST_COLOR=$PINK
+  HOST_COLOR=$DARKPINKORANGE
 fi
 
 # Custom PS1
@@ -87,7 +88,7 @@ PS1="$GREEN"' \D{%Y-%m-%d} '
 PS1+="$BLUE"'  $(parse_cwd) '
 PS1+="$BROWN"'$(parse_conda_env)\n'
 PS1+="$WHITE"'\u'
-PS1+="$LIGHTPURPLE"'@'"$HOST_COLOR"'\h'
+PS1+="$PINKORANGE"'@'"$HOST_COLOR"'\h'
 PS1+="$CYAN"' → '"$WHITE"
 
 # Print newline AFTER executing a command
