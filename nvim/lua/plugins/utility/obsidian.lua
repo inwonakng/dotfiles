@@ -5,7 +5,8 @@ return {
   ft = "markdown",
   keys = {
     { "<leader>ot", "<cmd>ObsidianTemplate<cr>", desc = "Insert template" },
-    { "<leader>od", "<cmd>ObsidianTemplate default.md<cr>", desc = "Insert default template" },
+    { "<leader>otd", "<cmd>ObsidianTemplate default.md<cr>", desc = "Insert default template" },
+    { "<leader>od", "<cmd>ObsidianToday<cr>", desc = "Create a daily note" },
     { "<leader>oo", "<cmd>ObsidianOpen<cr>", desc = "Open in Obsidian" },
     { "<C-CR>", "<cmd>ObsidianFollowLink<cr>", desc = "Follow link" },
   },
@@ -40,10 +41,10 @@ return {
       -- A map for custom variables, the key should be the variable and the value a function
       substitutions = {},
     },
-    daily_notes={
-      folder="daily",
-      date_format="%Y-%m-%d",
-      template="default",
+    daily_notes = {
+      folder = "daily",
+      date_format = "%Y-%m-%d",
+      template = "default",
     },
     disable_frontmatter = true,
     note_frontmatter_func = function(note)
