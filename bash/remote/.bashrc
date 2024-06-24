@@ -42,7 +42,7 @@ unset __conda_setup
 # <<< conda initialize <<<
 
 [ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin/$POSTFIX:$PATH"
-[ -f "~/.fzf-$POSTFIX.bash" ] && source "~/.fzf-$POSTFIX.bash"
+[ -f "$HOME/.fzf-$POSTFIX.bash" ] && source "$HOME/.fzf-$POSTFIX.bash"
 
 # set input to vi mode
 set -o vi

@@ -1,52 +1,5 @@
-local fzf_winopts = require("utils.fzf_winopts")
-
 return {
   "neovim/nvim-lspconfig",
-  init = function()
-    -- override lsp keymaps
-    local keys = require("lazyvim.plugins.lsp.keymaps").get()
-    vim.list_extend(keys, {
-      {
-        "gr",
-        function()
-          require("fzf-lua").lsp_references({ jump_to_single_result = true, winopts = fzf_winopts.large.vertical })
-        end,
-        desc = "View References",
-      },
-      {
-        "gd",
-        function()
-          require("fzf-lua").lsp_definitions({ jump_to_single_result = true, winopts = fzf_winopts.large.vertical })
-        end,
-        desc = "View Definitions",
-      },
-      {
-        "gD",
-        function()
-          require("fzf-lua").lsp_declarations({ jump_to_single_result = true, winopts = fzf_winopts.large.vertical })
-        end,
-        desc = "View Declarations",
-      },
-      {
-        "gi",
-        function()
-          require("fzf-lua").lsp_implementations({ jump_to_single_result = true, winopts = fzf_winopts.large.vertical })
-        end,
-        desc = "View Implementations",
-      },
-      {
-        "gy",
-        function()
-          require("fzf-lua").lsp_typedefs({ jump_to_single_result = true, winopts = fzf_winopts.large.vertical })
-        end,
-        desc = "View Type Definitions",
-      },
-      -- unbind for comment
-      { "<leader>cc", false },
-      { "<leader>cl", vim.lsp.codelens.run, desc = "Run Codelens", mode = { "n", "v" }, has = "codeLens" },
-      -- { "<leader>cc", function() print("U typed cc!") end, desc = "test override", mode = { "n", "v" } },
-    })
-  end,
   ---@class PluginLspOpts
   opts = {
     ---@type lspconfig.options
@@ -166,3 +119,4 @@ return {
     severity_sort = true,
   },
 }
+
