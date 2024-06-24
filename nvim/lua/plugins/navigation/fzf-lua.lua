@@ -110,9 +110,45 @@ return {
       function()
         local opts = {}
         opts.winopts = fzf_winopts.large.vertical
-        require("fzf-lua").live_grep(opts)
+        require("fzf-lua").grep(opts)
       end,
       desc = "Search File Contents",
+    },
+    {
+      "<leader>sv",
+      function()
+        local opts = {}
+        opts.winopts = fzf_winopts.large.vertical
+        require("fzf-lua").grep_visual(opts)
+      end,
+      desc = "Search Visual Selection",
+    },
+    {
+      "<leader>sw",
+      function()
+        local opts = {}
+        opts.winopts = fzf_winopts.large.vertical
+        require("fzf-lua").grep_cword(opts)
+      end,
+      desc = "Search for current word",
+    },
+    {
+      "<leader>sW",
+      function()
+        local opts = {}
+        opts.winopts = fzf_winopts.large.vertical
+        require("fzf-lua").grep_cWORD(opts)
+      end,
+      desc = "Search for current WORD",
+    },
+    {
+      "<leader>sb",
+      function()
+        local opts = {}
+        opts.winopts = fzf_winopts.large.vertical
+        require("fzf-lua").grep_curbuf(opts)
+      end,
+      desc = "Search Visual Selection",
     },
     {
       "<leader>ff",
