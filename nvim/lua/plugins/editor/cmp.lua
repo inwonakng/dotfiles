@@ -8,26 +8,41 @@ return {
     "saadparwaiz1/cmp_luasnip",
     "hrsh7th/cmp-omni",
     "Saecki/crates.nvim",
+    "onsails/lspkind.nvim",
   },
-  event="InsertEnter",
+  event = "InsertEnter",
   opts = function()
     -- vim.api.nvim_set_hl(0, "CmpGhostText", { link = "Comment", default = true })
     local cmp = require("cmp")
     -- local defaults = require("cmp.config.default")()
     local compare = require("cmp.config.compare")
     return {
-      window = {
-        completion = cmp.config.window.bordered(),
-        documentation = cmp.config.window.bordered(),
-      },
       completion = {
         completeopt = "menu,menuone,noinsert",
+      },
+      window = {
+        completion = cmp.config.window.bordered({
+          col_offset = -3,
+          side_padding = 0,
+          winhighlight = "Normal:Normal,FloatBorder:FloatBorder,CursorLine:Visual,Search:None",
+        }),
+        documentation = cmp.config.window.bordered({
+          winhighlight = "Normal:Normal,FloatBorder:FloatBorder,CursorLine:Visual,Search:None",
+        }),
+      },
+      formatting = {
+        fields = { "kind", "abbr", "menu" },
+        format = function(entry, vim_item)
+          local kind = require("lspkind").cmp_format({ mode = "symbol_text", maxwidth = 50 })(entry, vim_item)
+          local strings = vim.split(kind.kind, "%s", { trimempty = true })
+          kind.kind = " " .. (strings[1] or "") .. " "
+          kind.menu = "    (" .. (strings[2] or "") .. ")"
+          return kind
+        end,
       },
       enabled = function()
         local disabled = false
         disabled = disabled or (vim.api.nvim_buf_get_option(0, "buftype") == "prompt")
-        -- disabled = disabled or (vim.fn.reg_recording() ~= '')
-        -- disabled = disabled or (vim.fn.reg_executing() ~= '')
         return not disabled
       end,
       mapping = cmp.mapping.preset.insert({
@@ -48,26 +63,17 @@ return {
         end,
       }),
       sources = cmp.config.sources({
-        { name = "nvim_lsp", priority = 20, group=1 },
-        { name = "crates", priority = 20, group=1 },
-        { name = "vimtex", priority = 15, group=1 },
-        { name = "path", priority = 10, group=1 },
-        { name = "buffer", priority = 10, group=1 },
+        { name = "nvim_lsp", priority = 20, group = 1 },
+        { name = "crates", priority = 20, group = 1 },
+        { name = "vimtex", priority = 15, group = 1 },
+        { name = "path", priority = 10, group = 1 },
+        { name = "buffer", priority = 10, group = 1 },
         { name = "omni", priority = 9 },
-        { name = "luasnip", priority = 9, group=1 },
-        { name = "hledger", priority = 6, group=1 },
+        { name = "luasnip", priority = 9, group = 1 },
+        { name = "hledger", priority = 6, group = 1 },
         { name = "copilot", priority = 6 },
         -- { name = "codeium", priority = 6 },
       }),
-      formatting = {
-        format = function(_, item)
-          local icons = require("lazyvim.config").icons.kinds
-          if icons[item.kind] then
-            item.kind = icons[item.kind] .. item.kind
-          end
-          return item
-        end,
-      },
       experimental = {
         ghost_text = {
           hl_group = "CmpGhostText",

@@ -11,7 +11,9 @@ return {
     },
     custom_highlights = function(colors)
       return {
-        Comment = {fg = "#a3a3a3"}
+        -- VertSplit = { fg = colors.magenta },
+        -- Comment = { fg = "#a3a3a3" },
+        VertSplit = { fg = "#ffffff" },
         -- Comment = { fg = colors.surface2 },
         -- TabLineSel = { bg = colors.pink },
         -- CmpBorder = { fg = colors.surface2 },
