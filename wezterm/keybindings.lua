@@ -1,3 +1,5 @@
+local io = require("io")
+local os = require("os")
 local wezterm = require("wezterm")
 local utils = require("utils")
 local act = wezterm.action
@@ -18,6 +20,28 @@ utils.list_extend(copy_mode, {
 	-- { key = "Escape", mods = "NONE", action = act.CopyMode("Close") },
 	{ key = "q", mods = "NONE", action = act.CopyMode("Close") },
 })
+
+wezterm.on("trigger-vim-with-scrollback", function(window, pane)
+	-- Retrieve the current viewport's text.
+	-- Pass an optional number of lines (eg: 2000) to retrieve
+	-- that number of lines starting from the bottom of the viewport
+	local scrollback = pane:get_lines_as_text()
+
+	-- Create a temporary file to pass to vim
+	local name = os.tmpname()
+	local f = io.open(name, "w+")
+	f:write(scrollback)
+	f:flush()
+	f:close()
+	window:perform_action(
+		wezterm.action({ SpawnCommandInNewWindow = {
+			args = { "/opt/homebrew/bin/nvim", name },
+		} }),
+		pane
+	)
+	wezterm.sleep_ms(1000)
+	os.remove(name)
+end)
 
 return {
 	-- leader = { key = "Space", mods = "SHIFT", timeout_milliseconds = 2000 },
@@ -172,6 +196,11 @@ return {
 		-- Or shortcuts to move tab w/o move_tab table. SHIFT is for when caps lock is on
 		-- { key = "[", mods = "CMD|CTRL", action = act.MoveTabRelative(-1) },
 		-- { key = "]", mods = "CMD|CTRL", action = act.MoveTabRelative(1) },
+		{
+			key = "v",
+			mods = "LEADER",
+			action = wezterm.action({ EmitEvent = "trigger-vim-with-scrollback" }),
+		},
 	},
 	key_tables = {
 		copy_mode = copy_mode,
