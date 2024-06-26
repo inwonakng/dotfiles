@@ -16,11 +16,22 @@ ARCH=$(uname -i)
 # and add to path so you can use system-wide
 case $ARCH in
 x86_64)
-  POSTFIX="x86"
+	POSTFIX="x86"
 	# export LD_LIBRARY_PATH="/usr/local/cuda-11.2/targets/x86_64-linux/"
 	;;
 ppc64le)
-  POSTFIX="ppc"
+	POSTFIX="ppc"
+	;;
+esac
+
+case $HOSTNAME in
+*dcs*)
+	export http_proxy=http://proxy:8888
+	export https_proxy=$http_proxy
+	;;
+*npl*)
+	export http_proxy=http://proxy:8888
+	export https_proxy=$http_proxy
 	;;
 esac
 
