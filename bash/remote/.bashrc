@@ -24,29 +24,32 @@ ppc64le)
 	;;
 esac
 
+CONDA_PARENT_DIR="$HOME"
 case $HOSTNAME in
 *dcs*)
 	export http_proxy=http://proxy:8888
 	export https_proxy=$http_proxy
+  CONDA_PARENT_DIR="$HOME/scratch"
 	;;
 *npl*)
 	export http_proxy=http://proxy:8888
 	export https_proxy=$http_proxy
+  CONDA_PARENT_DIR="$HOME/scratch"
 	;;
 esac
 
-CONDA_DIR="miniconda-$POSTFIX"
+CONDA_DIR="$CONDA_PARENT_DIR/miniconda-$POSTFIX"
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$("$HOME/$CONDA_DIR/bin/conda" 'shell.bash' 'hook' 2>/dev/null)"
+__conda_setup="$("$CONDA_DIR/bin/conda" 'shell.bash' 'hook' 2>/dev/null)"
 if [ $? -eq 0 ]; then
 	eval "$__conda_setup"
 else
-	if [ -f "$HOME/$CONDA_DIR/etc/profile.d/conda.sh" ]; then
-		. "$HOME/$CONDA_DIR/etc/profile.d/conda.sh"
+	if [ -f "$CONDA_DIR/etc/profile.d/conda.sh" ]; then
+		. "$CONDA_DIR/etc/profile.d/conda.sh"
 	else
-		export PATH="$HOME/$CONDA_DIR/bin:$PATH"
+		export PATH="$CONDA_DIR/bin:$PATH"
 	fi
 fi
 unset __conda_setup
