@@ -70,7 +70,7 @@ edit_command_line() {
 	echo "$READLINE_LINE" >"$TMP_FILE"
 
 	# Open vim to edit the command line
-	vim "$TMP_FILE"
+	$EDITOR "$TMP_FILE"
 
 	# Set the command line to the modified contents of the temporary file
 	READLINE_LINE=$(cat "$TMP_FILE")
