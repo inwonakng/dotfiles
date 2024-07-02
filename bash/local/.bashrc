@@ -71,6 +71,7 @@ edit_command_line() {
 
 # Bind Ctrl+E to the custom function
 bind -x '"\C-e": edit_command_line'
+bind -m vi-command '"v": abort'
 
 # Custom aliases
 alias code="/Applications/Visual\ Studio\ Code.app/Contents/Resources/app/bin/code"
