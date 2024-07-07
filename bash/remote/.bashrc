@@ -26,6 +26,11 @@ esac
 
 CONDA_PARENT_DIR="$HOME"
 case $HOSTNAME in
+*blp*)
+	export http_proxy=http://proxy:8888
+	export https_proxy=$http_proxy
+  CONDA_PARENT_DIR="$HOME/scratch"
+	;;
 *dcs*)
 	export http_proxy=http://proxy:8888
 	export https_proxy=$http_proxy
