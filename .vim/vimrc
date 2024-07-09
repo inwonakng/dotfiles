@@ -20,6 +20,10 @@ call plug#end()
 " Turn off highlighting after search [https://stackoverflow.com/questions/4372660/get-rid-of-vims-highlight-after-searching-text]
 nnoremap <esc> :noh<return><esc>
 
+" Keep selection after indenting
+vnoremap < <gv
+vnoremap > >gv
+
 " Movement between panes
 nmap <C-h> <C-w>h
 nmap <C-j> <C-w>j
