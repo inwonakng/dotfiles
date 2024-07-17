@@ -5,9 +5,13 @@ return {
     vim.o.timeout = true
     vim.o.timeoutlen = 300
   end,
+  -- opts_extend = {
+  --   "spec",
+  -- },
   opts = {
     plugins = { spelling = true },
-    defaults = {
+    -- defaults = {},
+    spec = {
       mode = { "n", "v" },
       ["g"] = { name = "+goto" },
       ["gs"] = { name = "+surround" },
@@ -30,5 +34,5 @@ return {
       ["<leader>d"] = { name = "+debug" },
       ["<leader>n"] = { name = "+neogen" },
     },
-  }
+  },
 }

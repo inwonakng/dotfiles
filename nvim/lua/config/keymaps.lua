@@ -54,7 +54,7 @@ map("n", "<leader>wo", function()
 end, { desc = "delete hidden buffers" })
 -- undo lazyvim keybinds
 del("t", "<esc><esc>")
-del("n", "<leader>w|")
+-- del("n", "<leader>w|")
 del("n", "<leader>|")
 del("n", "<leader>-")
 
