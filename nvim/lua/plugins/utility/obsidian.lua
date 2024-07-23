@@ -4,8 +4,8 @@ return {
   lazy = true,
   ft = "markdown",
   keys = {
-    { "<leader>ot", "<cmd>ObsidianTemplate<cr>", desc = "Insert template" },
-    { "<leader>otd", "<cmd>ObsidianTemplate default.md<cr>", desc = "Insert default template" },
+    -- { "<leader>ot", "<cmd>ObsidianTemplate<cr>", desc = "Insert template" },
+    -- { "<leader>otd", "<cmd>ObsidianTemplate default.md<cr>", desc = "Insert default template" },
     { "<leader>od", "<cmd>ObsidianToday<cr>", desc = "Create a daily note" },
     { "<leader>oo", "<cmd>ObsidianOpen<cr>", desc = "Open in Obsidian" },
     { "<C-CR>", "<cmd>ObsidianFollowLink<cr>", desc = "Follow link" },

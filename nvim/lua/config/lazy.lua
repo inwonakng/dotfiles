@@ -38,10 +38,9 @@ local plugins = {
   { import = "plugins.ui" },
   { import = "plugins.utility" },
   { import = "plugins.navigation" },
-  { import = "plugins.editor" },
-  -- { import = "plugins.lang.python" },
   { import = "plugins.debugging" },
   { import = "plugins.terminal" },
+  { import = "plugins.editor" },
 }
 
 local opts = {
