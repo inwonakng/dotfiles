@@ -1,3 +1,0 @@
-return {
-  -- "micangl/cmp-vimtex",
-}

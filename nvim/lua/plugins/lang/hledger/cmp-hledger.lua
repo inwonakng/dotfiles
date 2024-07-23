@@ -1,3 +1,0 @@
-return {
---   "kirasok/cmp-hledger",
-}
