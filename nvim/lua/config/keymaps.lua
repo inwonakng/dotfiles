@@ -28,10 +28,8 @@ map("n", "0", function()
   end
 end, { desc = "smart zero movement" })
 
-
 del("n", "<C-w>d")
 map("n", "<leader>wd", "<cmd>q<cr>", { desc = "Close Window" })
-
 
 -- disabled bufferline, using bo to close all other buffers
 map("n", "<leader>bo", function()
@@ -48,7 +46,7 @@ map("n", "<leader>bo", function()
   end
 end, { desc = "delete hidden buffers" })
 
--- close all other windows 
+-- close all other windows
 -- map("n", "<leader>wo", function()
 --   local wins = vim.api.nvim_list_wins()
 --   for _, i in ipairs(wins) do
@@ -61,27 +59,12 @@ end, { desc = "delete hidden buffers" })
 -- -- undo lazyvim keybinds
 -- del("t", "<esc><esc>")
 -- -- del("n", "<leader>w|")
--- del("n", "<leader>|")
+del("n", "<leader>|")
 -- del("n", "<leader>-")
 --
--- -- remap window split key from lazyvim
--- map("n", "<leader>w\\", "<C-W>v", { desc = "Split Window Right", remap = true })
---
--- -- Tab Management
--- del("n", "<leader><tab>l")
--- del("n", "<leader><tab>f")
--- del("n", "<leader><tab><tab>")
--- del("n", "<leader><tab>]")
--- del("n", "<leader><tab>d")
--- del("n", "<leader><tab>[")
---
--- map("n", "<leader><tab>n", "<cmd>tabnew<cr>", { desc = "New Tab" })
--- map("n", "<leader><tab>s", "<cmd>tab split<cr>", { desc = "Open in New Tab" })
--- map("n", "<leader><tab>l", "<cmd>tabnext<cr>", { desc = "Next Tab" })
--- map("n", "<leader><tab>d", "<cmd>tabclose<cr>", { desc = "Close Tab" })
--- map("n", "<leader><tab>o", "<cmd>tabo<cr>", { desc = "Close Other Tabs" })
--- map("n", "<leader><tab>h", "<cmd>tabprevious<cr>", { desc = "Previous Tab" })
+-- remap window split key from lazyvim
+map("n", "<leader>\\", "<C-W>v", { desc = "Split Window Right", remap = true })
 
-map("n", "<leader>cc", ":normal gc<cr>", { desc = "Comment" })
-map("n", "<leader>cc", ":normal gcc<cr>", { desc = "Comment Line" })
-map("v", "<leader>cc", ":normal gcc<cr>", { desc = "Comment Selection" })
+map("n", "<leader>C", ":norm gc<cr>", { desc = "Comment" })
+map("n", "<leader>cc", ":norm gcc<cr>", { desc = "Comment Line" })
+map("x", "<leader>cc", ":vi v_gc<cr>", { desc = "Comment Selection" })

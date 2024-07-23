@@ -1,20 +1,43 @@
 return {
   "neovim/nvim-lspconfig",
   opts = function(_, opts)
-    local servers = { "pyright", "basedpyright", "ruff", "ruff_lsp", ruff, lsp }
-    for _, server in ipairs(servers) do
-      opts.servers[server] = opts.servers[server] or {}
-      opts.servers[server].enabled = server == lsp or server == ruff
-    end
-    opts["diagnostics"] = {
-      underline = true,
-      virtual_text = false,
-      virtual_lines = {
-        only_current_line = true,
-        highlight_whole_line = false,
+    opts["inlay_hints"] = { enabled = false }
+    opts["severity_sort"] = true
+    opts.servers["basedpyright"] = {
+      cmd_env = { RUFF_TRACE = "messages" },
+      init_options = {
+        settings = {
+          logLevel = "error",
+        },
+      },
+      keys = {
+        {
+          "<leader>co",
+          LazyVim.lsp.action["source.organizeImports"],
+          desc = "Organize Imports",
+        },
+      },
+      settings = {
+        pyright = {
+          -- Using Ruff's import organizer
+          disableOrganizeImports = true,
+        },
+        basedpyright = {
+          analysis = {
+            -- possible values: off, basic, standard
+            typeCheckingMode = "off",
+          },
+        },
       },
     }
-    -- autoformat = false,
-    opts["severity_sort"] = true
+
+    local Keys = require("lazyvim.plugins.lsp.keymaps").get()
+    -- stylua: ignore
+    vim.list_extend(Keys, {
+      { "gd", "<cmd>FzfLua lsp_definitions     jump_to_single_result=true ignore_current_line=true<cr>", desc = "Goto Definition", has = "definition" },
+      { "gr", "<cmd>FzfLua lsp_references      jump_to_single_result=true ignore_current_line=true<cr>", desc = "References", nowait = true },
+      { "gI", "<cmd>FzfLua lsp_implementations jump_to_single_result=true ignore_current_line=true<cr>", desc = "Goto Implementation" },
+      { "gy", "<cmd>FzfLua lsp_typedefs        jump_to_single_result=true ignore_current_line=true<cr>", desc = "Goto T[y]pe Definition" },
+    })
   end,
 }

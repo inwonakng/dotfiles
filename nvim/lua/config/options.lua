@@ -2,6 +2,13 @@
 -- Default options that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/options.lua
 -- Add any additional options here
 
+-- In case you don't want to use `:LazyExtras`,
+-- then you need to set the option below.
+vim.g.lazyvim_picker = "fzf"
+vim.g.lazyvim_python_lsp = "basedpyright"
+vim.g.lazyvim_python_ruff = "ruff"
+-- Set to "ruff_lsp" to use the old LSP implementation version.
+
 vim.g.autoformat = false
 
 vim.filetype.add({
@@ -34,8 +41,3 @@ vim.cmd("highlight! HarpoonNumberActive guibg=NONE guifg=#7aa2f7")
 vim.cmd("highlight! HarpoonNumberInactive guibg=NONE guifg=#7aa2f7")
 vim.cmd("highlight! TabLineFill guibg=NONE guifg=white")
 
--- In case you don't want to use `:LazyExtras`,
--- then you need to set the option below.
-vim.g.lazyvim_picker = "fzf"
-
-vim.o.timeoutlen = 300
