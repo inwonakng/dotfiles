@@ -20,19 +20,19 @@ vim.filetype.add({
 local opt = vim.opt
 
 opt.linebreak = true
-vim.diagnostic.config({
-  underline = true,
-  signs = true,
-  virtual_text = false,
-  float = {
-    show_header = true,
-    source = "always",
-    border = "rounded",
-    focusable = true,
-  },
-  update_in_insert = false, -- default to false
-  severity_sort = false, -- default to false
-})
+-- vim.diagnostic.config({
+--   underline = true,
+--   signs = true,
+--   virtual_text = false,
+--   float = {
+--     show_header = true,
+--     source = "always",
+--     border = "rounded",
+--     focusable = true,
+--   },
+--   update_in_insert = false, -- default to false
+--   severity_sort = false, -- default to false
+-- })
 
 -- change colors for harpoon.nvim
 vim.cmd("highlight! HarpoonInactive guibg=NONE guifg=#63698c")

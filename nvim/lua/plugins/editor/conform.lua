@@ -2,7 +2,7 @@ return {
   "stevearc/conform.nvim",
   optional = true,
   opts = {
-    format = {
+    default_format_opts = {
       timeout_ms = 3000,
       async = false, -- not recommended to change
       quiet = false, -- not recommended to change
@@ -23,12 +23,12 @@ return {
       markdown = { "prettier" },
       markdowndx = { "prettier" },
       ledger = { "ledger-formatter" },
-      lua = {"stylua"},
+      lua = { "stylua" },
     },
     formatters = {
       ledger_formatter = {
         command = "ledger-formatter",
       },
-    }
+    },
   },
 }
