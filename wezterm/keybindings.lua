@@ -25,7 +25,7 @@ wezterm.on("trigger-vim-with-scrollback", function(window, pane)
 	-- Retrieve the current viewport's text.
 	-- Pass an optional number of lines (eg: 2000) to retrieve
 	-- that number of lines starting from the bottom of the viewport
-	local scrollback = pane:get_lines_as_text()
+	local scrollback = pane:get_logical_lines_as_text(pane:get_dimensions().scrollback_rows)
 
 	-- Create a temporary file to pass to vim
 	local name = os.tmpname()
@@ -109,8 +109,8 @@ return {
 		},
 		-- Tab keybindings
 		{ key = "n", mods = "LEADER", action = act.SpawnTab("CurrentPaneDomain") },
-		{ key = "h", mods = "LEADER|CTRL", action = act.ActivateTabRelative(-1) },
-		{ key = "l", mods = "LEADER|CTRL", action = act.ActivateTabRelative(1) },
+		{ key = "[", mods = "LEADER|CTRL", action = act.ActivateTabRelative(-1) },
+		{ key = "]", mods = "LEADER|CTRL", action = act.ActivateTabRelative(1) },
 		{ key = "t", mods = "LEADER", action = act.ShowTabNavigator },
 		{
 			key = "e",
