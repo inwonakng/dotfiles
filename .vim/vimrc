@@ -35,6 +35,9 @@ set tabstop=4
 set shiftwidth=4
 set expandtab  
 
+" turn off wrap
+set nowrap
+
 " set leader key
 let mapleader = " "
 
@@ -51,9 +54,9 @@ nmap <leader>wo :only<CR>
 nmap <leader>bd :q<CR>
 
 " tab commands
-nmap <leader><Tab>n :tabnew<CR>
-nmap <leader><Tab>l :tabnext<CR>
-nmap <leader><Tab>h :tabprev<CR>
+nmap <leader><Tab><Tab> :tabnew<CR>
+nmap <leader><Tab>] :tabnext<CR>
+nmap <leader><Tab>[ :tabprev<CR>
 nmap <leader><Tab>s :tab sb<CR>
 
 nmap <leader><Tab>d :tabclose<CR>
