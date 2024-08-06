@@ -53,12 +53,12 @@ if [ $? -eq 0 ]; then
 else
 	if [ -f "$CONDA_DIR/etc/profile.d/conda.sh" ]; then
 		. "$CONDA_DIR/etc/profile.d/conda.sh"
-	else
-		export PATH="$CONDA_DIR/bin:$PATH"
 	fi
 fi
 unset __conda_setup
 # <<< conda initialize <<<
+
+export PATH="$CONDA_DIR/bin:$PATH"
 
 [ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin/$POSTFIX:$PATH"
 [ -f "$HOME/.fzf-$POSTFIX.bash" ] && source "$HOME/.fzf-$POSTFIX.bash"
