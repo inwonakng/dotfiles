@@ -106,3 +106,5 @@ export FZF_CTRL_R_OPTS="
 export FZF_ALT_C_OPTS="
   --walker-skip .git,node_modules,target
   --preview 'tree -C {}'"
+
+export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"

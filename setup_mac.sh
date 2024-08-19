@@ -15,3 +15,4 @@ ln -sf ~/dotfiles/osx/.hammerspoon/init.lua ~/.hammerspoon/init.lua
 ln -sf ~/dotfiles/.vimrc ~/.vimrc
 ln -sf ~/dotfiles/.tmux.conf ~/.tmux.conf
 ln -sf ~/dotfiles/kitty/kitty-mac.conf ~/.config/kitty/kitty.conf
+ln -sf ~/dotfiles/ripgrep/config ~/.config/ripgrep/config
