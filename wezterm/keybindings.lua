@@ -107,7 +107,7 @@ return {
 		{ key = "n", mods = "LEADER", action = act.SpawnTab("CurrentPaneDomain") },
 		{ key = "[", mods = "LEADER", action = act.ActivateTabRelative(-1) },
 		{ key = "]", mods = "LEADER", action = act.ActivateTabRelative(1) },
-		{ key = "l", mods = "LEADER|CTRL", action = act.ShowTabNavigator },
+		{ key = "l", mods = "LEADER", action = act.ShowTabNavigator },
 		{
 			key = "e",
 			mods = "LEADER",

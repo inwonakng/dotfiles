@@ -28,6 +28,8 @@ local status_settings = {
 	},
 }
 
+local tab_bar_background = "#231d30"
+
 wezterm.on("update-status", function(window, pane)
 	local status = "normal"
 	local stat_color = "#f7768e"
@@ -59,18 +61,20 @@ wezterm.on("update-status", function(window, pane)
 	local time = wezterm.strftime("%H:%M")
 
 	window:set_left_status(wezterm.format({
+    -- { Background = {Color = tab_bar_background } },
 		{ Foreground = { Color = status_settings[status].color } },
 		{ Text = "  " },
 		{ Text = status_settings[status].icon .. "  " .. status_settings[status].text },
-		{ Text = " |" },
+		{ Text = " " },
 	}))
 
 	window:set_right_status(wezterm.format({
+    -- { Background = {Color = tab_bar_background } },
 		{ Text = wezterm.nerdfonts.md_folder .. "  " .. cwd },
-		{ Text = " | " },
+		{ Text = "  " },
 		{ Foreground = { Color = "#e0af68" } },
 		{ Text = wezterm.nerdfonts.fa_code .. "  " .. cmd .. " " },
-		"ResetAttributes",
+		-- "ResetAttributes",
 	}))
 end)
 
@@ -84,21 +88,20 @@ function tab_title(tab_info)
 	if tab_info.tab_title and #tab_info.tab_title > 0 then
 		title = tab_info.tab_title
 	end
-	return tab_info.tab_index .. ") " .. title
+	return tab_info.tab_index .. ". " .. title
 end
 
 -- Hook for formatting tab title
 wezterm.on("format-tab-title", function(tab, tabs, panes, config, hover, max_width)
-	local edge_background = "#0b0022"
-	local background = "#1b1032"
-	local foreground = "#808080"
+	local background = "#443c52"
+	local foreground = "#a6a6a6"
 
 	if tab.is_active then
-		background = "#2b2042"
-		foreground = "#c0c0c0"
+		background = "#645480"
+		foreground = "#d9d9d9"
 	elseif hover then
-		background = "#3b3052"
-		foreground = "#909090"
+		background = "#8062b3"
+		foreground = "#c2c2c2"
 	end
 
 	local edge_foreground = background
@@ -109,7 +112,7 @@ wezterm.on("format-tab-title", function(tab, tabs, panes, config, hover, max_wid
 	title = wezterm.truncate_right(title, max_width - 2)
 
 	return {
-		{ Background = { Color = edge_background } },
+		{ Background = { Color = tab_bar_background } },
 		{ Foreground = { Color = edge_foreground } },
 		{ Text = " " },
 		{ Text = wezterm.nerdfonts.ple_left_half_circle_thick },
@@ -117,7 +120,7 @@ wezterm.on("format-tab-title", function(tab, tabs, panes, config, hover, max_wid
 		{ Foreground = { Color = foreground } },
 		{ Attribute = { Intensity = "Bold" } },
 		{ Text = title },
-		{ Background = { Color = edge_background } },
+		{ Background = { Color = tab_bar_background } },
 		{ Foreground = { Color = edge_foreground } },
 		{ Text = wezterm.nerdfonts.ple_right_half_circle_thick },
 		{ Text = " " },
@@ -149,7 +152,8 @@ return {
 	colors = {
 		tab_bar = {
 			-- background = "#0b0022",
-			background = "rgb(11, 0, 34)",
+			-- background = "rgb(11, 0, 34)",
+      background = tab_bar_background,
 		},
 		cursor_bg = "rgb(193, 169, 217)",
 		cursor_fg = "rgb(79, 29, 171)",
