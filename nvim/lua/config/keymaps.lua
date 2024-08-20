@@ -13,20 +13,20 @@ local del = vim.keymap.del
 
 -- from https://www.reddit.com/r/neovim/comments/187q160/togglehomezero_keymap/
 -- use 0 to do both ^ and 0
-map("n", "0", function()
-  if vim.fn.reg_recording() ~= "" then
-    vim.api.nvim_feedkeys("0", "n", true)
-  else
-    local pos = vim.fn.col(".")
-    if pos == 1 then
-      vim.api.nvim_feedkeys("^", "n", true)
-    elseif pos == vim.fn.col("$") - 1 then
-      vim.api.nvim_feedkeys("0", "n", true)
-    else
-      vim.api.nvim_feedkeys("$", "n", true)
-    end
-  end
-end, { desc = "smart zero movement" })
+-- map("n", "0", function()
+--   if vim.fn.reg_recording() ~= "" then
+--     vim.api.nvim_feedkeys("0", "n", true)
+--   else
+--     local pos = vim.fn.col(".")
+--     if pos == 1 then
+--       vim.api.nvim_feedkeys("^", "n", true)
+--     elseif pos == vim.fn.col("$") - 1 then
+--       vim.api.nvim_feedkeys("0", "n", true)
+--     else
+--       vim.api.nvim_feedkeys("$", "n", true)
+--     end
+--   end
+-- end, { desc = "smart zero movement" })
 
 del("n", "<C-w>d")
 map("n", "<leader>wd", "<cmd>q<cr>", { desc = "Close Window" })

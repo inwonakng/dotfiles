@@ -8,17 +8,13 @@ return {
     end, files.list_files(cwd .. "/scripts"))
     local ret = {}
     for _, filename in ipairs(scripts) do
-      print(filename)
       table.insert(ret, {
-        name = filename,
+        name = filename:gsub("%_", " "):gsub("%-", " "):gsub("%.sh", ""),
         params = {
           args = { optional = true, type = "list", delimiter = " " },
         },
         builder = function(params)
           return {
-            -- cmd = { files.join(opts.dir, filename) },
-            -- cmd = { files.join("bash ", filename) },
-            -- cmd = { "cd " .. cwd .. " && " .. "ls" },
             cmd = { "bash", "scripts/" .. filename },
             args = params.args,
           }

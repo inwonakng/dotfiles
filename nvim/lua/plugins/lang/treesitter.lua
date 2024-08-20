@@ -19,6 +19,7 @@ return {
         "json",
         "json5",
         "jsonc",
+        "ledger",
       })
     end
     if type(opts.highlight.disable) == "table" then

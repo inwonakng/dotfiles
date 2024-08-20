@@ -9,6 +9,7 @@ return {
     "hrsh7th/cmp-omni",
     "Saecki/crates.nvim",
     "onsails/lspkind.nvim",
+    "kirasok/cmp-hledger",
   },
   event = "InsertEnter",
   opts = function(_, opts)
