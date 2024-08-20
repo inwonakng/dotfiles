@@ -88,12 +88,6 @@ return {
 			action = wezterm.action.ActivateCommandPalette,
 		},
 		-- activation pane selection mode
-		-- {
-		-- 	key = "p",
-		-- 	mods = "CMD",
-		-- 	action = act.PaneSelect,
-		-- },
-		-- Just in case I forget how to...
 		{
 			key = "p",
 			mods = "LEADER",

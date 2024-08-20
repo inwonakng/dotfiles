@@ -53,14 +53,13 @@ end)
 -- or `wezterm cli set-tab-title`, but falls back to the
 -- title of the active pane in that tab.
 function tab_title(tab_info)
-	local title = tab_info.tab_title
+	local title = tab_info.active_pane.title
 	-- if the tab title is explicitly set, take that
-	if title and #title > 0 then
-		return title
+	if tab_info.tab_title and #tab_info.tab_title > 0 then
+		title = tab_info.tab_title
 	end
-	-- Otherwise, use the title from the active pane
-	-- in that tab
-	return tab_info.active_pane.title
+
+	return tab_info.tab_index .. ") " .. title
 end
 
 -- Hook for formatting tab title
