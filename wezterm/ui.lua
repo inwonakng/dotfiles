@@ -1,38 +1,67 @@
 local wezterm = require("wezterm")
 
+local status_settings = {
+	normal = {
+		icon = wezterm.nerdfonts.cod_terminal,
+    color = "#f7768e",
+    text = "NORMAL",
+	},
+  leader = {
+		icon = wezterm.nerdfonts.cod_terminal,
+    color = "#bb9af7",
+    text = "LEADER",
+  },
+	copy_mode = {
+		icon = wezterm.nerdfonts.oct_copy,
+    color = "#57abfa",
+    text = "COPY",
+	},
+	resize_pane = {
+		icon = wezterm.nerdfonts.oct_arrow_up_right,
+    color = "#5bc25f",
+    text = "RESIZE PANE",
+	},
+	move_tab = {
+		icon = wezterm.nerdfonts.oct_tab,
+    color = "#dee851",
+    text = "MOVE TAB",
+	},
+}
+
 wezterm.on("update-status", function(window, pane)
-	local stat = window:active_workspace()
+	local status = "normal"
 	local stat_color = "#f7768e"
-	-- It's a little silly to have workspace name all the time
-	-- Utilize this to display LDR or current key table name
+
 	if window:active_key_table() then
-		stat = window:active_key_table()
-		stat_color = "#7dcfff"
+		status = window:active_key_table()
+    print("keytable is active!")
+    print(status)
 	end
 	if window:leader_is_active() then
-		stat = "LDR"
-		stat_color = "#bb9af7"
+		status = "leader"
 	end
 
-	-- Current working directory
-	local basename = function(s)
-		-- Nothing a little regex can't fix
-		return string.gsub(s, "(.*[/\\])(.*)", "%2")
+	local parse_cwd = function(s)
+    return s.path:gsub("%/Users/inwon", "~")
 	end
+
+	local parse_cmd = function(s)
+    return s:match("([^/]+)$")
+	end
+
 	-- CWD and CMD could be nil (e.g. viewing log using Ctrl-Alt-l). Not a big deal, but check in case
 	local cwd = pane:get_current_working_dir()
-	cwd = cwd and basename(cwd) or ""
-	-- Current command
+	cwd = cwd and parse_cwd(cwd) or ""
 	local cmd = pane:get_foreground_process_name()
-	cmd = cmd and basename(cmd) or ""
+	cmd = cmd and parse_cmd(cmd) or ""
 
 	-- Time
 	local time = wezterm.strftime("%H:%M")
 
 	window:set_left_status(wezterm.format({
-		{ Foreground = { Color = stat_color } },
+		{ Foreground = { Color = status_settings[status].color } },
 		{ Text = "  " },
-		{ Text = wezterm.nerdfonts.oct_table .. "  " .. stat },
+		{ Text = status_settings[status].icon .. "  " .. status_settings[status].text },
 		{ Text = " |" },
 	}))
 
@@ -40,11 +69,8 @@ wezterm.on("update-status", function(window, pane)
 		{ Text = wezterm.nerdfonts.md_folder .. "  " .. cwd },
 		{ Text = " | " },
 		{ Foreground = { Color = "#e0af68" } },
-		{ Text = wezterm.nerdfonts.fa_code .. "  " .. cmd },
+		{ Text = wezterm.nerdfonts.fa_code .. "  " .. cmd .. " " },
 		"ResetAttributes",
-		{ Text = " | " },
-		{ Text = wezterm.nerdfonts.md_clock .. "  " .. time },
-		{ Text = "  " },
 	}))
 end)
 
@@ -58,7 +84,6 @@ function tab_title(tab_info)
 	if tab_info.tab_title and #tab_info.tab_title > 0 then
 		title = tab_info.tab_title
 	end
-
 	return tab_info.tab_index .. ") " .. title
 end
 
@@ -91,7 +116,6 @@ wezterm.on("format-tab-title", function(tab, tabs, panes, config, hover, max_wid
 		{ Background = { Color = background } },
 		{ Foreground = { Color = foreground } },
 		{ Attribute = { Intensity = "Bold" } },
-		-- { Text = tab.index },
 		{ Text = title },
 		{ Background = { Color = edge_background } },
 		{ Foreground = { Color = edge_foreground } },
