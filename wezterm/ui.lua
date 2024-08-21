@@ -161,4 +161,5 @@ return {
 	},
 	show_new_tab_button_in_tab_bar = false,
 	show_tab_index_in_tab_bar = true,
+  tab_max_width = 24,
 }
