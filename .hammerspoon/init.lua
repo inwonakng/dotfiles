@@ -34,25 +34,25 @@ local function bindChooserKeys(chooser)
 		if not chooser:isVisible() then
 			return
 		end
-    -- print("keypress!!!")
+		-- print("keypress!!!")
 		-- print(keycode)
 		-- print("keychar: '"..key.."'")
 		-- "[" is keycode 33
 		if key == "[" and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
 			chooser:hide()
 			return true
-    elseif key == " " and mods.alt and not (mods.cmd or mods.shift or mods.ctrl) then
+		elseif key == " " and mods.alt and not (mods.cmd or mods.shift or mods.ctrl) then
 			chooser:hide()
 			return true
-    elseif key == "d" and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
-      local selected = chooser:selectedRow()
-      chooser:selectedRow(selected + 5)
-      return true
-    elseif key == "u" and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
-      local selected = chooser:selectedRow()
-      chooser:selectedRow(selected - 5)
-      return true
-    end
+		elseif key == "d" and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
+			local selected = chooser:selectedRow()
+			chooser:selectedRow(selected + 5)
+			return true
+		elseif key == "u" and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
+			local selected = chooser:selectedRow()
+			chooser:selectedRow(selected - 5)
+			return true
+		end
 		return false
 	end
 
@@ -502,7 +502,7 @@ hs.hotkey.bind({ "alt", "ctrl" }, "n", function()
 end)
 
 hs.hotkey.bind({ "alt", "ctrl" }, "d", function()
-  yabai({ "-m", "query", "--spaces", "--space" }, function(stdout, stderr)
+	yabai({ "-m", "query", "--spaces", "--space" }, function(stdout, stderr)
 		current_space = hs.json.decode(stdout)["index"]
 		yabai({ "-m", "space", "--focus", tostring(current_space - 1) }, function(_, _)
 			yabai({ "-m", "space", tostring(current_space), "--destroy" })
@@ -605,7 +605,7 @@ for i = 1, 10 do
 end
 
 ----------------------------------------
--- Space swapping 
+-- Space swapping
 ----------------------------------------
 hs.hotkey.bind({ "alt", "ctrl", "shift" }, "]", function()
 	yabai({ "-m", "space", "--move", "next" })

@@ -8,3 +8,4 @@ fi
 if [ -f ~/.bash_utils/prompt ]; then
 	. ~/.bash_utils/prompt
 fi
+. "$HOME/.cargo/env"

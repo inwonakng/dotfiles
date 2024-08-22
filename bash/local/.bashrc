@@ -96,3 +96,5 @@ export FZF_ALT_C_OPTS="
   --preview 'tree -C {}'"
 
 export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"
+. "$HOME/.cargo/env"
+export PATH=$PATH:/Users/inwon/.term-utils/
