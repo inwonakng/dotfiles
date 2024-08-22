@@ -97,4 +97,4 @@ export FZF_ALT_C_OPTS="
 
 export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"
 . "$HOME/.cargo/env"
-export PATH=$PATH:/Users/inwon/.term-utils/
+export PATH=$PATH:"$HOME/.term-utils"
