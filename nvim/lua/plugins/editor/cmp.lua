@@ -10,6 +10,15 @@ return {
     "Saecki/crates.nvim",
     "onsails/lspkind.nvim",
     "kirasok/cmp-hledger",
+    {
+      "Saecki/crates.nvim",
+      event = { "BufRead Cargo.toml" },
+      opts = {
+        completion = {
+          cmp = { enabled = true },
+        },
+      },
+    },
   },
   event = "InsertEnter",
   opts = function(_, opts)
@@ -38,7 +47,7 @@ return {
 
     opts.sources = cmp.config.sources({
       { name = "nvim_lsp", priority = 20, group = 1 },
-      -- { name = "crates", priority = 20, group = 1 },
+      { name = "crates", priority = 20, group = 1 },
       { name = "vimtex", priority = 15, group = 1 },
       { name = "path", priority = 10, group = 1 },
       { name = "buffer", priority = 10, group = 1 },
