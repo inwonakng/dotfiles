@@ -283,3 +283,4 @@ if [ -n "${ZSH_DEBUGRC+1}" ]; then
     zprof
 fi
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+export PATH=$PATH:"$HOME/.term-utils"
