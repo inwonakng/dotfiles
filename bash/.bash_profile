@@ -8,4 +8,11 @@ fi
 if [ -f ~/.bash_utils/prompt ]; then
 	. ~/.bash_utils/prompt
 fi
-. "$HOME/.cargo/env"
+
+if [ -f "$HOME/.cargo/env" ]; then
+  . "$HOME/.cargo/env"
+fi
+
+if [ -f "$HOME/.config/ripgrep/config" ]; then
+  export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"
+fi
