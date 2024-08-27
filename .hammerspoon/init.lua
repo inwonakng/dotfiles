@@ -459,6 +459,47 @@ hs.hotkey.bind({ "cmd", "ctrl" }, "[", function()
 	yabai({ "-m", "display", "--focus", "west" })
 end)
 
+local display_chooser = hs.hotkey.modal.new({ "cmd", "ctrl" }, "k")
+
+local display_keys = {"A", "S", "D", "F", "G", "H", "J", "K", "L", ";"}
+function display_chooser:entered()
+	yabai({ "-m", "query", "--displays" }, function(stdout, stderr)
+		-- print stdout json table
+		for k, v in pairs(hs.json.decode(stdout)) do
+			local hs_display = hs.screen.find(v["uuid"])
+			if not v["has-focus"] then
+				print(v["index"])
+				hs.alert.show(display_keys[v["index"]], { textSize = 50 }, hs_display, "")
+				--      {
+				-- 	"Display ",
+				-- 	screen = hs_display,
+				-- 	seconds = "",
+				-- })
+			end
+		end
+	end)
+end
+
+for i,v in ipairs(display_keys) do
+  display_chooser:bind("", v:lower(), function()
+    yabai({"-m", "display", "--focus", tostring(i)})
+    display_chooser:exit()
+  end)
+end
+
+display_chooser:bind("", "escape", function()
+	display_chooser:exit()
+end)
+
+display_chooser:bind({ "ctrl" }, "[", function()
+	display_chooser:exit()
+end)
+
+function display_chooser:exited()
+	hs.alert.closeAll(0)
+	print("display chooser exited")
+end
+
 ----------------------------------------
 -- Create/Delete space
 ----------------------------------------
