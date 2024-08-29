@@ -2,7 +2,7 @@
 local yabai = require("yabai")
 -- local windowAction = require("windowAction")
 
-local display_keys = { "A", "S", "D", "F", "G", "H", "J", "K", "L", ";" }
+local display_keys = { "H", "J", "K", "L", "N", "M", "U", "I" }
 
 local function getSafariTabs()
 	local chooser_data = {}
@@ -402,7 +402,7 @@ window_mover:bind({ "ctrl" }, "[", function()
 	window_mover:exit()
 end)
 
-function window_mover:exited() 
+function window_mover:exited()
 	hs.alert.closeAll(0)
 	print("window mover exited")
 end
