@@ -2,6 +2,8 @@
 local yabai = require("yabai")
 -- local windowAction = require("windowAction")
 
+local display_keys = { "A", "S", "D", "F", "G", "H", "J", "K", "L", ";" }
+
 local function getSafariTabs()
 	local chooser_data = {}
 	local stat, data = hs.osascript.applescript(
@@ -34,10 +36,6 @@ local function bindChooserKeys(chooser)
 		if not chooser:isVisible() then
 			return
 		end
-		-- print("keypress!!!")
-		-- print(keycode)
-		-- print("keychar: '"..key.."'")
-		-- "[" is keycode 33
 		if key == "[" and mods.ctrl and not (mods.cmd or mods.shift or mods.alt) then
 			chooser:hide()
 			return true
@@ -99,8 +97,6 @@ local appsChooserMenu = {
 		text = "WezTerm",
 		image = hs.image.imageFromAppBundle("com.github.wez.WezTerm"),
 		func = function()
-			-- hs.application.open("WezTerm")
-			-- hs.osascript.applescript('tell application "Finder"\nmake new Finder window\nactivate\nend tell')
 			hs.task
 				.new("/usr/bin/open", function(err, stdout, stderr) end, function(task, stdout, stderr)
 					return true
@@ -373,6 +369,44 @@ hs.hotkey.bind({ "alt", "ctrl" }, "l", function()
 	end)
 end)
 
+local window_mover = hs.hotkey.modal.new({ "cmd", "ctrl" }, "w")
+
+function window_mover:entered()
+	yabai({ "-m", "query", "--displays" }, function(stdout, stderr)
+		-- print stdout json table
+		for k, v in pairs(hs.json.decode(stdout)) do
+			local hs_display = hs.screen.find(v["uuid"])
+			if not v["has-focus"] then
+				print(v["index"])
+				hs.alert.show(display_keys[v["index"]], { textSize = 50 }, hs_display, "")
+			end
+		end
+	end)
+end
+
+for i, v in ipairs(display_keys) do
+	window_mover:bind("", v:lower(), function()
+		yabai({ "-m", "window", "--display", tostring(i) }, function(_, _)
+			yabai({ "-m", "display", "--focus", tostring(i) })
+		end)
+		-- yabai({ "-m", "display", "--focus", tostring(i) })
+		window_mover:exit()
+	end)
+end
+
+window_mover:bind("", "escape", function()
+	window_mover:exit()
+end)
+
+window_mover:bind({ "ctrl" }, "[", function()
+	window_mover:exit()
+end)
+
+function window_mover:exited() 
+	hs.alert.closeAll(0)
+	print("window mover exited")
+end
+
 ----------------------------------------
 -- Resize Windows
 ----------------------------------------
@@ -459,9 +493,8 @@ hs.hotkey.bind({ "cmd", "ctrl" }, "[", function()
 	yabai({ "-m", "display", "--focus", "west" })
 end)
 
-local display_chooser = hs.hotkey.modal.new({ "cmd", "ctrl" }, "k")
+local display_chooser = hs.hotkey.modal.new({ "cmd", "ctrl" }, "d")
 
-local display_keys = {"A", "S", "D", "F", "G", "H", "J", "K", "L", ";"}
 function display_chooser:entered()
 	yabai({ "-m", "query", "--displays" }, function(stdout, stderr)
 		-- print stdout json table
@@ -470,21 +503,16 @@ function display_chooser:entered()
 			if not v["has-focus"] then
 				print(v["index"])
 				hs.alert.show(display_keys[v["index"]], { textSize = 50 }, hs_display, "")
-				--      {
-				-- 	"Display ",
-				-- 	screen = hs_display,
-				-- 	seconds = "",
-				-- })
 			end
 		end
 	end)
 end
 
-for i,v in ipairs(display_keys) do
-  display_chooser:bind("", v:lower(), function()
-    yabai({"-m", "display", "--focus", tostring(i)})
-    display_chooser:exit()
-  end)
+for i, v in ipairs(display_keys) do
+	display_chooser:bind("", v:lower(), function()
+		yabai({ "-m", "display", "--focus", tostring(i) })
+		display_chooser:exit()
+	end)
 end
 
 display_chooser:bind("", "escape", function()
@@ -503,8 +531,6 @@ end
 ----------------------------------------
 -- Create/Delete space
 ----------------------------------------
-
--- hs.spaces.setDefaultMCwaitTime(1.0)
 
 local function getCurrentScreen()
 	return hs.window.focusedWindow():screen()
