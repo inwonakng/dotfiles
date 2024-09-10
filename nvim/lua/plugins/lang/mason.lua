@@ -8,6 +8,8 @@ return {
       "marksman",
       "prettier",
       "stylua",
+      "ruff",
+      "basedpyright",
       "codelldb"
     })
   end,
