@@ -5,6 +5,7 @@ return {
     "hrsh7th/cmp-path",
     "hrsh7th/cmp-emoji",
     "zbirenbaum/copilot-cmp",
+    "Exafunction/codeium.nvim",
     "hrsh7th/cmp-nvim-lsp",
     "saadparwaiz1/cmp_luasnip",
     "hrsh7th/cmp-omni",
@@ -13,6 +14,31 @@ return {
     "Saecki/crates.nvim",
   },
   event = "InsertEnter",
+  keys = {
+    {
+      "<tab>",
+      function()
+        return require("luasnip").jumpable(1) and "<Plug>luasnip-jump-next" or "<tab>"
+      end,
+      expr = true,
+      silent = true,
+      mode = "i",
+    },
+    {
+      "<tab>",
+      function()
+        require("luasnip").jump(1)
+      end,
+      mode = "s",
+    },
+    {
+      "<s-tab>",
+      function()
+        require("luasnip").jump(-1)
+      end,
+      mode = { "i", "s" },
+    },
+  },
   opts = function(_, opts)
     vim.api.nvim_set_hl(0, "CmpGhostText", { link = "Comment", default = true })
     local cmp = require("cmp")
@@ -26,11 +52,15 @@ return {
     opts.mapping = cmp.mapping.preset.insert({
       ["<C-b>"] = cmp.mapping.scroll_docs(-4),
       ["<C-f>"] = cmp.mapping.scroll_docs(4),
-      ["<C-Space>"] = cmp.mapping.complete(),
-      ["<C-CR>"] = LazyVim.cmp.confirm({ select = auto_select }),
-      ["<C-y>"] = LazyVim.cmp.confirm({ select = true }),
+      -- ["<C-Space>"] = cmp.mapping.complete(),
+      ["<CR>"] = LazyVim.cmp.confirm({ select = auto_select }),
+      -- ["<C-y>"] = LazyVim.cmp.confirm({ select = true }),
       -- Commented this one out b/c I don't know what it does. C-CR seems to work fine
       -- ["<S-CR>"] = LazyVim.cmp.confirm({ behavior = cmp.ConfirmBehavior.Replace }), -- Accept currently selected item. Set `select` to `false` to only confirm explicitly selected items.
+      -- ["<C-CR>"] = function(fallback)
+      --   cmp.abort()
+      --   fallback()
+      -- end,
     })
 
     opts.window = {
@@ -52,7 +82,8 @@ return {
       { name = "buffer", priority = 10, group = 1 },
       { name = "omni", priority = 9 },
       { name = "luasnip", priority = 9, group = 1 },
-      { name = "copilot", priority = 6 },
+      -- { name = "copilot", priority = 6, group = 2 },
+      { name = "codeium", priority = 6, group = 2 },
     })
 
     opts.snippet = {
