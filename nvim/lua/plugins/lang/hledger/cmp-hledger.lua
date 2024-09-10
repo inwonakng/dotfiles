@@ -1,3 +1,3 @@
 return {
-  "kirasok/cmp-hledger",
+  -- "kirasok/cmp-hledger",
 }
