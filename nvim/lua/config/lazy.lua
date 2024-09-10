@@ -41,7 +41,6 @@ local plugins = {
     },
   },
   { import = "lazyvim.plugins.extras.vscode" },
-  -- { import = "lazyvim.plugins.extras.lang.python" },
   { import = "plugins.lang" },
   { import = "plugins.lang.markdown" },
   { import = "plugins.lang.latex" },
@@ -50,7 +49,6 @@ local plugins = {
   { import = "plugins.ui" },
   { import = "plugins.utility" },
   { import = "plugins.navigation" },
-  { import = "plugins.debugging" },
   { import = "plugins.terminal" },
   { import = "plugins.editor" },
 }
