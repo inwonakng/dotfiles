@@ -14,7 +14,7 @@ return {
   },
   event = "InsertEnter",
   opts = function(_, opts)
-    -- vim.api.nvim_set_hl(0, "CmpGhostText", { link = "Comment", default = true })
+    vim.api.nvim_set_hl(0, "CmpGhostText", { link = "Comment", default = true })
     local cmp = require("cmp")
 
     local has_words_before = function()
@@ -23,32 +23,14 @@ return {
       return col ~= 0 and vim.api.nvim_buf_get_lines(0, line - 1, line, true)[1]:sub(col, col):match("%s") == nil
     end
 
-    opts.mapping = vim.tbl_extend("force", opts.mapping, {
-      ["<Tab>"] = cmp.mapping(function(fallback)
-        if cmp.visible() then
-          -- You could replace select_next_item() with confirm({ select = true }) to get VS Code autocompletion behavior
-          cmp.select_next_item()
-        elseif vim.snippet.active({ direction = 1 }) then
-          vim.schedule(function()
-            vim.snippet.jump(1)
-          end)
-        elseif has_words_before() then
-          cmp.complete()
-        else
-          fallback()
-        end
-      end, { "i", "s" }),
-      ["<S-Tab>"] = cmp.mapping(function(fallback)
-        if cmp.visible() then
-          cmp.select_prev_item()
-        elseif vim.snippet.active({ direction = -1 }) then
-          vim.schedule(function()
-            vim.snippet.jump(-1)
-          end)
-        else
-          fallback()
-        end
-      end, { "i", "s" }),
+    opts.mapping = cmp.mapping.preset.insert({
+      ["<C-b>"] = cmp.mapping.scroll_docs(-4),
+      ["<C-f>"] = cmp.mapping.scroll_docs(4),
+      ["<C-Space>"] = cmp.mapping.complete(),
+      ["<C-CR>"] = LazyVim.cmp.confirm({ select = auto_select }),
+      ["<C-y>"] = LazyVim.cmp.confirm({ select = true }),
+      -- Commented this one out b/c I don't know what it does. C-CR seems to work fine
+      -- ["<S-CR>"] = LazyVim.cmp.confirm({ behavior = cmp.ConfirmBehavior.Replace }), -- Accept currently selected item. Set `select` to `false` to only confirm explicitly selected items.
     })
 
     opts.window = {

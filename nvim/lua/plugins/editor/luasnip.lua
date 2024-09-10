@@ -10,11 +10,8 @@ return {
     local luasnip_loader = require("luasnip.loaders.from_vscode")
     luasnip_loader.lazy_load({ paths = { "./snippets" } })
     luasnip_loader.lazy_load()
-
-    opts[history] = true
-    opts[delete_check_events] = "TextChanged"
-    -- history = true,
-    -- delete_check_events = "TextChanged",
+    opts.history = true
+    opts.delete_check_events = "TextChanged"
     return opts
   end,
 }

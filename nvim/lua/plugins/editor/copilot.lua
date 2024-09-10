@@ -10,7 +10,6 @@ return {
       -- auto_trigger = true,
       -- keymap = { accept = "<C-a>" },
     },
-    -- panel = { enabled = true },
     panel = {
       enabled = false,
       -- enabled = true,
