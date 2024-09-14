@@ -82,8 +82,8 @@ return {
       { name = "buffer", priority = 10, group = 1 },
       { name = "omni", priority = 9 },
       { name = "luasnip", priority = 9, group = 1 },
-      -- { name = "copilot", priority = 6, group = 2 },
-      { name = "codeium", priority = 6, group = 2 },
+      { name = "copilot", priority = 100, group = 1 },
+      -- { name = "codeium", priority = 6, group = 2 },
     })
 
     opts.snippet = {
