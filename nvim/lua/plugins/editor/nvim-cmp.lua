@@ -78,11 +78,11 @@ return {
       { name = "nvim_lsp", priority = 20, group = 1 },
       { name = "crates", priority = 20, group = 1 },
       { name = "vimtex", priority = 15, group = 1 },
-      { name = "path", priority = 10, group = 1 },
-      { name = "buffer", priority = 10, group = 1 },
+      { name = "path", priority = 12, group = 1 },
+      { name = "buffer", priority = 12, group = 1 },
       { name = "omni", priority = 9 },
       { name = "luasnip", priority = 9, group = 1 },
-      { name = "copilot", priority = 100, group = 1 },
+      { name = "copilot", priority = 4, group = 1 },
       -- { name = "codeium", priority = 6, group = 2 },
     })
 

@@ -44,7 +44,6 @@ local plugins = {
   { import = "plugins.lang" },
   { import = "plugins.lang.markdown" },
   { import = "plugins.lang.latex" },
-  { import = "plugins.lang.hledger" },
   { import = "plugins.lang.rust" },
   { import = "plugins.ui" },
   { import = "plugins.utility" },
