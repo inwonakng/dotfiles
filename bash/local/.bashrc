@@ -97,3 +97,4 @@ export FZF_ALT_C_OPTS="
 
 export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"
 export PATH=$PATH:"$HOME/.term-utils"
+alias sioyek="/Applications/sioyek.app/Contents/MacOS/sioyek"

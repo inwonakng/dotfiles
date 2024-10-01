@@ -1,5 +1,5 @@
 # /usr/bin/bash
 
-umount ~/mount/idea/tabrfm
-umount ~/mount/silkworm/tabrfm
-umount ~/mount/cci/tabrfm
+diskutil unmount force ~/mount/idea/tabrfm
+diskutil unmount force ~/mount/silkworm/tabrfm
+diskutil unmount force ~/mount/cci/tabrfm
