@@ -76,6 +76,7 @@ bind -m vi-command '"v": abort'
 # Custom aliases
 alias code="/Applications/Visual\ Studio\ Code.app/Contents/Resources/app/bin/code"
 alias latex="latexmk -bibtex -pdf -pvc -output-directory=.cache -quiet -silent"
+alias money="bash $HOME/Documents/money/hledger/scripts/enter_transaction.sh"
 
 # alias for pretty ls
 alias ls="ls --color"

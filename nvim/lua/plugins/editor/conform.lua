@@ -22,12 +22,12 @@ return {
       yaml = { "prettier" },
       markdown = { "prettier" },
       markdowndx = { "prettier" },
-      ledger = { "ledger-formatter" },
+      ledger = { "ledger_formatter" },
       lua = { "stylua" },
     },
     formatters = {
       ledger_formatter = {
-        command = "ledger-formatter",
+        command = "ledger_formatter",
       },
     },
   },

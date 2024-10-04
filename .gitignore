@@ -7,3 +7,4 @@
 tmux/plugins
 .vim/plugged
 .vim/.netrwhist
+.DS_Store
