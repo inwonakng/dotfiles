@@ -12,6 +12,10 @@ return {
             "cat ~/.config/github-copilot/hosts.json | sed -e 's/.*oauth_token...//;s/\".*//'",
           },
         },
+        anthropic = {
+          endpoint = "https://api.anthropic.com/v1/messages",
+          secret = { "cat", "/Users/inwon/.keys/anthropic.txt" },
+        },
       },
       hooks = {
         -- GpImplement rewrites the provided selection/range based on comments in it
