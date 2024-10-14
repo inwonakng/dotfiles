@@ -64,13 +64,10 @@ export PATH="$CONDA_DIR/bin:$PATH"
 
 # if fzf is installed, set it up here
 if [[ -d "$HOME/.fzf-$POSTFIX" ]]; then
-    echo "WE HAVE FZF"
     if [[ ! "$PATH" == *$HOME/.fzf-$POSTFIX/bin* ]]; then
         PATH="${PATH:+${PATH}:}$HOME/.fzf-$POSTFIX/bin"
-        echo "EVEN ADDED TO PATH"
     fi
     eval "$(fzf --bash)"
-    echo "SHOULD HAVE WOKRED"
 fi
 
 # set input to vi mode
