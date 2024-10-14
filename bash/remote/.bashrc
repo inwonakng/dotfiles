@@ -61,7 +61,16 @@ unset __conda_setup
 export PATH="$CONDA_DIR/bin:$PATH"
 
 [ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin/$POSTFIX:$PATH"
-[ -f "$HOME/.fzf-$POSTFIX.bash" ] && source "$HOME/.fzf-$POSTFIX.bash"
+
+# if fzf is installed, set it up here
+if [[ -d "$HOME/.fzf-$POSTFIX" ]]; then
+    if [[ ! "$PATH" == *$HOME/.fzf-$POSTFIX/bin* ]]; then
+      PATH="${PATH:+${PATH}:}$HOME/.fzf-$POSTFIX/bin"
+    fi
+    source $HOME/.fzf-$POSTFIX/shell/completion.bash
+    source $HOME/.fzf-$POSTFIX/shell/key-bindings.bash
+    eval "$(fzf --bash)"
+fi
 
 # set input to vi mode
 set -o vi
