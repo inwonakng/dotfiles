@@ -292,4 +292,47 @@ function M.log(...)
   vim.notify(debug_value)
 end
 
+-- Function to check if a directory exists
+function M.directory_exists(dir)
+  local p = io.popen("cd " .. dir .. ' 2>/dev/null && echo "exists"')
+  local result = p:read("*a")
+  p:close()
+
+  return result == "exists"
+end
+
+-- Function to execute a shell command and capture the output
+function M.os_capture(cmd, raw)
+  local handle = assert(io.popen(cmd, "r"))
+  local output = assert(handle:read("*a"))
+  handle:close()
+  if raw then
+    return output
+  end
+  output = string.gsub(output, "^%s+", "")
+  output = string.gsub(output, "%s+$", "")
+  output = string.gsub(output, "[\n\r]+", " ")
+  return output
+end
+
+-- Function to commit and push changes in the directory
+function M.git_commit_and_push(dir)
+  local changes = M.os_capture("cd " .. dir .. " && git status --porcelain")
+  if not changes or changes == "" then
+    return
+  end
+  local current_time = os.date("%Y-%m-%d %H:%M:%S")
+  local handle = io.popen("hostname")
+  local hostname = handle:read("*a"):gsub("%s+$", "") -- Remove any trailing newlines or spaces
+  handle:close()
+  os.execute(
+    "cd" .. dir .. " && git add -A && git commit -m '" .. current_time .. " update from " .. hostname .. "' && git push"
+  )
+  -- print("I did the thing!")
+end
+
+function M.git_pull(directory)
+  os.execute("cd " .. directory .. " && git pull")
+end
+
 return M
