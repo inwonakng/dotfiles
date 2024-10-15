@@ -5,6 +5,6 @@
 *.log
 *.sqlite
 tmux/plugins
-.vim/plugged
-.vim/.netrwhist
+vim/plugged
+vim/.netrwhist
 .DS_Store

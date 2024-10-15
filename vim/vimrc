@@ -42,7 +42,7 @@ set nowrap
 let mapleader = " "
 
 " quit completely
-nmap <leader>qq :x<CR>
+nmap <leader>qq :qa<CR>
 
 " pane commands
 nmap <leader>w\ :vsp<CR>
@@ -64,5 +64,6 @@ nmap <leader><Tab>o :tabonly<CR>
 
 " fzf stuff
 nmap <leader>ff :Files<CR>
-nmap <C-s> :Buffers<CR>
-nmap <leader><space> :Rg<CR>
+nmap <leader>fb :Buffers<CR>
+nmap <leader>sb :BLines<CR>
+nmap <leader>sg :Rg<CR>
