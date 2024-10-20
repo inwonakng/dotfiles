@@ -7,7 +7,7 @@ return {
     suggestion = {
       -- enabled = false,
       enabled = true,
-      -- auto_trigger = true,
+      auto_trigger = true,
       keymap = { accept = "<C-a>" },
     },
     panel = {

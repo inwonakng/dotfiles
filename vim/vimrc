@@ -11,7 +11,7 @@ set hlsearch
 highlight Normal ctermbg=None
 highlight LineNr ctermfg=DarkGrey
 
-"plugins
+" plugins
 call plug#begin()
 Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'

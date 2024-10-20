@@ -13,6 +13,7 @@ return {
     "onsails/lspkind.nvim",
     "Saecki/crates.nvim",
   },
+  enabled = false,
   event = "InsertEnter",
   keys = {
     {
