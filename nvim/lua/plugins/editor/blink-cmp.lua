@@ -75,7 +75,7 @@ return {
         max_height = 15,
         border = vim.g.borderStyle,
         auto_show = true,
-        auto_show_delay_ms = 200,
+        auto_show_delay_ms = 500,
       },
       autocomplete = {
         min_width = 10,
