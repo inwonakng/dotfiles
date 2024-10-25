@@ -65,7 +65,7 @@ function load_conda() {
 function load() {
   case $1 in
   conda)
-    init_conda
+    load_conda
     echo "conda is loaded"
     ;;
   *)
