@@ -31,10 +31,10 @@ return {
     -- trigger = { signature_help = { enabled = true } }
     sources = {
       providers = {
-        { "blink.cmp.sources.lsp", name = "LSP", score_offset = 1 },
-        {
-          "blink.cmp.sources.snippets",
+        lsp = { name = "LSP", module = "blink.cmp.sources.lsp", score_offset = 1 },
+        snippets = {
           name = "Snippets",
+          module = "blink.cmp.sources.snippets",
           -- keyword_length = 1, -- not supported yet
           opts = {
             friendly_snippets = true,
@@ -44,15 +44,15 @@ return {
             ignored_filetypes = {},
           },
         },
-        {
-          "blink.cmp.sources.path",
+        path = {
           name = "Path",
+          module = "blink.cmp.sources.path",
           score_offset = 3,
           opts = { get_cwd = vim.uv.cwd },
         },
-        {
-          "blink.cmp.sources.buffer",
+        buffer = {
           name = "Buffer",
+          module = "blink.cmp.sources.buffer",
           keyword_length = 3,
           score_offset = -1,
           fallback_for = { "Path", "LSP" }, -- PENDING https://github.com/Saghen/blink.cmp/issues/122
@@ -63,8 +63,10 @@ return {
       -- show = "<D-c>",
       hide = "<S-CR>",
       accept = "<C-CR>",
-      select_next = { "<Tab>", "<Down>", "<C-n>" },
-      select_prev = { "<S-Tab>", "<Up>", "<C-p>" },
+      -- select_next = { "<Tab>", "<Down>", "<C-n>" },
+      -- select_prev = { "<S-Tab>", "<Up>", "<C-p>" },
+      select_next = { "<C-n>" },
+      select_prev = { "<C-p>" },
       scroll_documentation_down = "<PageDown>",
       scroll_documentation_up = "<PageUp>",
     },
@@ -93,8 +95,8 @@ return {
             icon = "󰩫"
           elseif source == "Buffer" or (client == "basics_ls" and ctx.kind == "Text") then
             icon = "󰦨"
-          -- elseif client == "emmet_language_server" then
-          --   icon = "󰯸"
+            -- elseif client == "emmet_language_server" then
+            --   icon = "󰯸"
           end
 
           -- FIX highlight for Tokyonight
