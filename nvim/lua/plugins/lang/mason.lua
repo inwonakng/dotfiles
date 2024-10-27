@@ -5,7 +5,7 @@ return {
       "black",
       "shfmt",
       "markdownlint",
-      "marksman",
+      -- "marksman",
       "prettier",
       "stylua",
       "ruff",

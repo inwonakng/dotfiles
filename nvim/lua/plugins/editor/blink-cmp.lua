@@ -85,7 +85,7 @@ return {
         border = vim.g.borderStyle,
         -- selection = "auto_insert", -- PENDING https://github.com/Saghen/blink.cmp/issues/117
         selection = "preselect",
-        cycle = { from_top = true }, -- cycle at bottom, but not at the top
+        -- cycle = { from_top = true },
         draw = function(ctx)
           -- https://github.com/Saghen/blink.cmp/blob/819b978328b244fc124cfcd74661b2a7f4259f4f/lua/blink/cmp/windows/autocomplete.lua#L285-L349
           -- differentiate LSP snippets from user snippets and emmet snippets
