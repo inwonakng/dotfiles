@@ -16,3 +16,7 @@ fi
 if [ -f "$HOME/.config/ripgrep/config" ]; then
   export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"
 fi
+
+if [ -f ~/.git-completion.bash ]; then
+  . ~/.git-completion.bash
+fi
