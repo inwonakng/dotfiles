@@ -28,6 +28,9 @@ return {
     -- see below for full list of optional dependencies 👇
   },
   opts = {
+    completion={
+      nvim_cmp=false,
+    },
     workspaces = {
       {
         name = "notes",

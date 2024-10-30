@@ -1,8 +1,8 @@
 return {
   "saghen/blink.cmp",
   lazy = false, -- lazy loading handled internally
-  -- dependencies = { "rafamadriz/friendly-snippets", "saghen/blink.compat" },
-  dependencies = { "rafamadriz/friendly-snippets" },
+  dependencies = { "rafamadriz/friendly-snippets", "saghen/blink.compat" },
+  -- dependencies = { "rafamadriz/friendly-snippets" },
   version = "v0.*",
   opts = {
     keymap = {
@@ -16,7 +16,10 @@ return {
     },
     nerd_font_variant = "mono",
     sources = {
-      completion = { enabled_providers = { "lsp", "path", "snippets", "buffer" } },
+      completion = {
+        -- enabled_providers = { "lsp", "path", "snippets", "buffer", "obsidian", "obsidian_tags", "obsidian_new" },
+        enabled_providers = { "lsp", "path", "snippets", "buffer" },
+      },
       providers = {
         lsp = { name = "LSP", module = "blink.cmp.sources.lsp", score_offset = 1 },
         snippets = {
@@ -44,6 +47,21 @@ return {
           score_offset = -1,
           fallback_for = { "Path", "LSP" }, -- PENDING https://github.com/Saghen/blink.cmp/issues/122
         },
+        -- obsidian = {
+        --   name = "obsidian",
+        --   module = "blink.compat",
+        --   opts = require("cmp_obsidian").new(),
+        -- },
+        -- obsidian_tags = {
+        --   name = "obsidian_tags",
+        --   module = "blink.compat",
+        --   opts = require("cmp_obsidian_tags").new(),
+        -- },
+        -- obsidian_new = {
+        --   name = "obsidian_new",
+        --   module = "blink.compat",
+        --   opts = require("cmp_obsidian_new").new(),
+        -- },
       },
     },
     windows = {
