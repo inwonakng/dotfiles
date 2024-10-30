@@ -2,8 +2,7 @@ return {
   "saghen/blink.cmp",
   lazy = false, -- lazy loading handled internally
   -- optional: provides snippets for the snippet source
-  dependencies = "rafamadriz/friendly-snippets",
-
+  dependencies = { "rafamadriz/friendly-snippets", "saghen/blink.compat" },
   -- use a release tag to download pre-built binaries
   version = "v0.*",
   -- OR build from source, requires nightly: https://rust-lang.github.io/rustup/concepts/channels.html#working-with-nightly-rust
@@ -14,6 +13,23 @@ return {
   ---@module 'blink.cmp'
   ---@type blink.cmp.Config
   opts = {
+    keymap = {
+      -- show = "<D-c>",
+      -- accept = "<C-CR>",
+      ["<S-CR>"] = { "hide" },
+      ["<C-Space>"] = { "show", "show_documentation", "hide_documentation" },
+      ["<C-CR>"] = { "select_and_accept" },
+      ["<C-n>"] = { "select_next", "fallback" },
+      ["<C-p>"] = { "select_prev", "fallback" },
+      ["<C-b>"] = { "scroll_documentation_up", "fallback" },
+      ["<C-f>"] = { "scroll_documentation_down", "fallback" },
+      -- select_next = { "<Tab>", "<Down>", "<C-n>" },
+      -- select_prev = { "<S-Tab>", "<Up>", "<C-p>" },
+      -- select_next = { "<C-n>" },
+      -- select_prev = { "<C-p>" },
+      -- scroll_documentation_down = "<PageDown>",
+      --  = "<PageUp>",
+    },
     highlight = {
       -- sets the fallback highlight groups to nvim-cmp's highlight groups
       -- useful for when your theme doesn't support blink.cmp
@@ -30,6 +46,7 @@ return {
     -- experimental signature help support
     -- trigger = { signature_help = { enabled = true } }
     sources = {
+      completion = { "lsp", "path", "snippets", "buffer" },
       providers = {
         lsp = { name = "LSP", module = "blink.cmp.sources.lsp", score_offset = 1 },
         snippets = {
@@ -58,17 +75,6 @@ return {
           fallback_for = { "Path", "LSP" }, -- PENDING https://github.com/Saghen/blink.cmp/issues/122
         },
       },
-    },
-    keymap = {
-      -- show = "<D-c>",
-      hide = "<S-CR>",
-      accept = "<C-CR>",
-      -- select_next = { "<Tab>", "<Down>", "<C-n>" },
-      -- select_prev = { "<S-Tab>", "<Up>", "<C-p>" },
-      select_next = { "<C-n>" },
-      select_prev = { "<C-p>" },
-      scroll_documentation_down = "<PageDown>",
-      scroll_documentation_up = "<PageUp>",
     },
     windows = {
       documentation = {
@@ -112,6 +118,7 @@ return {
             },
           }
         end,
+        cycle = { from_top = true, from_bottom = true },
       },
     },
     kind_icons = {
