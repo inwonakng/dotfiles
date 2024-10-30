@@ -1,8 +1,11 @@
+local fn = require("utils.fn")
+
 return {
   "zbirenbaum/copilot.lua",
   lazy = false,
   cmd = "Copilot",
   build = ":Copilot auth",
+  enabled = fn.is_node_available(),
   opts = {
     suggestion = {
       -- enabled = false,

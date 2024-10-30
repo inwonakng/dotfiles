@@ -1,7 +1,8 @@
 return {
   "saghen/blink.cmp",
   lazy = false, -- lazy loading handled internally
-  dependencies = { "rafamadriz/friendly-snippets", "saghen/blink.compat" },
+  -- dependencies = { "rafamadriz/friendly-snippets", "saghen/blink.compat" },
+  dependencies = { "rafamadriz/friendly-snippets" },
   version = "v0.*",
   opts = {
     keymap = {
@@ -15,7 +16,7 @@ return {
     },
     nerd_font_variant = "mono",
     sources = {
-      completion = { "lsp", "path", "snippets", "buffer" },
+      completion = { enabled_providers = { "lsp", "path", "snippets", "buffer" } },
       providers = {
         lsp = { name = "LSP", module = "blink.cmp.sources.lsp", score_offset = 1 },
         snippets = {

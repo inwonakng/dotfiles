@@ -335,4 +335,14 @@ function M.git_pull(directory)
   os.execute("cd " .. directory .. " && git pull")
 end
 
+-- check if node is available in current shell
+function M.is_node_available()
+  local handle = io.popen("command -v node")
+  local result = handle:read("*a")
+  handle:close()
+  return result ~= ""
+end
+
 return M
+
+
