@@ -343,6 +343,10 @@ function M.is_node_available()
   return result ~= ""
 end
 
+function M.is_internet_available()
+  -- TODO: implement when I have internet!
+end
+
 return M
 
 

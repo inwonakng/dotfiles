@@ -53,6 +53,7 @@ return {
 		-- turn off keybindings
 		{ key = "m", mods = "CMD", action = act.DisableDefaultAssignment },
 		{ key = "m", mods = "CTRL", action = act.DisableDefaultAssignment },
+		{ key = "Enter", mods = "OPT", action = act.DisableDefaultAssignment },
 		-- { key = "w", mods = "CMD", action = act.DisableDefaultAssignment },
 		{ key = "-", mods = "CTRL", action = act.DisableDefaultAssignment },
 		{ key = "=", mods = "CTRL", action = act.DisableDefaultAssignment },
@@ -81,7 +82,7 @@ return {
 		{ key = "z", mods = "LEADER", action = act.TogglePaneZoomState },
 		{ key = "d", mods = "LEADER", action = act.CloseCurrentPane({ confirm = false }) },
 		{ key = "v", mods = "LEADER", action = act.ActivateCopyMode },
-		{ key = "f", mods = "LEADER", action = act.ToggleFullScreen },
+		-- { key = "f", mods = "LEADER", action = act.ToggleFullScreen },
 		-- bring up command palette
 		{
 			key = ":",
