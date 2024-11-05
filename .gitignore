@@ -8,3 +8,4 @@ tmux/plugins
 vim/plugged
 vim/.netrwhist
 .DS_Store
+karabiner/automatic_backups
