@@ -49,6 +49,7 @@ end)
 return {
 	-- leader = { key = "Space", mods = "SHIFT", timeout_milliseconds = 2000 },
 	leader = { key = "w", mods = "CTRL"},
+  -- leader = { key = "Space", mods = "ALT"},
 	keys = {
 		-- turn off keybindings
 		{ key = "m", mods = "CMD", action = act.DisableDefaultAssignment },
