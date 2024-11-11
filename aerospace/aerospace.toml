@@ -4,7 +4,7 @@
 # You can use it to add commands that run after login to macOS user session.
 # 'start-at-login' needs to be 'true' for 'after-login-command' to work
 # Available commands: https://nikitabobko.github.io/AeroSpace/commands
-after-login-command = []
+after-login-command = [ 'exec-and-forget ~/.scripts/startup/init.sh' ]
 
 # You can use it to add commands that run after AeroSpace startup.
 # 'after-startup-command' is run after 'after-login-command'
@@ -21,7 +21,7 @@ enable-normalization-opposite-orientation-for-nested-containers = true
 # See: https://nikitabobko.github.io/AeroSpace/guide#layouts
 # The 'accordion-padding' specifies the size of accordion padding
 # You can set 0 to disable the padding feature
-accordion-padding = 20
+accordion-padding = 15
 
 # Possible values: tiles|accordion
 default-root-container-layout = 'tiles'
@@ -46,12 +46,38 @@ automatically-unhide-macos-hidden-apps = true
 
 
 [[on-window-detected]]
-if.app-id = 'com.apple.Safari'
-run = "move-node-to-workspace 1"
-
-[[on-window-detected]]
 if.app-id = 'com.apple.mail'
 run = 'move-node-to-workspace M'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.MobileSMS'
+run = 'move-node-to-workspace I'
+
+[[on-window-detected]]
+if.app-id = 'com.tinyspeck.slackmacgap'
+run = 'move-node-to-workspace S'
+
+[[on-window-detected]]
+if.app-id = 'com.zotero.zotero'
+run = 'move-node-to-workspace Z'
+
+[[on-window-detected]]
+if.app-id = 'com.goldenhillsoftware.Unread2'
+run = 'move-node-to-workspace R'
+
+[[on-window-detected]]
+if.app-id = 'com.github.wez.wezterm'
+if.window-title-regex-substring = 'nvim'
+run = 'move-node-to-workspace N'
+
+[[on-window-detected]]
+if.app-id = 'com.github.wez.wezterm'
+if.window-title-regex-substring = 'bash'
+run = 'move-node-to-workspace 2'
+
+[[on-window-detected]]
+if.app-id = 'com.apple.Safari'
+run = 'move-node-to-workspace 1'
 
 
 # Possible values: (qwerty|dvorak)
@@ -105,8 +131,8 @@ outer.right = 0
 # '''
 
 # See: https://nikitabobko.github.io/AeroSpace/commands#layout
-alt-slash = 'layout tiles horizontal vertical'
-alt-comma = 'layout accordion horizontal vertical'
+alt-backslash = 'layout tiles horizontal vertical'
+alt-enter = 'layout accordion horizontal vertical'
 
 # See: https://nikitabobko.github.io/AeroSpace/commands#focus
 alt-h = 'focus left'
