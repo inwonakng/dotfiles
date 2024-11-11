@@ -73,7 +73,10 @@ wezterm.on("update-status", function(window, pane)
 		{ Text = wezterm.nerdfonts.md_folder .. "  " .. cwd },
 		{ Text = "  " },
 		{ Foreground = { Color = "#e0af68" } },
-		{ Text = wezterm.nerdfonts.fa_code .. "  " .. cmd .. " " },
+		{ Text = wezterm.nerdfonts.fa_code .. "  " .. cmd },
+		{ Text = "  " },
+		{ Foreground = { Color = "#58d6a7" } },
+		{ Text = "#" .. pane:pane_id() .. " " },
 		-- "ResetAttributes",
 	}))
 end)
@@ -82,7 +85,7 @@ end)
 -- It prefers the title that was set via `tab:set_title()`
 -- or `wezterm cli set-tab-title`, but falls back to the
 -- title of the active pane in that tab.
-function tab_title(tab_info)
+local function tab_title(tab_info)
 	local title = tab_info.active_pane.title
 	-- if the tab title is explicitly set, take that
 	if tab_info.tab_title and #tab_info.tab_title > 0 then
@@ -134,7 +137,7 @@ return {
 		{ family = "Nerd Font" },
 	}),
 	font_size = 17,
-	hide_tab_bar_if_only_one_tab = true,
+	hide_tab_bar_if_only_one_tab = false,
 	window_padding = {
 		left = 2,
 		right = 2,
