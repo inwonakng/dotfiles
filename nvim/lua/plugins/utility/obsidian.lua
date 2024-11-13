@@ -79,6 +79,7 @@ return {
       -- vim.fn.jobstart({"xdg-open", url})  -- linux
     end,
     ui = {
+      enabled=false,
       checkboxes = {
         -- NOTE: the 'char' value has to be a single character, and the highlight groups are defined below.
         [" "] = { char = "󰄱", hl_group = "ObsidianTodo" },
@@ -87,24 +88,24 @@ return {
         ["~"] = { char = "󰰱", hl_group = "ObsidianTilde" },
         -- ["!"] = { char = "", hl_group = "ObsidianImportant" },
       },
-      reference_text = { hl_group = "ObsidianRefText" },
-      highlight_text = { hl_group = "ObsidianHighlightText" },
-      tags = { hl_group = "ObsidianTag" },
-      block_ids = { hl_group = "ObsidianBlockID" },
-      hl_groups = {
-        -- The options are passed directly to `vim.api.nvim_set_hl()`. See `:help nvim_set_hl`.
-        ObsidianTodo = { bold = true, fg = "#f78c6c" },
-        ObsidianDone = { bold = true, fg = "#89ddff" },
-        ObsidianRightArrow = { bold = true, fg = "#f78c6c" },
-        ObsidianTilde = { bold = true, fg = "#ff5370" },
-        ObsidianImportant = { bold = true, fg = "#d73128" },
-        ObsidianBullet = { bold = true, fg = "#89ddff" },
-        ObsidianRefText = { underline = true, fg = "#c792ea" },
-        ObsidianExtLinkIcon = { fg = "#c792ea" },
-        ObsidianTag = { italic = true, fg = "#89ddff" },
-        ObsidianBlockID = { italic = true, fg = "#89ddff" },
-        ObsidianHighlightText = { bg = "#75662e" },
-      },
+      -- reference_text = { hl_group = "ObsidianRefText" },
+      -- highlight_text = { hl_group = "ObsidianHighlightText" },
+      -- tags = { hl_group = "ObsidianTag" },
+      -- block_ids = { hl_group = "ObsidianBlockID" },
+      -- hl_groups = {
+      --   -- The options are passed directly to `vim.api.nvim_set_hl()`. See `:help nvim_set_hl`.
+      --   ObsidianTodo = { bold = true, fg = "#f78c6c" },
+      --   ObsidianDone = { bold = true, fg = "#89ddff" },
+      --   ObsidianRightArrow = { bold = true, fg = "#f78c6c" },
+      --   ObsidianTilde = { bold = true, fg = "#ff5370" },
+      --   ObsidianImportant = { bold = true, fg = "#d73128" },
+      --   ObsidianBullet = { bold = true, fg = "#89ddff" },
+      --   ObsidianRefText = { underline = true, fg = "#c792ea" },
+      --   ObsidianExtLinkIcon = { fg = "#c792ea" },
+      --   ObsidianTag = { italic = true, fg = "#89ddff" },
+      --   ObsidianBlockID = { italic = true, fg = "#89ddff" },
+      --   ObsidianHighlightText = { bg = "#75662e" },
+      -- },
     },
     callbacks = {
       -- leave_note = function(client, note)

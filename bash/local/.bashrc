@@ -18,13 +18,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 fi
 
 function load_nvm() {
-  export NVM_DIR="$HOME/.nvm"
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    nvim_prefix=$(brew --prefix nvm)
-  else
-    nvim_prefix="${HOME}/.nvm"
-  fi
-  source "${nvim_prefix}/nvm.sh"
+  source "$HOME/.nvm/nvm.sh"
 }
 
 function load_conda() {
