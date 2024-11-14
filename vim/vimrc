@@ -34,7 +34,7 @@ nmap <C-l> <C-w>l
 " fix tabs
 set tabstop=4
 set shiftwidth=4
-set expandtab  
+set expandtab
 
 " turn off wrap
 set nowrap
@@ -70,9 +70,11 @@ nmap <leader>sb :BLines<CR>
 nmap <leader>sg :Rg<CR>
 
 " set up vim-slime
+let g:slime_no_mappings = 1
 let g:slime_target = "tmux"
 let g:slime_cell_delimiter = "#%%"
 let g:slime_bracketed_paste = 1
+let g:slime_python_ipython = 1
 nmap <leader>rr <Plug>SlimeSendCell<BAR>/^#%%<CR>
 nmap <leader>rc :SlimeConfig<CR>
 vmap <leader>rr :<C-u>'<,'>SlimeSend<CR>

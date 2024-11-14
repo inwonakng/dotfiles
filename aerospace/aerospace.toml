@@ -45,36 +45,40 @@ on-focus-changed = 'move-mouse monitor-lazy-center'
 automatically-unhide-macos-hidden-apps = true
 
 
+# communications go under M
+
 [[on-window-detected]]
 if.app-id = 'com.apple.mail'
 run = 'move-node-to-workspace M'
 
 [[on-window-detected]]
 if.app-id = 'com.apple.MobileSMS'
-run = 'move-node-to-workspace I'
+run = 'move-node-to-workspace M'
 
 [[on-window-detected]]
 if.app-id = 'com.tinyspeck.slackmacgap'
-run = 'move-node-to-workspace S'
+run = 'move-node-to-workspace M'
 
+# readings go under r
 [[on-window-detected]]
 if.app-id = 'com.zotero.zotero'
-run = 'move-node-to-workspace Z'
+run = 'move-node-to-workspace R'
 
 [[on-window-detected]]
 if.app-id = 'com.goldenhillsoftware.Unread2'
 run = 'move-node-to-workspace R'
 
-[[on-window-detected]]
-if.app-id = 'com.github.wez.wezterm'
-if.window-title-regex-substring = 'nvim'
-run = 'move-node-to-workspace N'
+# [[on-window-detected]]
+# if.app-id = 'com.github.wez.wezterm'
+# if.window-title-regex-substring = 'nvim'
+# run = 'move-node-to-workspace N'
 
-[[on-window-detected]]
-if.app-id = 'com.github.wez.wezterm'
-if.window-title-regex-substring = 'bash'
-run = 'move-node-to-workspace 2'
+# [[on-window-detected]]
+# if.app-id = 'com.github.wez.wezterm'
+# if.window-title-regex-substring = 'bash'
+# run = 'move-node-to-workspace 2'
 
+# Keep safari in the first workspace
 [[on-window-detected]]
 if.app-id = 'com.apple.Safari'
 run = 'move-node-to-workspace 1'
