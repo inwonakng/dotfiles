@@ -80,7 +80,16 @@ nmap <leader>rc :SlimeConfig<CR>
 vmap <leader>rr :<C-u>'<,'>SlimeSend<CR>
 
 " utility command for copying the path of current buffer file
-command! YankFilePath let @" = expand('%:p') | echo expand('%:p')
+function! YankFilePathFunc()
+  let path = expand('%:p')
+  if has("clipboard")
+    let @+ = path
+  else
+    let @" = path
+  endif
+  echo path
+endfunction
+command! YankFilePath call YankFilePathFunc()
 " For relative paths
 command! YankRelativeFilePath call YankRelativeFilePathFunc()
 
@@ -88,8 +97,12 @@ function! YankRelativeFilePathFunc()
     let full_path = expand('%:p')
     let cwd = getcwd()
     let relative_path = fnamemodify(full_path, ':.' . cwd . ':~:.')
+    if has("clipboard")
+      let @+ = relative_path
+    else
+      let @" = relative_path
+    endif
     echo relative_path
-    let @" = relative_path
 endfunction
 
 nnoremap yP :YankFilePath<CR>
