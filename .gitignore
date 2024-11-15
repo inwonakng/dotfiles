@@ -9,3 +9,4 @@ vim/plugged
 vim/.netrwhist
 .DS_Store
 karabiner/automatic_backups
+bash/.bash_utils/completions
