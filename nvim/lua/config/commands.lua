@@ -37,3 +37,25 @@ create_cmd("FormatFile", function(args)
   end
   require("conform").format({ async = true, lsp_format = "fallback", range = range })
 end, { range = true })
+
+create_cmd("YankFilePath", function()
+  -- Get the full path of the current buffer
+  local file_path = vim.fn.expand("%:p")
+  -- Yank the file path to the system clipboard
+  vim.fn.setreg("+", file_path)
+  -- Optional: Print a message to confirm the action
+  print("File path yanked: " .. file_path)
+end, {})
+
+create_cmd("YankRelativeFilePath", function()
+  -- Get the full path of the current buffer
+  local full_path = vim.fn.expand("%:p")
+  -- Get the current working directory
+  local cwd = vim.fn.getcwd()
+  -- Get the relative path
+  local relative_path = vim.fn.fnamemodify(full_path, ":." .. cwd .. ":~:.")
+  -- Yank the relative path to the system clipboard
+  vim.fn.setreg("+", relative_path)
+  -- Print a message to confirm the action
+  print("Relative file path yanked: " .. relative_path)
+end, {})

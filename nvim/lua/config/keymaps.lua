@@ -68,3 +68,6 @@ map("n", "<leader>\\", "<C-W>v", { desc = "Split Window Right", remap = true })
 map("n", "<leader>C", ":norm gc<cr>", { desc = "Comment" })
 map("n", "<leader>cc", ":norm gcc<cr>", { desc = "Comment Line" })
 map("x", "<leader>cc", ":vi v_gc<cr>", { desc = "Comment Selection" })
+
+map("n", "yP", ":YankFilePath<CR>", { noremap = true, silent = true })
+map("n", "yp", ":YankRelativeFilePath<CR>", { noremap = true, silent = true })

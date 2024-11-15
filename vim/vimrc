@@ -78,3 +78,18 @@ let g:slime_python_ipython = 1
 nmap <leader>rr <Plug>SlimeSendCell<BAR>/^#%%<CR>
 nmap <leader>rc :SlimeConfig<CR>
 vmap <leader>rr :<C-u>'<,'>SlimeSend<CR>
+
+" utility command for copying the path of current buffer file
+command! YankFilePath let @+ = expand('%:p')
+" For relative paths
+command! YankRelativeFilePath call YankRelativeFilePathFunc()
+
+function! YankRelativeFilePathFunc()
+    let full_path = expand('%:p')
+    let cwd = getcwd()
+    let relative_path = fnamemodify(full_path, ':.' . cwd . ':~:.')
+    let @+ = relative_path
+endfunction
+
+nnoremap yP :YankFilePath<CR>
+nnoremap yp :YankRelativeFilePath<CR>
