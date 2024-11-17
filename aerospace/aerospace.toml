@@ -46,7 +46,6 @@ automatically-unhide-macos-hidden-apps = true
 
 
 # communications go under M
-
 [[on-window-detected]]
 if.app-id = 'com.apple.mail'
 run = 'move-node-to-workspace M'
@@ -68,17 +67,15 @@ run = 'move-node-to-workspace R'
 if.app-id = 'com.goldenhillsoftware.Unread2'
 run = 'move-node-to-workspace R'
 
-# [[on-window-detected]]
-# if.app-id = 'com.github.wez.wezterm'
-# if.window-title-regex-substring = 'nvim'
-# run = 'move-node-to-workspace N'
 
-# [[on-window-detected]]
-# if.app-id = 'com.github.wez.wezterm'
-# if.window-title-regex-substring = 'bash'
-# run = 'move-node-to-workspace 2'
+# Most terminals stay in T
+[[on-window-detected]]
+if.app-id = 'com.github.wez.wezterm'
+run = 'move-node-to-workspace 2'
 
-# Keep safari in the first workspace
+# NOTE: Notes go to N, Paper (writing) goes to P
+
+# Browser goes to B
 [[on-window-detected]]
 if.app-id = 'com.apple.Safari'
 run = 'move-node-to-workspace 1'

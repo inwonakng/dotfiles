@@ -1,4 +1,3 @@
 #!/bin/bash
 
-SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-bash $SCRIPTDIR/wezterm.sh
+bash ~/dotfiles/scripts/startup/open-notes-nvim.sh

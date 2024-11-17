@@ -13,7 +13,7 @@ vim.g.autoformat = false
 
 vim.filetype.add({
   extension = {
-    mdx = 'mdx'
+    mdx = 'markdown'
   }
 })
 

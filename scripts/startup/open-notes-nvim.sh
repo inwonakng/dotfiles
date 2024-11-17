@@ -6,5 +6,6 @@ swap_files=$(find ~/.local/state/nvim/swap -type f -name "$swap_pattern*.swp")
 # Check if any swap files were found
 if [ -z "$swap_files" ]; then
   # No swap files found, open Neovim in the target directory
-  wezterm cli spawn --cwd $NOTES_DIR --new-window -- nvim -c "lua require('persistence').load()"
+  # wezterm cli spawn --cwd $NOTES_DIR --new-window -- source ~/.nvm/nvm.sh && nvim -c "lua require('persistence').load()"
+  wezterm cli spawn --cwd $NOTES_DIR --new-window -- bash ~/dotfiles/scripts/shortcuts/notes.sh
 fi
