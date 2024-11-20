@@ -1,9 +1,30 @@
+-- NOTE:  syntax error when using snippets: https://github.com/Saghen/blink.cmp/issues/295
+-- It's setting syntax type to markdown for some reason, I manually changed it for now.
 return {
   "saghen/blink.cmp",
-  lazy = false, -- lazy loading handled internally
+  -- lazy = false, -- lazy loading handled internally
   dependencies = { "rafamadriz/friendly-snippets", "saghen/blink.compat" },
   -- dependencies = { "rafamadriz/friendly-snippets" },
-  version = "v0.*",
+  version = not vim.g.lazyvim_blink_main and "*",
+  build = vim.g.lazyvim_blink_main and "cargo build --release",
+  -- allows extending the enabled_providers array elsewhere in your config
+  -- without having to redefining it
+  opts_extend = { "sources.completion.enabled_providers", "sources.compat" },
+  config = function(_, opts)
+    -- setup compat sources
+    local enabled = opts.sources.completion.enabled_providers
+    for _, source in ipairs(opts.sources.compat or {}) do
+      opts.sources.providers[source] = vim.tbl_deep_extend(
+        "force",
+        { name = source, module = "blink.compat.source" },
+        opts.sources.providers[source] or {}
+      )
+      if type(enabled) == "table" and not vim.tbl_contains(enabled, source) then
+        table.insert(enabled, source)
+      end
+    end
+    require("blink.cmp").setup(opts)
+  end,
   opts = {
     keymap = {
       ["<S-CR>"] = { "hide" },
@@ -15,54 +36,8 @@ return {
       ["<C-f>"] = { "scroll_documentation_down", "fallback" },
     },
     nerd_font_variant = "mono",
-    sources = {
-      completion = {
-        -- enabled_providers = { "lsp", "path", "snippets", "buffer", "obsidian", "obsidian_tags", "obsidian_new" },
-        enabled_providers = { "lsp", "path", "snippets", "buffer" },
-      },
-      providers = {
-        lsp = { name = "LSP", module = "blink.cmp.sources.lsp", score_offset = 1 },
-        snippets = {
-          name = "Snippets",
-          module = "blink.cmp.sources.snippets",
-          -- keyword_length = 1, -- not supported yet
-          opts = {
-            friendly_snippets = true,
-            search_paths = { vim.fn.stdpath("config") .. "/snippets" },
-            global_snippets = { "all" },
-            extended_filetypes = {},
-            ignored_filetypes = {},
-          },
-        },
-        path = {
-          name = "Path",
-          module = "blink.cmp.sources.path",
-          score_offset = 3,
-          opts = { get_cwd = vim.uv.cwd },
-        },
-        buffer = {
-          name = "Buffer",
-          module = "blink.cmp.sources.buffer",
-          keyword_length = 3,
-          score_offset = -1,
-          fallback_for = { "Path", "LSP" }, -- PENDING https://github.com/Saghen/blink.cmp/issues/122
-        },
-        -- obsidian = {
-        --   name = "obsidian",
-        --   module = "blink.compat",
-        --   opts = require("cmp_obsidian").new(),
-        -- },
-        -- obsidian_tags = {
-        --   name = "obsidian_tags",
-        --   module = "blink.compat",
-        --   opts = require("cmp_obsidian_tags").new(),
-        -- },
-        -- obsidian_new = {
-        --   name = "obsidian_new",
-        --   module = "blink.compat",
-        --   opts = require("cmp_obsidian_new").new(),
-        -- },
-      },
+    highlight = {
+      use_nvim_cmp_as_default = false,
     },
     windows = {
       documentation = {
@@ -80,55 +55,17 @@ return {
         -- selection = "auto_insert", -- PENDING https://github.com/Saghen/blink.cmp/issues/117
         selection = "preselect",
         -- cycle = { from_top = true },
-        draw = function(ctx)
-          -- https://github.com/Saghen/blink.cmp/blob/819b978328b244fc124cfcd74661b2a7f4259f4f/lua/blink/cmp/windows/autocomplete.lua#L285-L349
-          -- differentiate LSP snippets from user snippets and emmet snippets
-          local icon, source = ctx.kind_icon, ctx.item.source
-          local client = source == "LSP" and vim.lsp.get_client_by_id(ctx.item.client_id).name
-          if source == "Snippets" or (client == "basics_ls" and ctx.kind == "Snippet") then
-            icon = "󰩫"
-          elseif source == "Buffer" or (client == "basics_ls" and ctx.kind == "Text") then
-            icon = "󰦨"
-          end
-          return {
-            { icon .. ctx.icon_gap, hl_group = "BlinkCmpKind" .. ctx.kind },
-            {
-              " " .. ctx.item.label .. " ",
-              fill = true,
-              hl_group = ctx.deprecated and "BlinkCmpLabelDeprecated" or "BlinkCmpLabel",
-              max_width = 45,
-            },
-          }
-        end,
         cycle = { from_top = true, from_bottom = true },
       },
     },
-    kind_icons = {
-      Text = "",
-      Method = "󰊕",
-      Function = "󰊕",
-      Constructor = "",
-      Field = "󰇽",
-      Variable = "󰂡",
-      Class = "⬟",
-      Interface = "",
-      Module = "",
-      Property = "󰜢",
-      Unit = "",
-      Value = "󰎠",
-      Enum = "",
-      Keyword = "󰌋",
-      Snippet = "󰒕",
-      Color = "󰏘",
-      Reference = "",
-      File = "󰉋",
-      Folder = "󰉋",
-      EnumMember = "",
-      Constant = "󰏿",
-      Struct = "",
-      Event = "",
-      Operator = "󰆕",
-      TypeParameter = "󰅲",
+    accept = { auto_brackets = { enabled = true } },
+    sources = {
+      compat = {},
+      completion = {
+        -- enabled_providers = { "lsp", "path", "snippets", "buffer", "obsidian", "obsidian_tags", "obsidian_new" },
+        enabled_providers = { "lsp", "path", "snippets", "buffer" },
+      },
     },
+    kind_icons = LazyVim.config.icons.kinds,
   },
 }

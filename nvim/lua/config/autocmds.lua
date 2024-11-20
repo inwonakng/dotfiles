@@ -17,20 +17,22 @@ vim.api.nvim_create_autocmd({ "FileType" }, {
   end,
 })
 
--- -- Runs before quitting
--- vim.api.nvim_create_autocmd("VimLeavePre", {
---   pattern = "*",
---   callback = function()
---     if fn.directory_exists(".obsidian") then
---       fn.git_commit_and_push(".")
---     end
---   end,
--- })
-
--- Runs when opening
-vim.api.nvim_create_autocmd("VimEnter", {
-  pattern = "*",
+-- Obsidian with hledger. If in this directory, render as ledger filetype
+vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
+  pattern = os.getenv("HOME")
+    .. "/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal/finance/journals/**.md",
   callback = function()
-    fn.git_pull(".")
+    vim.bo.filetype = "ledger"
+    vim.opt_local.shiftwidth = 4
+    vim.opt_local.tabstop = 4
+    vim.keymap.set("n", "<leader>cf", ":LedgerAlignBuffer<cr>", { desc = "Format buffer" })
+  end,
+})
+
+vim.api.nvim_create_autocmd({ "FileType" }, {
+  group = vim.api.nvim_create_augroup("lazyvim_vimtex_conceal", { clear = true }),
+  pattern = { "bib", "tex" },
+  callback = function()
+    vim.opt_local.conceallevel = 0
   end,
 })

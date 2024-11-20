@@ -26,6 +26,7 @@ return {
       alpha = true,
       cmp = true,
       dashboard = true,
+      blink_cmp = true,
       flash = true,
       gitsigns = true,
       headlines = true,

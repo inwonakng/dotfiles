@@ -24,10 +24,14 @@ return {
         "ron",
       })
     end
+    opts.highlight = opts.highlight or {}
+    if type(opts.ensure_installed) == "table" then
+      vim.list_extend(opts.ensure_installed, { "bibtex" })
+    end
     if type(opts.highlight.disable) == "table" then
-      vim.list_extend(opts.highlight.disable, { "latex", "bibtex" })
+      vim.list_extend(opts.highlight.disable, { "latex" })
     else
-      opts.highlight.disable = { "latex", "bibtex" }
+      opts.highlight.disable = { "latex" }
     end
     opts.autotag = {
       enable = true,

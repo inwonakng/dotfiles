@@ -33,8 +33,12 @@ return {
     },
     workspaces = {
       {
-        name = "notes",
-        path = "~/Documents/notes",
+        name = "notes-work",
+        path = "~/Documents/notes/work",
+      },
+      {
+        name = "notes-personal",
+        path = "~/Documents/notes/personal",
       },
       -- {
       --   name = "work",
