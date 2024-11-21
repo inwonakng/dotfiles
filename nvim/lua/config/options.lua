@@ -17,9 +17,9 @@ vim.filetype.add({
   }
 })
 
-local opt = vim.opt
+vim.opt.linebreak = true
+vim.opt.breakindent = true
 
-opt.linebreak = true
 -- vim.diagnostic.config({
 --   underline = true,
 --   signs = true,

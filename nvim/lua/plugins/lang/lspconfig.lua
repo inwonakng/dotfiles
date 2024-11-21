@@ -94,6 +94,7 @@ return {
           },
         },
       },
+      marksman = {},
     },
   },
 }
