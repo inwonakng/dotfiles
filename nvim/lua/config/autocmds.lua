@@ -2,30 +2,20 @@
 -- Default autocmds that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/autocmds.lua
 -- Add any additional autocmds here
 
-local function augroup(name)
-  return vim.api.nvim_create_augroup("lazyvim_" .. name, { clear = true })
-end
-
 local fn = require("utils.fn")
+
+-- NOTE: this file is ran after VimEnter, so I will just place this on top here.
+
+-- if vim.fn.getcwd() ~= vim.env.HOME then
+--   require("persistence").load()
+-- end
 
 -- Fix conceallevel for markdown files
 vim.api.nvim_create_autocmd({ "FileType" }, {
-  group = augroup("md_conceal"),
+  group = vim.api.nvim_create_augroup("lazyvim_md_conceal", { clear = true }),
   pattern = { "md", "mdx" },
   callback = function()
     vim.opt_local.conceallevel = 0
-  end,
-})
-
--- Obsidian with hledger. If in this directory, render as ledger filetype
-vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
-  pattern = os.getenv("HOME")
-    .. "/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal/finance/journals/**.md",
-  callback = function()
-    vim.bo.filetype = "ledger"
-    vim.opt_local.shiftwidth = 4
-    vim.opt_local.tabstop = 4
-    vim.keymap.set("n", "<leader>cf", ":LedgerAlignBuffer<cr>", { desc = "Format buffer" })
   end,
 })
 
@@ -38,3 +28,37 @@ vim.api.nvim_create_autocmd({ "FileType" }, {
     vim.opt_local.wrap = true
   end,
 })
+
+local md_buffer_to_ledger = function()
+  vim.notify("Setting syntax to ledger")
+  vim.bo.filetype = "ledger"
+  vim.opt_local.shiftwidth = 4
+  vim.opt_local.tabstop = 4
+  vim.keymap.set("n", "<leader>cf", ":LedgerAlignBuffer<cr>", { desc = "Format buffer", buffer = 0 })
+end
+
+-- Obsidian with hledger. If in this directory, render as ledger filetype
+vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
+  group = vim.api.nvim_create_augroup("lazyvim_md_ledger", { clear = true }),
+  pattern = vim.env.HOME .. "/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal/finance/journals/**.md",
+  callback = md_buffer_to_ledger,
+})
+
+-- vim.api.nvim_create_autocmd({ "User" }, {
+--   pattern = "PersistenceLoadPost",
+--   callback = function()
+--     vim.notify("post load!")
+--   end,
+-- })
+--
+-- vim.api.nvim_create_autocmd({ "VimEnter" }, {
+--   group = vim.api.nvim_create_augroup("lazyvim_restore_session", { clear = true }),
+--   callback = function()
+--     -- print("vimetner")
+--     -- vim.notify("I want to restore!")
+--     if vim.fn.getcwd() ~= vim.env.HOME then
+--       require("persistence").load()
+--     end
+--   end,
+--   nested = true,
+-- })

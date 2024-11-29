@@ -58,7 +58,6 @@ return {
         cycle = { from_top = true, from_bottom = true },
       },
     },
-    accept = { auto_brackets = { enabled = true } },
     sources = {
       compat = {},
       completion = {

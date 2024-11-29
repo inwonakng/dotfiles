@@ -21,7 +21,7 @@ return {
       jsonc = { "prettier" },
       yaml = { "prettier" },
       markdown = { "prettier" },
-      markdowndx = { "prettier" },
+      -- markdowndx = { "prettier" },
       ledger = { "ledger_formatter" },
       lua = { "stylua" },
     },

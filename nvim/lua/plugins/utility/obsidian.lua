@@ -83,7 +83,7 @@ return {
       -- vim.fn.jobstart({"xdg-open", url})  -- linux
     end,
     ui = {
-      enabled=false,
+      -- enabled=false,
       checkboxes = {
         -- NOTE: the 'char' value has to be a single character, and the highlight groups are defined below.
         [" "] = { char = "󰄱", hl_group = "ObsidianTodo" },
