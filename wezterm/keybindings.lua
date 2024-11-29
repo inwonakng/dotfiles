@@ -48,8 +48,8 @@ end)
 
 return {
 	-- leader = { key = "Space", mods = "SHIFT", timeout_milliseconds = 2000 },
-	leader = { key = "w", mods = "CTRL"},
-  -- leader = { key = "Space", mods = "ALT"},
+	leader = { key = "w", mods = "CTRL" },
+	-- leader = { key = "Space", mods = "ALT"},
 	keys = {
 		-- turn off keybindings
 		{ key = "m", mods = "CMD", action = act.DisableDefaultAssignment },
@@ -188,6 +188,12 @@ return {
 				local tab, window = pane:move_to_new_window()
 			end),
 		},
+		{
+			key = "w",
+			mods = "LEADER",
+			action = wezterm.action.ShowLauncherArgs({ flags = "FUZZY|WORKSPACES" }),
+		},
+
 		-- commented out for now, seems bugged
 		-- { key = "s", mods = "LEADER", action = act.ActivateKeyTable({ name = "rotate_pane", one_shot = false }) },
 		-- Or shortcuts to move tab w/o move_tab table. SHIFT is for when caps lock is on
@@ -196,7 +202,7 @@ return {
 		{
 			key = "v",
 			mods = "LEADER",
-			action = act.ActivateCopyMode
+			action = act.ActivateCopyMode,
 		},
 		{
 			key = "V",

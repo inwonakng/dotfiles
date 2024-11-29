@@ -4,6 +4,7 @@ local ui = require("ui")
 local env = require("env")
 local domains = require("domains")
 local keybindings = require("keybindings")
+require("startup")
 
 -- wezterm.log_error('Exe dir ' .. wezterm.version)
 

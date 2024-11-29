@@ -36,8 +36,8 @@ wezterm.on("update-status", function(window, pane)
 
 	if window:active_key_table() then
 		status = window:active_key_table()
-		print("keytable is active!")
-		print(status)
+		-- print("keytable is active!")
+		-- print(status)
 	end
 	if window:leader_is_active() then
 		status = "leader"
@@ -56,9 +56,6 @@ wezterm.on("update-status", function(window, pane)
 	cwd = cwd and parse_cwd(cwd) or ""
 	local cmd = pane:get_foreground_process_name()
 	cmd = cmd and parse_cmd(cmd) or ""
-
-	-- Time
-	local time = wezterm.strftime("%H:%M")
 
 	window:set_left_status(wezterm.format({
 		-- { Background = {Color = tab_bar_background } },
