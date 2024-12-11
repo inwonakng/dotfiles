@@ -30,7 +30,6 @@ vim.api.nvim_create_autocmd({ "FileType" }, {
 })
 
 local md_buffer_to_ledger = function()
-  vim.notify("Setting syntax to ledger")
   vim.bo.filetype = "ledger"
   vim.opt_local.shiftwidth = 4
   vim.opt_local.tabstop = 4

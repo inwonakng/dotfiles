@@ -4,6 +4,7 @@ return {
   generator = function(opts, callback)
     local cwd = vim.fn.getcwd()
     local script_dir = cwd .. "/scripts"
+    -- if script dir is not intialized, skip
     if vim.fn.isdirectory(script_dir) == 0 then
       return callback({})
     else
