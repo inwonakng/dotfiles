@@ -46,6 +46,7 @@ local plugins = {
   { import = "lazyvim.plugins.extras.lang.python" },
   { import = "lazyvim.plugins.extras.lang.rust" },
   { import = "lazyvim.plugins.extras.lang.tex" },
+  { import = "lazyvim.plugins.extras.lang.typescript" },
   { import = "plugins" },
 }
 
