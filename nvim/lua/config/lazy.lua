@@ -42,6 +42,7 @@ local plugins = {
   },
   -- { import = "lazyvim.plugins.extras.vscode" },
   { import = "lazyvim.plugins.extras.editor.fzf" },
+  { import = "lazyvim.plugins.extras.editor.overseer" },
   { import = "lazyvim.plugins.extras.coding.blink" },
   { import = "lazyvim.plugins.extras.lang.python" },
   { import = "lazyvim.plugins.extras.lang.rust" },

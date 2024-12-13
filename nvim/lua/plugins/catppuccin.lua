@@ -32,6 +32,7 @@ return {
       headlines = true,
       illuminate = true,
       indent_blankline = { enabled = true },
+      overseer = true,
       leap = true,
       lsp_trouble = true,
       mason = true,

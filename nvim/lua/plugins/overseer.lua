@@ -40,7 +40,7 @@ return {
         winblend = 0,
       },
     },
-    templates = { "builtin", "user.shell_scripts" },
+    templates = { "builtin", "user.shell_scripts", "user.copy_to_website" },
   },
   -- stylua: ignore
   keys = {
