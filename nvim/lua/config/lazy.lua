@@ -31,14 +31,7 @@ local plugins = {
   {
     "LazyVim/LazyVim",
     import = "lazyvim.plugins",
-    opts = {
-      colorscheme = "catppuccin",
-      icons = {
-        kinds = {
-          Folder = "󰉋 ",
-        },
-      },
-    },
+    opts = { colorscheme = "catppuccin" },
   },
   -- { import = "lazyvim.plugins.extras.vscode" },
   { import = "lazyvim.plugins.extras.editor.fzf" },
@@ -47,6 +40,7 @@ local plugins = {
   { import = "lazyvim.plugins.extras.lang.python" },
   { import = "lazyvim.plugins.extras.lang.rust" },
   { import = "lazyvim.plugins.extras.lang.tex" },
+  { import = "lazyvim.plugins.extras.lang.markdown" },
   { import = "lazyvim.plugins.extras.lang.typescript" },
   { import = "lazyvim.plugins.extras.ai.copilot" },
   { import = "plugins" },

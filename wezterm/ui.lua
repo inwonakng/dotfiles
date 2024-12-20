@@ -130,6 +130,7 @@ end)
 return {
 	color_scheme = "catppuccin-frappe",
 	font = wezterm.font_with_fallback({
+    -- { family = "Fira Code" },
 		{ family = "UbuntuMono Nerd Font" },
 		{ family = "Nerd Font" },
 	}),

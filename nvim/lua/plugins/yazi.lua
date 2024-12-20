@@ -10,14 +10,14 @@ return {
     },
     {
       -- Open in the current working directory
-      "<leader>E",
+      "<leader>eE",
       "<cmd>Yazi cwd<cr>",
       desc = "Open the file manager in nvim's working directory",
     },
     {
       -- NOTE: this requires a version of yazi that includes
       -- https://github.com/sxyazi/yazi/pull/1305 from 2024-07-18
-      "<leader>er",
+      "<leader>E",
       "<cmd>Yazi toggle<cr>",
       desc = "Resume the last yazi session",
     },
@@ -25,6 +25,7 @@ return {
   opts = {
     -- if you want to open yazi instead of netrw, see below for more info
     open_for_directories = false,
+    open_multiple_tabs = true,
     keymaps = {
       show_help = "<f1>",
     },

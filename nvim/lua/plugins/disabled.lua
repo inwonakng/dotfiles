@@ -4,7 +4,7 @@ local disabled_plugins = {
   "zbirenbaum/copilot-cmp",
   "nvim-telescope/telescope.nvim",
   "nvim-neo-tree/neo-tree.nvim",
-  "MeanderingProgrammer/render-markdown.nvim",
+  -- "MeanderingProgrammer/render-markdown.nvim",
 }
 
 local disabled_config = {}

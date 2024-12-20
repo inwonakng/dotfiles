@@ -54,7 +54,7 @@ function load() {
   esac
 }
 
-# [ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin/$POSTFIX:$PATH"
+[ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin:$PATH"
 [ -f "$HOME/.fzf.bash" ] && source "$HOME/.fzf.bash"
 
 # set input to vi mode

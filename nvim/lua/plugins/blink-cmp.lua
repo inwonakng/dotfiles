@@ -39,7 +39,10 @@ return {
       },
     },
     sources = {
-      default = { "lsp", "path", "luasnip", "buffer" },
+      default = { "lsp", "path", "luasnip", "buffer", "markdown" },
+      providers = {
+        markdown = { name = "RenderMarkdown", module = "render-markdown.integ.blink" },
+      },
     },
     snippets = {
       expand = function(snippet)
