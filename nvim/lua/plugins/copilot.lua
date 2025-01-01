@@ -5,10 +5,9 @@ return {
   lazy = false,
   cmd = "Copilot",
   build = ":Copilot auth",
-  enabled = fn.is_node_available(),
+  -- enabled = fn.is_node_available(),
   opts = {
     suggestion = {
-      -- enabled = false,
       enabled = true,
       auto_trigger = true,
       keymap = { accept = "<C-a>" },
