@@ -8,8 +8,9 @@ fi
 # OS Specific stuff
 if [[ "$OSTYPE" == "darwin"* ]]; then
   export HOMEBREW_NO_AUTO_UPDATE=true
+  export HOMEBREW_PATH="/opt/homebrew/bin"
   if [ -d /opt/homebrew/bin ]; then
-    PATH="/opt/homebrew/bin:$PATH"
+    PATH="$HOMEBREW_PATH:$PATH"
   fi
   # add wezterm to path if it exists
   if [ -d /Applications/WezTerm.app ]; then
@@ -106,7 +107,6 @@ export FZF_ALT_C_OPTS="
   --walker-skip .git,node_modules,target
   --preview 'tree -C {}'"
 
-export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"
 export PATH=$PATH:"$HOME/.term-utils"
 alias sioyek="/Applications/sioyek.app/Contents/MacOS/sioyek"
 
@@ -118,9 +118,6 @@ function y() {
 	fi
 	rm -f -- "$tmp"
 }
-
-# activate zoxide
-eval "$(zoxide init bash)"
 
 # use this as the default node version. When nvm is activated, it should prepend on this.
 export NODE_DEFAULT_PATH="$HOME/.nvm/versions/node/v18.20.5/bin"

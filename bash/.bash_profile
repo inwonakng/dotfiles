@@ -24,3 +24,8 @@ fi
 if [ -f "$HOME/.bash_utils/completions/slurm.bash" ]; then
   . "$HOME/.bash_utils/completions/slurm.bash"
 fi
+
+# if installed, overwrite cd
+if command -v "zoxide" >/dev/null 2>&1; then
+  eval "$(zoxide init bash --cmd cd)"
+fi
