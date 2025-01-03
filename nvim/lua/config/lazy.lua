@@ -34,15 +34,6 @@ local plugins = {
     opts = { colorscheme = "catppuccin" },
   },
   -- { import = "lazyvim.plugins.extras.vscode" },
-  { import = "lazyvim.plugins.extras.editor.fzf" },
-  { import = "lazyvim.plugins.extras.editor.overseer" },
-  { import = "lazyvim.plugins.extras.coding.blink" },
-  { import = "lazyvim.plugins.extras.lang.python" },
-  { import = "lazyvim.plugins.extras.lang.rust" },
-  { import = "lazyvim.plugins.extras.lang.tex" },
-  { import = "lazyvim.plugins.extras.lang.markdown" },
-  { import = "lazyvim.plugins.extras.lang.typescript" },
-  { import = "lazyvim.plugins.extras.ai.copilot" },
   { import = "plugins" },
 }
 

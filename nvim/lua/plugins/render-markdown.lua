@@ -8,8 +8,9 @@ return {
     callout = {
       motivation = { raw = "[!MOTIVATION]", rendered = " Motivation", highlight = "RenderMarkdownInfo" },
       intuition = { raw = "[!INTUITION]", rendered = " Intuition", highlight = "RenderMarkdownSuccess" },
-      setting = { raw = "[!SETTING]", rendered = "󱊍 Setting", highlight = "RenderMarkdownInfo" },
+      setting = { raw = "[!SETTING]", rendered = "󱊍 Setting", highlight = "RenderMarkdownHint" },
       image = { raw = "[!IMAGE]", rendered = " Image", highlight = "RenderMarkdownInfo" },
+      table = { raw = "[!TABLE]", rendered = " Table", highlight = "RenderMarkdownInfo" },
     },
     latex = { enabled = false },
     -- win_options = {
