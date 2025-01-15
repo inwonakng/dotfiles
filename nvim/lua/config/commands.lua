@@ -114,3 +114,22 @@ create_cmd("FixReadingImagePath", function()
   end
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
 end, {})
+
+----
+-- mods.nvim
+
+create_cmd("FindChat", function()
+  local chat_list_str = vim.fn.systemlist([[ mods --list ]])
+  local chat_ids = {}
+
+  -- it comes in this format: 4d7247e hey there!      last hour
+  -- split at the first space, and the time is separated by 4 consecutive spaces at the end
+  for i, line in ipairs(chat_list_str) do
+    local chat_id, chat_desc, chat_time = line:match("^(.-)%s+(.-)%s%s%s(.-)$")
+    vim.notify(chat_id .. " | " .. chat_time)
+  end
+  -- local fzf = require("fzf-lua")
+  -- fzf.fzf_exec(chat_list_str )
+end, {})
+
+create_cmd("OpenChat", function(chat_id) end, {})

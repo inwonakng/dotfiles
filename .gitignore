@@ -10,3 +10,8 @@ vim/.netrwhist
 .DS_Store
 karabiner/automatic_backups
 bash/.bash_utils/completions
+aichat/rags
+aichat/sessions
+aichat/roles
+aichat/.env
+aichat/messages.md

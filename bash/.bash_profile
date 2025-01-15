@@ -32,3 +32,4 @@ if command -v "zoxide" >/dev/null 2>&1; then
   alias zi="cdi"
 fi
 
+export AICHAT_CONFIG_DIR="$HOME/.config/aichat"

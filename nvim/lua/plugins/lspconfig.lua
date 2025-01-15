@@ -5,7 +5,7 @@ return {
       enabled = false,
     },
     diagnostics = {
-      underline = true,
+      underline = false,
       signs = true,
       virtual_text = false,
       float = {
