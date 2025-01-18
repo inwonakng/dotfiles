@@ -79,14 +79,6 @@ light_theme: false # Activates a light color theme when true. env: AICHAT_LIGHT_
 left_prompt: "{color.green}{?session {?agent {agent}>}{session}{?role /}}{!session {?agent {agent}>}}{role}{?rag @{rag}}{color.cyan}{?session )}{!session >}{color.reset} "
 right_prompt: "{color.purple}{?session {?consume_tokens {consume_tokens}({consume_percent}%)}{!consume_tokens {consume_tokens}}}{color.reset}"
 
-  # - type: openai-compatible
-  #   name: default
-  #   api_base: https://api.openai.com/v1
-  #   models:
-  #     - name: gpt-4o
-  #       max_input_tokens: 100000
-  #       supports_function_calling: true
-
 clients:
 - type: openai
 - type: claude

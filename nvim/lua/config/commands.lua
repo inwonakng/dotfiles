@@ -63,6 +63,10 @@ end, {})
 create_cmd("FixReadingImagePath", function()
   local bufnr = vim.api.nvim_get_current_buf()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+
+  for i, line in ipairs(lines) do
+  end
+
   -- to save the image paths
   local image_paths = {}
   -- save where to edit in the frontmatter
@@ -77,13 +81,15 @@ create_cmd("FixReadingImagePath", function()
         end
       end
     end
-    -- first do the substitution anyways
-    lines[i] = string.gsub(line, "/reading/_images", "/static/images/reading")
+    -- Repalce the image p
+    lines[i] = line:gsub("/reading/_images", "/static/images/reading")
     -- Check for markdown image syntax ![xxx](yyy) and extract yyy
     for image in line:gmatch("!%[.-%]%((.-)%)") do
-      table.insert(image_paths, image)
+      fixed_image = image:gsub("/reading/_images", "/static/images/reading")
+      table.insert(image_paths, fixed_image)
     end
   end
+
   -- if we have more than 0 images
   if #image_paths > 0 then
     local new_frontmatter = {}

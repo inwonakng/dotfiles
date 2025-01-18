@@ -18,6 +18,14 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
   fi
 fi
 
+# use this as the default node version. When nvm is activated, it should prepend on this.
+export NODE_DEFAULT_PATH="$HOME/.nvm/versions/node/v18.20.5/bin"
+export PATH="$NODE_DEFAULT_PATH:$PATH"
+
+# use this as the default node version. When nvm is activated, it should prepend on this.
+export PYTHON_DEFAULT_PATH="$HOME/miniconda3/envs/scripts/bin"
+# export PATH="$PYTHON_DEFAULT_PATH:$PATH"
+
 function load_nvm() {
   source "$HOME/.nvm/nvm.sh"
 }
@@ -118,11 +126,3 @@ function y() {
 	fi
 	rm -f -- "$tmp"
 }
-
-# use this as the default node version. When nvm is activated, it should prepend on this.
-export NODE_DEFAULT_PATH="$HOME/.nvm/versions/node/v18.20.5/bin"
-export PATH="$NODE_DEFAULT_PATH:$PATH"
-
-# use this as the default node version. When nvm is activated, it should prepend on this.
-export PYTHON_DEFAULT_PATH="$HOME/miniconda3/envs/scripts/bin"
-export PATH="$PYTHON_DEFAULT_PATH:$PATH"
