@@ -90,7 +90,11 @@ PS1+="$BROWN"'$(parse_conda_env)\n'
 PS1+="$WHITE"'\u'
 PS1+="$PINKORANGE"'@'"$HOST_COLOR"'\h'
 PS1+="$CYAN"' → '"$WHITE"
-PS1+="\$(__zoxide_hook)"
+
+# only add this hook if zoxide is installed.
+if command -v "zoxide" >/dev/null 2>&1; then
+    PS1+="\$(__zoxide_hook)"
+fi
 
 # Print newline AFTER executing a command
 PROMPT_COMMAND="export PROMPT_COMMAND=echo"
