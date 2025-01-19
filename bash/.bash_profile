@@ -32,4 +32,14 @@ if command -v "zoxide" >/dev/null 2>&1; then
   alias zi="cdi"
 fi
 
+export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"
 export AICHAT_CONFIG_DIR="$HOME/.config/aichat"
+
+function y() {
+  local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
+  yazi "$@" --cwd-file="$tmp"
+  if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+    builtin cd -- "$cwd"
+  fi
+  rm -f -- "$tmp"
+}
