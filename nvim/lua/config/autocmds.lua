@@ -77,3 +77,12 @@ vim.api.nvim_create_autocmd("CmdlineLeave", {
 --   end,
 --   nested = true,
 -- })
+
+-- Change filetype for aichat
+vim.api.nvim_create_augroup("ChangeFiletypeOnPattern", { clear = true })
+
+vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
+    pattern = "/private/var/folders/*/aichat-*.txt",
+    group = "ChangeFiletypeOnPattern",
+    command = "set filetype=markdown"
+})

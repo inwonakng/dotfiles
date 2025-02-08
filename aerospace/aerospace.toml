@@ -63,16 +63,20 @@ run = 'move-node-to-workspace M'
 
 # readings go under r
 [[on-window-detected]]
-if.app-id = 'com.zotero.zotero'
+if.app-id = 'org.zotero.zotero'
 run = 'move-node-to-workspace R'
 
 [[on-window-detected]]
 if.app-id = 'com.goldenhillsoftware.Unread2'
 run = 'move-node-to-workspace R'
 
-# NOTE: Notes go to N, Paper (writing) goes to P
+# NOTE: Notes go to N
 [[on-window-detected]]
 if.app-id = 'com.apple.Notes'
+run = 'move-node-to-workspace N'
+
+[[on-window-detected]]
+if.app-id = 'md.obsidian'
 run = 'move-node-to-workspace N'
 
 # Most terminals stay in 2
@@ -89,6 +93,13 @@ run = 'move-node-to-workspace 1'
 # See https://nikitabobko.github.io/AeroSpace/guide#key-mapping
 [key-mapping]
 preset = 'qwerty'
+
+
+[workspace-to-monitor-force-assignment]
+M = 'main'
+N = "LG Ultra HD"
+2 = "LG Ultra HD"
+1 = "KB272 E"
 
 # Gaps between windows (inner-*) and between monitor edges (outer-*).
 # Possible values:
@@ -244,6 +255,11 @@ f = [
   'mode main',
 ] # Toggle between floating and tiling layout
 backspace = ['close-all-windows-but-current', 'mode main']
+
+# [mode.service.]
+# esc = ['mode main']
+# tab = [""]
+
 
 # sticky is not yet supported https://github.com/nikitabobko/AeroSpace/issues/2
 #s = ['layout sticky tiling', 'mode main']

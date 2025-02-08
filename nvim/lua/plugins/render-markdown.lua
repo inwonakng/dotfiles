@@ -2,8 +2,8 @@ return {
   "MeanderingProgrammer/render-markdown.nvim",
   opts = {
     heading = {
-      sign = true,
-      icons = { "󰲡 ", "󰲣 ", "󰲥 ", "󰲧 ", "󰲩 ", "󰲫 " },
+      sign = false,
+      -- icons = { "󰲡 ", "󰲣 ", "󰲥 ", "󰲧 ", "󰲩 ", "󰲫 " },
     },
     callout = {
       motivation = { raw = "[!MOTIVATION]", rendered = " Motivation", highlight = "RenderMarkdownInfo" },

@@ -1316,3 +1316,12 @@ c.TerminalInteractiveShell.shortcuts = [
 #          when IPython starts.
 #  Default: False
 # c.StoreMagics.autorestore = False
+
+
+
+# NOTE: Trick to change ugly ipython highlighting color
+try:
+    from IPython.core import ultratb
+    ultratb.VerboseTB.tb_highlight = "bg:ansired"
+except Exception:
+    print("Error patching background color for tracebacks, they'll be the ugly default instead")

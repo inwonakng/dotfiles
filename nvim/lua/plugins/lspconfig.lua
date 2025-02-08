@@ -20,5 +20,13 @@ return {
     inlay_hints = {
       enabled = false,
     },
+    servers = {
+      basedpyright = {
+        analysis = {
+          -- typeCheckingMode = "off",
+          diagnosticMode = "off",
+        },
+      }
+    }
   },
 }

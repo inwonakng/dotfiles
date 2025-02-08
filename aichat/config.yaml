@@ -1,6 +1,6 @@
 # see https://github.com/sigoden/aichat/blob/main/config.example.yaml
 # ---- llm ----
-model: openai:gpt-4o # Specify the LLM to use
+model: openai:o3-mini # Specify the LLM to use
 temperature: null # Set default temperature parameter (0, 1)
 top_p: null # Set default top-p parameter, with a range of (0, 1) or (0, 2) depending on the model
 
@@ -38,7 +38,7 @@ summary_prompt: "This is a summary of the chat history as a recap: "
 # See [RAG-Guide](https://github.com/sigoden/aichat/wiki/RAG-Guide) for more details.
 rag_embedding_model: null # Specifies the embedding model to use
 rag_reranker_model: null # Specifies the rerank model to use
-rag_top_k: 5 # Specifies the number of documents to retrieve
+rag_top_k: 8 # Specifies the number of documents to retrieve
 rag_chunk_size: null # Specifies the chunk size
 rag_chunk_overlap: null # Specifies the chunk overlap
 rag_min_score_vector_search: 0 # Specifies the minimum relevance score for vector-based searching
@@ -81,4 +81,9 @@ right_prompt: "{color.purple}{?session {?consume_tokens {consume_tokens}({consum
 
 clients:
 - type: openai
-- type: claude
+# - type: openai-compatible
+#   name: deepseek
+#   api_base: https://api.deepseek.com
+#   models:
+#     - name: deepseek-r1
+#       max_input_tokens: 64000
