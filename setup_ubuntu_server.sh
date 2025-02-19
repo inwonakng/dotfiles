@@ -1,14 +1,13 @@
-# bash scripts/install_conda.sh;
-bash ~/dotfiles/scripts/setup_pynvim.sh;
-bash ~/dotfiles/scripts/install_fzf.sh;
-bash ~/dotfiles/scripts/install_using_conda.sh --program git --version 2.40.1;
-bash ~/dotfiles/scripts/install_using_conda.sh --program tmux --version 3.3a;
-
 # files
-ln -sf ~/dotfiles/ubuntu-server/.bashrc ~/.bashrc;
-ln -sf ~/dotfiles/.vimrc ~/.vimrc;
+ln -sf ~/dotfiles/bash/remote/.bashrc ~/.bashrc;
+ln -sf ~/dotfiles/bash/.bash_profile ~/.bash_profile;
 ln -sf ~/dotfiles/.tmux.conf ~/.tmux.conf;
+ln -sf ~/dotfiles/conda/.condarc ~/.condarc;
+
+mkdir -p ~/.config
 
 # folders
+ln -snf ~/dotfiles/bash/.bash_utils ~/.bash_utils;
 ln -snf ~/dotfiles/.ipython ~/.ipython;
-ln -snf ~/dotfiles/nvim ~/.config/nvim;
+ln -snf ~/dotfiles/.vim ~/.vim;
+ln -snf ~/dotfiles/tmux ~/.config/tmux;
