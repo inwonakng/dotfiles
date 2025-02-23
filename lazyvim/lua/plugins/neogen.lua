@@ -5,20 +5,20 @@ return {
     {
       "<leader>cn",
       function()
-        require("neogen").generate()
+        require("litenvim.lua.litenvim.plugins.neogen").generate()
       end,
       desc = "Generate Annotations (Neogen)",
     },
     {
       "<C-n>",
       function()
-        require("neogen").jump_next()
+        require("litenvim.lua.litenvim.plugins.neogen").jump_next()
       end,
     },
     {
       "<C-p>",
       function()
-        require("neogen").jump_prev()
+        require("litenvim.lua.litenvim.plugins.neogen").jump_prev()
       end,
     },
   },
