@@ -40,3 +40,5 @@ vim.opt.termguicolors = true
 
 vim.g.python3_host_prog = vim.env.PYTHON_DEFAULT_PATH .. "/python"
 
+-- Fix markdown indentation settings
+vim.g.markdown_recommended_style = 0
