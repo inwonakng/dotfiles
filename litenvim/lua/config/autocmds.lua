@@ -1,24 +1,24 @@
+-- latex is special
 vim.api.nvim_create_autocmd({ "FileType" }, {
-	group = vim.api.nvim_create_augroup("vimtex_conceal", { clear = true }),
 	pattern = { "bib", "tex" },
 	callback = function()
-		vim.bo.conceallevel = 0
-		vim.bo.wrap = true
+		vim.opt_local.conceallevel = 0
+		vim.opt_local.wrap = true
 		vim.bo.shiftwidth = 2
 		vim.bo.tabstop = 2
 	end,
 })
 
--- vim.api.nvim_create_autocmd({ "FileType" }, {
--- 	group = vim.api.nvim_create_augroup("lua_indent", { clear = true }),
--- 	pattern = { "lua" },
--- 	callback = function()
--- 		vim.bo.conceallevel = 0
--- 		vim.bo.wrap = true
--- 		vim.bo.shiftwidth = 2
--- 		vim.bo.tabstop = 2
--- 	end,
--- })
+-- filetypes that use 2 spaces for tab
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = { "lua", "javascript", "typescript", "json", "html", "css", "scss", "yaml", "markdown" },
+	callback = function()
+		vim.bo.expandtab = true
+		vim.bo.shiftwidth = 2
+		vim.bo.tabstop = 2
+		vim.bo.softtabstop = 2
+	end,
+})
 
 -- Obsidian with hledger. If in this directory, render as ledger filetype
 vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
@@ -26,9 +26,10 @@ vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
 	pattern = vim.env.HOME .. "/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal/finance/journals/**.md",
 	callback = function()
 		vim.bo.filetype = "ledger"
-		vim.opt_local.shiftwidth = 4
-		vim.opt_local.tabstop = 4
-		vim.keymap.set("n", "<leader>cf", ":LedgerAlignBuffer<cr>", { desc = "Format buffer", buffer = 0 })
+		vim.opt_local.wrap = false
+		vim.bo.shiftwidth = 4
+		vim.bo.tabstop = 4
+		vim.keymap.set("n", "<leader>cf", "<cmd>LedgerAlignBuffer<cr>", { desc = "Format buffer", buffer = 0 })
 	end,
 })
 

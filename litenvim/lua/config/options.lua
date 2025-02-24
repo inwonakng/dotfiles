@@ -8,7 +8,7 @@ vim.filetype.add({
   }
 })
 vim.schedule(function()
-	vim.opt.clipboard = "unnamedplus"
+  vim.opt.clipboard = "unnamedplus"
 end)
 
 vim.opt.relativenumber = true
