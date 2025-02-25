@@ -20,13 +20,13 @@ return {
       properties = {},
       types = {},
     },
-    -- color_overrides = {
-    --   mocha = {
-    --     base = "#000000",
-    --     mantle = "#000000",
-    --     crust = "#000000",
-    --   },
-    -- },
+    color_overrides = {
+      mocha = {
+        base = "#000000",
+        mantle = "#202020",
+        crust = "#101010",
+      },
+    },
     integrations = {
       aerial = true,
       alpha = true,

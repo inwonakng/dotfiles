@@ -2,6 +2,9 @@ vim.g.mapleader = " "
 vim.g.maplocalleader = "\\"
 vim.g.have_nerd_font = false
 vim.g.autoformat = false
+vim.g.python3_host_prog = vim.env.PYTHON_DEFAULT_PATH .. "/python"
+vim.g.markdown_recommended_style = 0
+
 vim.filetype.add({
   extension = {
     mdx = 'markdown'
@@ -21,7 +24,6 @@ vim.opt.ignorecase = true
 vim.opt.smartcase = true
 vim.opt.signcolumn = "yes"
 vim.opt.updatetime = 250
-vim.opt.timeoutlen = 300
 vim.opt.splitright = true
 vim.opt.splitbelow = true
 vim.opt.list = true
@@ -37,8 +39,3 @@ vim.opt.shiftwidth = 4
 vim.opt.linebreak = true
 vim.opt.breakindent = true
 vim.opt.termguicolors = true
-
-vim.g.python3_host_prog = vim.env.PYTHON_DEFAULT_PATH .. "/python"
-
--- Fix markdown indentation settings
-vim.g.markdown_recommended_style = 0

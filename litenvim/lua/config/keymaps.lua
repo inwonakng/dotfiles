@@ -17,6 +17,10 @@ vim.keymap.set("n", "<leader><tab><cr>", "<cmd>tab sp<cr>", { desc = "Open in ne
 vim.keymap.set("n", "<leader><tab>o", "<cmd>tabonly<cr>", { desc = "Close other tabs" })
 vim.keymap.set("n", "<leader><tab>d", "<cmd>tabclose<cr>", { desc = "Close tab" })
 
+-- indentation with >> and <<
+map("v", "<", "<gv")
+map("v", ">", ">gv")
+
 -- nice trick to kill all hidden buffers.
 vim.keymap.set("n", "<leader>bo", function()
   local bufs = vim.api.nvim_list_bufs()
