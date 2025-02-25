@@ -1,10 +1,10 @@
 vim.api.nvim_create_user_command("FindTag", function(opts)
   if not vim.tbl_contains({
-    "NOTE",
-    "TODO",
-    "FIXME",
-    "DEBUG",
-  }, opts.args) then
+        "NOTE",
+        "TODO",
+        "FIXME",
+        "DEBUG",
+      }, opts.args) then
     return
   end
   require("fzf-lua").grep({
@@ -118,4 +118,3 @@ vim.api.nvim_create_user_command("FixReadingImagePath", function()
   end
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
 end, {})
-

@@ -40,8 +40,8 @@ let s:surface0 = "#313244"
 " let s:crust = "#11111B"
 
 let s:base = "#000000"
-let s:mantle = "#000000"
-let s:crust = "#000000"
+let s:mantle = "#202020"
+let s:crust = "#101010"
 
 function! s:hi(group, guisp, guifg, guibg, gui, cterm)
   let cmd = ""
