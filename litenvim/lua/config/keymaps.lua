@@ -23,16 +23,16 @@ vim.keymap.set("v", ">", ">gv")
 
 -- nice trick to kill all hidden buffers.
 vim.keymap.set("n", "<leader>bo", function()
-  local bufs = vim.api.nvim_list_bufs()
-  local non_hidden_buffer = {}
-  for _, win in ipairs(vim.api.nvim_list_wins()) do
-    non_hidden_buffer[vim.api.nvim_win_get_buf(win)] = true
-  end
-  for _, i in ipairs(bufs) do
-    if non_hidden_buffer[i] == nil then
-      vim.api.nvim_buf_delete(i, {})
-    end
-  end
+	local bufs = vim.api.nvim_list_bufs()
+	local non_hidden_buffer = {}
+	for _, win in ipairs(vim.api.nvim_list_wins()) do
+		non_hidden_buffer[vim.api.nvim_win_get_buf(win)] = true
+	end
+	for _, i in ipairs(bufs) do
+		if non_hidden_buffer[i] == nil then
+			vim.api.nvim_buf_delete(i, {})
+		end
+	end
 end, { desc = "delete hidden buffers" })
 
 -- some nice UI controls.
@@ -41,21 +41,21 @@ vim.keymap.set("n", "<leader>us", "<cmd>set spell!<CR>", { desc = "Toggle spell 
 vim.keymap.set("n", "<leader>un", "<cmd>set relativenumber!<CR>", { desc = "Toggle number" })
 
 -- let j and k move up and down lines that have been wrapped
-vim.keymap.set({ "n", "v" }, 'j', function()
-  return vim.v.count == 0 and 'gj' or 'j'
+vim.keymap.set({ "n", "v" }, "j", function()
+	return vim.v.count == 0 and "gj" or "j"
 end, { expr = true, noremap = true })
 
-vim.keymap.set({ "n", "v" }, 'k', function()
-  return vim.v.count == 0 and 'gk' or 'k'
+vim.keymap.set({ "n", "v" }, "k", function()
+	return vim.v.count == 0 and "gk" or "k"
 end, { expr = true, noremap = true })
 
 -- format code. Since we have all the formatters from mason, I don't think we need conform.
-vim.keymap.set({ "n", "v" }, "<leader>cf",
-  function()
-    vim.lsp.buf.format()
-  end,
-  { desc = "Format Buffer" }
-)
+-- vim.keymap.set({ "n", "v" }, "<leader>cf",
+--   function()
+--     vim.lsp.buf.format()
+--   end,
+--   { desc = "Format Buffer" }
+-- )
 
 -- Yank file path
 vim.keymap.set("n", "yP", ":YankFilePath<CR>", { noremap = true, silent = true })

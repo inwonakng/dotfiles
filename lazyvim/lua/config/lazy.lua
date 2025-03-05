@@ -33,7 +33,6 @@ local plugins = {
     import = "lazyvim.plugins",
     opts = { colorscheme = "catppuccin" },
   },
-  -- { import = "lazyvim.plugins.extras.vscode" },
   { import = "plugins" },
 }
 

@@ -4,6 +4,7 @@ vim.g.have_nerd_font = false
 vim.g.autoformat = false
 vim.g.python3_host_prog = vim.env.PYTHON_DEFAULT_PATH .. "/python"
 vim.g.markdown_recommended_style = 0
+vim.g.sessionoptions = "buffers,curdir,folds,help,tabpages,winsize,terminal"
 
 vim.filetype.add({
   extension = {

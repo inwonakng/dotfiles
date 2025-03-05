@@ -3,14 +3,14 @@ return {
   {
     "jpalardy/vim-slime",
     keys = {
-      { "<leader>r", "", desc = "+vim-slime" },
-      { "<leader>rc", "<CMD>SlimeConfig<CR>", desc = "Slime Config" },
+      { "<leader>r",  "",                             desc = "+vim-slime" },
+      { "<leader>rc", "<CMD>SlimeConfig<CR>",         desc = "Slime Config" },
       -- { "<leader>rr", "<Plug>SlimeSendCell<BAR>/^# %%<CR>", desc = "Slime Send Cell" },
-      { "<leader>rr", "<Plug>SlimeSendCell<CR>", desc = "Slime Send Cell" },
-      { "<leader>rr", ":<C-u>'<,'>SlimeSend<CR>", mode = "v", desc = "Slime Send Selection" },
-      { "<leader>rn", "o# %%<ESC>o<ESC>D", desc = "Sime Insert New Cell" },
-      { "]r", "/# %%<CR>", desc = "Sime Next Cell" },
-      { "[r", "/# %%<CR>N", desc = "Sime Previous Cell" },
+      { "<leader>rr", "<Plug>SlimeSendCell<CR>",      desc = "Slime Send Cell" },
+      { "<leader>rr", ":<C-u>'<,'>SlimeSend<CR>", mode = "v",                   desc = "Slime Send Selection" },
+      { "<leader>rn", "o# %%<ESC>o<ESC>D",            desc = "Sime Insert New Cell" },
+      { "]r",         "/# %%<CR>",                    desc = "Sime Next Cell" },
+      { "[r",         "k/# %%<CR>N",                  desc = "Sime Previous Cell" },
 
     },
     config = function()

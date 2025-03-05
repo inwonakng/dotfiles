@@ -20,6 +20,14 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
+-- turn off wrap for certain filetypes
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = {"python", "lua"},  -- List the file types here
+  callback = function()
+    vim.opt_local.wrap = false
+  end,
+})
+
 -- Obsidian with hledger. If in this directory, render as ledger filetype
 vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
   group = vim.api.nvim_create_augroup("md_ledger", { clear = true }),
