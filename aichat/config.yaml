@@ -1,6 +1,6 @@
 # see https://github.com/sigoden/aichat/blob/main/config.example.yaml
 # ---- llm ----
-model: openai:o3-mini # Specify the LLM to use
+model: openai:o1 # Specify the LLM to use
 temperature: null # Set default temperature parameter (0, 1)
 top_p: null # Set default top-p parameter, with a range of (0, 1) or (0, 2) depending on the model
 
@@ -81,6 +81,16 @@ right_prompt: "{color.purple}{?session {?consume_tokens {consume_tokens}({consum
 
 clients:
 - type: openai
+- type: claude
+  models:
+    - name: claude-3-7-sonnet-20250219
+      max_input_tokens: 200000
+      max_output_tokens: 8192
+      require_max_tokens: true
+      input_price: 3
+      output_price: 15
+      supports_vision: true
+      supports_function_calling: true
 # - type: openai-compatible
 #   name: deepseek
 #   api_base: https://api.deepseek.com
