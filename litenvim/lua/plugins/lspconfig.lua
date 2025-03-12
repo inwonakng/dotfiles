@@ -1,6 +1,6 @@
 return {
 	"neovim/nvim-lspconfig",
-  event = { "BufReadPre", "BufNewFile" },
+	event = { "BufReadPre", "BufNewFile" },
 	dependencies = {
 		"williamboman/mason.nvim",
 		"williamboman/mason-lspconfig.nvim",
@@ -110,7 +110,7 @@ return {
 			function()
 				vim.diagnostic.open_float()
 			end,
-      desc="Show Diagnostic",
+			desc = "Show Diagnostic",
 		},
 	},
 }

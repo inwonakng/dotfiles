@@ -1,3 +1,0 @@
--- vim.cmd("set textwidth=72")
--- vim.cmd("set virtualedit=all")
--- vim.cmd("set wrap")
