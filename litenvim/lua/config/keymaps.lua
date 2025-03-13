@@ -61,3 +61,7 @@ end, { expr = true, noremap = true })
 -- Yank file path
 vim.keymap.set("n", "yP", ":YankFilePath<CR>", { noremap = true, silent = true })
 vim.keymap.set("n", "yp", ":YankRelativeFilePath<CR>", { noremap = true, silent = true })
+
+vim.keymap.set("n", "<leader>cd", function()
+	vim.diagnostic.open_float()
+end, { desc = "Show Diagnostic", noremap = true, silent = true })

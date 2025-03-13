@@ -151,13 +151,16 @@ return {
 		{ "<c-k>", "<c-k>", ft = "fzf", mode = "t", nowait = true },
 		{
 			"<leader>,",
-			"<cmd>FzfLua buffers sort_mru=true sort_lastused=true<cr>",
+			function()
+				require("fzf-lua").buffers({ sort_mru = true, sort_lastused = true, winopts = winopts.medium.flex })
+			end,
+			-- "<cmd>FzfLua buffers sort_mru=true sort_lastused=true<cr>",
 			desc = "Switch Buffer",
 		},
 		{
 			"<leader>/",
 			function()
-				require("fzf-lua").live_grep({ winopts = winopts.medium.flex })
+				require("fzf-lua").live_grep()
 			end,
 			desc = "Grep",
 		},
@@ -190,7 +193,7 @@ return {
 		{ "<leader>sd", "<cmd>FzfLua diagnostics_document<cr>", desc = "Document Diagnostics" },
 		{ "<leader>sD", "<cmd>FzfLua diagnostics_workspace<cr>", desc = "Workspace Diagnostics" },
 		{ "<leader>sg", "<cmd>FzfLua live_grep<cr>", desc = "Grep (Root Dir)" },
-		{ "<leader>sG", "<cmd>FzfLua live_grep<cr>", desc = "Grep (cwd)" },
+		{ "<leader>sG", "<cmd>FzfLua live_grep<cr>", desc = "Grep (cwd)", mode = { "n" } },
 		{ "<leader>sh", "<cmd>FzfLua help_tags<cr>", desc = "Help Pages" },
 		{ "<leader>sH", "<cmd>FzfLua highlights<cr>", desc = "Search Highlight Groups" },
 		{ "<leader>sj", "<cmd>FzfLua jumps<cr>", desc = "Jumplist" },
@@ -200,6 +203,16 @@ return {
 		{ "<leader>sm", "<cmd>FzfLua marks<cr>", desc = "Jump to Mark" },
 		{ "<leader>sR", "<cmd>FzfLua resume<cr>", desc = "Resume" },
 		{ "<leader>sq", "<cmd>FzfLua quickfix<cr>", desc = "Quickfix List" },
+		{
+			"<leader>sg",
+			function()
+				require("fzf-lua").grep_visual({
+					prompt = "Grep selection > ",
+				})
+			end,
+			desc = "Grep Selection",
+			mode = { "v" },
+		},
 		-- lsp keys
 		{
 			"<leader>ss",
@@ -251,3 +264,6 @@ return {
 		},
 	},
 }
+
+-- TODO:
+-- in visual mode, grep the selected text and filter by file name
