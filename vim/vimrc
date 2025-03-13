@@ -21,6 +21,8 @@ Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/fzf.vim'
 Plug 'jpalardy/vim-slime'
 Plug 'tpope/vim-tbone'
+Plug 'tpope/vim-fugitive'
+Plug 'tpope/vim-vinegar'
 call plug#end()
 
 " Turn off highlighting after search [https://stackoverflow.com/questions/4372660/get-rid-of-vims-highlight-after-searching-text]
@@ -95,9 +97,8 @@ function! YankFilePathFunc()
   echo path
 endfunction
 command! YankFilePath call YankFilePathFunc()
-" For relative paths
-command! YankRelativeFilePath call YankRelativeFilePathFunc()
 
+" For relative paths
 function! YankRelativeFilePathFunc()
     let full_path = expand('%:p')
     let cwd = getcwd()
@@ -109,6 +110,14 @@ function! YankRelativeFilePathFunc()
     endif
     echo relative_path
 endfunction
+command! YankRelativeFilePath call YankRelativeFilePathFunc()
 
 nnoremap yP :YankFilePath<CR>
 nnoremap yp :YankRelativeFilePath<CR>
+
+" Search forward using visually selected text. Override the default behavior
+xnoremap # "zy/\V<C-R>=escape(@z, '/\')<CR><CR>
+xnoremap * "zy/\V<C-R>=escape(@z, '?')<CR><CR>
+
+" FZF Ripgrep for visually selected text.
+xnoremap <leader>sg "zy:Rg <C-R>=escape(@z, '')<CR><CR>
