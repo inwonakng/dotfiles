@@ -123,7 +123,7 @@ wezterm.on("format-tab-title", function(tab, tabs, panes, config, hover, max_wid
 		{ Background = { Color = tab_bar_background } },
 		{ Foreground = { Color = edge_foreground } },
 		{ Text = wezterm.nerdfonts.ple_right_half_circle_thick },
-		{ Text = " " },
+		{ Text = "" },
 	}
 end)
 
