@@ -90,10 +90,23 @@ run = 'move-node-to-workspace 2'
 if.app-id = 'com.apple.Safari'
 run = 'move-node-to-workspace 1'
 
+# calendar goes to C
+[[on-window-detected]]
+if.app-id = "com.apple.iCal"
+run = 'move-node-to-workspace C'
+
 # webex breaks something pretty badly. Ignore it.
 [[on-window-detected]]
 if.app-id = 'Cisco-Systems.Spark'
-run = "layout floating"
+run = ["layout floating", "move-node-to-workspace W"]
+
+[[on-window-detected]]
+if.app-id = 'com.cisco.anyconnect.gui'
+run = ["layout floating", "move-node-to-workspace S"]
+
+[[on-window-detected]]
+if.app-id = 'com.apple.systempreferences'
+run = ["layout floating", "move-node-to-workspace S"]
 
 # Possible values: (qwerty|dvorak)
 # See https://nikitabobko.github.io/AeroSpace/guide#key-mapping

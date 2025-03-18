@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>scope</key>
+	<array>
+		<string>/Developer/Applications</string>
+		<string>/Library/PreferencePanes</string>
+		<string>/opt/homebrew/Cellar</string>
+		<string>/System/Library/CoreServices/Applications</string>
+		<string>/System/Library/PreferencePanes</string>
+		<string>/usr/local/Cellar</string>
+		<string>~/Documents/conferences</string>
+		<string>~/Documents/notes</string>
+		<string>~/Documents/papers</string>
+		<string>~/Documents/posters</string>
+		<string>~/Documents/presentations</string>
+		<string>~/Documents/projects</string>
+		<string>~/Documents/proposals</string>
+		<string>~/Documents/templates</string>
+		<string>~/Library/Caches/Metadata</string>
+		<string>~/Library/CloudStorage</string>
+		<string>~/Library/Mobile Documents</string>
+		<string>~/Library/PreferencePanes</string>
+	</array>
+</dict>
+</plist>

@@ -1,0 +1,633 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>bundleid</key>
+	<string>com.github.vanstrouble.alfred.amphetaminedose</string>
+	<key>category</key>
+	<string>Productivity</string>
+	<key>connections</key>
+	<dict>
+		<key>02832810-0F97-4758-B148-07367224EEDC</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>049B1508-4D83-4E59-844E-97AAE46677E7</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>08EBF3BF-71B2-481C-B702-69AA2FDDB2AA</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>F2453277-399E-466A-823A-E321C8FBF490</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>6428732B-CD59-4734-9481-E97B12A1C0F5</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>2A13899D-D886-43B7-BC95-26B66B62A062</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+			<dict>
+				<key>destinationuid</key>
+				<string>94215061-47A0-43F0-860D-BF9E9D46D55E</string>
+				<key>modifiers</key>
+				<integer>524288</integer>
+				<key>modifiersubtext</key>
+				<string>Keep wake up until {query}</string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>8EAB4E2B-4280-44B8-8E18-956635D5A7AF</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>F2453277-399E-466A-823A-E321C8FBF490</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>94D740BB-760B-4348-9503-F1272C092E98</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>049B1508-4D83-4E59-844E-97AAE46677E7</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>EB7422AA-C1AA-4B26-8D9B-1B178D1FD312</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>CDF64CC1-B4A8-4930-A542-535AD626DE5A</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+	</dict>
+	<key>createdby</key>
+	<string>vanstrouble</string>
+	<key>description</key>
+	<string>Keep your Mac awake with simple commands.</string>
+	<key>disabled</key>
+	<false/>
+	<key>name</key>
+	<string>Amphetamine Dose</string>
+	<key>objects</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argumenttype</key>
+				<integer>2</integer>
+				<key>keyword</key>
+				<string>amp on</string>
+				<key>subtext</key>
+				<string>Turn on Amphetamine</string>
+				<key>text</key>
+				<string>Amp on</string>
+				<key>withspace</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.keyword</string>
+			<key>uid</key>
+			<string>02832810-0F97-4758-B148-07367224EEDC</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>68</integer>
+				<key>script</key>
+				<string>on run argv
+    tell application "Amphetamine"
+        start new session
+    end tell
+end run</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>6</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>049B1508-4D83-4E59-844E-97AAE46677E7</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>action</key>
+				<integer>0</integer>
+				<key>argument</key>
+				<integer>0</integer>
+				<key>focusedappvariable</key>
+				<false/>
+				<key>focusedappvariablename</key>
+				<string></string>
+				<key>leftcursor</key>
+				<false/>
+				<key>modsmode</key>
+				<integer>0</integer>
+				<key>relatedAppsMode</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.hotkey</string>
+			<key>uid</key>
+			<string>94D740BB-760B-4348-9503-F1272C092E98</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argumenttype</key>
+				<integer>2</integer>
+				<key>keyword</key>
+				<string>amp off</string>
+				<key>subtext</key>
+				<string>Turn off Amphetamine</string>
+				<key>text</key>
+				<string>Amp off</string>
+				<key>withspace</key>
+				<false/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.keyword</string>
+			<key>uid</key>
+			<string>8EAB4E2B-4280-44B8-8E18-956635D5A7AF</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>68</integer>
+				<key>script</key>
+				<string>on run argv
+    tell application "Amphetamine" to end session
+end run</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>6</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>F2453277-399E-466A-823A-E321C8FBF490</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>action</key>
+				<integer>0</integer>
+				<key>argument</key>
+				<integer>0</integer>
+				<key>focusedappvariable</key>
+				<false/>
+				<key>focusedappvariablename</key>
+				<string></string>
+				<key>leftcursor</key>
+				<false/>
+				<key>modsmode</key>
+				<integer>0</integer>
+				<key>relatedAppsMode</key>
+				<integer>0</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.hotkey</string>
+			<key>uid</key>
+			<string>08EBF3BF-71B2-481C-B702-69AA2FDDB2AA</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argumenttype</key>
+				<integer>0</integer>
+				<key>keyword</key>
+				<string>ams</string>
+				<key>subtext</key>
+				<string>Active for {query} minutes</string>
+				<key>text</key>
+				<string>Set time dose</string>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.keyword</string>
+			<key>uid</key>
+			<string>EB7422AA-C1AA-4B26-8D9B-1B178D1FD312</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>68</integer>
+				<key>script</key>
+				<string>on run argv
+    set q to item 1 of argv
+    tell application "Amphetamine"
+        start new session with options {duration:q, interval:minutes, displaySleepAllowed:false}
+    end tell
+end run</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>6</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>CDF64CC1-B4A8-4930-A542-535AD626DE5A</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argumenttype</key>
+				<integer>0</integer>
+				<key>keyword</key>
+				<string>amh</string>
+				<key>subtext</key>
+				<string>Active for {query} hours</string>
+				<key>text</key>
+				<string>Set time dose</string>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.keyword</string>
+			<key>uid</key>
+			<string>6428732B-CD59-4734-9481-E97B12A1C0F5</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>68</integer>
+				<key>script</key>
+				<string>on run argv
+    set inputString to argv as string
+
+    set AppleScript's text item delimiters to " "
+    set parts to every text item of inputString
+    set AppleScript's text item delimiters to ""
+
+    set inputHour to 0
+    set inputMinutes to 0
+
+    set partsCount to count of parts
+
+    try
+        if partsCount = 1 then
+            set firstValue to item 1 of parts
+            if firstValue contains "." then
+                set inputHour to firstValue as real
+                set durationMinutes to round (inputHour * 60)
+            else
+                set inputHour to firstValue as integer
+                set durationMinutes to (inputHour * 60)
+            end if
+        else if partsCount = 2 then
+            set inputHour to item 1 of parts as integer
+            set inputMinutes to item 2 of parts as integer
+            set durationMinutes to (inputHour * 60) + inputMinutes
+        else
+            log "Incorrect format. Use: amh [hours] [optional minutes] or amh [decimal hours]"
+            return
+        end if
+
+        if durationMinutes &gt; 0 then
+            tell application "Amphetamine"
+                start new session with options {duration:durationMinutes, interval:minutes, displaySleepAllowed:false}
+            end tell
+        else
+            log "Error: Duration must be greater than 0 minutes."
+        end if
+
+    on error
+        log "Error processing the time. Make sure to enter a valid number."
+    end try
+end run</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>6</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>2A13899D-D886-43B7-BC95-26B66B62A062</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>68</integer>
+				<key>script</key>
+				<string>on run argv
+    set inputString to argv as string
+
+    set AppleScript's text item delimiters to " "
+    set parts to every text item of inputString
+    set AppleScript's text item delimiters to ""
+
+    set currentTime to (current date)
+    set currentHour to hours of currentTime
+    set currentMinutes to minutes of currentTime
+
+    set inputHour to 0
+    set inputMinutes to 0
+    set ampm to ""
+
+    set partsCount to count of parts
+
+    if partsCount = 1 then
+        set inputHour to item 1 of parts as integer
+        set inputMinutes to 0
+    else if partsCount = 2 then
+        set inputHour to item 1 of parts as integer
+        set inputMinutes to item 2 of parts as integer
+    else if partsCount = 3 then
+        set inputHour to item 1 of parts as integer
+        set inputMinutes to item 2 of parts as integer
+        set ampm to item 3 of parts as string
+    else
+        log "Error: Incorrect format. Use: amh [hour] [optional minutes] [optional am/pm]"
+        return
+    end if
+
+    if ampm = "" then
+        if inputHour = 12 then
+            if currentHour &lt; 12 then
+                set ampm to "pm"
+            else
+                set ampm to "am"
+            end if
+        else
+            if inputHour &lt; (currentHour mod 12) then
+                if currentHour &lt; 12 then
+                    set ampm to "pm"
+                else
+                    set ampm to "am"
+                end if
+            else
+                if currentHour &lt; 12 then
+                    set ampm to "am"
+                else
+                    set ampm to "pm"
+                end if
+            end if
+        end if
+    end if
+
+    if inputHour = currentHour then
+        if ampm is "am" then
+            set ampm to "pm"
+        else
+            set ampm to "am"
+        end if
+    end if
+
+    if ampm is "pm" and inputHour is not 12 then
+        set inputHour to inputHour + 12
+    else if ampm is "am" and inputHour is 12 then
+        set inputHour to 0
+    end if
+
+    set currentTotalMinutes to (currentHour * 60) + currentMinutes
+    set targetTotalMinutes to (inputHour * 60) + inputMinutes
+
+    set durationMinutes to targetTotalMinutes - currentTotalMinutes
+    if durationMinutes &lt; 0 then
+        set durationMinutes to durationMinutes + (24 * 60)
+    end if
+
+    tell application "Amphetamine" to start new session with options {duration:durationMinutes, interval:minutes, displaySleepAllowed:true}
+end run</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>6</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>94215061-47A0-43F0-860D-BF9E9D46D55E</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+	</array>
+	<key>readme</key>
+	<string># Amphetamine Dose | Alfred Workflow
+
+## Getting Started
+
+### Turn on Amphetamine (amp on)
+
+Turn on Amphetamine to keep your Mac awake:
+
+**Keyword:** amp on
+
+### Turn off Amphetamine (amp off)
+
+Turn off Amphetamine to stop keeping your Mac awake.
+
+**Keyword:** amp off
+
+### Set Amphetamine for a specified number of minutes (ams)
+
+Set Amphetamine to stay awake for a specified number of minutes. Only integer values are allowed.
+
+**Keyword:** ams [number of minutes]
+
+Example:
+
+- `ams 30` will keep your Mac awake for 30 minutes.
+
+### Set Amphetamine for a specified number of hours (amh)
+
+Set Amphetamine to stay awake for a specified number of hours. This command supports both whole hours and hours with minutes.
+
+**Keyword:** amh [number of hours] [optional minutes]
+
+Examples:
+
+- `amh 3` will keep your Mac awake for 2 hours.
+- `amh 6 30` will keep your Mac awake for 6 hours and 30 minutes.
+- `amh 1.5` will keep your Mac awake for 1 hour and 30 minutes.
+
+### Keep your Mac awake until a specific time (amh + Option key)
+
+Set Amphetamine to keep your Mac awake until a specific time. This mode is activated by holding down the Option key while using the amh command.
+
+**Keyword:** amh [target hour] [optional minutes] [optional am/pm]
+
+Examples:
+
+- `amh 12 30` (while holding Option) will keep your Mac awake until 12:30 (AM or PM, inferred from current time).
+- `amh 5 pm` (while holding Option) will keep your Mac awake until 5 PM.
+- `amh 2 15 am` (while holding Option) will keep your Mac awake until 2:15 AM.
+
+If no AM/PM is provided, the script will infer it based on the current time to avoid confusion. (Only supports the 12-hour format).</string>
+	<key>uidata</key>
+	<dict>
+		<key>02832810-0F97-4758-B148-07367224EEDC</key>
+		<dict>
+			<key>xpos</key>
+			<real>40</real>
+			<key>ypos</key>
+			<real>25</real>
+		</dict>
+		<key>049B1508-4D83-4E59-844E-97AAE46677E7</key>
+		<dict>
+			<key>xpos</key>
+			<real>255</real>
+			<key>ypos</key>
+			<real>85</real>
+		</dict>
+		<key>08EBF3BF-71B2-481C-B702-69AA2FDDB2AA</key>
+		<dict>
+			<key>xpos</key>
+			<real>40</real>
+			<key>ypos</key>
+			<real>385</real>
+		</dict>
+		<key>2A13899D-D886-43B7-BC95-26B66B62A062</key>
+		<dict>
+			<key>xpos</key>
+			<real>255</real>
+			<key>ypos</key>
+			<real>635</real>
+		</dict>
+		<key>6428732B-CD59-4734-9481-E97B12A1C0F5</key>
+		<dict>
+			<key>xpos</key>
+			<real>45</real>
+			<key>ypos</key>
+			<real>635</real>
+		</dict>
+		<key>8EAB4E2B-4280-44B8-8E18-956635D5A7AF</key>
+		<dict>
+			<key>xpos</key>
+			<real>40</real>
+			<key>ypos</key>
+			<real>265</real>
+		</dict>
+		<key>94215061-47A0-43F0-860D-BF9E9D46D55E</key>
+		<dict>
+			<key>xpos</key>
+			<real>255</real>
+			<key>ypos</key>
+			<real>755</real>
+		</dict>
+		<key>94D740BB-760B-4348-9503-F1272C092E98</key>
+		<dict>
+			<key>xpos</key>
+			<real>40</real>
+			<key>ypos</key>
+			<real>140</real>
+		</dict>
+		<key>CDF64CC1-B4A8-4930-A542-535AD626DE5A</key>
+		<dict>
+			<key>xpos</key>
+			<real>255</real>
+			<key>ypos</key>
+			<real>515</real>
+		</dict>
+		<key>EB7422AA-C1AA-4B26-8D9B-1B178D1FD312</key>
+		<dict>
+			<key>xpos</key>
+			<real>45</real>
+			<key>ypos</key>
+			<real>515</real>
+		</dict>
+		<key>F2453277-399E-466A-823A-E321C8FBF490</key>
+		<dict>
+			<key>xpos</key>
+			<real>250</real>
+			<key>ypos</key>
+			<real>325</real>
+		</dict>
+	</dict>
+	<key>userconfigurationconfig</key>
+	<array/>
+	<key>variablesdontexport</key>
+	<array/>
+	<key>version</key>
+	<string>1.3.0</string>
+	<key>webaddress</key>
+	<string>https://github.com/vanstrouble/dose-alfred-workflow.git</string>
+</dict>
+</plist>

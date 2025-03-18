@@ -16,4 +16,4 @@ vim.lsp.config("*", {
 	require("blink.cmp").get_lsp_capabilities(),
 })
 
-vim.lsp.enable({ "basedpyright", "lua_ls" })
+vim.lsp.enable({ "basedpyright", "lua_ls", "harper_ls", "taplo" })
