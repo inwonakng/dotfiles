@@ -52,11 +52,15 @@ let mapleader = " "
 " quit completely
 nmap <leader>qq :qa<CR>
 
-" pane commands
+" window commands
 nmap <leader>\ :vsp<CR>
 nmap <leader>- :sp<CR>
 nmap <leader>wd :q<CR>
 nmap <leader>wo :only<CR>
+" reset window sizes
+nmap <leader>w= :wincmd =<CR>
+nmap <leader>w< :5winc <<CR>
+nmap <leader>w> :5winc ><CR>
 
 " buffer commands
 nmap <leader>bd :q<CR>
