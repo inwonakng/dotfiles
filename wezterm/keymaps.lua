@@ -47,6 +47,16 @@ wezterm.on("trigger-vim-with-scrollback", function(window, pane)
 	os.remove(name)
 end)
 
+local last_pane_per_tab = {}
+
+wezterm.on("activate-last-pane", function(window, pane)
+	local tab = window:active_tab()
+	local last_pane = last_pane_per_tab[tab]
+	if last_pane then
+		tab:set_active_pane(last_pane)
+	end
+end)
+
 return {
 	-- leader = { key = "Space", mods = "SHIFT", timeout_milliseconds = 2000 },
 	leader = { key = "w", mods = "CTRL" },
@@ -97,7 +107,7 @@ return {
 			mods = "LEADER",
 			action = act.PaneSelect,
 		},
-		-- tab navigator
+		-- tab resize
 		{
 			key = "r",
 			mods = "LEADER",
@@ -243,15 +253,5 @@ return {
 			{ key = "q", action = "PopKeyTable" },
 			{ key = "[", mods = "CTRL", action = "PopKeyTable" },
 		},
-		-- rotate_pane = {
-		-- 	{ key = "h", action = act.RotatePanes("CounterClockwise") },
-		-- 	{ key = "j", action = act.RotatePanes("Clockwise") },
-		-- 	{ key = "k", action = act.RotatePanes("CounterClockwise") },
-		-- 	{ key = "l", action = act.RotatePanes("Clockwise") },
-		-- 	{ key = "Escape", action = "PopKeyTable" },
-		-- 	{ key = "Enter", action = "PopKeyTable" },
-		-- 	{ key = "q", action = "PopKeyTable" },
-		-- 	{ key = "[", mods = "CTRL", action = "PopKeyTable" },
-		-- },
 	},
 }
