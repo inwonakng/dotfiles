@@ -24,6 +24,8 @@ return {
 			"yaml",
 			"ledger",
 			"rust",
+      "bash",
+      "javascript",
 			"ron",
 		},
 		highlight = {
