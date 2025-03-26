@@ -5,10 +5,10 @@ vim.keymap.set("n", "<leader>\\", "<cmd>vsplit<cr>", { desc = "Vertical split" }
 vim.keymap.set("n", "<leader>-", "<cmd>split<cr>", { desc = "Horizontal split" })
 vim.keymap.set("n", "<leader>wo", "<cmd>only<cr>", { desc = "Close other windows" })
 vim.keymap.set("n", "<leader>w=", "<cmd>winc =<cr>", { desc = "Reset window size" })
-vim.keymap.set("n", "<leader>w+", "<cmd>resize 5<cr>", { desc = "Increase height by 5"})
-vim.keymap.set("n", "<leader>w-", "<cmd>resize -5<cr>", { desc = "Decrease height by 5"})
-vim.keymap.set("n", "<leader>w>", "<cmd>5 winc ><cr>", { desc = "Increase width by 5"})
-vim.keymap.set("n", "<leader>w<", "<cmd>5 winc <<cr>", { desc = "Decrease width by 5"})
+vim.keymap.set("n", "<leader>w+", "<cmd>resize 5<cr>", { desc = "Increase height by 5" })
+vim.keymap.set("n", "<leader>w-", "<cmd>resize -5<cr>", { desc = "Decrease height by 5" })
+vim.keymap.set("n", "<leader>w>", "<cmd>5 winc ><cr>", { desc = "Increase width by 5" })
+vim.keymap.set("n", "<leader>w<", "<cmd>5 winc <<cr>", { desc = "Decrease width by 5" })
 vim.keymap.set("n", "<C-h>", "<C-w><C-h>", { desc = "Move focus to the left window" })
 vim.keymap.set("n", "<C-l>", "<C-w><C-l>", { desc = "Move focus to the right window" })
 vim.keymap.set("n", "<C-j>", "<C-w><C-j>", { desc = "Move focus to the lower window" })
@@ -55,14 +55,6 @@ vim.keymap.set({ "n", "v" }, "k", function()
 	return vim.v.count == 0 and "gk" or "k"
 end, { expr = true, noremap = true })
 
--- format code. Since we have all the formatters from mason, I don't think we need conform.
--- vim.keymap.set({ "n", "v" }, "<leader>cf",
---   function()
---     vim.lsp.buf.format()
---   end,
---   { desc = "Format Buffer" }
--- )
-
 -- Yank file path
 vim.keymap.set("n", "yP", ":YankFilePath<CR>", { noremap = true, silent = true })
 vim.keymap.set("n", "yp", ":YankRelativeFilePath<CR>", { noremap = true, silent = true })
@@ -70,3 +62,11 @@ vim.keymap.set("n", "yp", ":YankRelativeFilePath<CR>", { noremap = true, silent 
 vim.keymap.set("n", "<leader>cd", function()
 	vim.diagnostic.open_float()
 end, { desc = "Show Diagnostic", noremap = true, silent = true })
+
+-- moveing by
+vim.keymap.set("n", "]e", function()
+	vim.diagnostic.goto_next({ severity = vim.diagnostic.severity.ERROR })
+end, { desc = "Next Error", noremap = true, silent = true })
+vim.keymap.set("n", "[e", function()
+	vim.diagnostic.goto_prev({ severity = vim.diagnostic.severity.ERROR })
+end, { desc = "Prev Error", noremap = true, silent = true })

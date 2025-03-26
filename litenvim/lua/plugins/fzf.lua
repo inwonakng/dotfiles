@@ -265,5 +265,3 @@ return {
 	},
 }
 
--- TODO:
--- in visual mode, grep the selected text and filter by file name
