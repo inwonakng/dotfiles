@@ -63,10 +63,13 @@ vim.keymap.set("n", "<leader>cd", function()
 	vim.diagnostic.open_float()
 end, { desc = "Show Diagnostic", noremap = true, silent = true })
 
--- moveing by
+-- jumping between errors
 vim.keymap.set("n", "]e", function()
 	vim.diagnostic.goto_next({ severity = vim.diagnostic.severity.ERROR })
 end, { desc = "Next Error", noremap = true, silent = true })
 vim.keymap.set("n", "[e", function()
 	vim.diagnostic.goto_prev({ severity = vim.diagnostic.severity.ERROR })
 end, { desc = "Prev Error", noremap = true, silent = true })
+
+
+vim.keymap.set("t", "<C-/>", "<cmd>close<cr>", { desc = "Hide Terminal" })
