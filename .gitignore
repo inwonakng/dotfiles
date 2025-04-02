@@ -16,3 +16,4 @@ aichat/roles
 aichat/.env
 aichat/messages.md
 .DS_Store
+lazygit/state.yml

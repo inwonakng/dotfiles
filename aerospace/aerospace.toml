@@ -108,6 +108,10 @@ run = ["layout floating", "move-node-to-workspace S"]
 if.app-id = "com.apple.systempreferences"
 run = ["layout floating", "move-node-to-workspace S"]
 
+[[on-window-detected]]
+if.app-id = "com.apple.ActivityMonitor"
+run = ["layout floating"]
+
 # Possible values: (qwerty|dvorak)
 # See https://nikitabobko.github.io/AeroSpace/guide#key-mapping
 [key-mapping]

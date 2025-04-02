@@ -4,7 +4,7 @@ bash ~/dotfiles/nvim/install-full.sh
 # folders
 ln -snf ~/dotfiles/.ipython ~/.ipython
 ln -snf ~/dotfiles/wezterm ~/.config/wezterm
-ln -snf ~/dotfiles/kitty ~/.config/kitty
+ln -snf ~/dotfiles/lazygit "~/Library/Application Support/lazygit"
 
 # files
 ln -sf ~/dotfiles/zsh/.zshrc ~/.zshrc

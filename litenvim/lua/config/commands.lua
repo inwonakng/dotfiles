@@ -118,3 +118,25 @@ vim.api.nvim_create_user_command("FixReadingImagePath", function()
   end
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
 end, {})
+
+
+-- functionality for editing file from lazygit
+function EditLineFromLazygit(file_path, line)
+    local path = vim.fn.expand("%:p")
+    if path == file_path then
+        vim.cmd(tostring(line))
+    else
+        vim.cmd("e " .. file_path)
+        vim.cmd(tostring(line))
+    end
+end
+
+function EditFromLazygit(file_path)
+    local path = vim.fn.expand("%:p")
+    vim.cmd("e " .. file_path)
+    if path == file_path then
+        return
+    else
+        vim.cmd("e " .. file_path)
+    end
+end
