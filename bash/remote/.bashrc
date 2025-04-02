@@ -115,6 +115,7 @@ bind -m vi-command '"v": abort'
 # alias for pretty ls
 alias ls="ls --color"
 
+export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix --hidden --follow --exclude .git'
 export FZF_DEFAULT_OPTS='--height=40% --preview-window=right:50%:wrap'
 export FZF_CTRL_T_OPTS="
   --walker-skip .git,node_modules,target

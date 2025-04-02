@@ -28,7 +28,9 @@ You can use conda to install a new git.
 
 ## Notes
 
-- In order to match the versions of software used across different machines, I am creating symlinks of binaries installed from conda (tmux, git) on machines that I don't have root access on.
+- In order to match the versions of software used across different machines, I
+  am creating symlinks of binaries installed from conda (tmux, git) on machines
+that I don't have root access on.
 
 ```bash
 ln -sn $PATH_TO_APP $HOME/.local/bin
@@ -41,3 +43,15 @@ export PATH=$HOME/.local/bin:$PATH
 ```
 
 so that the binaries under `.local/bin` are found before anything.
+
+### Stuff that can be installed with conda
+
+- vim
+- tmux
+- git
+- ripgrep
+- fd-find
+- zoxide
+
+Install these in the `(base)` environment, and then create a symlink to the
+appropriate `~/.local/bin/$ARCH$` folder

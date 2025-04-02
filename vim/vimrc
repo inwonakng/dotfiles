@@ -83,12 +83,14 @@ nmap <leader>sg :Rg<CR>
 " set up vim-slime
 let g:slime_no_mappings = 1
 let g:slime_target = "tmux"
-let g:slime_cell_delimiter = "#%%"
+let g:slime_cell_delimiter = "# %%"
 let g:slime_bracketed_paste = 1
-let g:slime_python_ipython = 1
-nmap <leader>rr <Plug>SlimeSendCell<BAR>/^#%%<CR>
+let g:slime_python_ipython = 0
+nmap <leader>rr <Plug>SlimeSendCell<CR>
 nmap <leader>rc :SlimeConfig<CR>
 vmap <leader>rr :<C-u>'<,'>SlimeSend<CR>
+nmap [r /# %%<CR> 
+nmap ]r k/# %%<CR>N 
 
 " utility command for copying the path of current buffer file
 function! YankFilePathFunc()
