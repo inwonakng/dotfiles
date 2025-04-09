@@ -41,3 +41,4 @@ vim.opt.linebreak = true
 vim.opt.breakindent = true
 vim.opt.termguicolors = true
 vim.opt.spelllang = { "en_us" }
+vim.opt.ignorecase = true

@@ -46,6 +46,9 @@ set expandtab
 " turn off wrap
 set nowrap
 
+" turn off case, this helps with command completion
+set ignorecase
+
 " set leader key
 let mapleader = " "
 
