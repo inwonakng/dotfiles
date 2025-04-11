@@ -101,7 +101,7 @@ if.app-id = "Cisco-Systems.Spark"
 run = ["layout floating", "move-node-to-workspace W"]
 
 [[on-window-detected]]
-if.app-id = "com.cisco.anyconnect.gui"
+if.app-id = "com.cisco.secureclient.gui"
 run = ["layout floating", "move-node-to-workspace S"]
 
 [[on-window-detected]]
@@ -110,6 +110,10 @@ run = ["layout floating", "move-node-to-workspace S"]
 
 [[on-window-detected]]
 if.app-id = "com.apple.ActivityMonitor"
+run = ["layout floating"]
+
+[[on-window-detected]]
+if.app-id = "com.apple.AppStore"
 run = ["layout floating"]
 
 # Possible values: (qwerty|dvorak)
