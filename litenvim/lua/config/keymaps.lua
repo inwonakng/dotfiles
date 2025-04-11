@@ -71,5 +71,5 @@ vim.keymap.set("n", "[e", function()
 	vim.diagnostic.goto_prev({ severity = vim.diagnostic.severity.ERROR })
 end, { desc = "Prev Error", noremap = true, silent = true })
 
-
+-- lazygit also seems to be a terminal window, so this ends up putting it background
 vim.keymap.set("t", "<C-/>", "<cmd>close<cr>", { desc = "Hide Terminal" })

@@ -90,7 +90,6 @@ vim.ui.select = function(...)
 	return vim.ui.select(...)
 end
 
-
 -- additional settings. Separated like how lazyvim does it.
 require("config.keymaps")
 require("config.commands")
