@@ -56,8 +56,8 @@ let mapleader = " "
 nmap <leader>qq :qa<CR>
 
 " window commands
-nmap <leader>\ :vsp<CR>
-nmap <leader>- :sp<CR>
+nmap <leader>\ :vsp<CR><C-w>l
+nmap <leader>- :sp<CR><C-w>j
 nmap <leader>wd :q<CR>
 nmap <leader>wo :only<CR>
 " reset window sizes
