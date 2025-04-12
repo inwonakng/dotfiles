@@ -47,3 +47,5 @@ function y() {
     fi
     rm -f -- "$tmp"
 }
+
+alias g="lazygit"
