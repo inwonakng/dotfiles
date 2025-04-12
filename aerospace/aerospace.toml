@@ -102,11 +102,13 @@ run = ["layout floating", "move-node-to-workspace W"]
 
 [[on-window-detected]]
 if.app-id = "com.cisco.secureclient.gui"
-run = ["layout floating", "move-node-to-workspace S"]
+# run = ["layout floating", "move-node-to-workspace S"]
+run = ["layout floating"]
 
 [[on-window-detected]]
 if.app-id = "com.apple.systempreferences"
-run = ["layout floating", "move-node-to-workspace S"]
+# run = ["layout floating", "move-node-to-workspace S"]
+run = ["layout floating"]
 
 [[on-window-detected]]
 if.app-id = "com.apple.ActivityMonitor"
