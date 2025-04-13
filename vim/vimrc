@@ -70,6 +70,7 @@ nmap <leader>bd :q<CR>
 
 " tab commands
 nmap <leader><Tab><Tab> :tabnew<CR>
+nmap <leader><Tab><CR> :tabnew %<CR>
 nmap <leader><Tab>] :tabnext<CR>
 nmap <leader><Tab>[ :tabprev<CR>
 nmap <leader><Tab>s :tab sb<CR>
