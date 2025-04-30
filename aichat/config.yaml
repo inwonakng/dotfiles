@@ -1,6 +1,7 @@
 # see https://github.com/sigoden/aichat/blob/main/config.example.yaml
 # ---- llm ----
 model: openai:chatgpt-4o-latest # Specify the LLM to use
+# model: gemini:gemini-2.5-pro-exp-03-25 # Specify the LLM to use
 temperature: null # Set default temperature parameter (0, 1)
 top_p: null # Set default top-p parameter, with a range of (0, 1) or (0, 2) depending on the model
 
@@ -80,20 +81,29 @@ left_prompt: "{color.green}{?session {?agent {agent}>}{session}{?role /}}{!sessi
 right_prompt: "{color.purple}{?session {?consume_tokens {consume_tokens}({consume_percent}%)}{!consume_tokens {consume_tokens}}}{color.reset}"
 
 clients:
-- type: openai
-- type: claude
-  models:
-    - name: claude-3-7-sonnet-20250219
-      max_input_tokens: 200000
-      max_output_tokens: 8192
-      require_max_tokens: true
-      input_price: 3
-      output_price: 15
-      supports_vision: true
-      supports_function_calling: true
-# - type: openai-compatible
-#   name: deepseek
-#   api_base: https://api.deepseek.com
-#   models:
-#     - name: deepseek-r1
-#       max_input_tokens: 64000
+  - type: openai
+  - type: claude
+    models:
+      - name: claude-3-7-sonnet-20250219
+        max_input_tokens: 200000
+        max_output_tokens: 8192
+        require_max_tokens: true
+        input_price: 3
+        output_price: 15
+        supports_vision: true
+        supports_function_calling: true
+  - type: gemini
+    api_base: https://generativelanguage.googleapis.com/v1beta
+    patch:
+      chat_completions:
+        ".*":
+          body:
+            safetySettings:
+              - category: HARM_CATEGORY_HARASSMENT
+                threshold: BLOCK_NONE
+              - category: HARM_CATEGORY_HATE_SPEECH
+                threshold: BLOCK_NONE
+              - category: HARM_CATEGORY_SEXUALLY_EXPLICIT
+                threshold: BLOCK_NONE
+              - category: HARM_CATEGORY_DANGEROUS_CONTENT
+                threshold: BLOCK_NONE
