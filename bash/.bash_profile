@@ -33,6 +33,11 @@ if [ -f "$HOME/.bash_utils/completions/aichat.bash" ]; then
     . "$HOME/.bash_utils/completions/aichat.bash"
 fi
 
+# for mac only
+if [ -f "/opt/homebrew/etc/profile.d/bash_completion.sh" ]; then
+    . "/opt/homebrew/etc/profile.d/bash_completion.sh"
+fi
+
 # if installed, overwrite cd
 if command -v "zoxide" >/dev/null 2>&1; then
     eval "$(zoxide init bash --cmd cd)"
