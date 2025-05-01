@@ -1,6 +1,4 @@
 -- window manipulation
-vim.keymap.set("n", "<leader>qq", "<cmd>qa<cr>", { desc = "Quit" })
-vim.keymap.set("n", "<leader>wd", "<cmd>q<cr>", { desc = "Close Window" })
 vim.keymap.set("n", "<leader>\\", "<cmd>vsplit<cr>", { desc = "Vertical split" })
 vim.keymap.set("n", "<leader>-", "<cmd>split<cr>", { desc = "Horizontal split" })
 vim.keymap.set("n", "<leader>wo", "<cmd>only<cr>", { desc = "Close other windows" })
