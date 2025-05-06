@@ -44,4 +44,4 @@ fi
 export PATH=$PATH:"$HOME/.term-utils"
 alias sioyek="/Applications/sioyek.app/Contents/MacOS/sioyek"
 
-source "$HOME/.bash-common.sh"
+source "$HOME/.bashrc-extras"

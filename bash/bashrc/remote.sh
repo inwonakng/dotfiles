@@ -56,4 +56,4 @@ FZF_SCRIPT_FILE="$HOME/.fzf-$PREFIX.bash"
 set -o vi
 export EDITOR="vim"
 
-source "$HOME/.bash-common.sh"
+source "$HOME/.bashrc-extras"
