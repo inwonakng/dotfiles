@@ -33,12 +33,6 @@ export EDITOR='nvim'
 
 [ -f "/opt/homebrew/etc/profile.d/bash_completion.sh" ] && . "/opt/homebrew/etc/profile.d/bash_completion.sh"
 export AICHAT_CONFIG_DIR="$HOME/.config/aichat"
-# if installed, overwrite cd
-if command -v "zoxide" >/dev/null 2>&1; then
-    eval "$(zoxide init bash --cmd cd)"
-    alias z="cd"
-    alias zi="cdi"
-fi
 
 # mac specific
 export PATH=$PATH:"$HOME/.term-utils"

@@ -111,6 +111,13 @@ export FZF_ALT_C_OPTS="
   --walker-skip .git,node_modules,target
   --preview 'tree -C {}'"
 
+# if installed, overwrite cd
+if command -v "zoxide" >/dev/null 2>&1; then
+    eval "$(zoxide init bash --cmd cd)"
+    alias z="cd"
+    alias zi="cdi"
+fi
+
 
 alias g="lazygit"
 alias ls="ls --color"

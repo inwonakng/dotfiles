@@ -92,7 +92,7 @@ let g:slime_bracketed_paste = 1
 let g:slime_python_ipython = 0
 let g:slime_default_config = {
       \ "socket_name": "default",
-      \ "target_pane": "%1"
+      \ "target_pane": ".2"
       \ }
 nmap <leader>rr <Plug>SlimeSendCell<CR>
 nmap <leader>rc :SlimeConfig<CR>
