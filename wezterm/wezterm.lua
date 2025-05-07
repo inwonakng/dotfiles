@@ -4,6 +4,7 @@ local ui = require("ui")
 local env = require("env")
 local domains = require("domains")
 local keymaps = require("keymaps")
+local options = require("options")
 require("startup")
 
 -- wezterm.log_error('Exe dir ' .. wezterm.version)
@@ -17,5 +18,6 @@ utils.update_config(config, ui)
 utils.update_config(config, keymaps)
 utils.update_config(config, env)
 utils.update_config(config, domains)
+utils.update_config(config, options)
 
 return config
