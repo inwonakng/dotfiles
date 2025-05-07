@@ -16,6 +16,9 @@ return {
 				autoSearchPaths = true,
 				diagnosticMode = "openFilesOnly",
 				useLibraryCodeForTypes = true,
+				diagnosticSeverityOverrides = {
+					reportUninitializedInstanceVariable = false,
+				},
 				-- extraPaths = { vim.fn.getcwd() },
 				-- extraPaths = { "tabkit" },
 				-- diagnosticMode = "off",
