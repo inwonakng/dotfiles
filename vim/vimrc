@@ -59,18 +59,9 @@ nmap <leader>qq :qa<CR>
 nmap <leader>\ :vsp<CR><C-w>l
 nmap <leader>- :sp<CR><C-w>j
 nmap <leader>wd :q<CR>
-nmap <leader>wo :only<CR>
 
-" Move splits
-nmap <leader>wj :winc J<CR>
-nmap <leader>wk :winc K<CR>
-nmap <leader>wh :winc H<CR>
-nmap <leader>wl :winc L<CR>
-
-" reset window sizes
-nmap <leader>w= :wincmd =<CR>
-nmap <leader>w< :5winc <<CR>
-nmap <leader>w> :5winc ><CR>
+" re-bind C-w to this (same as winc)
+nmap <leader>w <C-w>
 
 " buffer commands
 nmap <leader>bd :q<CR>
