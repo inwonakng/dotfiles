@@ -18,16 +18,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     fi
 fi
 
-CONDA_DIR="$HOME/miniconda3"
-FZF_DIR=""
-LOCAL_BIN_DIR="$HOME/.local/bin"
-FZF_SCRIPT_FILE="$HOME/.fzf.bash" 
-
-export NODE_DEFAULT_PATH="$HOME/.nvm/versions/node/v22.14.0/bin"
-export PYTHON_DEFAULT_PATH="$HOME/miniconda3/envs/scripts/bin"
-# update path with default node so we use this instead
-export PATH="$NODE_DEFAULT_PATH:$PATH"
-
 set -o vi
 export EDITOR='nvim'
 
@@ -37,5 +27,17 @@ export AICHAT_CONFIG_DIR="$HOME/.config/aichat"
 # mac specific
 export PATH=$PATH:"$HOME/.term-utils"
 alias sioyek="/Applications/sioyek.app/Contents/MacOS/sioyek"
+
+# variables needed by common script
+CONDA_DIR="$HOME/miniconda3"
+NVM_DIR="$HOME/.nvm"
+FZF_DIR=""
+LOCAL_BIN_DIR="$HOME/.local/bin"
+FZF_SCRIPT_FILE="$HOME/.fzf.bash" 
+
+export NODE_DEFAULT_PATH="$NVM_DIR/versions/node/v22.14.0/bin"
+export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
+# update path with default node so we use this instead
+export PATH="$NODE_DEFAULT_PATH:$PATH"
 
 source "$HOME/.bashrc-extras"

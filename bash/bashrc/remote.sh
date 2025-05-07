@@ -48,12 +48,19 @@ case $HOSTNAME in
     ;;
 esac
 
-CONDA_DIR="$CONDA_PARENT_DIR/miniconda-$POSTFIX"
-FZF_DIR="$HOME/.fzf-$POSTFIX" 
-FZF_SCRIPT_FILE="$HOME/.fzf-$PREFIX.bash" 
-
 # set input to vi mode
 set -o vi
 export EDITOR="vim"
+
+# variables needed by the common script
+CONDA_DIR="$CONDA_PARENT_DIR/miniconda-$POSTFIX"
+NVM_DIR="$HOME/.nvm"
+FZF_DIR="$HOME/.fzf-$POSTFIX" 
+FZF_SCRIPT_FILE="$HOME/.fzf-$PREFIX.bash" 
+
+export NODE_DEFAULT_PATH="$NVM_DIR/versions/node/v22.15.0/bin"
+export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
+# update path with default node so we use this instead
+export PATH="$NODE_DEFAULT_PATH:$PATH"
 
 source "$HOME/.bashrc-extras"

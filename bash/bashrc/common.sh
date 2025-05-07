@@ -16,6 +16,7 @@ fi
 [ -f "$HOME/.bash_utils/completions/slurm.bash" ] && source "$HOME/.bash_utils/completions/slurm.bash"
 [ -f "$HOME/.bash_utils/completions/python-modules.bash" ] && source "$HOME/.bash_utils/completions/python-modules.bash"
 [ -f "$HOME/.bash_utils/completions/aichat.bash" ] && source "$HOME/.bash_utils/completions/aichat.bash"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 # add local bin
 
@@ -25,7 +26,7 @@ fi
 # CONDA_DIR and NVM_DIR should have been set in the sourcing script
 
 function load_nvm() {
-    source "$HOME/.nvm/nvm.sh"
+    source "$NVM_DIR/nvm.sh"
 }
 
 function load_conda() {
@@ -117,7 +118,6 @@ if command -v "zoxide" >/dev/null 2>&1; then
     alias z="cd"
     alias zi="cdi"
 fi
-
 
 alias g="lazygit"
 alias ls="ls --color"
