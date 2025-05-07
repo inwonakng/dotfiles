@@ -97,10 +97,10 @@ bind -m vi-command '"v": abort'
 # FZF config
 
 export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix --hidden --follow --exclude .git'
-export FZF_DEFAULT_OPTS='--height=40% --preview-window=right:50%:wrap'
+export FZF_DEFAULT_OPTS='--height=40% --preview-window=right:50%:wrap --bind ctrl-f:page-down,ctrl-b:page-up'
 export FZF_CTRL_T_OPTS="
   --walker-skip .git,node_modules,target
-  --preview 'bat -n --color=always {}'
+  --preview '[[ -d {} ]] && tree -C {} || bat -n --color=always {}'
   --bind 'ctrl-/:change-preview-window(down|hidden|)'"
 export FZF_CTRL_R_OPTS="
   --preview 'echo {}' --preview-window up:3:hidden:wrap
