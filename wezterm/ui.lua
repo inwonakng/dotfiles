@@ -130,11 +130,11 @@ end)
 return {
 	color_scheme = "catppuccin-frappe",
 	font = wezterm.font_with_fallback({
-    -- { family = "Fira Code" },
-		{ family = "UbuntuMono Nerd Font" },
-		{ family = "Nerd Font" },
+		{ family = "IBM Plex Mono" },
+		-- { family = "UbuntuMono Nerd Font" },
+		-- { family = "Nerd Font" },
 	}),
-	font_size = 17,
+	font_size = 15,
 	hide_tab_bar_if_only_one_tab = false,
 	window_padding = {
 		left = 2,
