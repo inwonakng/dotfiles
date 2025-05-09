@@ -16,7 +16,7 @@ fi
 [ -f "$HOME/.bash_utils/completions/slurm.bash" ] && source "$HOME/.bash_utils/completions/slurm.bash"
 [ -f "$HOME/.bash_utils/completions/python-modules.bash" ] && source "$HOME/.bash_utils/completions/python-modules.bash"
 [ -f "$HOME/.bash_utils/completions/aichat.bash" ] && source "$HOME/.bash_utils/completions/aichat.bash"
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+[ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion" # This loads nvm bash_completion
 
 # add local bin
 
@@ -44,7 +44,6 @@ function load_conda() {
     # <<< conda initialize <<<
     export PATH="$CONDA_DIR/bin:$PATH"
 }
-
 
 function load() {
     case $1 in
