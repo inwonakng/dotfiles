@@ -1,6 +1,20 @@
 return {
 	"saghen/blink.cmp",
-	dependencies = "rafamadriz/friendly-snippets",
+	dependencies = {
+		"rafamadriz/friendly-snippets",
+    -- credit: https://www.reddit.com/r/neovim/comments/1invqwg/blinkcmp_luasnip_autosnippets_and_cmpvimtex/
+		{
+			"micangl/cmp-vimtex",
+			dependencies = {
+				{
+					"saghen/blink.compat",
+					version = "*",
+					lazy = true,
+					opts = {},
+				},
+			},
+		},
+	},
 	version = "*",
 	build = "cargo build --release",
 
@@ -35,12 +49,17 @@ return {
 			},
 		},
 		sources = {
-			default = { "lsp", "path", "snippets", "buffer", "markdown" },
+			default = { "lsp", "path", "snippets", "buffer", "markdown", "vimtex" },
 			providers = {
 				markdown = {
 					name = "RenderMarkdown",
 					module = "render-markdown.integ.blink",
 					fallbacks = { "lsp" },
+				},
+				vimtex = {
+					name = "vimtex",
+					module = "blink.compat.source",
+					score_offset = 100,
 				},
 			},
 		},
