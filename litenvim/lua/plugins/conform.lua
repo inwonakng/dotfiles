@@ -27,6 +27,7 @@ return {
 	opts = {
 		formatters_by_ft = {
 			python = {
+        "isort",
 				"ruff_fix", -- To fix lint errors. (ruff with argument --fix)
 				"ruff_format", -- To run the formatter. (ruff with argument format)
 			},
