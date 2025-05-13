@@ -48,10 +48,6 @@ case $HOSTNAME in
     ;;
 esac
 
-# set input to vi mode
-set -o vi
-export EDITOR="vim"
-
 # variables needed by the common script
 CONDA_DIR="$CONDA_PARENT_DIR/miniconda-$POSTFIX"
 NVM_DIR="$HOME/.nvm"
@@ -64,7 +60,3 @@ export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
 export PATH="$NODE_DEFAULT_PATH:$PATH"
 
 source "$HOME/.bashrc_extras"
-
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion

@@ -18,14 +18,12 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     fi
 fi
 
-set -o vi
-export EDITOR='nvim'
 
+# mac specific thing for bash completions
+
+# mac specific stuff
 [ -f "/opt/homebrew/etc/profile.d/bash_completion.sh" ] && . "/opt/homebrew/etc/profile.d/bash_completion.sh"
-export AICHAT_CONFIG_DIR="$HOME/.config/aichat"
-
-# mac specific
-export PATH=$PATH:"$HOME/.term-utils"
+export AICHAT_CONFIG_DIR="$HOME/.aichat"
 alias sioyek="/Applications/sioyek.app/Contents/MacOS/sioyek"
 
 # variables needed by common script

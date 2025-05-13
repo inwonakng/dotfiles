@@ -27,6 +27,7 @@ fi
 
 function load_nvm() {
     source "$NVM_DIR/nvm.sh"
+    [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion" # This loads nvm bash_completion
 }
 
 function load_conda() {
@@ -60,16 +61,6 @@ function load() {
         return 1
         ;;
     esac
-}
-
-# yazi stuff
-function y() {
-    local tmp="$(mktemp -t "yazi-cwd.XXXXXX")" cwd
-    yazi "$@" --cwd-file="$tmp"
-    if cwd="$(command cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
-        builtin cd -- "$cwd"
-    fi
-    rm -f -- "$tmp"
 }
 
 edit_command_line() {
@@ -116,6 +107,19 @@ if command -v "zoxide" >/dev/null 2>&1; then
     eval "$(zoxide init bash --cmd cd)"
     alias z="cd"
     alias zi="cdi"
+fi
+
+# vi mode/editors setup
+set -o vi
+
+if command -v "nvim" >/dev/null 2>&1; then
+    alias nvim="nvim --cmd 'set rtp+=~/.config/nvim'"
+    # if we have neovim installed, assume we have oil.nvim
+    export EDITOR="nvim"
+    export VISUAL="nvim"
+else
+    export EDITOR="vim"
+    export VISUAL="vim"
 fi
 
 alias g="lazygit"
