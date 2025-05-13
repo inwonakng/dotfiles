@@ -94,6 +94,14 @@ clients:
         supports_function_calling: true
   - type: gemini
     api_base: https://generativelanguage.googleapis.com/v1beta
+    models:
+      - name: gemini:gemini-2.5-pro-preview-05-06
+        max_input_tokens: 1048576
+        max_output_tokens: 65536
+        input_price: 0
+        output_price: 0
+        supports_vision: true
+        supports_function_calling: true
     patch:
       chat_completions:
         ".*":
