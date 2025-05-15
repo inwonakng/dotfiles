@@ -117,6 +117,7 @@ if command -v "nvim" >/dev/null 2>&1; then
     # if we have neovim installed, assume we have oil.nvim
     export EDITOR="nvim"
     export VISUAL="nvim"
+    alias oil="nvim -c Oil"
 else
     export EDITOR="vim"
     export VISUAL="vim"
@@ -124,3 +125,4 @@ fi
 
 alias g="lazygit"
 alias ls="ls --color"
+alias oil-ssh="bash $HOME/.bash_utils/oil-ssh.sh"
