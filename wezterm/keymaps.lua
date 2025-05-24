@@ -37,8 +37,8 @@ wezterm.on("trigger-vim-with-scrollback", function(window, pane)
 	window:perform_action(
 		wezterm.action({
 			SpawnCommandInNewWindow = {
-				-- args = { "/opt/homebrew/bin/nvim", "+ normal G $", name },
-				args = { "/opt/homebrew/bin/nvim", name },
+				args = { "/opt/homebrew/bin/nvim", "+ normal G $", name },
+				-- args = { "/opt/homebrew/bin/nvim", name },
 			},
 		}),
 		pane
@@ -107,7 +107,7 @@ return {
 			mods = "LEADER",
 			action = act.PaneSelect,
 		},
-		-- tab resize
+		-- pane resize
 		{
 			key = "r",
 			mods = "LEADER",
@@ -116,6 +116,14 @@ return {
 				one_shot = false,
 			}),
 		},
+		-- swap panes
+		-- {
+		-- 	key = "p",
+		-- 	mods = "LEADER",
+		-- 	action = act.PaneSelect({
+		-- 		mode = "SwapWithActiveKeepFocus",
+		-- 	}),
+		-- },
 		-- Tab keybindings
 		{ key = "n", mods = "LEADER", action = act.SpawnTab("CurrentPaneDomain") },
 		{ key = "[", mods = "LEADER", action = act.ActivateTabRelative(-1) },
@@ -204,11 +212,11 @@ return {
 				local tab, window = pane:move_to_new_window()
 			end),
 		},
-		{
-			key = "w",
-			mods = "LEADER",
-			action = wezterm.action.ShowLauncherArgs({ flags = "FUZZY|WORKSPACES" }),
-		},
+		-- {
+		-- 	key = "w",
+		-- 	mods = "LEADER",
+		-- 	action = wezterm.action.ShowLauncherArgs({ flags = "FUZZY|WORKSPACES" }),
+		-- },
 
 		-- commented out for now, seems bugged
 		-- { key = "s", mods = "LEADER", action = act.ActivateKeyTable({ name = "rotate_pane", one_shot = false }) },
