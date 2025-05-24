@@ -1,6 +1,6 @@
 # see https://github.com/sigoden/aichat/blob/main/config.example.yaml
 # ---- llm ----
-model: openai:chatgpt-4o-latest # Specify the LLM to use
+model: gemini:gemini-2.5-pro-preview-05-06 # Specify the LLM to use
 # model: gemini:gemini-2.5-pro-exp-03-25 # Specify the LLM to use
 temperature: null # Set default temperature parameter (0, 1)
 top_p: null # Set default top-p parameter, with a range of (0, 1) or (0, 2) depending on the model
@@ -27,7 +27,7 @@ agent_prelude: null # Set a session to use when starting a agent. (e.g. temp, de
 
 # ---- session ----
 # Controls the persistence of the session. if true, auto save; if false, not save; if null, asking the user
-save_session: null
+save_session: true
 # Compress session when token count reaches or exceeds this threshold
 compress_threshold: 20000
 # Text prompt used for creating a concise summary of session message
@@ -94,14 +94,6 @@ clients:
         supports_function_calling: true
   - type: gemini
     api_base: https://generativelanguage.googleapis.com/v1beta
-    models:
-      - name: gemini:gemini-2.5-pro-preview-05-06
-        max_input_tokens: 1048576
-        max_output_tokens: 65536
-        input_price: 0
-        output_price: 0
-        supports_vision: true
-        supports_function_calling: true
     patch:
       chat_completions:
         ".*":
