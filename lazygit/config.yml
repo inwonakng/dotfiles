@@ -2,7 +2,6 @@
 # https://old.reddit.com/r/neovim/comments/1f7jj15/how_do_you_work_without_diffviewnvim/
 # Should fix it one day..
 
-
 #          ╭──────────────────────────────────────────────────────────╮
 #          │                      LazyGit Config                      │
 #          ╰──────────────────────────────────────────────────────────╯
@@ -92,8 +91,8 @@ os:
   openLink: open {{link}} >/dev/null
   copyToClipboardCmd: printf "\033]52;c;$(printf {{text}} | base64)\a" > /dev/tty
   editInTerminal: true
-  edit: "[ -z \"$NVIM\" ] && (nvim -- {{filename}}) || (nvim --server $NVIM --remote-send '<cmd>close<cr><cmd>lua EditFromLazygit({{filename}})<CR>')"
-  editAtLine: "[ -z \"$NVIM\" ] && (nvim +{{line}} -- {{filename}}) || nvim --server $NVIM --remote-send '<cmd>close<CR><cmd>lua EditLineFromLazygit({{filename}},{{line}})<CR>'"
+  edit: '[ -z "$NVIM" ] && (nvim -- {{filename}}) || (nvim --server $NVIM --remote-send ''<cmd>close<cr><cmd>lua EditFromLazygit({{filename}})<CR>'')'
+  editAtLine: '[ -z "$NVIM" ] && (nvim +{{line}} -- {{filename}}) || nvim --server $NVIM --remote-send ''<cmd>close<CR><cmd>lua EditLineFromLazygit({{filename}},{{line}})<CR>'''
 
 # Hide the startup popup
 disableStartupPopups: true
