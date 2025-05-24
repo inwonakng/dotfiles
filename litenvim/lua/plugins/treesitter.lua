@@ -1,5 +1,6 @@
 return {
 	"nvim-treesitter/nvim-treesitter",
+	events = { "BufReadPre", "BufNewFile" },
 	opts = {
 		ensure_installed = {
 			"c",
@@ -24,8 +25,8 @@ return {
 			"yaml",
 			"ledger",
 			"rust",
-      "bash",
-      "javascript",
+			"bash",
+			"javascript",
 			"ron",
 		},
 		highlight = {
@@ -44,6 +45,10 @@ return {
 				scope_incremental = false,
 				node_decremental = "<bs>",
 			},
+		},
+		indennt = {
+			enable = true,
+			disable = { "python" },
 		},
 	},
 	-- NOTE: we need to call this!! otherwise the treesitter queries won't be available

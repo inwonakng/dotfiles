@@ -20,6 +20,6 @@ return {
       image = { raw = "[!IMAGE]", rendered = " Image", highlight = "RenderMarkdownInfo" },
       table = { raw = "[!TABLE]", rendered = " Table", highlight = "RenderMarkdownInfo" },
     },
-    -- latex = { enabled = true },
+    latex = { enabled = true },
   },
 }
