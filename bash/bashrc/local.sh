@@ -33,7 +33,7 @@ FZF_DIR=""
 LOCAL_BIN_DIR="$HOME/.local/bin"
 FZF_SCRIPT_FILE="$HOME/.fzf.bash" 
 
-export NODE_DEFAULT_PATH="$NVM_DIR/versions/node/v22.14.0/bin"
+export NODE_DEFAULT_PATH="$NVM_DIR/versions/node/v22.16.0/bin"
 export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
 # update path with default node so we use this instead
 export PATH="$NODE_DEFAULT_PATH:$PATH"
