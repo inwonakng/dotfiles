@@ -113,6 +113,23 @@
 				<false/>
 			</dict>
 		</array>
+		<key>63520FF1-2CED-4BE2-ABBF-1A68A6B6DB91</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>A917D000-98BA-4C52-BAB5-77D57FF9E313</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>639E7A9D-F885-42EB-A2A4-32BCDF0CBD04</key>
+		<array/>
+		<key>6AC5C899-2F97-43FC-82CF-DB658EE182BF</key>
+		<array/>
 		<key>6ADF26CF-C74E-42F5-9267-FBAF87960576</key>
 		<array>
 			<dict>
@@ -136,7 +153,7 @@
 				<key>modifiersubtext</key>
 				<string>Close Window</string>
 				<key>vitoclose</key>
-				<false/>
+				<true/>
 			</dict>
 			<dict>
 				<key>destinationuid</key>
@@ -146,7 +163,7 @@
 				<key>modifiersubtext</key>
 				<string>Quit Application  🔴</string>
 				<key>vitoclose</key>
-				<false/>
+				<true/>
 			</dict>
 			<dict>
 				<key>destinationuid</key>
@@ -185,6 +202,32 @@
 				<false/>
 			</dict>
 		</array>
+		<key>A917D000-98BA-4C52-BAB5-77D57FF9E313</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>A2CF03F0-C85D-43E4-B146-27162DC24E45</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
+		<key>AE5A51F4-349A-48CC-B99B-C2EB9768A0E9</key>
+		<array>
+			<dict>
+				<key>destinationuid</key>
+				<string>63520FF1-2CED-4BE2-ABBF-1A68A6B6DB91</string>
+				<key>modifiers</key>
+				<integer>0</integer>
+				<key>modifiersubtext</key>
+				<string></string>
+				<key>vitoclose</key>
+				<false/>
+			</dict>
+		</array>
 		<key>B4F373B5-FF13-496B-9D7B-4273E18BF09E</key>
 		<array>
 			<dict>
@@ -202,7 +245,7 @@
 		<array>
 			<dict>
 				<key>destinationuid</key>
-				<string>506FAC1F-00C8-4A84-8A89-D0B8968B0230</string>
+				<string>6AC5C899-2F97-43FC-82CF-DB658EE182BF</string>
 				<key>modifiers</key>
 				<integer>0</integer>
 				<key>modifiersubtext</key>
@@ -256,8 +299,42 @@
 		<dict>
 			<key>config</key>
 			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>touch "${alfred_workflow_cache}/force_refresh"
+if [[ "${close_in_background:-0}" -eq 1 ]]; then
+	
+	osascript -e '
+	tell application '"\"$app_name\""'
+	    close window '"\"$win_name\""'
+	end tell'
+else
+	./src/launch.sh
+fi
+
+open -b "com.runningwithcrayons.Alfred" "alfred://runtrigger/com.zeitlings.windownavigator/router/?argument=${reentry_argument}	${directive}"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>11</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>639E7A9D-F885-42EB-A2A4-32BCDF0CBD04</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
 				<key>alfredfiltersresults</key>
-				<true/>
+				<false/>
 				<key>alfredfiltersresultsmatchmode</key>
 				<integer>2</integer>
 				<key>argumenttreatemptyqueryasnil</key>
@@ -281,7 +358,7 @@
 				<key>runningsubtext</key>
 				<string>Gathering windows…</string>
 				<key>script</key>
-				<string>./src/launch.sh global</string>
+				<string>./src/launch.sh global "$1"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
@@ -297,6 +374,11 @@
 				<key>withspace</key>
 				<true/>
 			</dict>
+			<key>inboundconfig</key>
+			<dict>
+				<key>externalid</key>
+				<string>reentry_global</string>
+			</dict>
 			<key>type</key>
 			<string>alfred.workflow.input.scriptfilter</string>
 			<key>uid</key>
@@ -306,26 +388,13 @@
 		</dict>
 		<dict>
 			<key>config</key>
-			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
-				<integer>102</integer>
-				<key>script</key>
-				<string>./src/launch.sh</string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string></string>
-				<key>type</key>
-				<integer>11</integer>
-			</dict>
+			<dict/>
 			<key>type</key>
-			<string>alfred.workflow.action.script</string>
+			<string>alfred.workflow.utility.junction</string>
 			<key>uid</key>
-			<string>639E7A9D-F885-42EB-A2A4-32BCDF0CBD04</string>
+			<string>A71FAEA0-1225-42C8-8265-5B562D7F4FC5</string>
 			<key>version</key>
-			<integer>2</integer>
+			<integer>1</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -348,36 +417,10 @@
 			<integer>1</integer>
 		</dict>
 		<dict>
-			<key>type</key>
-			<string>alfred.workflow.utility.junction</string>
-			<key>uid</key>
-			<string>A71FAEA0-1225-42C8-8265-5B562D7F4FC5</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
-			<key>config</key>
-			<dict>
-				<key>tasksettings</key>
-				<dict>
-					<key>app_list</key>
-					<string>{var:app_name}</string>
-				</dict>
-				<key>taskuid</key>
-				<string>com.alfredapp.automation.core/macOS/app.quit</string>
-			</dict>
-			<key>type</key>
-			<string>alfred.workflow.automation.task</string>
-			<key>uid</key>
-			<string>506FAC1F-00C8-4A84-8A89-D0B8968B0230</string>
-			<key>version</key>
-			<integer>1</integer>
-		</dict>
-		<dict>
 			<key>config</key>
 			<dict>
 				<key>alfredfiltersresults</key>
-				<true/>
+				<false/>
 				<key>alfredfiltersresultsmatchmode</key>
 				<integer>2</integer>
 				<key>argumenttreatemptyqueryasnil</key>
@@ -401,7 +444,7 @@
 				<key>runningsubtext</key>
 				<string>Gathering windows…</string>
 				<key>script</key>
-				<string>./src/launch.sh navigator</string>
+				<string>./src/launch.sh navigator "$1"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
@@ -417,12 +460,58 @@
 				<key>withspace</key>
 				<true/>
 			</dict>
+			<key>inboundconfig</key>
+			<dict>
+				<key>externalid</key>
+				<string>reentry_navigator</string>
+			</dict>
 			<key>type</key>
 			<string>alfred.workflow.input.scriptfilter</string>
 			<key>uid</key>
 			<string>4324CC66-57F4-4183-9061-3D94423292FA</string>
 			<key>version</key>
 			<integer>3</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>availableviaurlhandler</key>
+				<true/>
+				<key>triggerid</key>
+				<string>router</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.trigger.external</string>
+			<key>uid</key>
+			<string>AE5A51F4-349A-48CC-B99B-C2EB9768A0E9</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>touch "${alfred_workflow_cache}/force_refresh"
+osascript -e 'tell application '"\"$app_name\""' to quit'
+
+open -b "com.runningwithcrayons.Alfred" "alfred://runtrigger/com.zeitlings.windownavigator/router/?argument=${reentry_argument}	${directive}"</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>11</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>6AC5C899-2F97-43FC-82CF-DB658EE182BF</string>
+			<key>version</key>
+			<integer>2</integer>
 		</dict>
 		<dict>
 			<key>config</key>
@@ -456,6 +545,48 @@
 			<integer>2</integer>
 		</dict>
 		<dict>
+			<key>config</key>
+			<dict>
+				<key>externaltriggerid</key>
+				<string></string>
+				<key>passinputasargument</key>
+				<true/>
+				<key>passvariables</key>
+				<false/>
+				<key>workflowbundleid</key>
+				<string>self</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.output.callexternaltrigger</string>
+			<key>uid</key>
+			<string>A2CF03F0-C85D-43E4-B146-27162DC24E45</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>delimiter</key>
+				<string>	</string>
+				<key>discardemptyarguments</key>
+				<false/>
+				<key>outputas</key>
+				<integer>0</integer>
+				<key>trimarguments</key>
+				<true/>
+				<key>variableprefix</key>
+				<string>split</string>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.utility.split</string>
+			<key>uid</key>
+			<string>63520FF1-2CED-4BE2-ABBF-1A68A6B6DB91</string>
+			<key>version</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict/>
 			<key>type</key>
 			<string>alfred.workflow.utility.junction</string>
 			<key>uid</key>
@@ -466,31 +597,31 @@
 		<dict>
 			<key>config</key>
 			<dict>
-				<key>concurrently</key>
-				<false/>
-				<key>escaping</key>
-				<integer>102</integer>
-				<key>script</key>
-				<string>./src/launch.sh</string>
-				<key>scriptargtype</key>
-				<integer>1</integer>
-				<key>scriptfile</key>
-				<string></string>
-				<key>type</key>
-				<integer>11</integer>
+				<key>json</key>
+				<string>{
+  "alfredworkflow" : {
+    "arg" : "{var:split1}",
+    "config" : {
+      "passinputasargument" : true,
+      "externaltriggerid" : "{var:split2}",
+      "workflowbundleid" : "self",
+      "passvariables" : false
+    }
+  }
+}</string>
 			</dict>
 			<key>type</key>
-			<string>alfred.workflow.action.script</string>
+			<string>alfred.workflow.utility.json</string>
 			<key>uid</key>
-			<string>1493FC39-DC5F-4025-A704-2973E3568CA3</string>
+			<string>A917D000-98BA-4C52-BAB5-77D57FF9E313</string>
 			<key>version</key>
-			<integer>2</integer>
+			<integer>1</integer>
 		</dict>
 		<dict>
 			<key>config</key>
 			<dict>
 				<key>alfredfiltersresults</key>
-				<true/>
+				<false/>
 				<key>alfredfiltersresultsmatchmode</key>
 				<integer>2</integer>
 				<key>argumenttreatemptyqueryasnil</key>
@@ -514,7 +645,7 @@
 				<key>runningsubtext</key>
 				<string>Gathering windows…</string>
 				<key>script</key>
-				<string>./src/launch.sh switcher</string>
+				<string>./src/launch.sh switcher "$1"</string>
 				<key>scriptargtype</key>
 				<integer>1</integer>
 				<key>scriptfile</key>
@@ -529,6 +660,11 @@
 				<integer>11</integer>
 				<key>withspace</key>
 				<true/>
+			</dict>
+			<key>inboundconfig</key>
+			<dict>
+				<key>externalid</key>
+				<string>reentry_switcher</string>
 			</dict>
 			<key>type</key>
 			<string>alfred.workflow.input.scriptfilter</string>
@@ -569,6 +705,31 @@
 			<integer>2</integer>
 		</dict>
 		<dict>
+			<key>config</key>
+			<dict>
+				<key>concurrently</key>
+				<false/>
+				<key>escaping</key>
+				<integer>102</integer>
+				<key>script</key>
+				<string>./src/launch.sh</string>
+				<key>scriptargtype</key>
+				<integer>1</integer>
+				<key>scriptfile</key>
+				<string></string>
+				<key>type</key>
+				<integer>11</integer>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.action.script</string>
+			<key>uid</key>
+			<string>1493FC39-DC5F-4025-A704-2973E3568CA3</string>
+			<key>version</key>
+			<integer>2</integer>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict/>
 			<key>type</key>
 			<string>alfred.workflow.utility.junction</string>
 			<key>uid</key>
@@ -577,6 +738,8 @@
 			<integer>1</integer>
 		</dict>
 		<dict>
+			<key>config</key>
+			<dict/>
 			<key>type</key>
 			<string>alfred.workflow.utility.junction</string>
 			<key>uid</key>
@@ -594,7 +757,7 @@ Navigate to any window of the currently focused application or any application a
 
 ---
 
-Created by [Patrick Sy](https://github.com/zeitlings) | [Github](https://github.com/zeitlings/alfred-workflows) | [Alfred Forum](https://www.alfredforum.com/topic/21898-window-navigator/) | [Buy me a Coffee](https://ko-fi.com/zeitlings) ☕  
+Created by [Patrick Sy](https://github.com/zeitlings) | [More Workflows](https://github.com/zeitlings/alfred-workflows) | [Alfred Forum](https://www.alfredforum.com/topic/21898-window-navigator/) | [Buy me a Coffee](https://ko-fi.com/zeitlings) ☕  
 
 ---
 
@@ -679,13 +842,6 @@ Global</string>
 			<key>ypos</key>
 			<real>300</real>
 		</dict>
-		<key>506FAC1F-00C8-4A84-8A89-D0B8968B0230</key>
-		<dict>
-			<key>xpos</key>
-			<real>970</real>
-			<key>ypos</key>
-			<real>300</real>
-		</dict>
 		<key>53B6F97E-3518-4ADE-A4C2-0983CA3008B4</key>
 		<dict>
 			<key>colorindex</key>
@@ -697,6 +853,15 @@ Global</string>
 			<key>ypos</key>
 			<real>510</real>
 		</dict>
+		<key>63520FF1-2CED-4BE2-ABBF-1A68A6B6DB91</key>
+		<dict>
+			<key>colorindex</key>
+			<integer>6</integer>
+			<key>xpos</key>
+			<real>1255</real>
+			<key>ypos</key>
+			<real>330</real>
+		</dict>
 		<key>639E7A9D-F885-42EB-A2A4-32BCDF0CBD04</key>
 		<dict>
 			<key>note</key>
@@ -705,6 +870,13 @@ Global</string>
 			<real>970</real>
 			<key>ypos</key>
 			<real>80</real>
+		</dict>
+		<key>6AC5C899-2F97-43FC-82CF-DB658EE182BF</key>
+		<dict>
+			<key>xpos</key>
+			<real>970</real>
+			<key>ypos</key>
+			<real>300</real>
 		</dict>
 		<key>6ADF26CF-C74E-42F5-9267-FBAF87960576</key>
 		<dict>
@@ -729,6 +901,15 @@ Local</string>
 			<key>ypos</key>
 			<real>80</real>
 		</dict>
+		<key>A2CF03F0-C85D-43E4-B146-27162DC24E45</key>
+		<dict>
+			<key>colorindex</key>
+			<integer>8</integer>
+			<key>xpos</key>
+			<real>1355</real>
+			<key>ypos</key>
+			<real>300</real>
+		</dict>
 		<key>A53810F1-C1E9-459E-A2D6-3FD456A6C996</key>
 		<dict>
 			<key>note</key>
@@ -744,6 +925,24 @@ Local</string>
 			<real>670</real>
 			<key>ypos</key>
 			<real>110</real>
+		</dict>
+		<key>A917D000-98BA-4C52-BAB5-77D57FF9E313</key>
+		<dict>
+			<key>colorindex</key>
+			<integer>7</integer>
+			<key>xpos</key>
+			<real>1305</real>
+			<key>ypos</key>
+			<real>330</real>
+		</dict>
+		<key>AE5A51F4-349A-48CC-B99B-C2EB9768A0E9</key>
+		<dict>
+			<key>colorindex</key>
+			<integer>6</integer>
+			<key>xpos</key>
+			<real>1120</real>
+			<key>ypos</key>
+			<real>300</real>
 		</dict>
 		<key>B4F373B5-FF13-496B-9D7B-4273E18BF09E</key>
 		<dict>
@@ -854,6 +1053,44 @@ Local</string>
 			<key>config</key>
 			<dict>
 				<key>default</key>
+				<true/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Close windows in background</string>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string></string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>close_in_background</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
+				<true/>
+				<key>required</key>
+				<false/>
+				<key>text</key>
+				<string>Include minimized windows</string>
+			</dict>
+			<key>description</key>
+			<string></string>
+			<key>label</key>
+			<string></string>
+			<key>type</key>
+			<string>checkbox</string>
+			<key>variable</key>
+			<string>show_minimized_windows</string>
+		</dict>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>default</key>
 				<false/>
 				<key>required</key>
 				<false/>
@@ -884,7 +1121,7 @@ Local</string>
 		<string>DEV</string>
 	</array>
 	<key>version</key>
-	<string>2.0.0</string>
+	<string>2.1.0</string>
 	<key>webaddress</key>
 	<string>https://github.com/zeitlings/alfred-workflows</string>
 </dict>

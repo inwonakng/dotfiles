@@ -1,27 +1,42 @@
 #!/bin/zsh --no-rcs
 
-stale() {
-    (($(date -r "$1" +%s) > $(date -r "$2" +%s)))
-}
+zmodload zsh/datetime
 
-log() { echo "[DEBUG] $1" >&2 }
-
-readonly directive=$1
-readonly exec="./src/WindowNavigator"
-# readonly script="${HOME}/${DEV}"
-readonly script="./src/WindowNavigator.swift"
+# readonly source="$HOME/$DEV"
+readonly source="./src/WindowNavigator.swift"
+readonly exec="${source:h}/${source:t:r}"
+readonly DEBUG="${alfred_debug:-0}"
 readonly header="./src/AccessibilityBridgingHeader.h"
 readonly flags=(-suppress-warnings -import-objc-header "$header")
+readonly directive=$1
+readonly query="$2"
 
+# Utility functions
+clock() { echo $EPOCHREALTIME }
+stamp() { strftime %H:%M:%S.%3. }
+stale() { (($(date -r "$1" +%s) > $(date -r "$2" +%s))) }
+tick()  { printf "%.0f" $(( ($(clock) - $1) * 1000 )) }
+log()   { [[ $DEBUG -eq 1 ]] && echo >&2 "[$(stamp)] $1" }
+
+[[ $DEBUG -eq 1 ]] && echo >&2 "~"
 if command -v xcrun &>/dev/null && xcrun --find swiftc &>/dev/null; then
-    if [[ -f $exec ]] && ! $(stale $script $exec); then
-        $exec $directive
+    if [[ -f $exec ]] && ! $(stale $source $exec); then
+        log "[Info] run: binary $exec"
+        start=$(clock)
+        $exec $directive "$query"
+        log "[Info] ran: binary (took: $(tick $start)ms)"
     else
-        log "~\nCompiling $script"
-        xcrun swiftc -O "${flags[@]}" "$script" -o $exec & # background compilation
-        swift "${flags[@]}" "$script" $directive           # immediate execution
+        log "[Info] compile: script $source"
+        start=$(clock)
+        xcrun swiftc -O "${flags[@]}" "$source" -o $exec & # background compilation
+        # xcrun swiftc "${flags[@]}" "$source" -o $exec & # background compilation
+        log "[Info] run: script ($(tick $start)ms after compilation started)"
+        swift "${flags[@]}" "$source" $directive "$query"  # immediate execution
+        log "[Info] ran: script ($(tick $start)ms after compilation started)"
     fi
 else
-    log "~\Running $script"
-    swift "${flags[@]}" "$script" $directive # fallback to direct execution (slow)
+    log "[Info] run: script $source"
+    start=$(clock)
+    swift "${flags[@]}" "$source" $directive "$query" # fallback to direct execution (slow)
+    log "[Info] ran: script (took: $(tick $start)ms"
 fi
