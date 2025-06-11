@@ -14,7 +14,6 @@ fi
 # completions
 [ -f "$HOME/.bash_utils/completions/git.bash" ] && source "$HOME/.bash_utils/completions/git.bash"
 [ -f "$HOME/.bash_utils/completions/slurm.bash" ] && source "$HOME/.bash_utils/completions/slurm.bash"
-[ -f "$HOME/.bash_utils/completions/python-modules.bash" ] && source "$HOME/.bash_utils/completions/python-modules.bash"
 [ -f "$HOME/.bash_utils/completions/aichat.bash" ] && source "$HOME/.bash_utils/completions/aichat.bash"
 [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion" # This loads nvm bash_completion
 
