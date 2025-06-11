@@ -1,15 +1,12 @@
 local get_recent_daily_note_content = function()
-	vim.notify("Fetching most recent daily note...")
 	local most_recent_content = ""
 	local files = vim.split(vim.fn.glob("daily/*.md"), "\n")
 	if #files > 0 then
-		vim.notify("Found " .. #files .. " daily notes.")
 		files = vim.fn.sort(files)
 		-- by the time this is called, the current daily note is already
 		-- created by the ObsidianToday command. so we want to get the
 		-- second most recent.
 		local most_recent = files[#files - 1]
-		vim.notify("Most recent daily note: " .. most_recent)
 		local file = io.open(most_recent, "r")
 		if not file then
 			vim.notify("Error: Could not open template file: " .. most_recent, vim.log.levels.ERROR)
@@ -35,7 +32,6 @@ local get_recent_daily_note_content = function()
 		file:close()
 		most_recent_content = table.concat(without_frontmatter_lines, "\n")
 	end
-	vim.notify("Gonna return most recent content: " .. tostring(most_recent_content))
 	return most_recent_content
 end
 
@@ -119,7 +115,6 @@ return {
 			-- So here we just make sure those fields are kept in the frontmatter.
 			if note.metadata ~= nil and not vim.tbl_isempty(note.metadata) then
 				for k, v in pairs(note.metadata) do
-					-- print(k,v)
 					out[k] = v
 				end
 			end
