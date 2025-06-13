@@ -57,6 +57,9 @@ return {
 				"markdown",
 				"vimtex",
 			},
+			per_filetype = {
+				codecompanion = { "codecompanion" },
+			},
 			providers = {
 				markdown = {
 					name = "RenderMarkdown",
