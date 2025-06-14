@@ -95,7 +95,3 @@ PS1+="$CYAN"' → '"$WHITE"
 if command -v "zoxide" >/dev/null 2>&1; then
     PS1+="\$(__zoxide_hook)"
 fi
-
-# Print newline AFTER executing a command
-# PROMPT_COMMAND="export PROMPT_COMMAND=echo"
-# alias clear="unset PROMPT_COMMAND; clear; PROMPT_COMMAND='export PROMPT_COMMAND=echo'"
