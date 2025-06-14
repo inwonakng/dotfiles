@@ -6,7 +6,7 @@ ln -snf ~/dotfiles/bash/.bash_profile ~/.bash_profile
 ln -snf ~/dotfiles/bash/utils ~/.bash_utils
 
 # vim and tmux
-mkdir ~/.config
+mkdir -p ~/.config
 ln -snf ~/dotfiles/vim ~/.vim
 ln -snf ~/dotfiles/tmux ~/.config/tmux
-
+ln -snf ~/dotfiles/conda/.condarc ~/
