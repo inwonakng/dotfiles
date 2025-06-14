@@ -81,10 +81,14 @@ edit_command_line() {
 }
 
 # Bind Ctrl+O to the custom function
-bind -x '"\C-o": edit_command_line'
-bind -m vi-command '"v": abort'
-# FZF config
+if [[ "$(set -o | grep 'emacs\|\bvi\b' | cut -f2 | tr '\n' ':')" != 'off:off:' ]]; then
+    # standard output is a tty
+    # do interactive initialization
+    bind -x '"\C-o": edit_command_line'
+    bind -m vi-command '"v": abort'
+fi
 
+# FZF config
 export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix --hidden --follow --exclude .git'
 export FZF_DEFAULT_OPTS='--height=40% --preview-window=right:50%:wrap --bind ctrl-f:page-down,ctrl-b:page-up'
 export FZF_CTRL_T_OPTS="
