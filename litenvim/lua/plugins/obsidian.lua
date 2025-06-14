@@ -69,11 +69,11 @@ return {
 		workspaces = {
 			{
 				name = "personal",
-				path = "~/Documents/notes/personal",
+				path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal",
 			},
 			{
 				name = "work",
-				path = "~/Documents/notes/work",
+				path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/work",
 			},
 		},
 		daily_notes = {
