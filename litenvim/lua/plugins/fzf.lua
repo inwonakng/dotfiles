@@ -1,51 +1,3 @@
-local winopts = {
-	small = {
-		no_preview = {
-			height = 0.35,
-			width = 0.65,
-			preview = {
-				hidden = "hidden",
-			},
-		},
-	},
-	medium = {
-		flex = {
-			height = 0.90,
-			width = 0.75,
-			preview = {
-				layout = "flex",
-			},
-		},
-		vertical = {
-			height = 0.90,
-			width = 0.75,
-			preview = {
-				layout = "vertical",
-				vertical = "up:65%",
-			},
-		},
-	},
-	large = {
-		vertical = {
-			height = 0.9,
-			width = 0.9,
-			preview = {
-				layout = "vertical",
-				vertical = "up:65%",
-			},
-		},
-	},
-	full = {
-		vertical = {
-			fullscreen = true,
-			preview = {
-				layout = "vertical",
-				vertical = "down:75%",
-			},
-		},
-	},
-}
-
 return {
 	"ibhagwan/fzf-lua",
 	dependencies = { "nvim-tree/nvim-web-devicons" },
@@ -76,12 +28,38 @@ return {
 			end
 		end
 
+		-- fix for vim.ui.select width/height
+		-- https://github.com/ibhagwan/fzf-lua/issues/793
+		require("fzf-lua").register_ui_select(function(fzf_opts, items)
+			return {
+				prompt = " ",
+				winopts = {},
+
+				winopts = {
+					title = " " .. vim.trim((fzf_opts.prompt or "Select"):gsub("%s*:%s*$", "")) .. " ",
+					title_pos = "left",
+					height = h,
+					width = 1.0,
+					row = 1.0,
+				},
+			}
+		end)
+
 		return {
-			"default-title",
+			"ivy",
+			-- "border-fused",
 			fzf_colors = true,
 			fzf_opts = {
 				["--no-scrollbar"] = true,
 			},
+			-- winopts = {
+			-- 	height = 0.4,
+			-- 	width = 1,
+			-- 	preview = {
+			-- 		layout = "vertical",
+			-- 		vertical = "up:65%",
+			-- 	},
+			-- },
 			defaults = {
 				-- formatter = "path.filename_first",
 				formatter = "path.dirname_first",
@@ -98,7 +76,6 @@ return {
 					ueberzug_scaler = "fit_contain",
 				},
 			},
-			winopts = winopts.large.vertical,
 			files = {
 				cwd_prompt = false,
 				actions = {
@@ -152,7 +129,7 @@ return {
 		{
 			"<leader>,",
 			function()
-				require("fzf-lua").buffers({ sort_mru = true, sort_lastused = true, winopts = winopts.medium.flex })
+				require("fzf-lua").buffers({ sort_mru = true, sort_lastused = true })
 			end,
 			-- "<cmd>FzfLua buffers sort_mru=true sort_lastused=true<cr>",
 			desc = "Switch Buffer",

@@ -51,7 +51,6 @@ return {
 	dependencies = {
 		-- Required.
 		"nvim-lua/plenary.nvim",
-
 		-- see above for full list of optional dependencies ☝️
 	},
 	keys = {
