@@ -31,14 +31,14 @@ return {
 		{
 			"<leader>st",
 			function()
-				require("todo-comments.fzf").todo()
+				require("todo-comments.fzf").todo({ prompt = "Search Tags " })
 			end,
 			desc = "Todo",
 		},
 		{
 			"<leader>sT",
 			function()
-				require("todo-comments.fzf").todo({ keywords = { "TODO", "FIX", "FIXME" } })
+				require("todo-comments.fzf").todo({ keywords = { "TODO", "FIX", "FIXME" }, prompt = "Search Todos " })
 			end,
 			desc = "Todo/Fix/Fixme",
 		},
