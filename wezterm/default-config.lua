@@ -4,10 +4,9 @@ local env = require("env")
 local domains = require("domains")
 local keymaps = require("keymaps")
 local options = require("options")
+local ui = require("ui")
 if utils.get_os() == "Windows" then
-  local ui = require("ui-windows")
-else
-  local ui = require("ui")
+  ui = require("ui-win")
 end
 require("startup")
 

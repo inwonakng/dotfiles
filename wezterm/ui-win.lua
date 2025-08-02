@@ -134,7 +134,7 @@ return {
 		-- { family = "UbuntuMono Nerd Font" },
 		-- { family = "Nerd Font" },
 	}),
-	font_size = 15,
+	font_size = 11,
 	hide_tab_bar_if_only_one_tab = false,
 	window_padding = {
 		left = 2,
@@ -142,7 +142,7 @@ return {
 		top = 0,
 		bottom = 0,
 	},
-	window_decorations = "RESIZE",
+	window_decorations = "TITLE | RESIZE",
 	status_update_interval = 1000,
 	inactive_pane_hsb = {
 		saturation = 0.5,
