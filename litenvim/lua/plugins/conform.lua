@@ -27,9 +27,10 @@ return {
 	opts = {
 		formatters_by_ft = {
 			python = {
-        "isort",
+				"isort",
 				"ruff_fix", -- To fix lint errors. (ruff with argument --fix)
 				"ruff_format", -- To run the formatter. (ruff with argument format)
+				"docformatter",
 			},
 			sh = { "shfmt" },
 			tex = { "latexindent" },
@@ -47,6 +48,7 @@ return {
 			lua = { "stylua" },
 			markdown = { "prettier", "markdownlint-cli2", "markdown-toc" },
 			["markdown.mdx"] = { "prettier", "markdownlint-cli2", "markdown-toc" },
+      toml = { "taplo" },
 		},
 		formatters = {
 			ledger_formatter = {

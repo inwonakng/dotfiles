@@ -1,10 +1,14 @@
 local wezterm = require("wezterm")
 local utils = require("utils")
-local ui = require("ui")
 local env = require("env")
 local domains = require("domains")
 local keymaps = require("keymaps")
 local options = require("options")
+if utils.get_os() == "Windows" then
+  local ui = require("ui-windows")
+else
+  local ui = require("ui")
+end
 require("startup")
 
 local config = {}

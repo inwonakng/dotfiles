@@ -10,3 +10,4 @@ mkdir -p ~/.config
 ln -snf ~/dotfiles/vim ~/.vim
 ln -snf ~/dotfiles/tmux ~/.config/tmux
 ln -snf ~/dotfiles/conda/.condarc ~/
+ln -snf ~/dotfiles/.inputrc ~/
