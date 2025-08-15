@@ -1,6 +1,6 @@
 return {
-  cmd = { "lua-language-server" },
-  filetypes = { "lua" },
+	cmd = { "lua-language-server" },
+	filetypes = { "lua" },
 	settings = {
 		Lua = {
 			format = { enable = true, defaultConfig = { indent_style = "space", indent_size = "4" } },
@@ -23,6 +23,9 @@ return {
 				paramName = "Disable",
 				semicolon = "Disable",
 				arrayIndex = "Disable",
+			},
+			diagnostics = {
+				globals = { "vim", "tools" },
 			},
 		},
 	},
