@@ -26,15 +26,15 @@ end
 vim.diagnostic.config({
 	underline = true,
 	severity_sort = true,
-	-- virtual_text = {
-	-- 	prefix = "",
-	--    format=format_diag,
-	-- },
-	virtual_text = false,
-	virtual_lines = {
-		current_line = false,
-		format = format_diag,
+	virtual_text = {
+		prefix = "",
+	   format=format_diag,
 	},
+	-- virtual_text = false,
+	-- virtual_lines = {
+	-- 	current_line = false,
+	-- 	format = format_diag,
+	-- },
 	float = {
 		header = " ",
 		source = "if_many",

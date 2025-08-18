@@ -4,7 +4,7 @@ local get_recent_daily_note_content = function()
 	if #files > 0 then
 		files = vim.fn.sort(files)
 		-- by the time this is called, the current daily note is already
-		-- created by the ObsidianToday command. so we want to get the
+		-- created by the Obsidian today command. so we want to get the
 		-- second most recent.
 		local most_recent = files[#files - 1]
 		local file = io.open(most_recent, "r")
@@ -54,17 +54,18 @@ return {
 		-- see above for full list of optional dependencies ☝️
 	},
 	keys = {
-		{ "<leader>ot", "<cmd>ObsidianTemplate<cr>", desc = "Insert template" },
-		{ "<leader>oT", "<cmd>ObsidianTemplate default.md<cr>", desc = "Insert default template" },
-		{ "<leader>od", "<cmd>ObsidianToday<cr>", desc = "Create a daily note" },
-		{ "<leader>oo", "<cmd>ObsidianOpen<cr>", desc = "Open in Obsidian" },
-		{ "<C-CR>", "<cmd>ObsidianFollowLink vsp<cr>", desc = "Follow link in vsplit" },
-		{ "<S-CR>", "<cmd>ObsidianFollowLink hsplit<cr>", desc = "Follow link in hsplit" },
-		{ "<leader>oD", "<cmd>ObsidianDailies<cr>", desc = "Follow link" },
+		{ "<leader>ot", "<cmd>Obsidian template<cr>", desc = "Insert template" },
+		{ "<leader>oT", "<cmd>Obsidian template default.md<cr>", desc = "Insert default template" },
+		{ "<leader>od", "<cmd>Obsidian today<cr>", desc = "Create a daily note" },
+		{ "<leader>oo", "<cmd>Obsidian open<cr>", desc = "Open in Obsidian" },
+		{ "<C-CR>", "<cmd>Obsidian follow_link vsp<cr>", desc = "Follow link in vsplit" },
+		{ "<S-CR>", "<cmd>Obsidian follow_link hsplit<cr>", desc = "Follow link in hsplit" },
+		{ "<leader>oD", "<cmd>Obsidian dailies<cr>", desc = "Pick from daily notes" },
 	},
 	---@module 'obsidian'
 	---@type obsidian.config.ClientOpts
 	opts = {
+		legacy_commands = false,
 		workspaces = {
 			{
 				name = "personal",
@@ -145,10 +146,15 @@ return {
 		},
 		ui = {
 			enable = false,
-			checkboxes = {
-				[" "] = { char = "󰄱", hl_group = "ObsidianTodo" },
-				["x"] = { char = "", hl_group = "ObsidianDone" },
-			},
+      -- This is still an ongoing change..
+      -- https://github.com/obsidian-nvim/obsidian.nvim/issues/262
+			-- checkboxes = {
+			-- 	[" "] = { char = "󰄱", hl_group = "ObsidianTodo" },
+			-- 	["x"] = { char = "", hl_group = "ObsidianDone" },
+			-- },
+		},
+		checkbox = {
+			order = { " ", "x" },
 		},
 	},
 }
