@@ -17,3 +17,6 @@ SotA
 verifier
 auditability
 computable
+differentially
+CTGAN
+TVAE
