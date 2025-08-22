@@ -1,0 +1,4 @@
+[shell]
+change-ps1 = false
+force-activate = true
+source-completion-scripts = true

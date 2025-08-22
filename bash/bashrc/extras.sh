@@ -47,7 +47,6 @@ function load_conda() {
 
 function load_pixi() {
     if [[ -d "$HOME/.pixi" ]]; then
-        export PATH="$HOME/.pixi/bin:$PATH"
         eval "$(pixi completion --shell bash)"
     fi
 }
@@ -142,3 +141,15 @@ alias ls="ls --color"
 alias oil-ssh="bash $HOME/.bash_utils/oil-ssh.sh"
 # remove global conda from path... i don't use this
 export PATH=$(echo "$PATH" | sed -e 's/:\/software\/anaconda3.24\/bin//g')
+
+
+# if pixi is installed, just load it
+if [[ -d "$HOME/.pixi" ]]; then
+    export PATH="$HOME/.pixi/bin:$PATH"
+fi
+
+# load prompt
+
+if [ -f ~/.bash_utils/prompt.sh ]; then
+    source ~/.bash_utils/prompt.sh
+fi

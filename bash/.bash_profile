@@ -6,7 +6,3 @@
 if [ -f ~/.bashrc ]; then
     source ~/.bashrc
 fi
-
-if [ -f ~/.bash_utils/prompt.sh ]; then
-    source ~/.bash_utils/prompt.sh
-fi
