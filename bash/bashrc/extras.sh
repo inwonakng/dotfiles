@@ -45,6 +45,13 @@ function load_conda() {
     export PATH="$CONDA_DIR/bin:$PATH"
 }
 
+function load_pixi() {
+    if [[ -d "$HOME/.pixi" ]]; then
+        export PATH="$HOME/.pixi/bin:$PATH"
+        eval "$(pixi completion --shell bash)"
+    fi
+}
+
 function load() {
     case $1 in
     nvm)
@@ -54,6 +61,10 @@ function load() {
     conda)
         load_conda
         echo "conda is loaded"
+        ;;
+    pixi)
+        load_pixi
+        echo "pixi is loaded"
         ;;
     *)
         echo "Usage: load {conda|nvm}"
