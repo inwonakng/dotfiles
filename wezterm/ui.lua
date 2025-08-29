@@ -148,7 +148,7 @@ return {
 		top = 0,
 		bottom = 0,
 	},
-	window_decorations = utils.get_os()("RESIZE"),
+	window_decorations = window_decorations,
 	status_update_interval = 1000,
 	inactive_pane_hsb = {
 		saturation = 0.5,
