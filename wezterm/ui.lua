@@ -1,4 +1,5 @@
 local wezterm = require("wezterm")
+local utils = require("utils")
 
 local status_settings = {
 	normal = {
@@ -127,6 +128,11 @@ wezterm.on("format-tab-title", function(tab, tabs, panes, config, hover, max_wid
 	}
 end)
 
+local window_decorations = "RESIZE"
+if string.find(utils.get_os(), "Linux") then
+	window_decorations = "TITLE | RESIZE"
+end
+
 return {
 	color_scheme = "catppuccin-frappe",
 	font = wezterm.font_with_fallback({
@@ -142,7 +148,7 @@ return {
 		top = 0,
 		bottom = 0,
 	},
-	window_decorations = "RESIZE",
+	window_decorations = utils.get_os()("RESIZE"),
 	status_update_interval = 1000,
 	inactive_pane_hsb = {
 		saturation = 0.5,
@@ -152,8 +158,6 @@ return {
 	tab_bar_at_bottom = true,
 	colors = {
 		tab_bar = {
-			-- background = "#0b0022",
-			-- background = "rgb(11, 0, 34)",
 			background = tab_bar_background,
 		},
 		cursor_bg = "rgb(193, 169, 217)",

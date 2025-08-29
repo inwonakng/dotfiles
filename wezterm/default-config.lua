@@ -8,7 +8,6 @@ local ui = require("ui")
 if utils.get_os() == "Windows" then
   ui = require("ui-win")
 end
-require("startup")
 
 local config = {}
 if wezterm.config_builder then
