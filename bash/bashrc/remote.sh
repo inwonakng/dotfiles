@@ -53,6 +53,7 @@ CONDA_DIR="$CONDA_PARENT_DIR/miniconda-$POSTFIX"
 NVM_DIR="$HOME/.nvm"
 FZF_DIR="$HOME/.fzf-$POSTFIX" 
 FZF_SCRIPT_FILE="$HOME/.fzf-$PREFIX.bash" 
+SCRATCH_NOTE_FILE="$HOME/scratch.md"
 
 export NODE_DEFAULT_PATH="$NVM_DIR/versions/node/v22.15.0/bin"
 export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"

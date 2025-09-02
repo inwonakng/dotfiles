@@ -75,17 +75,13 @@ function load() {
 edit_command_line() {
     # Create a temporary file
     local TMP_FILE=$(mktemp)
-
     # Save current command line to the temporary file
     echo "$READLINE_LINE" >"$TMP_FILE"
-
     # Open vim to edit the command line
     $EDITOR "$TMP_FILE"
-
     # Set the command line to the modified contents of the temporary file
     READLINE_LINE=$(cat "$TMP_FILE")
     READLINE_POINT=${#READLINE_LINE} # Move the cursor to the end of the line
-
     # Clean up
     rm "$TMP_FILE"
 }
@@ -96,6 +92,14 @@ if [[ "$(set -o | grep 'emacs\|\bvi\b' | cut -f2 | tr '\n' ':')" != 'off:off:' ]
     # do interactive initialization
     bind -x '"\C-o": edit_command_line'
     bind -m vi-command '"v": abort'
+fi
+
+scratch() {
+    $EDITOR "$SCRATCH_NOTE_FILE"
+}
+if [[ "$(set -o | grep 'emacs\|\bvi\b' | cut -f2 | tr '\n' ':')" != 'off:off:' ]]; then
+    # Binds C-g to execute the 'scratchpad' command and then redraw the prompt.
+    bind '"\C-g": "scratch\n"'
 fi
 
 # FZF config
@@ -142,14 +146,12 @@ alias oil-ssh="bash $HOME/.bash_utils/oil-ssh.sh"
 # remove global conda from path... i don't use this
 export PATH=$(echo "$PATH" | sed -e 's/:\/software\/anaconda3.24\/bin//g')
 
-
-# if pixi is installed, just load it
+# if pixi is installed, just add to path. this doesn't auto load the full thing though.
 if [[ -d "$HOME/.pixi" ]]; then
     export PATH="$HOME/.pixi/bin:$PATH"
 fi
 
 # load prompt
-
 if [ -f ~/.bash_utils/prompt.sh ]; then
     source ~/.bash_utils/prompt.sh
 fi
