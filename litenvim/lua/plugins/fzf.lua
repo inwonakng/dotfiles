@@ -144,6 +144,8 @@ return {
 		{ "<leader>:", "<cmd>FzfLua command_history<cr>", desc = "Command History" },
 		-- find
 		{ "<leader>fb", "<cmd>FzfLua buffers sort_mru=true sort_lastused=true<cr>", desc = "Buffers" },
+    -- easier shorthand for buffers
+		{ "<leader>bb", "<cmd>FzfLua buffers sort_mru=true sort_lastused=true<cr>", desc = "Buffers" },
 		{
 			"<leader>ff",
 			function()

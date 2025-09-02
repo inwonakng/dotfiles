@@ -47,4 +47,4 @@ vim.opt.spelllang = { "en_us" }
 vim.opt.ignorecase = true
 
 -- hide commandline
-vim.o.cmdheight=0
+vim.opt.cmdheight=0

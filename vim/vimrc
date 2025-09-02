@@ -76,13 +76,18 @@ nmap <leader><Tab>s :tab sb<CR>
 nmap <leader><Tab>d :tabclose<CR>
 nmap <leader><Tab>o :tabonly<CR>
 
-" fzf stuff
+"""""""""""""""
+""" fzf.vim """
+"""""""""""""""
 nmap <leader>ff :Files<CR>
 nmap <leader>fb :Buffers<CR>
 nmap <leader>sb :BLines<CR>
 nmap <leader>sg :Rg<CR>
 
-" set up vim-slime
+"""""""""""""""""
+""" vim-slime """
+"""""""""""""""""
+
 let g:slime_no_mappings = 1
 let g:slime_target = "tmux"
 let g:slime_cell_delimiter = "# %%"
@@ -133,3 +138,46 @@ xnoremap * "zy/\V<C-R>=escape(@z, '?')<CR><CR>
 
 " FZF Ripgrep for visually selected text.
 xnoremap <leader>sg "zy:Rg <C-R>=escape(@z, '')<CR><CR>
+
+"""""""""""""
+""" Folds """
+"""""""""""""
+" - Custom folding scheme.
+" - Prioritize user-defined folds, then indent-based folds.
+" - Pressing <CR> will toggle folds if on a foldable line, otherwise it will act as a normal <CR>.
+" - In visual mode, pressing <CR> will create a fold from the selected lines.
+" - To delete a fold, use 'zd' in normal mode (this is built in).
+
+set foldlevel=99        " Start with all folds open.
+set foldenable          " Enable folding.
+set foldlevelstart=99   " Don't automatically close folds when opening a buffer.
+set foldcolumn=1        " Show a '1' character wide fold column.
+
+" --- Autocommand to manage foldmethod ---
+augroup SmartFolding
+  autocmd!
+  " 1. When a file is first read, set the fold method to 'indent'.
+  "    This automatically creates all the indent-based folds.
+  autocmd BufRead,BufNewFile * setlocal foldmethod=indent
+
+  " 2. When you enter the window, if the method is still 'indent',
+  "    switch it to 'manual'. This "freezes" the existing indent folds
+  "    and enables creating new manual folds with 'zf'.
+  autocmd BufWinEnter * if &foldmethod == 'indent' | setlocal foldmethod=manual | endif
+augroup END
+
+" --- Custom Keymappings ---
+" This function is the same as before and works perfectly with this new setup.
+function! SmartFoldToggle()
+  let lnum = line('.')
+  if foldlevel(lnum) > foldlevel(lnum - 1) || foldclosed(lnum) != -1
+    " Toggle the fold state with 'za'.
+    normal! za
+  else
+    " Execute a normal <CR> action.
+    call feedkeys("\<CR>", 'nt')
+  endif
+endfunction
+
+nnoremap <silent> <CR> <Cmd>call SmartFoldToggle()<CR>
+vnoremap <silent> <CR> zf
