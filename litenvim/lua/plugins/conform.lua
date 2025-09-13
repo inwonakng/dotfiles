@@ -20,6 +20,16 @@ return {
 			mode = { "n", "v" },
 			desc = "Format Injected Langs",
 		},
+		{
+			"<leader>ci",
+			function()
+				require("conform").format({
+					formatters = { "ruff_fix" },
+				})
+			end,
+			mode = { "n", "v" },
+			desc = "Clean Imports (Ruff)",
+		},
 	},
 	init = function()
 		vim.o.formatexpr = "v:lua.require'conform'.formatexpr()"
@@ -28,7 +38,7 @@ return {
 		formatters_by_ft = {
 			python = {
 				"isort",
-				"ruff_fix", -- To fix lint errors. (ruff with argument --fix)
+				"ruff_fix_keep_imports", -- To fix lint errors. (ruff with argument --fix)
 				"ruff_format", -- To run the formatter. (ruff with argument format)
 				"docformatter",
 			},
@@ -48,11 +58,16 @@ return {
 			lua = { "stylua" },
 			markdown = { "prettier", "markdownlint-cli2", "markdown-toc" },
 			["markdown.mdx"] = { "prettier", "markdownlint-cli2", "markdown-toc" },
-      toml = { "taplo" },
+			toml = { "taplo" },
 		},
 		formatters = {
 			ledger_formatter = {
 				command = "ledger_formatter",
+				stdin = false,
+			},
+			ruff_fix_keep_imports = {
+				command = "ruff",
+				args = { "check", "--select", "ALL", "--fix", "--unfixable=F401", "--stdin-filename", "$FILENAME", "-" },
 			},
 			["markdown-toc"] = {
 				condition = function(_, ctx)

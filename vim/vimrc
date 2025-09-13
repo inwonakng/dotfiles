@@ -1,3 +1,4 @@
+set nocompatible
 set encoding=utf-8
 syntax on
 set number relativenumber
@@ -7,6 +8,10 @@ set nowritebackup
 filetype plugin indent on
 set clipboard=unnamed
 set hlsearch
+
+" for finding finds
+set path+=**
+set wildmenu
 
 " use catppuccin mocha
 set termguicolors

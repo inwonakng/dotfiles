@@ -32,7 +32,7 @@ NVM_DIR="$HOME/.nvm"
 FZF_DIR=""
 LOCAL_BIN_DIR="$HOME/.local/bin"
 FZF_SCRIPT_FILE="$HOME/.fzf.bash" 
-SCRATCH_NOTE_FILE="$HOME/Documents/notes/work/scratch.md"
+SCRATCH_NOTE_FILE="$HOME/.cache/scratch.md"
 
 export NODE_DEFAULT_PATH="$NVM_DIR/versions/node/v22.16.0/bin"
 export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
