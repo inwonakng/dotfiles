@@ -23,3 +23,8 @@ gemini/tmp/
 gemini/oauth_creds.json
 gemini/installation_id
 gemini/google_account_id
+claude/ide
+claude/projects
+claude/shell-snapshots
+claude/statsig
+claude/todos

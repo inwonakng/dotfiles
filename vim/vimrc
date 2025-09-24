@@ -147,8 +147,7 @@ xnoremap <leader>sg "zy:Rg <C-R>=escape(@z, '')<CR><CR>
 """""""""""""
 """ Folds """
 """""""""""""
-" - Custom folding scheme.
-" - Prioritize user-defined folds, then indent-based folds.
+" - Manual folding only.
 " - Pressing <CR> will toggle folds if on a foldable line, otherwise it will act as a normal <CR>.
 " - In visual mode, pressing <CR> will create a fold from the selected lines.
 " - To delete a fold, use 'zd' in normal mode (this is built in).
@@ -158,24 +157,11 @@ set foldenable          " Enable folding.
 set foldlevelstart=99   " Don't automatically close folds when opening a buffer.
 set foldcolumn=1        " Show a '1' character wide fold column.
 
-" --- Autocommand to manage foldmethod ---
-augroup SmartFolding
-  autocmd!
-  " 1. When a file is first read, set the fold method to 'indent'.
-  "    This automatically creates all the indent-based folds.
-  autocmd BufRead,BufNewFile * setlocal foldmethod=indent
+set foldmethod=manual
 
-  " 2. When you enter the window, if the method is still 'indent',
-  "    switch it to 'manual'. This "freezes" the existing indent folds
-  "    and enables creating new manual folds with 'zf'.
-  autocmd BufWinEnter * if &foldmethod == 'indent' | setlocal foldmethod=manual | endif
-augroup END
-
-" --- Custom Keymappings ---
-" This function is the same as before and works perfectly with this new setup.
 function! SmartFoldToggle()
   let lnum = line('.')
-  if foldlevel(lnum) > foldlevel(lnum - 1) || foldclosed(lnum) != -1
+  if foldlevel(lnum) > 0 || foldclosed(lnum) != -1
     " Toggle the fold state with 'za'.
     normal! za
   else
