@@ -43,5 +43,18 @@
       "$0"
     ],
     "description": "Add a figure"
+  },
+  "WrapFigure": {
+    "prefix": "wrapfig",
+    "body": [
+      "\\begin{wrapfigure}{r}{0.5\\textwidth}",
+      "\t\\centering",
+      "\t\\includegraphics[width=0.48\\textwidth]{./figures/$1}",
+      "\t\\caption{$2}",
+      "\t\\label{fig:$3}",
+      "\\end{wrapfigure}",
+      "$0"
+    ],
+    "description": "Add a wrapfigure"
   }
 }
