@@ -46,9 +46,9 @@ return {
 				node_decremental = "<bs>",
 			},
 		},
-		indennt = {
+		indent = {
 			enable = true,
-			disable = { "python" },
+			-- disable = { "python" },
 		},
 	},
 	-- NOTE: we need to call this!! otherwise the treesitter queries won't be available
