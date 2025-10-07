@@ -85,7 +85,7 @@ set -g @cpu_medium_fg_color "#[fg=#{@thm_yellow}]" # background color when cpu i
 set -g @cpu_high_fg_color "#[fg=#{@thm_red}]" # background color when cpu is high
 
 # Catppuccin stuff
-set -g @catppuccin_flavor "mocha"
+set -g @catppuccin_flavor "frappe"
 set -g status-left ""
 set -g status-right-length 150
 set -g status-right "#{E:@catppuccin_status_directory}"
