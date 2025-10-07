@@ -1,7 +1,6 @@
 # Plugins
 set -g @plugin 'tmux-plugins/tpm'
 set -g @plugin 'catppuccin/tmux'
-set -g @plugin 'tmux-plugins/tmux-cpu'
 set -g @plugin 'nhdaly/tmux-better-mouse-mode'
 # set -g @plugin 'sainnhe/tmux-fzf'
 set -g @resurrect-strategy-nvim 'session'
@@ -87,28 +86,9 @@ set -g @cpu_high_fg_color "#[fg=#{@thm_red}]" # background color when cpu is hig
 # Catppuccin stuff
 set -g @catppuccin_flavor "mocha"
 set -g status-left ""
-set -g status-right-length 150
-# set -g status-right "#{E:@catppuccin_status_directory}"
-set -g status-right "#{E:@catppuccin_status_host}"
-
-
-set -ag status-right "#[bg=#{@thm_lavender},fg=#{@thm_crust}]#[reverse]#[noreverse]  "
-set -ag status-right "#[bg=#{@thm_surface_0},fg=#{@thm_fg}] #{session_name} "
-
-set -ag status-right "#[bg=#{@thm_teal},fg=#{@thm_crust}]#[reverse]#[noreverse]  "
-set -ag status-right "#[bg=#{@thm_surface_0},fg=#{@thm_fg}] #{pane_id} "
-
-set -ag status-right "#[bg=#{@thm_sapphire},fg=#{@thm_crust}]#[reverse]#[noreverse]  "
-set -ag status-right "#[bg=#{@thm_surface_0},fg=#{@thm_fg}]#{cpu_fg_color} #{cpu_percentage} "
-
-set -ag status-right "#[bg=#{@thm_flamingo},fg=#{@thm_crust}]#[reverse]#[noreverse]  "
-set -ag status-right "#[bg=#{@thm_surface_0},fg=#{@thm_fg}] #{ram_percentage} "
+set -g status-right "#(sh status.sh)"
 
 set -g @catppuccin_window_status_style "rounded"
-# set -g @catppuccin_window_status_style "custom"
-# set -g @catppuccin_window_left_separator ""
-# set -g @catppuccin_window_middle_separator "█"
-# set -g @catppuccin_window_right_separator ""
 set -g @catppuccin_window_current_background "#{@thm_mauve}"
 set -g @catppuccin_status_middle_separator " "
 set -g @catppuccin_window_current_text " #{window_name}"
@@ -152,11 +132,16 @@ bind -T copy-mode-vi 'K' send -X cursor-up\; send -X cursor-up\; send -X cursor-
 bind -T copy-mode-vi 'y' send -X copy-pipe-and-cancel -F "$yank"
 bind -T copy-mode-vi Escape send -X cancel
 
+# open scrollback buffer in vim
+
 setenv -g PATH "$HOME/.config/tmux/scripts:$PATH"
 set-option -g history-limit 20000
 # custom copy mode in vim
 bind e run-shell "edit-in-vim.sh"
 # bind e capture-pane -pS - | vim -
+
+# popup window
+bind g display-popup -w 70% -h 80% -E "tmux new-session -A -s scratch"
 
 # reload config file
 bind R source-file "$HOME/.config/tmux/tmux.conf"

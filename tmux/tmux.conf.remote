@@ -87,18 +87,7 @@ set -g @cpu_high_fg_color "#[fg=#{@thm_red}]" # background color when cpu is hig
 # Catppuccin stuff
 set -g @catppuccin_flavor "frappe"
 set -g status-left ""
-set -g status-right-length 150
-set -g status-right "#{E:@catppuccin_status_directory}"
-set -ag status-right "#{E:@catppuccin_status_host}"
-
-set -ag status-right "#[bg=#{@thm_teal},fg=#{@thm_crust}]#[reverse]#[noreverse]  "
-set -ag status-right "#[bg=#{@thm_surface_0},fg=#{@thm_fg}] #{pane_id} "
-
-set -ag status-right "#[bg=#{@thm_sapphire},fg=#{@thm_crust}]#[reverse]#[noreverse]  "
-set -ag status-right "#[bg=#{@thm_surface_0},fg=#{@thm_fg}]#{cpu_fg_color} #{cpu_percentage} "
-
-set -ag status-right "#[bg=#{@thm_flamingo},fg=#{@thm_crust}]#[reverse]#[noreverse]  "
-set -ag status-right "#[bg=#{@thm_surface_0},fg=#{@thm_fg}] #{ram_percentage} "
+set -g status-right "#(sh status.sh)"
 
 set -g @catppuccin_window_status_style "rounded"
 # set -g @catppuccin_window_status_style "custom"
@@ -151,7 +140,7 @@ bind -T copy-mode-vi Escape send -X cancel
 setenv -g PATH "$HOME/.config/tmux/scripts:$PATH"
 set-option -g history-limit 20000
 # custom copy mode in vim
-bind C-e run-shell "edit-in-vim.sh"
+bind e run-shell "edit-in-vim.sh"
 
 # TMUX FZF Stuff
 # TMUX_FZF_ORDER="session|window|pane|command|keybinding|clipboard|process"
