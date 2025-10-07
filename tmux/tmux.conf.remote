@@ -90,7 +90,7 @@ set -g @cpu_high_fg_color "#[fg=#{@thm_red}]" # background color when cpu is hig
 # Catppuccin stuff
 set -g @catppuccin_flavor "frappe"
 set -g status-left ""
-set -g status-right "#(sh status.sh)"
+set -g status-right "#(bash status.sh)"
 
 set -g @catppuccin_window_status_style "rounded"
 set -g @catppuccin_window_current_background "#{@thm_mauve}"
