@@ -15,7 +15,7 @@ set -g mouse on
 # Rebind prefix key and split options
 unbind C-b
 set-option -g prefix C-w
-bind-key C-w send-prefix
+bind C-w send-prefix
 
 bind \\ split-window -h -c "#{pane_current_path}"
 bind - split-window -v -c "#{pane_current_path}"
@@ -42,7 +42,7 @@ bind C-k switch-client -n
 bind C-j switch-client -p
 bind ] next
 bind [ prev
-bind-key n new-window
+bind n new-window
 bind p display-panes
 set -g display-panes-time 4000
 
@@ -71,7 +71,7 @@ set -g history-limit 90000
 set -g default-terminal "tmux-256color"
 
 # rename window
-bind e command-prompt -I'#W' { rename-window -- '%%' }
+bind E command-prompt -I'#W' { rename-window -- '%%' }
 
 set -as terminal-overrides ',xterm*:Tc:sitm=\E[3m'
 set -as terminal-overrides ',*:Smulx=\E[4::%p1%dm'  # undercurl support
@@ -137,8 +137,8 @@ set -g set-clipboard on
 # set -g @override_copy_command 'yank > #{pane_tty}'
 set -g @override_copy_command "$yank"
 
-# bind-key -T copy-mode-vi y send -X copy-pipe 'xclip -in -selection clipboard'
-# bind-key -T copy-mode-vi 'y' send -X copy-pipe -F 'yank > #{pane_tty}'
+# bind -T copy-mode-vi y send -X copy-pipe 'xclip -in -selection clipboard'
+# bind -T copy-mode-vi 'y' send -X copy-pipe -F 'yank > #{pane_tty}'
 
 bind v copy-mode
 bind P paste-buffer
@@ -155,11 +155,11 @@ bind -T copy-mode-vi Escape send -X cancel
 setenv -g PATH "$HOME/.config/tmux/scripts:$PATH"
 set-option -g history-limit 20000
 # custom copy mode in vim
-bind-key e run-shell "edit-in-vim.sh"
-# bind-key e capture-pane -pS - | vim -
+bind e run-shell "edit-in-vim.sh"
+# bind e capture-pane -pS - | vim -
 
 # reload config file
-bind r source-file "$HOME/.config/tmux/tmux.conf"
+bind R source-file "$HOME/.config/tmux/tmux.conf"
 
 # Automatically detect and install tpm
 if "test ! -d $HOME/.config/tmux/plugins/tpm" \

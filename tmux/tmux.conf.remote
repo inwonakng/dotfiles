@@ -15,7 +15,7 @@ set -g mouse on
 # Rebind prefix key and split options
 unbind C-b
 set-option -g prefix C-Space
-bind-key C-Space send-prefix
+bind C-Space send-prefix
 
 bind \\ split-window -h -c "#{pane_current_path}"
 bind - split-window -v -c "#{pane_current_path}"
@@ -42,7 +42,7 @@ bind C-k switch-client -n
 bind C-j switch-client -p
 bind ] next
 bind [ prev
-bind-key n new-window
+bind n new-window
 bind p display-panes
 set -g display-panes-time 4000
 
@@ -71,7 +71,7 @@ set -g history-limit 90000
 set -g default-terminal "tmux-256color"
 
 # rename window
-bind e command-prompt -I'#W' { rename-window -- '%%' }
+bind E command-prompt -I'#W' { rename-window -- '%%' }
 
 set -as terminal-overrides ',xterm*:Tc:sitm=\E[3m'
 set -as terminal-overrides ',*:Smulx=\E[4::%p1%dm'  # undercurl support
@@ -133,8 +133,8 @@ set -g set-clipboard on
 # set -g @override_copy_command 'yank > #{pane_tty}'
 set -g @override_copy_command "$yank"
 
-# bind-key -T copy-mode-vi y send -X copy-pipe 'xclip -in -selection clipboard'
-# bind-key -T copy-mode-vi 'y' send -X copy-pipe -F 'yank > #{pane_tty}'
+# bind -T copy-mode-vi y send -X copy-pipe 'xclip -in -selection clipboard'
+# bind -T copy-mode-vi 'y' send -X copy-pipe -F 'yank > #{pane_tty}'
 
 bind v copy-mode
 bind P paste-buffer
@@ -151,20 +151,20 @@ bind -T copy-mode-vi Escape send -X cancel
 setenv -g PATH "$HOME/.config/tmux/scripts:$PATH"
 set-option -g history-limit 20000
 # custom copy mode in vim
-bind-key C-e run-shell "edit-in-vim.sh"
+bind C-e run-shell "edit-in-vim.sh"
 
 # TMUX FZF Stuff
 # TMUX_FZF_ORDER="session|window|pane|command|keybinding|clipboard|process"
 # TMUX_FZF_PREVIEW=0
 # TMUX_FZF_LAUNCH_KEY="C-f"
-# bind-key "f" run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/session.sh switch"
+# bind "f" run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/session.sh switch"
 # unbind "w"
-# bind-key "w" run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/window.sh switch"
+# bind "w" run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/window.sh switch"
 # TMUX_FZF_OPTIONS="-p -w 75% -h 60% -m"
 # set-option -g allow-rename off
 
 # reload config file
-bind r source-file "$HOME/.config/tmux/tmux.conf"
+bind R source-file "$HOME/.config/tmux/tmux.conf"
 
 # Automatically detect and install tpm
 if "test ! -d $HOME/.config/tmux/plugins/tpm" \
