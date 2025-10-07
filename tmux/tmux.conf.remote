@@ -60,7 +60,7 @@ unbind Space
 bind B last-window
 
 # UI stuff
-set-option -g status-position top
+set-option -g status-position bottom
 set -g detach-on-destroy off
 set -g history-limit 90000
 # Add truecolor support
