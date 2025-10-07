@@ -147,28 +147,10 @@ xnoremap <leader>sg "zy:Rg <C-R>=escape(@z, '')<CR><CR>
 """""""""""""
 """ Folds """
 """""""""""""
-" - Manual folding only.
-" - Pressing <CR> will toggle folds if on a foldable line, otherwise it will act as a normal <CR>.
-" - In visual mode, pressing <CR> will create a fold from the selected lines.
-" - To delete a fold, use 'zd' in normal mode (this is built in).
 
 set foldlevel=99        " Start with all folds open.
 set foldenable          " Enable folding.
 set foldlevelstart=99   " Don't automatically close folds when opening a buffer.
 set foldcolumn=1        " Show a '1' character wide fold column.
-
-set foldmethod=manual
-
-function! SmartFoldToggle()
-  let lnum = line('.')
-  if foldlevel(lnum) > 0 || foldclosed(lnum) != -1
-    " Toggle the fold state with 'za'.
-    normal! za
-  else
-    " Execute a normal <CR> action.
-    call feedkeys("\<CR>", 'nt')
-  endif
-endfunction
-
-nnoremap <silent> <CR> <Cmd>call SmartFoldToggle()<CR>
-vnoremap <silent> <CR> zf
+set foldmethod=syntax
+let g:xml_syntax_folding = 1
