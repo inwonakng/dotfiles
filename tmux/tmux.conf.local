@@ -8,6 +8,8 @@ set -g @scroll-speed-num-lines-per-scroll 5
 set -g @sidebar-tree-command 'tree -C'
 # set -g @sidebar-tree-position 'right'
 
+setenv -g PATH "$HOME/.config/tmux/scripts:$PATH"
+
 # Enable mouse mode (tmux 2.1 and above)
 set -g mouse on
 
@@ -134,7 +136,6 @@ bind -T copy-mode-vi Escape send -X cancel
 
 # open scrollback buffer in vim
 
-setenv -g PATH "$HOME/.config/tmux/scripts:$PATH"
 set-option -g history-limit 20000
 # custom copy mode in vim
 bind e run-shell "edit-in-vim.sh"

@@ -2,19 +2,6 @@
 # script for controlling what is rendered in the status bar
 WINDOW_WIDTH=$(tmux display-message -p '#{window_width}')
 
-# --- Helper function to get tmux options ---
-# This lets us query the Catppuccin theme variables from within the script.
-get_tmux_option() {
-    local option="$1"
-    local default_value="$2"
-    local value=$(tmux show-option -gqv "$option")
-    if [ -z "$value" ]; then
-        echo "$default_value"
-    else
-        echo "$value"
-    fi
-}
-
 # --- OS-Specific Stats Functions ---
 get_cpu_usage() {
     # The case statement allows for easy expansion to other OSes in the future

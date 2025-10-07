@@ -9,6 +9,9 @@ set -g @scroll-speed-num-lines-per-scroll 5
 set -g @sidebar-tree-command 'tree -C'
 # set -g @sidebar-tree-position 'right'
 
+# include all custom scripts
+setenv -g PATH "$HOME/.config/tmux/scripts:$PATH"
+
 # Enable mouse mode (tmux 2.1 and above)
 set -g mouse on
 
@@ -90,10 +93,6 @@ set -g status-left ""
 set -g status-right "#(sh status.sh)"
 
 set -g @catppuccin_window_status_style "rounded"
-# set -g @catppuccin_window_status_style "custom"
-# set -g @catppuccin_window_left_separator ""
-# set -g @catppuccin_window_middle_separator "█"
-# set -g @catppuccin_window_right_separator ""
 set -g @catppuccin_window_current_background "#{@thm_mauve}"
 set -g @catppuccin_status_middle_separator " "
 set -g @catppuccin_window_current_text " #{window_name}"
@@ -137,7 +136,6 @@ bind -T copy-mode-vi 'K' send -X cursor-up\; send -X cursor-up\; send -X cursor-
 bind -T copy-mode-vi 'y' send -X copy-pipe-and-cancel -F "$yank"
 bind -T copy-mode-vi Escape send -X cancel
 
-setenv -g PATH "$HOME/.config/tmux/scripts:$PATH"
 set-option -g history-limit 20000
 # custom copy mode in vim
 bind e run-shell "edit-in-vim.sh"
