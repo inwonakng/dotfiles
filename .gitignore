@@ -28,3 +28,5 @@ claude/projects
 claude/shell-snapshots
 claude/statsig
 claude/todos
+zellij/*.bak*
+tmux/tmux.conf
