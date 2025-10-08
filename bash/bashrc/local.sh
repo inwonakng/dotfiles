@@ -1,5 +1,4 @@
 # .bashrc
-#
 # Source global definitions
 if [ -f /etc/bashrc ]; then
     . /etc/bashrc
@@ -12,14 +11,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     if [ -d /opt/homebrew/bin ]; then
         PATH="$HOMEBREW_PATH:$PATH"
     fi
-    # # add wezterm to path if it exists
-    # if [ -d /Applications/WezTerm.app ]; then
-    #     PATH="$PATH:/Applications/WezTerm.app/Contents/MacOS"
-    # fi
 fi
-
-
-# mac specific thing for bash completions
 
 # mac specific stuff
 [ -f "/opt/homebrew/etc/profile.d/bash_completion.sh" ] && . "/opt/homebrew/etc/profile.d/bash_completion.sh"

@@ -96,6 +96,7 @@ setw -g other-pane-height 40
 # Catppuccin stuff
 set -g @catppuccin_flavor "mocha"
 set -g status-left ""
+set -g status-right-length 80
 set -g status-right "#(bash status.sh)"
 
 set -g @catppuccin_window_status_style "rounded"
