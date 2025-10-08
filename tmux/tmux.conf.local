@@ -76,18 +76,19 @@ set-option -g renumber-windows on
 set-option -g status-position top
 set -g detach-on-destroy off
 set -g history-limit 90000
-# Add truecolor support
-# set-option -ga terminal-overrides ",xterm-256color:Tc"
-# Default terminal is 256 colors
-# set -g default-terminal "screen-256color"
-# set -g default-terminal "xterm-kitty"
-set -g default-terminal "tmux-256color"
 
+# Add truecolor support
+set -g default-terminal "tmux-256color"
 set -as terminal-overrides ',xterm*:Tc:sitm=\E[3m'
 set -as terminal-overrides ',*:Smulx=\E[4::%p1%dm'  # undercurl support
 set -as terminal-overrides ',*:Setulc=\E[58::2::%p1%{65536}%/%d::%p1%{256}%/%{255}%&%d::%p1%{255}%&%d%;m'  # underscore colors - needs tmux-3.0
 setw -g main-pane-height 40
 setw -g other-pane-height 40
+
+# status bar
+set -g status-left ""
+set -g status-right-length 80
+set -g status-right "#(bash status.sh)"
 
 ###=============================###
 ### Plugin configurations start ###
@@ -95,9 +96,6 @@ setw -g other-pane-height 40
 
 # Catppuccin stuff
 set -g @catppuccin_flavor "mocha"
-set -g status-left ""
-set -g status-right-length 80
-set -g status-right "#(bash status.sh)"
 
 set -g @catppuccin_window_status_style "rounded"
 set -g @catppuccin_window_current_background "#{@thm_mauve}"
@@ -110,19 +108,15 @@ set -g @catppuccin_pane_active_border_style "fg=#{@thm_peach}" # Use a value com
 # FZF stuff
 TMUX_FZF_OPTIONS="-p -w 80% -h 80% -m --layout=reverse --preview-window=top:80%,nowrap"
 bind-key "C-l" run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/session.sh switch"
+bind-key "C-w" run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/window.sh switch"
 TMUX_FZF_LAUNCH_KEY="C-f"
 
 # Copy mode stuff
 yank="bash $HOME/dotfiles/scripts/yank.sh"
 set -g @copy_use_osc52_fallback on
 
-# set -as terminal-features ',xterm-kitty:clipboard'
 set -g set-clipboard on
-# set -g @override_copy_command 'yank > #{pane_tty}'
 set -g @override_copy_command "$yank"
-
-# bind -T copy-mode-vi y send -X copy-pipe 'xclip -in -selection clipboard'
-# bind -T copy-mode-vi 'y' send -X copy-pipe -F 'yank > #{pane_tty}'
 
 bind v copy-mode
 bind P paste-buffer
@@ -135,8 +129,6 @@ bind -T copy-mode-vi 'J' send -X cursor-down\; send -X cursor-down\; send -X cur
 bind -T copy-mode-vi 'K' send -X cursor-up\; send -X cursor-up\; send -X cursor-up\; send -X cursor-up\; send -X cursor-up
 bind -T copy-mode-vi 'y' send -X copy-pipe-and-cancel -F "$yank"
 bind -T copy-mode-vi Escape send -X cancel
-
-# open scrollback buffer in vim
 
 set-option -g history-limit 20000
 # custom copy mode in vim

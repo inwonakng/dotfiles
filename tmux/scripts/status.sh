@@ -51,10 +51,10 @@ get_ram_usage() {
 }
 
 current_hostname=$(hostname -s)
-host=$(printf "#[bg=#{@thm_peach},fg=#{@thm_crust}]#[reverse]#[noreverse]  %s " "$current_hostname")
-session="#[bg=#{@thm_lavender},fg=#{@thm_crust}]#[reverse]#[noreverse]   #{session_name} "
-pane="#[bg=#{@thm_teal},fg=#{@thm_crust}]#[reverse]#[noreverse]   #{pane_id} "
-justpane="#[bg=#{@thm_teal},fg=#{@thm_crust}]#[reverse]#[noreverse]   #{pane_id} "
+host=$(printf "#[bg=#{@thm_peach},fg=#{@thm_crust}]#[reverse]#[noreverse]  #[bg=#{@thm_surface_0},fg=#{@thm_fg}] %s " "$current_hostname")
+session="#[bg=#{@thm_lavender},fg=#{@thm_crust}]#[reverse]#[noreverse]   #[bg=#{@thm_surface_0},fg=#{@thm_fg}] #{session_name} "
+pane="#[bg=#{@thm_teal},fg=#{@thm_crust}]#[reverse]#[noreverse]   #[bg=#{@thm_surface_0},fg=#{@thm_fg}] #{pane_id} "
+justpane="#[bg=#{@thm_teal},fg=#{@thm_crust}]#[reverse]#[noreverse]   #[bg=#{@thm_surface_0},fg=#{@thm_fg}] #{pane_id} "
 
 status_bar=""
 if [ "$WINDOW_WIDTH" -gt 120 ]; then
@@ -72,8 +72,8 @@ if [ "$WINDOW_WIDTH" -gt 120 ]; then
         cpu_fg_color="thm_yellow"
     fi
 
-    cpu=$(printf "#[bg=#{@thm_sapphire},fg=#{@thm_crust}]#[reverse]#[noreverse]   #[fg=#{@cpu_fg_color}]%s " "$cpu_percentage")
-    ram=$(printf "#[bg=#{@thm_flamingo},fg=#{@thm_crust}]#[reverse]#[noreverse]   %s " "$ram_percentage")
+    cpu=$(printf "#[bg=#{@thm_sapphire},fg=#{@thm_crust}]#[reverse]#[noreverse]   #[bg=#{@thm_surface_0},fg=#{@thm_fg}] #[fg=#{@cpu_fg_color}]%s " "$cpu_percentage")
+    ram=$(printf "#[bg=#{@thm_flamingo},fg=#{@thm_crust}]#[reverse]#[noreverse]   #[bg=#{@thm_surface_0},fg=#{@thm_fg}] %s " "$ram_percentage")
 
     status_bar+="$host"
     status_bar+="$session"

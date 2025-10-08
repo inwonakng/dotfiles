@@ -11,7 +11,9 @@ if ! tmux has-session &> /dev/null; then
     # Session for writing
     tmux new-session -d -s writing -n writing -c ~/Documents/papers
     # Session for SSHing
-    tmux new-session -d -s ssh -n ssh -c ~
+    tmux new-session -d -s ssh -n brains -c ~
+    tmux new-window -t ssh -n silkworm -c ~
+    tmux new-window -t ssh -n computer3 -c ~
 fi
 
 # attach to the last used session
