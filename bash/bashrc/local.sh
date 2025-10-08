@@ -24,7 +24,7 @@ fi
 # mac specific stuff
 [ -f "/opt/homebrew/etc/profile.d/bash_completion.sh" ] && . "/opt/homebrew/etc/profile.d/bash_completion.sh"
 export AICHAT_CONFIG_DIR="$HOME/.aichat"
-alias sioyek="/Applications/sioyek.app/Contents/MacOS/sioyek"
+alias tmux="bash ~/dotfiles/tmux/scripts/startup.sh"
 
 # variables needed by common script
 CONDA_DIR="$HOME/miniconda3"

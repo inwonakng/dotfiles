@@ -57,6 +57,18 @@ bind L resize-pane -R 5
 bind o resize-pane -Z
 bind C-o resize-pane -Z
 
+# MISC
+set -g default-shell $SHELL
+set-window-option -g mode-keys vi
+set -g @shell_mode 'vi'
+set -g status-keys vi
+setw -g xterm-keys on
+set-option -g base-index 1
+setw -g pane-base-index 1
+set -s escape-time 0
+set -g focus-events on
+set-option -g renumber-windows on
+
 # unbind space from cycling window layouts.
 unbind Space
 # use prefix-b to go back and forth between previous window.
@@ -74,7 +86,7 @@ set -g history-limit 90000
 set -g default-terminal "tmux-256color"
 
 # rename window
-bind E command-prompt -I'#W' { rename-window -- '%%' }
+bind e command-prompt -I'#W' { rename-window -- '%%' }
 
 set -as terminal-overrides ',xterm*:Tc:sitm=\E[3m'
 set -as terminal-overrides ',*:Smulx=\E[4::%p1%dm'  # undercurl support
@@ -100,17 +112,10 @@ set -g @catppuccin_window_text " #{window_name}"
 set -g @catppuccin_pane_border_style "fg=#{@thm_surface_0}" # Use a value compatible with the standard tmux 'pane-border-style'
 set -g @catppuccin_pane_active_border_style "fg=#{@thm_peach}" # Use a value compatible with the standard tmux 'pane-border-active-style'
 
-# MISC
-set -g default-shell $SHELL
-set-window-option -g mode-keys vi
-set -g @shell_mode 'vi'
-set -g status-keys vi
-setw -g xterm-keys on
-set-option -g base-index 1
-setw -g pane-base-index 1
-set -s escape-time 0
-set -g focus-events on
-set-option -g renumber-windows on
+# FZF stuff
+TMUX_FZF_MENU_POPUP_WIDTH=70%
+TMUX_FZF_MENU_POPUP_HEIGHT=70%
+bind-key "C-l" run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/session.sh switch"
 
 # Copy mode stuff
 yank="bash $HOME/dotfiles/scripts/yank.sh"
@@ -138,17 +143,7 @@ bind -T copy-mode-vi Escape send -X cancel
 
 set-option -g history-limit 20000
 # custom copy mode in vim
-bind e run-shell "edit-in-vim.sh"
-
-# TMUX FZF Stuff
-# TMUX_FZF_ORDER="session|window|pane|command|keybinding|clipboard|process"
-# TMUX_FZF_PREVIEW=0
-# TMUX_FZF_LAUNCH_KEY="C-f"
-# bind "f" run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/session.sh switch"
-# unbind "w"
-# bind "w" run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/window.sh switch"
-# TMUX_FZF_OPTIONS="-p -w 75% -h 60% -m"
-# set-option -g allow-rename off
+bind V run-shell "edit-in-vim.sh"
 
 # reload config file
 bind R source-file "$HOME/.config/tmux/tmux.conf"
