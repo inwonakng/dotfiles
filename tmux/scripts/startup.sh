@@ -4,10 +4,11 @@
 if ! tmux has-session &> /dev/null; then
     # Session for code
     tmux new-session -d -s code -c ~/research
-    # Session for misc + notes
-    tmux new-session -d -s scratch -n misc
-    tmux new-window -t scratch -n notes/work -c ~/Documents/notes/work
-    tmux new-window -t scratch -n notes/personal -c ~/Documents/notes/personal
+    # Session for notes
+    tmux new-session -d -s notes -n work -c ~/Documents/notes/work
+    tmux new-window -t notes -n personal -c ~/Documents/notes/personal
+    # dummy session for anything
+    tmux new-session -d -s scratch
     # Session for writing
     tmux new-session -d -s writing -n writing -c ~/Documents/papers
     # Session for SSHing

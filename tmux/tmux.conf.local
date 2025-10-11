@@ -95,8 +95,7 @@ set -g status-right "#(bash status.sh)"
 ###=============================###
 
 # Catppuccin stuff
-set -g @catppuccin_flavor "mocha"
-
+set -g @catppuccin_flavor "frappe"
 set -g @catppuccin_window_status_style "rounded"
 set -g @catppuccin_window_current_background "#{@thm_mauve}"
 set -g @catppuccin_status_middle_separator " "
@@ -106,17 +105,17 @@ set -g @catppuccin_pane_border_style "fg=#{@thm_surface_0}" # Use a value compat
 set -g @catppuccin_pane_active_border_style "fg=#{@thm_peach}" # Use a value compatible with the standard tmux 'pane-border-active-style'
 
 # FZF stuff
-TMUX_FZF_OPTIONS="-p -w 80% -h 80% -m --layout=reverse --preview-window=top:80%,nowrap"
+TMUX_FZF_OPTIONS="-p -w 80% -h 80% -m --layout=reverse --preview-window=top:70%,nowrap"
 bind-key "C-l" run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/session.sh switch"
 bind-key "C-w" run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/window.sh switch"
 TMUX_FZF_LAUNCH_KEY="C-f"
 
 # Copy mode stuff
-yank="bash $HOME/dotfiles/scripts/yank.sh"
+yank="bash $HOME/.config/tmux/scripts/yank.sh"
 set -g @copy_use_osc52_fallback on
 
 set -g set-clipboard on
-set -g @override_copy_command "$yank"
+# set -g @override_copy_command "$yank"
 
 bind v copy-mode
 bind P paste-buffer
@@ -127,7 +126,7 @@ bind -T copy-mode-vi 'H' send -X start-of-line
 bind -T copy-mode-vi 'L' send -X end-of-line
 bind -T copy-mode-vi 'J' send -X cursor-down\; send -X cursor-down\; send -X cursor-down\; send -X cursor-down\; send -X cursor-down
 bind -T copy-mode-vi 'K' send -X cursor-up\; send -X cursor-up\; send -X cursor-up\; send -X cursor-up\; send -X cursor-up
-bind -T copy-mode-vi 'y' send -X copy-pipe-and-cancel -F "$yank"
+bind -T copy-mode-vi 'y' send -X copy-pipe-and-cancel "pbcopy"
 bind -T copy-mode-vi Escape send -X cancel
 
 set-option -g history-limit 20000
