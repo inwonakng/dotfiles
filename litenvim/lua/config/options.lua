@@ -45,6 +45,3 @@ vim.opt.breakindent = true
 vim.opt.termguicolors = true
 vim.opt.spelllang = { "en_us" }
 vim.opt.ignorecase = true
-
--- hide commandline
--- vim.opt.cmdheight=0

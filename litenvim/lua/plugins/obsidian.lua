@@ -68,12 +68,12 @@ return {
 		legacy_commands = false,
 		workspaces = {
 			{
-				name = "personal",
-				path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal",
-			},
-			{
 				name = "work",
 				path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/work",
+			},
+			{
+				name = "personal",
+				path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal",
 			},
 		},
 		daily_notes = {
@@ -88,38 +88,44 @@ return {
 		},
 		preferred_link_style = "markdown",
 		-- Optional, for templates (see https://github.com/obsidian-nvim/obsidian.nvim/wiki/Using-templates)
-		note_frontmatter_func = function(note)
-			-- sort the tags
-			local is_paper_reading = false
-			local sorted_tags = {}
-			for i = 1, #note.tags do
-				if note.tags[i] == "paper-summary" then
-					is_paper_reading = true
-				elseif note.tags[i]:match("^%s*$") then
-				-- skip empty tags
-				else
-					table.insert(sorted_tags, note.tags[i])
+		frontmatter = {
+			sort = { "title", "summary", "date", "tags", "aliases" },
+			func = function(note)
+				-- sort the tags
+				local is_paper_reading = false
+				local sorted_tags = {}
+				for i = 1, #note.tags do
+					if note.tags[i] == "paper-summary" then
+						is_paper_reading = true
+					elseif note.tags[i]:match("^%s*$") then
+					-- skip empty tags
+					else
+						table.insert(sorted_tags, note.tags[i])
+					end
 				end
-			end
 
-			sorted_tags = vim.fn.sort(sorted_tags, function(a, b)
-				return a:lower() > b:lower()
-			end)
+				sorted_tags = vim.fn.sort(sorted_tags, function(a, b)
+					return a:lower() > b:lower()
+				end)
 
-			if is_paper_reading then
-				table.insert(sorted_tags, 1, "paper-summary")
-			end
-
-			local out = { tags = sorted_tags, title = "", summary = "", aliases = note.aliases or {} }
-			-- `note.metadata` contains any manually added fields in the frontmatter.
-			-- So here we just make sure those fields are kept in the frontmatter.
-			if note.metadata ~= nil and not vim.tbl_isempty(note.metadata) then
-				for k, v in pairs(note.metadata) do
-					out[k] = v
+				if is_paper_reading then
+					table.insert(sorted_tags, 1, "paper-summary")
 				end
-			end
-			return out
-		end,
+
+				local out = { tags = sorted_tags, title = "", date = "", summary = "", aliases = note.aliases or {} }
+				-- `note.metadata` contains any manually added fields in the frontmatter.
+				-- So here we just make sure those fields are kept in the frontmatter.
+				if note.metadata ~= nil and not vim.tbl_isempty(note.metadata) then
+					for k, v in pairs(note.metadata) do
+						out[k] = v
+					end
+				end
+				return out
+			end,
+		},
+		footer = {
+			enabled = false,
+		},
 		templates = {
 			folder = "templates",
 			date_format = "%Y-%m-%d",
@@ -146,8 +152,8 @@ return {
 		},
 		ui = {
 			enable = false,
-      -- This is still an ongoing change..
-      -- https://github.com/obsidian-nvim/obsidian.nvim/issues/262
+			-- This is still an ongoing change..
+			-- https://github.com/obsidian-nvim/obsidian.nvim/issues/262
 			-- checkboxes = {
 			-- 	[" "] = { char = "󰄱", hl_group = "ObsidianTodo" },
 			-- 	["x"] = { char = "", hl_group = "ObsidianDone" },

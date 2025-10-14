@@ -16,4 +16,5 @@ vim.lsp.config("*", {
 	require("blink.cmp").get_lsp_capabilities(),
 })
 
+-- vim.lsp.enable({ "ty", "lua_ls", "harper_ls", "taplo", "copilot" })
 vim.lsp.enable({ "ty", "lua_ls", "harper_ls", "taplo" })

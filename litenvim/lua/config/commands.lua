@@ -140,20 +140,3 @@ function EditFromLazygit(file_path)
 		vim.cmd("e " .. file_path)
 	end
 end
-
-vim.api.nvim_create_user_command("InsertTemplate", function()
-	require("utils.obsidian").insert_file_content_from_dir({
-		dir = "templates",
-		prompt = "Insert template >",
-	})
-end, {
-	desc = "Insert a template from the templates directory",
-})
-
-vim.api.nvim_create_user_command("DailyNote", function()
-	require("utils.obsidian").create_daily_note({
-		dir = "daily",
-	})
-end, {
-	desc = "Open or create a daily note",
-})

@@ -28,6 +28,7 @@ return {
 			"bash",
 			"javascript",
 			"ron",
+      "kdl",
 		},
 		highlight = {
 			enable = true,

@@ -70,5 +70,5 @@ end, { desc = "Prev Error", noremap = true, silent = true })
 vim.keymap.set("t", "<C-/>", "<cmd>close<cr>", { desc = "Hide Terminal" })
 
 -- add kepmap for inserting markdown templates
-vim.keymap.set("n", "<leader>ot", "<cmd>InsertTemplate<cr>", { desc = "Insert Markdown Template" })
-vim.keymap.set("n", "<leader>od", "<cmd>DailyNote<cr>", { desc = "Insert Markdown Template" })
+-- vim.keymap.set("n", "<leader>ot", "<cmd>InsertTemplate<cr>", { desc = "Insert Markdown Template" })
+-- vim.keymap.set("n", "<leader>od", "<cmd>DailyNote<cr>", { desc = "Insert Markdown Template" })
