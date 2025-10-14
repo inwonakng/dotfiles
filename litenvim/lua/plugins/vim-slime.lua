@@ -1,24 +1,23 @@
--- TODO: add function to fold only the current cell 
 return {
   -- slime (REPL integration)
   {
     "jpalardy/vim-slime",
     keys = {
-      { "<leader>r",  "",                             desc = "+vim-slime" },
-      { "<leader>rc", "<CMD>SlimeConfig<CR>",         desc = "Slime Config" },
-      -- { "<leader>rr", "<Plug>SlimeSendCell<BAR>/^# %%<CR>", desc = "Slime Send Cell" },
-      { "<leader>rr", "<Plug>SlimeSendCell<CR>",      desc = "Slime Send Cell" },
-      { "<leader>rr", ":<C-u>'<,'>SlimeSend<CR>", mode = "v",                   desc = "Slime Send Selection" },
-      { "<leader>rn", "o# %%<ESC>o<ESC>D",            desc = "Sime Insert New Cell" },
-      { "]r",         "/# %%<CR>",                    desc = "Sime Next Cell" },
-      { "[r",         "k/# %%<CR>N",                  desc = "Sime Previous Cell" },
+      { "<leader>r",  "",                                     desc = "+vim-slime" },
+      { "<leader>rc", "<CMD>SlimeConfig<CR>",                 desc = "Slime Config" },
+      { "<leader>rr", "<Plug>SlimeSendCell",                  desc = "Slime Send Cell" },
+      { "<leader>rr", ":<C-u>'<,'>SlimeSend<CR>", mode = "v", desc = "Slime Send Selection" },
+      { "<leader>rn", "o# %%<ESC>o<ESC>D",                    desc = "Sime Insert New Cell" },
+      { "]r",         "/# %%<CR>",                            desc = "Sime Next Cell" },
+      { "[r",         "k/# %%<CR>N",                          desc = "Sime Previous Cell" },
       { "<leader>rf", function() _G.SlimeFolds.create_slime_cell_folds() end, desc = "Create folds for slime cells (open)" },
       { "<leader>rF", function() _G.SlimeFolds.create_and_close_slime_cell_folds() end, desc = "Create folds for slime cells (closed)" },
 
     },
     config = function()
       vim.g.slime_no_mappings = 1
-      vim.g.slime_target = "wezterm"
+      -- vim.g.slime_target = "wezterm"
+      vim.g.slime_target = "tmux"
       vim.g.slime_cell_delimiter = "# %%"
       vim.g.slime_bracketed_paste = 1
       vim.g.slime_python_ipython = 0
