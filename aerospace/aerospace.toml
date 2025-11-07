@@ -55,10 +55,9 @@ automatically-unhide-macos-hidden-apps = true
 if.app-id = "com.apple.Safari"
 run = "move-node-to-workspace 1"
 
-# Programming stuff in 2
+# Terminal in 2
 [[on-window-detected]]
-if.app-id = "com.github.wez.wezterm"
-if.window-title-regex-substring = "default"
+if.app-id = "net.kovidgoyal.kitty"
 run = "move-node-to-workspace 2"
 
 # communications go under M
@@ -86,11 +85,6 @@ run = "move-node-to-workspace Z"
 # NOTE: Notes go to N
 [[on-window-detected]]
 if.app-id = "com.apple.Notes"
-run = "move-node-to-workspace N"
-
-[[on-window-detected]]
-if.app-id = "com.github.wez.wezterm"
-if.window-title-regex-substring = "notes"
 run = "move-node-to-workspace N"
 
 [[on-window-detected]]
@@ -143,7 +137,7 @@ preset = "qwerty"
 # N = "LG Ultra HD"
 3 = "LG Ultra HD"
 2 = "LG Ultra HD"
-v = "VG2748"
+V = "VG2748"
 1 = "KB272 E"
 
 # Gaps between windows (inner-*) and between monitor edges (outer-*).
