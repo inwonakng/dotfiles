@@ -135,10 +135,13 @@ bind V run-shell "edit-in-vim.sh"
 # bind e capture-pane -pS - | vim -
 
 # popup window
-bind g display-popup -w 70% -h 80% -E "tmux new-session -A -s scratch"
+bind g run-shell "bash $HOME/.config/tmux/scripts/toggle-popup.sh"
 
 # reload config file
 bind R source-file "$HOME/.config/tmux/tmux.conf"
+
+# allow escape to exit command prompt
+bind-key -n -T command-prompt Escape send-keys -X cancel
 
 # Automatically detect and install tpm
 if "test ! -d $HOME/.config/tmux/plugins/tpm" \
