@@ -32,3 +32,4 @@ zellij/*.bak*
 tmux/tmux.conf
 claude/file-history
 claude/history.jsonl
+claude/debug
