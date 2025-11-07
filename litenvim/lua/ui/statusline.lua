@@ -37,7 +37,6 @@ local ORDER = {
 	"pad",
 }
 
-local PAD = " "
 local SEP = "%="
 local SBAR = { "▔", "🮂", "🬂", "🮃", "▀", "▄", "▃", "🬭", "▂", "▁" }
 
@@ -59,12 +58,15 @@ local function esc_str(str)
 end
 
 -- path and git info -----------------------------------------
-local function path_widget(root, fname)
+local devicons = require("nvim-web-devicons")
+
+local function path_widget(buf_bo, root, fname)
 	local file_name = fn.fnamemodify(fname, ":t")
 
 	local path, icon, hl
 	-- icon, hl = mini_icons.get("file", file_name)
-	icon, hl = require("nvim-web-devicons").get_icon_color(fname, get_opt("filetype", {}), { default = true })
+	icon, hl = devicons.get_icon(fname, nil, { default = true })
+	hl = hl or "NonText"
   icon = " " .. (icon or "") .. " "
 
 	if fname == "" then
@@ -72,7 +74,7 @@ local function path_widget(root, fname)
 	end
 	path = tools.hl_str(hl, icon) .. " " .. file_name
 
-	if bo.buftype == "help" then
+	if buf_bo.buftype == "help" then
 		return ICON.file .. " " .. path
 	end
 
@@ -97,18 +99,18 @@ local function path_widget(root, fname)
 	if win_w < need - #dir_path then
 		repo_info = ""
 	end
-
-	-- return repo_info .. ICON.file .. " " .. dir_path .. path .. " "
 	return path .. " "
 end
 
 -- diagnostics ---------------------------------------------
-local function diagnostics_widget()
-	if not tools.diagnostics_available() then
+local function diagnostics_widget(buf)
+	if not tools.diagnostics_available(buf) then
 		return ""
 	end
-	local diag_count = vim.diagnostic.count()
-	local err, warn = string.format("%-3d", diag_count[1] or 0), string.format("%-3d", diag_count[2] or 0)
+	local diag_count = vim.diagnostic.count(buf) or {}
+	local sev = vim.diagnostic.severity
+	local err = string.format("%-3d", diag_count[sev.ERROR] or 0)
+	local warn = string.format("%-3d", diag_count[sev.WARN] or 0)
 
 	return string.format(
 		"%s%s%s%s",
@@ -120,21 +122,27 @@ local function diagnostics_widget()
 end
 
 -- file/selection info -------------------------------------
-local function fileinfo_widget()
-	local ft = get_opt("filetype", {})
-	local lines = tools.group_number(api.nvim_buf_line_count(0), ",")
+local function fileinfo_widget(buf)
+	local ft = get_opt("filetype", { buf = buf })
+	local lines = tools.group_number(api.nvim_buf_line_count(buf), ",")
 	local str = ICON.fileinfo .. " "
 
 	if not tools.nonprog_modes[ft] then
 		return str .. string.format("%3s lines", lines)
 	end
 
-	local wc = fn.wordcount()
+	local wc = api.nvim_buf_call(buf, function()
+		local data = fn.wordcount()
+		if data.visual_words then
+			data._visual_lines = math.abs(fn.line(".") - fn.line("v")) + 1
+		end
+		return data
+	end)
 	if not wc.visual_words then
 		return str .. string.format("%3s lines  %3s words", lines, tools.group_number(wc.words, ","))
 	end
 
-	local vlines = math.abs(fn.line(".") - fn.line("v")) + 1
+	local vlines = wc._visual_lines or 0
 	return str
 		.. string.format(
 			"%3s lines %3s words  %3s chars",
@@ -144,56 +152,28 @@ local function fileinfo_widget()
 		)
 end
 
--- python venv ---------------------------------------------
-local function venv_widget()
-	if bo.filetype ~= "python" then
-		return ""
-	end
-	local env = vim.env.VIRTUAL_ENV
-
-	local str
-	if env and env ~= "" then
-		str = string.format("[.venv: %s]  ", fn.fnamemodify(env, ":t"))
-		return tools.hl_str("Comment", str)
-	end
-	env = vim.env.CONDA_DEFAULT_ENV
-	if env and env ~= "" then
-		str = string.format("[conda: %s]  ", env)
-		return tools.hl_str("Comment", str)
-	end
-	return tools.hl_str("Comment", "[no venv]")
-end
-
--- scrollbar ---------------------------------------------
-local function scrollbar_widget()
-	local cur = api.nvim_win_get_cursor(0)[1]
-	local total = api.nvim_buf_line_count(0)
-	local idx = math.floor((cur - 1) / total * #SBAR) + 1
-	return tools.hl_str("Substitute", SBAR[idx]:rep(2))
-end
-
--- render ---------------------------------------------
 function M.render()
-	local fname = api.nvim_buf_get_name(0)
-	local root = (bo.buftype == "" and tools.get_path_root(fname)) or nil
-	if bo.buftype ~= "" and bo.buftype ~= "help" then
-		fname = bo.ft
+	local win = vim.g.statusline_winid or api.nvim_get_current_win()
+	local buf = api.nvim_win_get_buf(win)
+	local buf_bo = bo[buf]
+	local fname = api.nvim_buf_get_name(buf)
+	local root = (buf_bo.buftype == "" and tools.get_path_root(fname)) or nil
+	if buf_bo.buftype ~= "" and buf_bo.buftype ~= "help" then
+		fname = buf_bo.ft
 	end
-
-	local buf = api.nvim_win_get_buf(vim.g.statusline_winid)
 
 	local parts = {
 		-- pad = PAD,
-		path = path_widget(root, fname),
-		-- venv = venv_widget(),
+		path = path_widget(buf_bo, root, fname),
+		-- venv = venv_widget(buf_bo),
 		mod = get_opt("modifiable", { buf = buf }) and (get_opt("modified", { buf = buf }) and ICON.modified or " ")
 			or ICON.nomodifiable,
 		ro = get_opt("readonly", { buf = buf }) and ICON.readonly or "",
 		-- pad = PAD,
 		sep = SEP,
-		diag = diagnostics_widget(),
-		fileinfo = fileinfo_widget(),
-		-- scrollbar = scrollbar_widget(),
+		diag = diagnostics_widget(buf),
+		fileinfo = fileinfo_widget(buf),
+		-- scrollbar = scrollbar_widget(win, buf),
 	}
 
 	return concat(parts)

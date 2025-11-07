@@ -59,6 +59,7 @@ return {
 			end
 		end
 
+    -- this is why the lazy option is disabled
 		require("fzf-lua").register_ui_select(function(fzf_opts, items)
       local win_opts = vim.deepcopy(win_opts.default)
       -- ui.select doesn't have preview. So we will adjust the height
@@ -70,13 +71,10 @@ return {
 		end)
 
 		return {
-			-- "ivy",
-			-- "border-fused",
 			fzf_colors = true,
 			fzf_opts = fzf_opts.default,
 			winopts = win_opts.default,
 			defaults = {
-				-- formatter = "path.filename_first",
 				formatter = "path.dirname_first",
 			},
 			previewers = {

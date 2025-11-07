@@ -171,8 +171,9 @@ function tools.get_git_branch(root)
 end
 
 -- LSP -----------------------------
-tools.diagnostics_available = function()
-  local clients = vim.lsp.get_clients({ bufnr = 0 })
+tools.diagnostics_available = function(buf)
+  buf = buf or 0
+  local clients = vim.lsp.get_clients({ bufnr = buf })
   local diagnostics = vim.lsp.protocol.Methods.textDocument_publishDiagnostics
 
   for _, cfg in pairs(clients) do

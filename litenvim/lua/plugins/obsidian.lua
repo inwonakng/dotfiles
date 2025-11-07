@@ -68,12 +68,12 @@ return {
 		legacy_commands = false,
 		workspaces = {
 			{
-				name = "work",
-				path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/work",
-			},
-			{
 				name = "personal",
 				path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal",
+			},
+			{
+				name = "work",
+				path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/work",
 			},
 		},
 		daily_notes = {
