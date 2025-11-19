@@ -61,6 +61,8 @@ bind C-o resize-pane -Z
 unbind Space
 # use prefix-b to go back and forth between previous window.
 bind b last-window
+# use r to rename window
+bind r command-prompt "rename-window '%%'"
 
 # MISC
 set -g default-shell $SHELL

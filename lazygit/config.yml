@@ -33,29 +33,23 @@ gui:
       - "#cdd6f4"
     searchingActiveBorderColor:
       - "#f9e2af"
-
   # Customize the color highlights of the author
   authorColors:
     "rootiest": "#ff6e96"
     "*": "#b4befe"
-
   # Customize the color highlights of the branch
   branchColors:
     "docs": "#11aaff"
     "dev*": "#ebad6c"
     "main": "#af92fc"
     "master": "#af92fc"
-
   # Use latest Nerd Fonts glyphs
   # Requires: https://github.com/ryanoasis/nerd-fonts
   nerdFontsVersion: "3"
-
   # Show arrows for commits that diverge from the base branch
   showDivergenceFromBaseBranch: onlyArrow
-
   # Filter mode: When searching/filtering, use fuzzy matching
   filterMode: fuzzy
-
   spinner:
     # The frames of the spinner animation.
     frames:
@@ -69,22 +63,17 @@ gui:
       - "⠧"
     # The "speed" of the spinner in milliseconds.
     rate: 60
-
 update:
   # One of: 'prompt' (default) | 'background' | 'never'
   method: background
-
   # Period in days between update checks
   days: 2
-
 # Background refreshes
 refresher:
   # File/submodule refresh interval in seconds.
   refreshInterval: 10
-
   # Re-fetch interval in seconds.
   fetchInterval: 60
-
 os:
   # editPreset: nvim-remote
   open: open {{filename}} >/dev/null
@@ -93,15 +82,12 @@ os:
   editInTerminal: true
   edit: '[ -z "$NVIM" ] && (nvim -- {{filename}}) || (nvim --server $NVIM --remote-send ''<cmd>close<cr><cmd>lua EditFromLazygit({{filename}})<CR>'')'
   editAtLine: '[ -z "$NVIM" ] && (nvim +{{line}} -- {{filename}}) || nvim --server $NVIM --remote-send ''<cmd>close<CR><cmd>lua EditLineFromLazygit({{filename}},{{line}})<CR>'''
-
 # Hide the startup popup
 disableStartupPopups: true
-
 # Don't prompt to return from subprocess when closing child processes (commitizen, etc)
 promptToReturnFromSubprocess: false
-
 git:
-  paging:
-    # Displays inline diff with syntax highlighting
-    # Requires: https://github.com/Wilfred/difftastic
-    externalDiffCommand: difft --color=always --display=inline --syntax-highlight=on --tab-width=2
+  pagers:
+    - # Displays inline diff with syntax highlighting
+      # Requires: https://github.com/Wilfred/difftastic
+      externalDiffCommand: difft --color=always --display=inline --syntax-highlight=on --tab-width=2
