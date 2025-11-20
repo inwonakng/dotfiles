@@ -21,6 +21,7 @@ _G.tools = {
       Array = " 󰅪 ",
       BlockMappingPair = " 󰅩 ",
       Boolean = "  ",
+      Bot = " 󰚩 ",
       BreakStatement = " 󰙧 ",
       Call = " 󰃷 ",
       CaseStatement = " 󰨚 ",

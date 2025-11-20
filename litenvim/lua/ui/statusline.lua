@@ -30,6 +30,9 @@ local ORDER = {
 	"mod",
 	"ro",
 	"sep",
+	"ai_copilot",
+	"ai_cli",
+	"pad",
 	"diag",
 	"fileinfo",
 	"pad",
@@ -67,7 +70,7 @@ local function path_widget(buf_bo, root, fname)
 	-- icon, hl = mini_icons.get("file", file_name)
 	icon, hl = devicons.get_icon(fname, nil, { default = true })
 	hl = hl or "NonText"
-  icon = " " .. (icon or "") .. " "
+	icon = " " .. (icon or "") .. " "
 
 	if fname == "" then
 		file_name = "[No Name]"
@@ -100,6 +103,28 @@ local function path_widget(buf_bo, root, fname)
 		repo_info = ""
 	end
 	return path .. " "
+end
+
+-- AI stuff (copilot and cli)
+
+local function ai_copilot_info_widget(buf)
+	-- show status about AI code assistants like copilot, chatgpt, etc.
+	local status = require("sidekick.status").get()
+	if status == nil then
+		return ""
+	else
+		local icon = tools.ui.kind_icons.Copilot
+		local color = status.kind == "Error" and "DiagnosticError" or status.busy and "DiagnosticWarn" or "Special"
+		return tools.hl_str(color, icon)
+	end
+end
+
+local function ai_cli_info_widget(buf)
+	-- show status about AI code assistants like copilot, chatgpt, etc.
+	local status = require("sidekick.status").cli()
+	local icon = tools.ui.kind_icons.Bot
+	local color = status.kind == "Error" and "DiagnosticError" or status.busy and "DiagnosticWarn" or "Special"
+	return tools.hl_str(color, icon .. (#status > 1 and #status or ""))
 end
 
 -- diagnostics ---------------------------------------------
@@ -172,6 +197,8 @@ function M.render()
 		-- pad = PAD,
 		sep = SEP,
 		diag = diagnostics_widget(buf),
+		-- ai_copilot = ai_copilot_info_widget(buf),
+		-- ai_cli = ai_cli_info_widget(buf),
 		fileinfo = fileinfo_widget(buf),
 		-- scrollbar = scrollbar_widget(win, buf),
 	}

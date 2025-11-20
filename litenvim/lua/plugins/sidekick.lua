@@ -7,8 +7,18 @@ return {
 				backend = "tmux",
 				enabled = true,
 			},
+      -- prompts = {
+      --   explain = function(ctx)
+      --     return "Explain the following code:\n" .. ctx.buf
+      --   end
+      -- }
 		},
+    nes= {
+      -- NES still kind of sucks. turn off for now.
+      enabled = false,
+    }
 	},
+  cmd = { "Sidekick" },
 	keys = {
 		{
 			"<tab>",

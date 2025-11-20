@@ -73,6 +73,8 @@ setw -g pane-base-index 1
 set -s escape-time 0
 set -g focus-events on
 set-option -g renumber-windows on
+# This sends keystrokes like ]O]I when toggling floating.
+set -g focus-events off
 
 # UI stuff
 set-option -g status-position top
