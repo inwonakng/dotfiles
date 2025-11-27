@@ -91,6 +91,10 @@ run = "move-node-to-workspace N"
 if.app-id = "md.obsidian"
 run = "move-node-to-workspace N"
 
+[[on-window-detected]]
+if.app-id = "org.mozilla.firefox"
+run = "move-node-to-workspace B"
+
 # calendar goes to C
 [[on-window-detected]]
 if.app-id = "com.apple.iCal"
@@ -126,6 +130,10 @@ run = ["layout floating"]
 [[on-window-detected]]
 if.app-id = "net.sourceforge.skim-app.skim"
 run = "move-node-to-workspace V"
+
+[[on-window-detected]]
+if.app-id = 'com.valvesoftware.steam'
+run = ["layout tiling", "move-node-to-workspace G"]
 
 # Possible values: (qwerty|dvorak)
 # See https://nikitabobko.github.io/AeroSpace/guide#key-mapping
@@ -306,8 +314,8 @@ alt-shift-semicolon = "mode service"
 # r = ["flatten-workspace-tree", "mode main"] # reset layout
 r = ["reload-config", "mode main"]
 f = [
-    "layout floating tiling",
-    "mode main",
+  "layout floating tiling",
+  "mode main",
 ] # Toggle between floating and tiling layout
 alt-shift-r = "move-node-to-workspace R"
 
