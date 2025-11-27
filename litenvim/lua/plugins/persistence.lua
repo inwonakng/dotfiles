@@ -1,4 +1,5 @@
--- close unnamed buffers -- this is for stuff like the compiler output window that stays open
+-- close unnamed buffers -- this is for stuff like the compiler output window
+-- that stays open. We don't want that to come back with the session.
 local close_unnamed_buf = function()
 	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
 		-- Check if buffer is valid, loaded, and unnamed
@@ -24,28 +25,6 @@ return {
 				close_unnamed_buf()
 			end,
 			desc = "Restore Session",
-		},
-		{
-			"<leader>qS",
-			function()
-				require("persistence").select()
-			end,
-			desc = "Select Session",
-		},
-		{
-			"<leader>ql",
-			function()
-				require("persistence").load({ last = true })
-				close_unnamed_buf()
-			end,
-			desc = "Restore Last Session",
-		},
-		{
-			"<leader>qd",
-			function()
-				require("persistence").stop()
-			end,
-			desc = "Don't Save Current Session",
 		},
 	},
 }
