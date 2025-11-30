@@ -66,8 +66,16 @@ vim.keymap.set("n", "[e", function()
 	vim.diagnostic.goto_prev({ severity = vim.diagnostic.severity.ERROR })
 end, { desc = "Prev Error", noremap = true, silent = true })
 
--- lazygit also seems to be a terminal window, so this ends up putting it background
-vim.keymap.set("t", "<C-/>", "<cmd>close<cr>", { desc = "Hide Terminal" })
+-- Floating terminal setup
+local floating_term = require("utils.floating-terminal")
+
+-- Toggle lazygit
+vim.keymap.set("n", "<leader>gg", floating_term.toggle_lazygit, { desc = "Lazygit", noremap = true, silent = true })
+
+-- Alternative keybinding (Ctrl+/) - some terminals send this as Ctrl+_
+vim.keymap.set("t", "<C-_>", function()
+	floating_term.hide_all()
+end, { desc = "Hide Terminal", noremap = true, silent = true })
 
 -- add kepmap for inserting markdown templates
 -- vim.keymap.set("n", "<leader>ot", "<cmd>InsertTemplate<cr>", { desc = "Insert Markdown Template" })
