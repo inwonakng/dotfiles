@@ -1,3 +1,13 @@
+# add local bin
+[ -d "$LOCAL_BIN_DIR" ] && export PATH="$LOCAL_BIN_DIR:$PATH"
+
+######################
+## INTERACTIVE ONLY ##
+######################
+if [[ $- != *i* ]]; then
+    return
+fi
+
 # add stuff to path if exists
 # if fzf is installed, set it up here
 [ -f $FZF_SCRIPT_FILE ] && source $FZF_SCRIPT_FILE
@@ -16,10 +26,6 @@ fi
 [ -f "$HOME/.bash_utils/completions/slurm.bash" ] && source "$HOME/.bash_utils/completions/slurm.bash"
 [ -f "$HOME/.bash_utils/completions/aichat.bash" ] && source "$HOME/.bash_utils/completions/aichat.bash"
 [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion" # This loads nvm bash_completion
-
-# add local bin
-
-[ -d "$LOCAL_BIN_DIR" ] && export PATH="$LOCAL_BIN_DIR:$PATH"
 
 # selective loading of stuff
 # CONDA_DIR and NVM_DIR should have been set in the sourcing script
@@ -105,19 +111,54 @@ fi
 # FZF config
 export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix --hidden --follow --exclude .git'
 export FZF_DEFAULT_OPTS='--height=40% --preview-window=right:50%:wrap --bind ctrl-f:page-down,ctrl-b:page-up'
-export FZF_CTRL_T_OPTS="
-  --walker-skip .git,node_modules,target
-  --preview '[[ -d {} ]] && tree -C {} || bat -n --color=always {}'
-  --bind 'ctrl-/:change-preview-window(down|hidden|)'"
+#
+# i got this from here:
+# https://thevaluable.dev/practical-guide-fzf-example/
+export FZF_CTRL_T_OPTS="--multi --height=80% --border=sharp \
+--preview='tree -C {}' --preview-window='45%,border-sharp' \
+--prompt='Dirs > ' \
+--bind='del:execute(rm -ri {+})' \
+--bind='ctrl-v:toggle-preview' \
+--bind='ctrl-d:change-prompt(Dirs > )' \
+--bind='ctrl-d:+reload(fd --type d)' \
+--bind='ctrl-d:+change-preview(tree -C {})' \
+--bind='ctrl-d:+refresh-preview' \
+--bind='ctrl-f:change-prompt(Files > )' \
+--bind='ctrl-f:+reload(fd --type f)' \
+--bind='ctrl-f:+change-preview(bat {})' \
+--bind='ctrl-f:+refresh-preview' \
+--bind='ctrl-a:select-all' \
+--bind='ctrl-x:deselect-all' \
+--header '
+    CTRL-D to display directories | CTRL-F to display files
+    CTRL-A to select all | CTRL-x to deselect all
+    ENTER to edit | DEL to delete
+    CTRL-V to toggle preview
+'"
+
 export FZF_CTRL_R_OPTS="
   --preview 'echo {}' --preview-window up:3:hidden:wrap
-  --bind 'ctrl-/:toggle-preview'
   --bind 'ctrl-y:execute-silent(echo -n {2..} | pbcopy)+abort'
   --color header:italic
   --header 'Press CTRL-Y to copy command into clipboard'"
+
+# rebind alt-c into ctrl+p
 export FZF_ALT_C_OPTS="
   --walker-skip .git,node_modules,target
   --preview 'tree -C {}'"
+
+# FZF_ALT_C_COMMAND="CTRL-K"
+fzf_cd_pushd() {
+    local cmd
+    cmd="$(__fzf_cd__)" || return
+    cmd=${cmd/builtin cd/pushd}
+    eval "$cmd" >/dev/null || return
+    # show where we landed since the prompt may not redraw immediately
+    printf 'pushd %s\n' "$PWD"
+    READLINE_LINE=""
+    READLINE_POINT=0
+}
+bind -x '"\C-k": "fzf_cd_pushd"'
 
 # if installed, overwrite cd
 if command -v "zoxide" >/dev/null 2>&1; then
@@ -134,7 +175,6 @@ if command -v "nvim" >/dev/null 2>&1; then
     # if we have neovim installed, assume we have oil.nvim
     export EDITOR="nvim"
     export VISUAL="nvim"
-    alias oil="nvim -c Oil"
 else
     export EDITOR="vim"
     export VISUAL="vim"

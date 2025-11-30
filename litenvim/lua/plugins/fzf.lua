@@ -59,14 +59,14 @@ return {
 			end
 		end
 
-    -- this is why the lazy option is disabled
+		-- this is why the lazy option is disabled
 		require("fzf-lua").register_ui_select(function(fzf_opts, items)
-      local win_opts = vim.deepcopy(win_opts.default)
-      -- ui.select doesn't have preview. So we will adjust the height
-      win_opts.height = 0.4
+			local win_opts = vim.deepcopy(win_opts.default)
+			-- ui.select doesn't have preview. So we will adjust the height
+			win_opts.height = 0.4
 			return {
 				winopts = win_opts,
-        fzf_opts = fzf_opts.default,
+				fzf_opts = fzf_opts.default,
 			}
 		end)
 
@@ -114,6 +114,13 @@ return {
 				},
 				code_actions = {
 					previewer = vim.fn.executable("delta") == 1 and "codeaction_native" or nil,
+				},
+			},
+			git = {
+				status = {
+					actions = {
+						["Space"] = { fn = actions.git_stage_unstage, reload = true, exit = false },
+					},
 				},
 			},
 		}
