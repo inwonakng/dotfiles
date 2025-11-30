@@ -63,6 +63,8 @@ gui:
       - "⠧"
     # The "speed" of the spinner in milliseconds.
     rate: 60
+  expandFocusedSidePanel: true
+  expandedSidePanelWeight: 3
 update:
   # One of: 'prompt' (default) | 'background' | 'never'
   method: background
