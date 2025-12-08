@@ -1,29 +1,31 @@
+local map = vim.keymap.set
+
 -- window manipulation
-vim.keymap.set("n", "<leader>qq", "<cmd>qa<cr>", { desc = "Quit" })
-vim.keymap.set("n", "<leader>wd", "<cmd>q<cr>", { desc = "Close Window" })
-vim.keymap.set("n", "<leader>\\", "<cmd>vsplit<cr>", { desc = "Vertical split" })
-vim.keymap.set("n", "<leader>-", "<cmd>split<cr>", { desc = "Horizontal split" })
-vim.keymap.set("n", "<leader>w", "<C-w>", { desc = "Window commands" })
-vim.keymap.set("n", "<C-h>", "<C-w><C-h>", { desc = "Move focus to the left window" })
-vim.keymap.set("n", "<C-l>", "<C-w><C-l>", { desc = "Move focus to the right window" })
-vim.keymap.set("n", "<C-j>", "<C-w><C-j>", { desc = "Move focus to the lower window" })
-vim.keymap.set("n", "<C-k>", "<C-w><C-k>", { desc = "Move focus to the upper window" })
-vim.keymap.set("n", "<Esc>", "<cmd>nohlsearch<CR>")
+map("n", "<leader>qq", "<cmd>qa<cr>", { desc = "Quit" })
+map("n", "<leader>wd", "<cmd>q<cr>", { desc = "Close Window" })
+map("n", "<leader>\\", "<cmd>vsplit<cr>", { desc = "Vertical split" })
+map("n", "<leader>-", "<cmd>split<cr>", { desc = "Horizontal split" })
+map("n", "<leader>w", "<C-w>", { desc = "Window commands" })
+map("n", "<C-h>", "<C-w><C-h>", { desc = "Move focus to the left window" })
+map("n", "<C-l>", "<C-w><C-l>", { desc = "Move focus to the right window" })
+map("n", "<C-j>", "<C-w><C-j>", { desc = "Move focus to the lower window" })
+map("n", "<C-k>", "<C-w><C-k>", { desc = "Move focus to the upper window" })
+map("n", "<Esc>", "<cmd>nohlsearch<CR>")
 
 -- tab manipulation
-vim.keymap.set("n", "<leader><tab>]", "<cmd>tabnext<cr>", { desc = "Next tab" })
-vim.keymap.set("n", "<leader><tab>[", "<cmd>tabprev<cr>", { desc = "Previous tab" })
-vim.keymap.set("n", "<leader><tab><tab>", "<cmd>tabnew<cr>", { desc = "New tab" })
-vim.keymap.set("n", "<leader><tab><cr>", "<cmd>tab sp<cr>", { desc = "Open in new tab" })
-vim.keymap.set("n", "<leader><tab>o", "<cmd>tabonly<cr>", { desc = "Close other tabs" })
-vim.keymap.set("n", "<leader><tab>d", "<cmd>tabclose<cr>", { desc = "Close tab" })
+map("n", "<leader><tab>]", "<cmd>tabnext<cr>", { desc = "Next tab" })
+map("n", "<leader><tab>[", "<cmd>tabprev<cr>", { desc = "Previous tab" })
+map("n", "<leader><tab><tab>", "<cmd>tabnew<cr>", { desc = "New tab" })
+map("n", "<leader><tab><cr>", "<cmd>tab sp<cr>", { desc = "Open in new tab" })
+map("n", "<leader><tab>o", "<cmd>tabonly<cr>", { desc = "Close other tabs" })
+map("n", "<leader><tab>d", "<cmd>tabclose<cr>", { desc = "Close tab" })
 
 -- indentation with >> and <<
-vim.keymap.set("v", "<", "<gv")
-vim.keymap.set("v", ">", ">gv")
+map("v", "<", "<gv")
+map("v", ">", ">gv")
 
 -- nice trick to kill all hidden buffers.
-vim.keymap.set("n", "<leader>bo", function()
+map("n", "<leader>bo", function()
 	local bufs = vim.api.nvim_list_bufs()
 	local non_hidden_buffer = {}
 	for _, win in ipairs(vim.api.nvim_list_wins()) do
@@ -37,32 +39,32 @@ vim.keymap.set("n", "<leader>bo", function()
 end, { desc = "delete hidden buffers" })
 
 -- some nice UI controls.
-vim.keymap.set("n", "<leader>uw", "<cmd>set wrap!<CR>", { desc = "Toggle wrap" })
-vim.keymap.set("n", "<leader>us", "<cmd>set spell!<CR>", { desc = "Toggle spell check" })
-vim.keymap.set("n", "<leader>un", "<cmd>set relativenumber!<CR>", { desc = "Toggle number" })
+map("n", "<leader>uw", "<cmd>set wrap!<CR>", { desc = "Toggle wrap" })
+map("n", "<leader>us", "<cmd>set spell!<CR>", { desc = "Toggle spell check" })
+map("n", "<leader>un", "<cmd>set relativenumber!<CR>", { desc = "Toggle number" })
 
 -- let j and k move up and down lines that have been wrapped
-vim.keymap.set({ "n", "v" }, "j", function()
+map({ "n", "v" }, "j", function()
 	return vim.v.count == 0 and "gj" or "j"
 end, { expr = true, noremap = true })
 
-vim.keymap.set({ "n", "v" }, "k", function()
+map({ "n", "v" }, "k", function()
 	return vim.v.count == 0 and "gk" or "k"
 end, { expr = true, noremap = true })
 
 -- Yank file path
-vim.keymap.set("n", "yP", ":YankFilePath<CR>", { noremap = true, silent = true })
-vim.keymap.set("n", "yp", ":YankRelativeFilePath<CR>", { noremap = true, silent = true })
+map("n", "yP", ":YankFilePath<CR>", { noremap = true, silent = true })
+map("n", "yp", ":YankRelativeFilePath<CR>", { noremap = true, silent = true })
 
-vim.keymap.set("n", "<leader>cd", function()
+map("n", "<leader>cd", function()
 	vim.diagnostic.open_float()
 end, { desc = "Show Diagnostic", noremap = true, silent = true })
 
 -- jumping between errors
-vim.keymap.set("n", "]e", function()
+map("n", "]e", function()
 	vim.diagnostic.goto_next({ severity = vim.diagnostic.severity.ERROR })
 end, { desc = "Next Error", noremap = true, silent = true })
-vim.keymap.set("n", "[e", function()
+map("n", "[e", function()
 	vim.diagnostic.goto_prev({ severity = vim.diagnostic.severity.ERROR })
 end, { desc = "Prev Error", noremap = true, silent = true })
 
@@ -70,13 +72,39 @@ end, { desc = "Prev Error", noremap = true, silent = true })
 local floating_term = require("utils.floating-terminal")
 
 -- Toggle lazygit
-vim.keymap.set("n", "<leader>gg", floating_term.toggle_lazygit, { desc = "Lazygit", noremap = true, silent = true })
+map("n", "<leader>gg", floating_term.toggle_lazygit, { desc = "Lazygit", noremap = true, silent = true })
 
 -- Alternative keybinding (Ctrl+/) - some terminals send this as Ctrl+_
-vim.keymap.set("t", "<C-_>", function()
+map("t", "<C-_>", function()
 	floating_term.hide_all()
 end, { desc = "Hide Terminal", noremap = true, silent = true })
 
--- add kepmap for inserting markdown templates
--- vim.keymap.set("n", "<leader>ot", "<cmd>InsertTemplate<cr>", { desc = "Insert Markdown Template" })
--- vim.keymap.set("n", "<leader>od", "<cmd>DailyNote<cr>", { desc = "Insert Markdown Template" })
+-- Add keymap for some quick insertions
+map("n", "<leader>id", function()
+	vim.cmd("normal! a" .. os.date("%Y-%m-%d"))
+end, { desc = "Insert Date", noremap = true, silent = true })
+
+-- open notes.md from project root if exists
+map("n", "<leader>on", function()
+	local notes_path = vim.fn.getcwd() .. "/notes.md"
+	if vim.fn.filereadable(notes_path) == 1 then
+		-- Check if buffer is already open
+		local bufnr = vim.fn.bufnr(notes_path)
+		if bufnr ~= -1 then
+			-- Buffer exists, check if it's in a window
+			local winnr = vim.fn.bufwinnr(bufnr)
+			if winnr ~= -1 then
+				-- Buffer is in a window, focus it
+				vim.cmd(winnr .. "wincmd w")
+			else
+				-- Buffer exists but not in any window, open it in current window
+				vim.cmd.buffer(bufnr)
+			end
+		else
+			-- Buffer doesn't exist, open the file
+			vim.cmd.edit(notes_path)
+		end
+	else
+		vim.notify("notes.md not found in project root", vim.log.levels.WARN)
+	end
+end, { desc = "Open Project Notes", noremap = true, silent = true })

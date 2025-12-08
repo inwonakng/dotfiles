@@ -53,17 +53,19 @@ return {
 			json = { "prettier" },
 			jsonc = { "prettier" },
 			yaml = { "prettier" },
-			markdown = { "prettier" },
-			ledger = { "ledger_formatter" },
 			lua = { "stylua" },
+			ledger = { "ledger_align" },
 			markdown = { "prettier", "markdownlint-cli2", "markdown-toc" },
 			["markdown.mdx"] = { "prettier", "markdownlint-cli2", "markdown-toc" },
 			toml = { "taplo" },
 		},
 		formatters = {
-			ledger_formatter = {
-				command = "ledger_formatter",
-				stdin = false,
+			ledger_align = {
+				format = function()
+					vim.cmd("LedgerAlignBuffer")
+					-- Return nil to indicate the buffer was modified in-place
+					return nil
+				end,
 			},
 			ruff_fix_keep_imports = {
 				command = "ruff",

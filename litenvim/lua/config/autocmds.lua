@@ -38,7 +38,6 @@ vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
 		vim.opt_local.wrap = false
 		vim.bo.shiftwidth = 4
 		vim.bo.tabstop = 4
-		vim.keymap.set("n", "<leader>cf", "<cmd>LedgerAlignBuffer<cr>", { desc = "Format buffer", buffer = 0 })
 	end,
 })
 

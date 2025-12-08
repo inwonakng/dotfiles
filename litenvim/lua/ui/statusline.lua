@@ -77,10 +77,6 @@ local function path_widget(buf_bo, root, fname)
 	end
 	path = tools.hl_str(hl, icon) .. " " .. file_name
 
-	if buf_bo.buftype == "help" then
-		return ICON.file .. " " .. path
-	end
-
 	local dir_path = fn.fnamemodify(fname, ":h") .. "/"
 	if dir_path == "./" then
 		dir_path = ""
@@ -181,9 +177,15 @@ function M.render()
 	local win = vim.g.statusline_winid or api.nvim_get_current_win()
 	local buf = api.nvim_win_get_buf(win)
 	local buf_bo = bo[buf]
+
+	-- skip help and nofile buffers
+	if buf_bo.buftype == "help" or buf_bo.buftype == "nofile" then
+		return ""
+	end
+
 	local fname = api.nvim_buf_get_name(buf)
 	local root = (buf_bo.buftype == "" and tools.get_path_root(fname)) or nil
-	if buf_bo.buftype ~= "" and buf_bo.buftype ~= "help" then
+	if buf_bo.buftype ~= "" then
 		fname = buf_bo.ft
 	end
 
@@ -206,6 +208,6 @@ function M.render()
 	return concat(parts)
 end
 
-vim.o.statusline = "%!v:lua.require('ui.statusline').render()"
+-- vim.o.statusline = "%!v:lua.require('ui.statusline').render()"
 
 return M
