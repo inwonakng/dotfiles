@@ -37,7 +37,7 @@ end
 
 return {
 	"obsidian-nvim/obsidian.nvim",
-	version = "*", -- recommended, use latest release instead of latest commit
+	-- version = "*", -- Commented out to use latest commit with template picker fix
 	lazy = true,
 	ft = "markdown",
 	dependencies = {
