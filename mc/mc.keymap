@@ -1,0 +1,27 @@
+[filemanager]
+ChangePanel = alt-tab
+
+[help]
+Complete = tab
+
+[editor]
+Complete = tab
+
+[panel]
+PageUp = ctrl-b
+PageDown = ctrl-f
+Top = alt-g
+Bottom = alt-shift-g
+TopOnScreen = ctrl-g
+CdParentSmart = ctrl-k
+Sort = alt-o
+SortReverse = alt-shift-r
+PanelOtherCd = alt-shift-o
+
+[input]
+Clear = ctrl-c
+Complete = tab
+
+[listbox]
+PageUp = ctrl-b
+PageDown = ctrl-f

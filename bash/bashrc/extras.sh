@@ -78,6 +78,20 @@ function load() {
     esac
 }
 
+# override cd to use pushd, but keep standard behavior for 'cd' and 'cd -'
+cd() {
+    if [ "$#" -eq 0 ]; then
+        # No arguments: standard 'cd' behavior (go home)
+        builtin cd "$HOME"
+    elif [ "$1" = "-" ]; then
+        # 'cd -': standard 'cd' behavior (go previous)
+        builtin cd "$OLDPWD"
+    else
+        # Otherwise: pushd to the directory, suppress stdout
+        builtin pushd "$1" > /dev/null
+    fi
+}
+
 edit_command_line() {
     # Create a temporary file
     local TMP_FILE=$(mktemp)

@@ -141,6 +141,9 @@ bind V run-shell "edit-in-vim.sh"
 # popup window
 bind g run-shell "bash $HOME/.config/tmux/scripts/toggle-popup.sh"
 
+# special popup window with midnight commander
+bind e run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-mc.sh"
+
 # reload config file
 bind R source-file "$HOME/.config/tmux/tmux.conf"
 

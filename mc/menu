@@ -1,0 +1,45 @@
+shell_patterns=0
+
+# User menu for Midnight Commander
+# Access this menu by pressing F2
+
+= f *.
+o       Open/Reveal in Finder
+        if [ -f "%f" ]; then open -R "%d/%f"; else open .; fi
+
+= f *.
+c       Copy current directory path to clipboard
+        pwd | pbcopy && echo "Copied to clipboard: $(pwd)"
+
+= f *.
+C       Copy current file path to clipboard
+        echo "%d/%f" | pbcopy && echo "Copied to clipboard: %d/%f"
+
+= f *.
+f       Copy current filename to clipboard
+        echo "%f" | pbcopy && echo "Copied to clipboard: %f"
+
+= t t
+z       Create ZIP archive of selected files
+        ARCHIVE="archive_$(date +%Y%m%d_%H%M%S).zip"
+        zip -r "$ARCHIVE" %s
+        echo "Created: $ARCHIVE"
+        echo "Press ENTER to continue..."
+        read dummy
+
+= t t
+t       Create TAR.GZ archive of selected files
+        ARCHIVE="archive_$(date +%Y%m%d_%H%M%S).tar.gz"
+        tar -czf "$ARCHIVE" %s
+        echo "Created: $ARCHIVE"
+        echo "Press ENTER to continue..."
+        read dummy
+
+= f *.
+Z       Create ZIP archive of current directory
+        DIRNAME=$(basename "$PWD")
+        ARCHIVE="${DIRNAME}_$(date +%Y%m%d_%H%M%S).zip"
+        cd .. && zip -r "$ARCHIVE" "$DIRNAME"
+        echo "Created: $ARCHIVE in parent directory"
+        echo "Press ENTER to continue..."
+        read dummy
