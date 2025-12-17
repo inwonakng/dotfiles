@@ -15,6 +15,7 @@ return {
 			-- icons = { "󰲡 ", "󰲣 ", "󰲥 ", "󰲧 ", "󰲩 ", "󰲫 " },
 		},
 		callout = {
+			definition = { raw = "[!DEFINITION]", rendered = " Definition", highlight = "RenderMarkdownInfo" },
 			motivation = { raw = "[!MOTIVATION]", rendered = " Motivation", highlight = "RenderMarkdownInfo" },
 			intuition = { raw = "[!INTUITION]", rendered = " Intuition", highlight = "RenderMarkdownSuccess" },
 			setting = { raw = "[!SETTING]", rendered = "󱊍 Setting", highlight = "RenderMarkdownHint" },

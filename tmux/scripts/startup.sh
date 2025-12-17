@@ -18,4 +18,4 @@ if ! tmux has-session &> /dev/null; then
 fi
 
 # attach to the last used session
-tmux attach-session
+tmux attach-session -t code
