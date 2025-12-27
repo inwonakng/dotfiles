@@ -60,6 +60,28 @@ map("n", "<leader>cd", function()
 	vim.diagnostic.open_float()
 end, { desc = "Show Diagnostic", noremap = true, silent = true })
 
+-- Toggle harper-ls spell checking
+map("n", "<leader>cp", function()
+	local bufnr = vim.api.nvim_get_current_buf()
+	local clients = vim.lsp.get_clients({ bufnr = bufnr, name = "harper_ls" })
+
+	if #clients > 0 then
+		-- Harper is running, stop it
+		for _, client in ipairs(clients) do
+			vim.lsp.stop_client(client.id)
+		end
+		vim.notify("Harper-LS disabled", vim.log.levels.INFO)
+	else
+		-- Harper is not running, start it
+		vim.lsp.start({
+			name = "harper_ls",
+			cmd = { "harper-ls", "--stdio" },
+			root_dir = vim.fs.root(bufnr, { ".git" }) or vim.fn.getcwd(),
+		})
+		vim.notify("Harper-LS enabled", vim.log.levels.INFO)
+	end
+end, { desc = "Toggle Harper spell check", noremap = true, silent = true })
+
 -- jumping between errors
 map("n", "]e", function()
 	vim.diagnostic.goto_next({ severity = vim.diagnostic.severity.ERROR })
