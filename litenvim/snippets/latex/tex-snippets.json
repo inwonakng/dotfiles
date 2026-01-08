@@ -23,7 +23,7 @@
   },
   "Minipage": {
     "prefix": "minipage",
-    "body": ["\\begin{minipage}[t]{$0\\textwidth}", "\\end{minipage}%"],
+    "body": ["\\begin{minipage}[t]{$0\\linewidth}", "\\end{minipage}%"],
     "description": "Add a table"
   },
   "Frame": {
@@ -36,7 +36,7 @@
     "body": [
       "\\begin{figure}",
       "\t\\centering",
-      "\t\\includegraphics[width=0.9\\textwidth]{./figures/$1}",
+      "\t\\includegraphics[width=0.9\\linewidth]{./figures/$1}",
       "\t\\caption{$2}",
       "\t\\label{fig:$3}",
       "\\end{figure}",
@@ -47,9 +47,9 @@
   "WrapFigure": {
     "prefix": "wrapfig",
     "body": [
-      "\\begin{wrapfigure}{r}{0.5\\textwidth}",
+      "\\begin{wrapfigure}{r}{0.5\\linewidth}",
       "\t\\centering",
-      "\t\\includegraphics[width=0.48\\textwidth]{./figures/$1}",
+      "\t\\includegraphics[width=0.48\\linewidth]{./figures/$1}",
       "\t\\caption{$2}",
       "\t\\label{fig:$3}",
       "\\end{wrapfigure}",
