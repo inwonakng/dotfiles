@@ -69,7 +69,7 @@ return {
 			},
 			ruff_fix_keep_imports = {
 				command = "ruff",
-				args = { "check", "--select", "ALL", "--fix", "--unfixable=F401", "--stdin-filename", "$FILENAME", "-" },
+				args = { "check", "--select", "ALL", "--fix", "--unfixable=F401", "--quiet", "--stdin-filename", "$FILENAME", "-" },
 			},
 			["markdown-toc"] = {
 				condition = function(_, ctx)

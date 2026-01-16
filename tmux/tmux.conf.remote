@@ -24,6 +24,8 @@ bind \\ split-window -h -c "#{pane_current_path}"
 bind - split-window -v -c "#{pane_current_path}"
 unbind '"'
 unbind %
+bind '{' swap-window -t -1\; select-window -t -1
+bind '}' swap-window -t +1\; select-window -t +1
 
 bind h select-pane -L
 bind j select-pane -D
