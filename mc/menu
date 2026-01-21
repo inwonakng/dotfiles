@@ -5,7 +5,7 @@ shell_patterns=0
 
 = f *.
 o       Open/Reveal in Finder
-        if [ -f "%f" ]; then open -R "%d/%f"; else open .; fi
+        open -R "%d/%f"
 
 = f *.
 c       Copy current directory path to clipboard
