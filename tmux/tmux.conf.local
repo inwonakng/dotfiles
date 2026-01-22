@@ -123,6 +123,8 @@ set -g @copy_use_osc52_fallback on
 set -g set-clipboard on
 # set -g @override_copy_command "$yank"
 
+
+# visual mode bindings
 bind v copy-mode
 bind P paste-buffer
 bind -T copy-mode-vi 'v' send -X begin-selection
@@ -133,7 +135,9 @@ bind -T copy-mode-vi 'L' send -X end-of-line
 bind -T copy-mode-vi 'J' send -X cursor-down\; send -X cursor-down\; send -X cursor-down\; send -X cursor-down\; send -X cursor-down
 bind -T copy-mode-vi 'K' send -X cursor-up\; send -X cursor-up\; send -X cursor-up\; send -X cursor-up\; send -X cursor-up
 bind -T copy-mode-vi 'y' send -X copy-pipe-and-cancel "pbcopy"
-bind -T copy-mode-vi Escape send -X cancel
+bind -T copy-mode-vi Escape if-shell -F "#{selection_present}" \
+    "send-keys -X clear-selection" \
+    "send-keys -X cancel"
 
 set-option -g history-limit 20000
 # custom copy mode in vim
