@@ -8,6 +8,6 @@ ln -snf ~/dotfiles/bash/utils ~/.bash_utils
 mkdir -p ~/.config
 ln -snf ~/dotfiles/vim ~/.vim
 ln -snf ~/dotfiles/tmux ~/.config/tmux
-ln -f ~/dotfiles/tmux/tmux.conf.remove ~/.config/tmux/tmux.conf
+ln -f ~/dotfiles/tmux/tmux.conf.remote ~/.config/tmux/tmux.conf
 ln -snf ~/dotfiles/conda/.condarc ~/
 ln -snf ~/dotfiles/.inputrc ~/

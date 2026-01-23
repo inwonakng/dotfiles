@@ -135,7 +135,7 @@ bind -T copy-mode-vi 'H' send -X start-of-line
 bind -T copy-mode-vi 'L' send -X end-of-line
 bind -T copy-mode-vi 'J' send -X cursor-down\; send -X cursor-down\; send -X cursor-down\; send -X cursor-down\; send -X cursor-down
 bind -T copy-mode-vi 'K' send -X cursor-up\; send -X cursor-up\; send -X cursor-up\; send -X cursor-up\; send -X cursor-up
-bind -T copy-mode-vi 'y' send -X copy-pipe-and-cancel -F "$yank"
+bind -T copy-mode-vi 'y' send -X copy-pipe-no-clear -F "$yank"
 bind -T copy-mode-vi Escape if-shell -F "#{selection_present}" \
     "send-keys -X clear-selection" \
     "send-keys -X cancel"
