@@ -11,3 +11,6 @@ set -g @catppuccin_flavor "latte"
 
 # Initialize TMUX plugin manager (keep this line at the very bottom of tmux.conf)
 run "$HOME/.config/tmux/plugins/tpm/tpm"
+
+# we revert the highlight colors to frappe since that is default background.
+set -g mode-style "bg=#626880,fg=#c6d0f5"
