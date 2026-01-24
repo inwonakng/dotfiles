@@ -1,2 +1,9 @@
+unbind C-b
+set-option -g prefix C-w
+bind C-w send-prefix
+
 source-file "$HOME/dotfiles/tmux/tmux.conf.shared"
 set-option -g status-position bottom
+
+# Initialize TMUX plugin manager (keep this line at the very bottom of tmux.conf)
+run "$HOME/.config/tmux/plugins/tpm/tpm"

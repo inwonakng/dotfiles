@@ -15,11 +15,6 @@ setenv -g PATH "$HOME/.config/tmux/scripts:$PATH"
 set -g mouse on
 
 # Rebind prefix key and split options
-
-# unbind C-b
-# set-option -g prefix C-w
-# bind C-w send-prefix
-
 bind \\ split-window -h -c "#{pane_current_path}"
 bind - split-window -v -c "#{pane_current_path}"
 unbind '"'
@@ -159,5 +154,3 @@ bind-key -n -T command-prompt Escape send-keys -X cancel
 # Automatically detect and install tpm
 if "test ! -d $HOME/.config/tmux/plugins/tpm" \
   "run 'git clone https://github.com/tmux-plugins/tpm $HOME/.config/tmux/plugins/tpm && $HOME/.config/tmux/plugins/tpm/bin/install_plugins'"
-# Initialize TMUX plugin manager (keep this line at the very bottom of tmux.conf)
-run "$HOME/.config/tmux/plugins/tpm/tpm"
