@@ -53,8 +53,8 @@ map({ "n", "v" }, "k", function()
 end, { expr = true, noremap = true })
 
 -- Yank file path
-map("n", "yP", ":YankFilePath<CR>", { noremap = true, silent = true })
-map("n", "yp", ":YankRelativeFilePath<CR>", { noremap = true, silent = true })
+map("n", "<leader>yP", ":YankFilePath<CR>", { noremap = true, silent = true })
+map("n", "<leader>yp", ":YankRelativeFilePath<CR>", { noremap = true, silent = true })
 
 map("n", "<leader>cd", function()
 	vim.diagnostic.open_float()

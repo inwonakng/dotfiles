@@ -134,8 +134,8 @@ function! YankRelativeFilePathFunc()
 endfunction
 command! YankRelativeFilePath call YankRelativeFilePathFunc()
 
-nnoremap yP :YankFilePath<CR>
-nnoremap yp :YankRelativeFilePath<CR>
+nnoremap <leader>yP :YankFilePath<CR>
+nnoremap <leader>yp :YankRelativeFilePath<CR>
 
 " Search forward using visually selected text. Override the default behavior
 xnoremap # "zy/\V<C-R>=escape(@z, '/\')<CR><CR>
