@@ -194,6 +194,7 @@ else
     export VISUAL="vim"
 fi
 
+alias mail-search="bash $HOME/dotfiles/utils/search_mail.sh"
 alias g="lazygit"
 alias ls="ls --color"
 alias oil-ssh="bash $HOME/.bash_utils/oil-ssh.sh"
