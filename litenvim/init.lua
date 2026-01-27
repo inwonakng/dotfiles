@@ -60,3 +60,8 @@ require("config.autocmds")
 require("config.lsp")
 require("config.folds")
 require("ui")
+
+-- stop persistence for temp sessions
+if vim.env.IS_TEMP_SESSION == "1" then
+  require("persistence").stop()
+end

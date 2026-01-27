@@ -98,7 +98,7 @@ edit_command_line() {
     # Save current command line to the temporary file
     echo "$READLINE_LINE" >"$TMP_FILE"
     # Open vim to edit the command line
-    $EDITOR "$TMP_FILE"
+    IS_TEMP_SESSION=1 $EDITOR $TMP_FILE
     # Set the command line to the modified contents of the temporary file
     READLINE_LINE=$(cat "$TMP_FILE")
     READLINE_POINT=${#READLINE_LINE} # Move the cursor to the end of the line
@@ -106,16 +106,16 @@ edit_command_line() {
     rm "$TMP_FILE"
 }
 
-# Bind Ctrl+O to the custom function
+# Bind Ctrl+e to the custom function
 if [[ "$(set -o | grep 'emacs\|\bvi\b' | cut -f2 | tr '\n' ':')" != 'off:off:' ]]; then
     # standard output is a tty
     # do interactive initialization
-    bind -x '"\C-o": edit_command_line'
+    bind -x '"\C-e": edit_command_line'
     bind -m vi-command '"v": abort'
 fi
 
 scratch() {
-    $EDITOR "$SCRATCH_NOTE_FILE"
+    IS_TEMP_SESSION=1 $EDITOR $SCRATCH_NOTE_FILE
 }
 if [[ "$(set -o | grep 'emacs\|\bvi\b' | cut -f2 | tr '\n' ':')" != 'off:off:' ]]; then
     # Binds C-g to execute the 'scratchpad' command and then redraw the prompt.
@@ -125,7 +125,7 @@ fi
 # FZF config
 export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix --hidden --follow --exclude .git'
 export FZF_DEFAULT_OPTS='--height=40% --preview-window=right:50%:wrap --bind ctrl-f:page-down,ctrl-b:page-up'
-#
+
 # i got this from here:
 # https://thevaluable.dev/practical-guide-fzf-example/
 export FZF_CTRL_T_OPTS="--multi --height=80% --border=sharp \
@@ -174,7 +174,7 @@ fzf_cd_pushd() {
 }
 bind -x '"\C-k": "fzf_cd_pushd"'
 
-# if installed, overwrite cd
+# if installed activate zoxide (for shell pwd history)
 if command -v "zoxide" >/dev/null 2>&1; then
     eval "$(zoxide init bash --cmd cd)"
     alias z="cd"
@@ -209,9 +209,3 @@ fi
 if [ -f ~/.bash_utils/prompt.sh ]; then
     source ~/.bash_utils/prompt.sh
 fi
-
-# # load direnv if installed
-# # https://direnv.net/
-# if command -v "direnv" >/dev/null 2>&1; then
-#     eval "$(direnv hook bash)"
-# fi
