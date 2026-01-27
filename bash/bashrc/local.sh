@@ -16,6 +16,7 @@ fi
 # mac specific stuff
 [ -f "/opt/homebrew/etc/profile.d/bash_completion.sh" ] && . "/opt/homebrew/etc/profile.d/bash_completion.sh"
 alias tmux-setup="bash ~/dotfiles/tmux/scripts/startup-local.sh"
+alias tmux-kill="bash ~/dotfiles/tmux/scripts/clean-exit.sh"
 
 # variables needed by common script
 CONDA_DIR="$HOME/miniconda3"
@@ -30,4 +31,5 @@ export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
 # update path with default node so we use this instead
 export PATH="$NODE_DEFAULT_PATH:$PATH"
 
-source "$HOME/.bashrc_extras"
+# we assume this is where the dotfiles repo is located
+source "$HOME/dotfiles/bash/bashrc/extras.sh"

@@ -51,3 +51,15 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 		vim.highlight.on_yank()
 	end,
 })
+
+-- Restore last session if no files were specified
+vim.api.nvim_create_autocmd("VimEnter", {
+	nested = true,
+	callback = function()
+		if vim.fn.argc() == 0 and not vim.g.started_with_stdin then
+			vim.schedule(function()
+				require("persistence").load()
+			end)
+		end
+	end,
+})

@@ -185,7 +185,7 @@ fi
 set -o vi
 
 if command -v "nvim" >/dev/null 2>&1; then
-    alias nvim="nvim --cmd 'set rtp+=~/.config/nvim'"
+    # alias nvim="nvim --cmd 'set rtp+=~/.config/nvim'"
     # if we have neovim installed, assume we have oil.nvim
     export EDITOR="nvim"
     export VISUAL="nvim"
@@ -209,3 +209,9 @@ fi
 if [ -f ~/.bash_utils/prompt.sh ]; then
     source ~/.bash_utils/prompt.sh
 fi
+
+# # load direnv if installed
+# # https://direnv.net/
+# if command -v "direnv" >/dev/null 2>&1; then
+#     eval "$(direnv hook bash)"
+# fi

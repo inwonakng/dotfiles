@@ -8,8 +8,14 @@ set -g @plugin 'sainnhe/tmux-fzf'
 set -g @resurrect-strategy-nvim 'session'
 set -g @scroll-speed-num-lines-per-scroll 5
 set -g @sidebar-tree-command 'tree -C'
+set -g @plugin 'tmux-plugins/tmux-resurrect'
 
+# add script path
 setenv -g PATH "$HOME/.config/tmux/scripts:$PATH"
+
+# Processes that tmux-resurrect should restore
+# don't add nvim here, it seems to confuse the resurrect plugin
+set -g @resurrect-processes 'pixi'
 
 # Enable mouse mode (tmux 2.1 and above)
 set -g mouse on

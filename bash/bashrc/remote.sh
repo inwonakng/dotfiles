@@ -60,4 +60,4 @@ export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
 # update path with default node so we use this instead
 export PATH="$NODE_DEFAULT_PATH:$PATH"
 
-source "$HOME/.bashrc_extras"
+source "$HOME/dotfiles/bash/bashrc/extras.sh"
