@@ -16,6 +16,7 @@ setenv -g PATH "$HOME/.config/tmux/scripts:$PATH"
 # Processes that tmux-resurrect should restore
 # don't add nvim here, it seems to confuse the resurrect plugin
 set -g @resurrect-processes 'pixi'
+set -g @resurrect-processes 'uv'
 
 # Enable mouse mode (tmux 2.1 and above)
 set -g mouse on

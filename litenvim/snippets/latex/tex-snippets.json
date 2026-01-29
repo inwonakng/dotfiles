@@ -56,5 +56,19 @@
       "$0"
     ],
     "description": "Add a wrapfigure"
+  },
+  "BeamerColumn": {
+    "prefix": "column",
+    "body": [
+      "\\begin{columns}",
+      "\t\\begin{column}{0.5\\textwidth}",
+      "\t\t$1",
+      "\t\\end{column}",
+      "\t\\begin{column}{0.5\\textwidth}",
+      "\t\t$2",
+      "\t\\end{column}",
+      "\\end{columns}",
+      "$0"
+    ]
   }
 }

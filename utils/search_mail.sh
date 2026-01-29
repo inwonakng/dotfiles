@@ -1,36 +1,29 @@
 #!/bin/bash
 
-# Check dependencies
-if ! command -v fzf &> /dev/null || ! command -v rg &> /dev/null; then
-    echo "Error: You need 'fzf' and 'ripgrep' installed."
-    echo "Run: brew install fzf ripgrep"
-    exit 1
-fi
+PYTHON_SCRIPT="$HOME/Documents/projects/search-mail/search_and_index.py"
+PYTHON_SCRIPT_DIR="$HOME/Documents/projects/search-mail"
+INDEXER="uv run --directory \"$PYTHON_SCRIPT_DIR\" \"$PYTHON_SCRIPT\""
 
-if command -v bat &> /dev/null; then
-    PREVIEW_CMD="bat --style=numbers --color=always --highlight-line {2} {1}"
+# first check the index is good.
+eval "$INDEXER --index"
+
+INITIAL_QUERY=""
+
+if command -v bat &>/dev/null; then
+    PREVIEW_CMD="bat --style=numbers --color=always {1}"
 else
     PREVIEW_CMD="cat {1}"
 fi
 
-MAIL_DIR="$HOME/Library/Mail"
-echo "Searching Apple Mail..."
-
-SELECTED_FILE=$(fzf --ansi --disabled \
-    --height=100% \
-    --border=none \
-    --delimiter : \
-    --preview "$PREVIEW_CMD" \
-    --preview-window 'top:85%:wrap:+{2}' \
-    --bind "start:reload:rg --column --line-number --no-heading --color=always --smart-case --glob '*.emlx' {q} $MAIL_DIR" \
-    --bind "change:reload:rg --column --line-number --no-heading --color=always --smart-case --glob '*.emlx' {q} $MAIL_DIR" \
-    --query "$1" \
-| cut -d: -f1)
-
-# Open Logic
-if [ -n "$SELECTED_FILE" ]; then
-    echo "Opening in Apple Mail..."
-    open "$SELECTED_FILE"
-else
-    echo "No email selected."
-fi
+eval "$INDEXER --query \"$INITIAL_QUERY\"" |
+    fzf --delimiter "\t" --with-nth 2.. \
+        --height=100% \
+        --border=none \
+        --preview-window 'top:85%:wrap' \
+        --preview "$PREVIEW_CMD" \
+        --ansi \
+        --layout=reverse \
+        --header "Search (Standard words AND, \"phrases\", !negation) | Enter to Open" \
+        --bind "change:reload:python3 $PYTHON_SCRIPT --query {q}" \
+        --disabled \
+        --bind "enter:execute(open {1})+abort"

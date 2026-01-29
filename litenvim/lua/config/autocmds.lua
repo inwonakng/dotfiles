@@ -57,8 +57,9 @@ vim.api.nvim_create_autocmd("VimEnter", {
 	nested = true,
 	callback = function()
 		if vim.fn.argc() == 0 and not vim.g.started_with_stdin then
+			require("persistence").load()
 			vim.schedule(function()
-				require("persistence").load()
+				vim.cmd("doautoall BufRead")
 			end)
 		end
 	end,

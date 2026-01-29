@@ -8,3 +8,6 @@ $pdf_previewer = 'open -a Skim';
 $pdflatex = 'pdflatex -synctex=1 %O %S';
 $lualatex = 'lualatex -synctex=1 %O %S';
 $xelatex = 'xelatex -synctex=1 %O %S';
+
+$out_dir = './.latexmk/out';
+$aux_dir = './.latexmk/aux';

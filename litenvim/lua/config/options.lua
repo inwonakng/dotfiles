@@ -7,7 +7,7 @@ if vim.env.PYTHON_DEFAULT_PATH ~= nil then
   vim.g.python3_host_prog = vim.env.PYTHON_DEFAULT_PATH .. "/python"
 end
 vim.g.markdown_recommended_style = 0
-vim.g.sessionoptions = "buffers,curdir,folds,help,tabpages,winsize,terminal"
+vim.opt.sessionoptions = "buffers,curdir,folds,help,tabpages,winsize,terminal"
 
 vim.filetype.add({
   extension = {
