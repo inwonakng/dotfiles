@@ -58,9 +58,9 @@
     "description": "Add a wrapfigure"
   },
   "BeamerColumn": {
-    "prefix": "column",
+    "prefix": "columns",
     "body": [
-      "\\begin{columns}",
+      "\\begin{columns}[T]",
       "\t\\begin{column}{0.5\\textwidth}",
       "\t\t$1",
       "\t\\end{column}",
@@ -70,5 +70,10 @@
       "\\end{columns}",
       "$0"
     ]
+  },
+  "Center": {
+    "prefix": "center",
+    "body": ["\\begin{center}", "\t$0", "\\end{center}"],
+    "description": "Add centering environment"
   }
 }

@@ -128,3 +128,4 @@ function EditFromLazygit(file_path)
 		vim.cmd("e " .. file_path)
 	end
 end
+
