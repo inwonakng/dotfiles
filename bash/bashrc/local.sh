@@ -15,7 +15,6 @@ fi
 
 # mac specific stuff
 [ -f "/opt/homebrew/etc/profile.d/bash_completion.sh" ] && . "/opt/homebrew/etc/profile.d/bash_completion.sh"
-alias tmux-setup="bash ~/dotfiles/tmux/scripts/startup-local.sh"
 alias tmux-kill="bash ~/dotfiles/tmux/scripts/clean-exit.sh"
 
 # variables needed by common script
