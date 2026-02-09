@@ -21,6 +21,11 @@ set -g @resurrect-processes 'uv'
 # Enable mouse mode (tmux 2.1 and above)
 set -g mouse on
 
+
+###===================###
+### Pane Manipulation ###
+###===================###
+
 # Rebind prefix key and split options
 bind \\ split-window -h -c "#{pane_current_path}"
 bind - split-window -v -c "#{pane_current_path}"
@@ -30,9 +35,9 @@ bind '{' swap-window -t -1\; select-window -t -1
 bind '}' swap-window -t +1\; select-window -t +1
 
 bind h select-pane -L
-bind j select-pane -D
-bind k select-pane -U
 bind l select-pane -R
+bind k select-pane -U
+bind j select-pane -D
 
 # extend display time for pane switcher
 unbind q
@@ -45,30 +50,63 @@ unbind [
 unbind ]
 unbind )
 unbind (
+# session movement
 bind C-k switch-client -n
 bind C-j switch-client -p
+# window movement
 bind ] next
 bind [ prev
 bind n new-window
 bind p display-panes
 set -g display-panes-time 4000
 
-# resize panes using PREFIX H, J, K, L
-bind H resize-pane -L 5
-bind J resize-pane -D 5
-bind K resize-pane -U 5
-bind L resize-pane -R 5
-bind o resize-pane -Z
+
+###================###
+### Resizing panes ###
+###================###
+
+# Enter Resize Mode
+bind r display "Resize Mode (Esc/C-c to exit)" \; switch-client -T resize
+
+# We chain "switch-client -T resize" to every command to keep the mode active.
+bind -T resize h resize-pane -L 5 \; switch-client -T resize
+bind -T resize j resize-pane -D 5 \; switch-client -T resize
+bind -T resize k resize-pane -U 5 \; switch-client -T resize
+bind -T resize l resize-pane -R 5 \; switch-client -T resize
+
+bind -T resize Left resize-pane -L 5 \; switch-client -T resize
+bind -T resize Down resize-pane -D 5 \; switch-client -T resize
+bind -T resize Up resize-pane -U 5 \; switch-client -T resize
+bind -T resize Right resize-pane -R 5 \; switch-client -T resize
+
+# Exit Mode
+bind -T resize Escape switch-client -T root \; display "Normal Mode"
+bind -T resize C-c switch-client -T root \; display "Normal Mode"
+
+# make everything even
 bind E select-layout -E
+
+# set current pane to max height (essentially stacks)
+bind o resize-pane -y 100%
+bind O resize-pane -x 100%
+
+#also add commands to resize everything else when moving
+bind K 'resize-pane -y 1 ; select-pane -U ; resize-pane -y 999'
+bind J 'resize-pane -y 1 ; select-pane -D ; resize-pane -y 999'
+bind H 'resize-pane -x 1 ; select-pane -L ; resize-pane -x 999'
+bind L 'resize-pane -x 1 ; select-pane -R ; resize-pane -x 999'
 
 # unbind space from cycling window layouts.
 unbind Space
 # use prefix-b to go back and forth between previous window.
 bind b last-window
-# use r to rename window
-bind r command-prompt "rename-window '%%'"
+# use ctrl-e to rename window
+bind C-e command-prompt "rename-window '%%'"
 
-# MISC
+###===============###
+### Miscellaneous ###
+###===============###
+
 set -g default-shell $SHELL
 set-window-option -g mode-keys vi
 set -g @shell_mode 'vi'
@@ -79,11 +117,9 @@ setw -g pane-base-index 1
 set -s escape-time 0
 set -g focus-events on
 set-option -g renumber-windows on
-# This sends keystrokes like ]O]I when toggling floating.
 set -g focus-events off
 
 # UI stuff
-# set-option -g status-position top
 set -g detach-on-destroy off
 set -g history-limit 90000
 
@@ -143,7 +179,6 @@ bind g run-shell "bash $HOME/.config/tmux/scripts/toggle-popup.sh"
 
 # special popup window with midnight commander
 bind e run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-mc.sh"
-
 
 # FZF stuff
 TMUX_FZF_OPTIONS="-p -w 80% -h 80% -m --layout=reverse --preview-window=top:70%,nowrap"
