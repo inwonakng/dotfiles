@@ -60,6 +60,9 @@ bind n new-window
 bind p display-panes
 set -g display-panes-time 4000
 
+# swap panes
+bind C-[ swap-pane -U
+bind C-] swap-pane -D
 
 ###================###
 ### Resizing panes ###
