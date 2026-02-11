@@ -51,8 +51,8 @@ unbind ]
 unbind )
 unbind (
 # session movement
-bind C-k switch-client -n
-bind C-j switch-client -p
+bind C-n switch-client -n
+bind C-p switch-client -p
 # window movement
 bind ] next
 bind [ prev
@@ -94,10 +94,10 @@ bind o resize-pane -y 100%
 bind O resize-pane -x 100%
 
 #also add commands to resize everything else when moving
-bind K 'resize-pane -y 1 ; select-pane -U ; resize-pane -y 999'
-bind J 'resize-pane -y 1 ; select-pane -D ; resize-pane -y 999'
-bind H 'resize-pane -x 1 ; select-pane -L ; resize-pane -x 999'
-bind L 'resize-pane -x 1 ; select-pane -R ; resize-pane -x 999'
+bind C-k 'resize-pane -y 1 ; select-pane -U ; resize-pane -y 999'
+bind C-j 'resize-pane -y 1 ; select-pane -D ; resize-pane -y 999'
+bind C-h 'resize-pane -x 1 ; select-pane -L ; resize-pane -x 999'
+bind C-l 'resize-pane -x 1 ; select-pane -R ; resize-pane -x 999'
 
 # unbind space from cycling window layouts.
 unbind Space
@@ -153,13 +153,15 @@ set -g @catppuccin_window_text " #{window_name}"
 set -g @catppuccin_pane_border_style "fg=#{@thm_surface_0}" # Use a value compatible with the standard tmux 'pane-border-style'
 set -g @catppuccin_pane_active_border_style "fg=#{@thm_peach}" # Use a value compatible with the standard tmux 'pane-border-active-style'
 
-
 # Copy mode stuff
 set -g @copy_use_osc52_fallback on
 set -g set-clipboard on
 bind -T copy-mode-vi 'y' send -X copy-pipe-no-clear "bash $HOME/dotfiles/tmux/scripts/yank.sh"
 
-# visual mode bindings
+###=========================###
+### Visual/Copy Mode Config ###
+###=========================###
+
 bind v copy-mode
 bind P paste-buffer
 bind -T copy-mode-vi 'v' send -X begin-selection
@@ -169,9 +171,8 @@ bind -T copy-mode-vi 'H' send -X start-of-line
 bind -T copy-mode-vi 'L' send -X end-of-line
 bind -T copy-mode-vi 'J' send -X cursor-down\; send -X cursor-down\; send -X cursor-down\; send -X cursor-down\; send -X cursor-down
 bind -T copy-mode-vi 'K' send -X cursor-up\; send -X cursor-up\; send -X cursor-up\; send -X cursor-up\; send -X cursor-up
-bind -T copy-mode-vi Escape if-shell -F "#{selection_present}" \
-    "send-keys -X clear-selection" \
-    "send-keys -X cancel"
+bind -T copy-mode-vi Escape "send-keys -X clear-selection" 
+bind -T copy-mode-vi Enter "send-keys -X clear-selection"
 
 set-option -g history-limit 20000
 # custom copy mode in vim
