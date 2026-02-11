@@ -1,0 +1,115 @@
+{
+  "profiles" : [
+    {
+      "id" : "8258411A-2711-48D1-A5D0-2A67CEDD50D1",
+      "name" : "Default",
+      "workspaces" : [
+        {
+          "apps" : [
+            {
+              "bundleIdentifier" : "com.apple.Safari",
+              "iconPath" : "/System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app/Contents/Resources/AppIcon.icns",
+              "name" : "Safari"
+            }
+          ],
+          "assignAppShortcut" : "opt+shift+1",
+          "display" : "KB272 E",
+          "id" : "6A13935A-C730-4CDE-A039-B8426D070C09",
+          "name" : "browser",
+          "openAppsOnActivation" : false,
+          "shortcut" : "opt+1"
+        },
+        {
+          "apps" : [
+            {
+              "bundleIdentifier" : "net.kovidgoyal.kitty",
+              "iconPath" : "/Applications/kitty.app/Contents/Resources/kitty.icns",
+              "name" : "kitty"
+            }
+          ],
+          "assignAppShortcut" : "opt+shift+2",
+          "display" : "LG Ultra HD",
+          "id" : "B1712532-7669-4C30-852F-E31B3D5C2086",
+          "name" : "code",
+          "openAppsOnActivation" : false,
+          "shortcut" : "opt+2"
+        },
+        {
+          "apps" : [
+            {
+              "bundleIdentifier" : "Cisco-Systems.Spark",
+              "iconPath" : "/Applications/Webex.app/Contents/Resources/app_publishing_logo.icns",
+              "name" : "Webex"
+            },
+            {
+              "bundleIdentifier" : "com.tinyspeck.slackmacgap",
+              "iconPath" : "/Applications/Slack.app/Contents/Resources/electron.icns",
+              "name" : "Slack"
+            },
+            {
+              "bundleIdentifier" : "com.apple.mail",
+              "iconPath" : "/System/Applications/Mail.app/Contents/Resources/ApplicationIcon.icns",
+              "name" : "Mail"
+            },
+            {
+              "bundleIdentifier" : "com.apple.MobileSMS",
+              "iconPath" : "/System/Applications/Messages.app/Contents/Resources/AppIcon.icns",
+              "name" : "Messages"
+            }
+          ],
+          "assignAppShortcut" : "opt+shift+m",
+          "display" : "Built-in Retina Display",
+          "id" : "3336BFDA-87A3-4E4E-B263-837CB88DB6EF",
+          "name" : "messages",
+          "openAppsOnActivation" : false,
+          "shortcut" : "opt+m"
+        },
+        {
+          "apps" : [
+            {
+              "bundleIdentifier" : "net.sourceforge.skim-app.skim",
+              "iconPath" : "/Applications/Skim.app/Contents/Resources/Skim.icns",
+              "name" : "Skim"
+            }
+          ],
+          "assignAppShortcut" : "opt+shift+v",
+          "display" : "VG2748",
+          "id" : "2B512812-8B5A-4D07-87A1-A8A270837794",
+          "name" : "viewing",
+          "openAppsOnActivation" : false,
+          "shortcut" : "opt+v"
+        },
+        {
+          "apps" : [
+            {
+              "bundleIdentifier" : "org.zotero.zotero",
+              "iconPath" : "/Applications/Zotero.app/Contents/Resources/AppIcon.icns",
+              "name" : "Zotero"
+            }
+          ],
+          "assignAppShortcut" : "opt+shift+z",
+          "display" : "VG2748",
+          "id" : "C2FD73E8-2223-4B62-9B7F-B06A476537D1",
+          "name" : "paper-reading",
+          "openAppsOnActivation" : false,
+          "shortcut" : "opt+z"
+        },
+        {
+          "apps" : [
+            {
+              "bundleIdentifier" : "com.microsoft.Powerpoint",
+              "iconPath" : "/Applications/Microsoft PowerPoint.app/Contents/Resources/Powerpoint_macOS.icns",
+              "name" : "Microsoft PowerPoint"
+            }
+          ],
+          "assignAppShortcut" : "opt+shift+p",
+          "display" : "LG Ultra HD",
+          "id" : "0A34B6BF-1F4F-4878-8CDE-C62A2EF07EFC",
+          "name" : "powerpoint",
+          "openAppsOnActivation" : false,
+          "shortcut" : "opt+p"
+        }
+      ]
+    }
+  ]
+}
