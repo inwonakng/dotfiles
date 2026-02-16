@@ -31,8 +31,8 @@ bind \\ split-window -h -c "#{pane_current_path}"
 bind - split-window -v -c "#{pane_current_path}"
 unbind '"'
 unbind %
-bind '{' swap-window -t -1\; select-window -t -1
-bind '}' swap-window -t +1\; select-window -t +1
+# bind '{' swap-window -t -1\; select-window -t -1
+# bind '}' swap-window -t +1\; select-window -t +1
 
 bind h select-pane -L
 bind l select-pane -R
@@ -61,8 +61,8 @@ bind p display-panes
 set -g display-panes-time 4000
 
 # swap panes
-bind C-[ swap-pane -U
-bind C-] swap-pane -D
+bind '{' swap-pane -U
+bind '}' swap-pane -D
 
 ###================###
 ### Resizing panes ###
@@ -186,8 +186,9 @@ bind e run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-mc.sh"
 
 # FZF stuff
 TMUX_FZF_OPTIONS="-p -w 80% -h 80% -m --layout=reverse --preview-window=top:70%,nowrap"
-bind-key "C-l" run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/session.sh switch"
-bind-key "C-w" run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/window.sh switch"
+# this overrides the built-in selectors.
+bind s run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/session.sh switch"
+bind w run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/window.sh switch"
 TMUX_FZF_LAUNCH_KEY="C-f"
 
 
