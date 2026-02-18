@@ -130,3 +130,7 @@ map("n", "<leader>on", function()
 		vim.notify("notes.md not found in project root", vim.log.levels.WARN)
 	end
 end, { desc = "Open Project Notes", noremap = true, silent = true })
+
+-- Window modes (resize / move)
+local win_modes = require("utils.window-modes")
+map("n", "<leader>wr", win_modes.enter_resize, { desc = "Window: resize mode" })
