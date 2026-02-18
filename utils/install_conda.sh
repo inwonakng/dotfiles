@@ -6,7 +6,6 @@ then
   bash $HOME/conda.sh -b -u -p $HOME/miniconda3
   rm -f $HOME/conda.sh
   . ~/.bashrc
-  # $HOME/miniconda3/bin/conda init bash
 else
   echo "Conda found, I won't do anything"
 fi
