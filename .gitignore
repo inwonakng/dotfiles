@@ -34,3 +34,10 @@ claude/file-history
 claude/history.jsonl
 claude/debug
 claude.json
+claude/cache
+claude/paste-cache
+claude/plugins/marketplaces/claude-plugins-official
+claude/tasks
+claude/telemetry
+claude/stats-cache.json
+gemini/state.json

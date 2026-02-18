@@ -18,9 +18,11 @@ You can use conda to install a new git.
 - [karabiner](https://karabiner-elements.pqrs.org) (rebinding)
 - [homerow](https://github.com/nchudleigh/homerow#user-guide) (vim-like navigation for clicking things)
 - [scrolla](https://scrolla.app) (just for scrolling. It's smoother.)
-- [Aerospace](https://github.com/nikitabobko/AeroSpace) (tiling manager)
+- [Flashspace](https://github.com/wojciech-kulik/FlashSpace) (space manager. used to maintain virtual spaces)
+- [Rectangle](https://rectangleapp.com) (window manager. used to snap windows to the sides of the screen)
+- [Hammerspoon](https://www.hammerspoon.org) (scriptable automation tool. can do arbitrary things)
 
-### Linux (mostly ubuntu)
+### Linux
 
 - zsh
 - conda
@@ -28,9 +30,7 @@ You can use conda to install a new git.
 
 ## Notes
 
-- In order to match the versions of software used across different machines, I
-  am creating symlinks of binaries installed from conda (tmux, git) on machines
-that I don't have root access on.
+- In order to match the versions of software used across different machines, I am creating symlinks of binaries installed from conda (tmux, git) on machines that I don't have root access on.
 
 ```bash
 ln -sn $PATH_TO_APP $HOME/.local/bin
