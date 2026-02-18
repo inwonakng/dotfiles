@@ -10,6 +10,11 @@
               "bundleIdentifier" : "com.apple.Safari",
               "iconPath" : "/System/Volumes/Preboot/Cryptexes/App/System/Applications/Safari.app/Contents/Resources/AppIcon.icns",
               "name" : "Safari"
+            },
+            {
+              "bundleIdentifier" : "org.mozilla.firefox",
+              "iconPath" : "/Applications/Firefox.app/Contents/Resources/firefox.icns",
+              "name" : "Firefox"
             }
           ],
           "assignAppShortcut" : "opt+shift+1",
@@ -28,7 +33,7 @@
             }
           ],
           "assignAppShortcut" : "opt+shift+2",
-          "display" : "LG Ultra HD",
+          "display" : "Built-in Retina Display",
           "id" : "B1712532-7669-4C30-852F-E31B3D5C2086",
           "name" : "code",
           "openAppsOnActivation" : false,
@@ -55,6 +60,11 @@
               "bundleIdentifier" : "com.apple.MobileSMS",
               "iconPath" : "/System/Applications/Messages.app/Contents/Resources/AppIcon.icns",
               "name" : "Messages"
+            },
+            {
+              "bundleIdentifier" : "com.apple.finder",
+              "iconPath" : "/System/Library/CoreServices/Finder.app/Contents/Resources/Finder.icns",
+              "name" : "Finder"
             }
           ],
           "assignAppShortcut" : "opt+shift+m",

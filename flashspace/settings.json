@@ -5,7 +5,7 @@
   "centerCursorOnWorkspaceChange" : false,
   "changeWorkspaceOnAppAssign" : true,
   "checkForUpdatesAutomatically" : false,
-  "displayMode" : "static",
+  "displayMode" : "dynamic",
   "enableFocusManagement" : true,
   "enableIntegrations" : false,
   "enablePictureInPictureSupport" : true,
@@ -14,11 +14,16 @@
   "enableSpaceControlTilesAnimations" : true,
   "enableSwipeGestures" : true,
   "enableWorkspaceTransitions" : false,
-  "focusDown" : "opt+j",
+  "floatingApps" : [
+    {
+      "bundleIdentifier" : "Cisco-Systems.Spark",
+      "iconPath" : "/Applications/Webex.app/Contents/Resources/app_publishing_logo.icns",
+      "name" : "Webex"
+    }
+  ],
   "focusFrontmostWindow" : true,
   "focusLeft" : "opt+h",
   "focusRight" : "opt+l",
-  "focusUp" : "opt+k",
   "keepUnassignedAppsOnSwitch" : false,
   "loopWorkspaces" : true,
   "loopWorkspacesOnAllDisplays" : true,
@@ -51,8 +56,6 @@
   "swipeThreshold" : 0.2,
   "swipeUp3FingerAction" : "none",
   "swipeUp4FingerAction" : "none",
-  "switchToNextWorkspace" : "opt+]",
-  "switchToPreviousWorkspace" : "opt+[",
   "switchToRecentWorkspace" : "opt+tab",
   "switchWorkspaceOnCursorScreen" : false,
   "switchWorkspaceWhenPipCloses" : true,
