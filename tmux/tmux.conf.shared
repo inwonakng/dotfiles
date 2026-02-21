@@ -59,6 +59,11 @@ bind [ prev
 bind n new-window
 bind p display-panes
 set -g display-panes-time 4000
+# keep ctrl to move window
+bind . swap-window -t +1\; select-window -t +1
+bind , swap-window -t -1\; select-window -t -1
+# rename window with no placeholder
+bind N command-prompt "rename-window '%%'"
 
 # swap panes
 bind '{' swap-pane -U
@@ -176,9 +181,12 @@ set-option -g history-limit 20000
 # custom copy mode in vim
 bind V run-shell "edit-in-vim.sh"
 
-# popup window
-bind g run-shell "bash $HOME/.config/tmux/scripts/toggle-popup.sh"
+###==================###
+### Custom Utilities ###
+###==================###
 
+# general popup window
+bind g run-shell "bash $HOME/.config/tmux/scripts/toggle-popup.sh"
 # special popup window with midnight commander
 bind e run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-mc.sh"
 
@@ -188,7 +196,6 @@ TMUX_FZF_OPTIONS="-p -w 80% -h 80% -m --layout=reverse --preview-window=top:70%,
 bind s run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/session.sh switch"
 bind w run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/window.sh switch"
 TMUX_FZF_LAUNCH_KEY="C-f"
-
 
 # reload config file
 bind R source-file "$HOME/.config/tmux/tmux.conf"

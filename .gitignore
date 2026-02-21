@@ -41,3 +41,4 @@ claude/tasks
 claude/telemetry
 claude/stats-cache.json
 gemini/state.json
+claude/backups
