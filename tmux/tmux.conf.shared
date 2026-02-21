@@ -65,9 +65,27 @@ bind , swap-window -t -1\; select-window -t -1
 # rename window with no placeholder
 bind N command-prompt "rename-window '%%'"
 
-# swap panes
+###======================###
+### Pane/Window Swapping ###
+###======================###
+
+# swap panes within a window
 bind '{' swap-pane -U
 bind '}' swap-pane -D
+
+###=======================###
+### Move/Break Operations ###
+###=======================###
+
+# (B) break current pane as new window into fzf-selected session
+bind B run-shell "tmux display-popup -w 80% -h 80% -E 'tmux list-sessions -F \"##{session_name}\" | fzf --layout=reverse --prompt=\"Break pane to session: \" | xargs -I{} tmux break-pane -d -s #{pane_id} -t {}:'"
+
+# (m) move current window to fzf-selected session
+bind m run-shell "tmux display-popup -w 80% -h 80% -E 'tmux list-sessions -F \"##{session_name}\" | grep -v \"^#{session_name}$\" | fzf --layout=reverse --prompt=\"Move window to session: \" | xargs -I{} tmux move-window -s #{session_name}:#{window_index} -t {}:'"
+
+# (M) move current pane into fzf-selected window
+bind M run-shell "tmux display-popup -w 80% -h 80% -E 'tmux list-windows -a -F \"##{session_name}:##{window_index} (##{window_name})\" | grep -v \"^#{session_name}:#{window_index} \" | fzf --layout=reverse --prompt=\"Move pane to window: \" | sed \"s/ .*//\" | xargs -I{} tmux move-pane -s #{pane_id} -t {}'"
+
 
 ###================###
 ### Resizing panes ###
