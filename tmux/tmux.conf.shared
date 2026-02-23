@@ -57,13 +57,14 @@ bind C-p switch-client -p
 bind ] next
 bind [ prev
 bind n new-window
+bind N new-session
 bind p display-panes
 set -g display-panes-time 4000
 # keep ctrl to move window
 bind . swap-window -t +1\; select-window -t +1
 bind , swap-window -t -1\; select-window -t -1
 # rename window with no placeholder
-bind N command-prompt "rename-window '%%'"
+bind R command-prompt "rename-window '%%'"
 
 ###======================###
 ### Pane/Window Swapping ###
