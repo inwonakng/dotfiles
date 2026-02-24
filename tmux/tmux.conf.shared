@@ -78,14 +78,20 @@ bind '}' swap-pane -D
 ### Move/Break Operations ###
 ###=======================###
 
-# (B) break current pane as new window into fzf-selected session
-bind B run-shell "tmux display-popup -w 80% -h 80% -E 'tmux list-sessions -F \"##{session_name}\" | fzf --layout=reverse --prompt=\"Break pane to session: \" | xargs -I{} tmux break-pane -d -s #{pane_id} -t {}:'"
+# (t) enter transfer mode — relocate panes/windows to other sessions/windows
+bind t display "Transfer Mode (Esc to exit)" \; switch-client -T transfer
+bind T clock-mode
 
-# (m) move current window to fzf-selected session
-bind m run-shell "tmux display-popup -w 80% -h 80% -E 'tmux list-sessions -F \"##{session_name}\" | grep -v \"^#{session_name}$\" | fzf --layout=reverse --prompt=\"Move window to session: \" | xargs -I{} tmux move-window -s #{session_name}:#{window_index} -t {}:'"
+# (b) *b*reak current pane as new window into fzf-selected session
+bind -T transfer b run-shell "tmux display-popup -w 80% -h 80% -E 'tmux list-sessions -F \"##{session_name}\" | fzf --layout=reverse --prompt=\"Break pane to session: \" | xargs -I{} tmux break-pane -d -s #{pane_id} -t {}:'"
 
-# (M) move current pane into fzf-selected window
-bind M run-shell "tmux display-popup -w 80% -h 80% -E 'tmux list-windows -a -F \"##{session_name}:##{window_index} (##{window_name})\" | grep -v \"^#{session_name}:#{window_index} \" | fzf --layout=reverse --prompt=\"Move pane to window: \" | sed \"s/ .*//\" | xargs -I{} tmux move-pane -s #{pane_id} -t {}'"
+# (w) move current *w*indow to fzf-selected session
+bind -T transfer w run-shell "tmux display-popup -w 80% -h 80% -E 'tmux list-sessions -F \"##{session_name}\" | grep -v \"^#{session_name}$\" | fzf --layout=reverse --prompt=\"Move window to session: \" | xargs -I{} tmux move-window -s #{session_name}:#{window_index} -t {}:'"
+
+# (p) move current *p*ane into fzf-selected window
+bind -T transfer p run-shell "tmux display-popup -w 80% -h 80% -E 'tmux list-windows -a -F \"##{session_name}:##{window_index} (##{window_name})\" | grep -v \"^#{session_name}:#{window_index} \" | fzf --layout=reverse --prompt=\"Move pane to window: \" | sed \"s/ .*//\" | xargs -I{} tmux move-pane -s #{pane_id} -t {}'"
+
+bind -T transfer Escape switch-client -T root
 
 
 ###================###
@@ -127,6 +133,8 @@ bind C-l 'resize-pane -x 1 ; select-pane -R ; resize-pane -x 999'
 unbind Space
 # use prefix-b to go back and forth between previous window.
 bind b last-window
+# use prefix-B to go back and forth between previous session.
+bind B switch-client -l
 
 ###===============###
 ### Miscellaneous ###
