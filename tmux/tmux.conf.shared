@@ -117,7 +117,8 @@ bind -T resize Escape switch-client -T root \; display "Normal Mode"
 bind -T resize C-c switch-client -T root \; display "Normal Mode"
 
 # make everything even
-bind E select-layout -E
+bind E select-layout even-horizontal
+bind C-e select-layout even-vertical
 
 # set current pane to max height (essentially stacks)
 bind o resize-pane -y 100%
@@ -224,8 +225,9 @@ bind s run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/session.sh swit
 bind w run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/window.sh switch"
 TMUX_FZF_LAUNCH_KEY="C-f"
 
-# reload config file
-bind R source-file "$HOME/.config/tmux/tmux.conf"
+# reload config file (keybind + command prompt alias)
+# bind R source-file "$HOME/.config/tmux/tmux.conf"
+set -g command-alias[0] reload='source-file ~/.config/tmux/tmux.conf'
 
 # allow escape to exit command prompt
 bind-key -n -T command-prompt Escape send-keys -X cancel
