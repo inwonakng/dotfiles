@@ -111,6 +111,7 @@ if [[ "$(set -o | grep 'emacs\|\bvi\b' | cut -f2 | tr '\n' ':')" != 'off:off:' ]
     # standard output is a tty
     # do interactive initialization
     bind -x '"\C-e": edit_command_line'
+    bind -m vi-insert -x '"\C-e": edit_command_line'
     bind -m vi-command '"v": abort'
 fi
 
@@ -173,6 +174,7 @@ fzf_cd_pushd() {
     READLINE_POINT=0
 }
 bind -x '"\C-k": "fzf_cd_pushd"'
+bind -m vi-insert -x '"\C-k": "fzf_cd_pushd"'
 
 # if installed activate zoxide (for shell pwd history)
 if command -v "zoxide" >/dev/null 2>&1; then
