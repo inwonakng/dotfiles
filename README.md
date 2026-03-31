@@ -4,10 +4,24 @@
 
 Use platform specific .sh file in the root directory
 
+**Bash**
+
+After cloning this repository, either symlink the full script like this:
+
+```bash
+ln -s $PATH_TO_DOTFILES/bash/bashrc/default.sh $HOME/.bashrc
+```
+
+OR just include this line in your existing `.bashrc`:
+
+```bash
+source $PATH_TO_DOTFILES/bash/bashrc/extras.sh
+```
+
 ## Notes
 
 If git is too old, lazyvim will not install correctly.
-You can use conda to install a new git.
+You can use conda to install a new git. (synlink the binary to `~/.local/bin` and it will be picked up next time bashrc is sourced)
 
 ## Apps
 
@@ -18,7 +32,7 @@ You can use conda to install a new git.
 - [karabiner](https://karabiner-elements.pqrs.org) (rebinding)
 - [homerow](https://github.com/nchudleigh/homerow#user-guide) (vim-like navigation for clicking things)
 - [scrolla](https://scrolla.app) (just for scrolling. It's smoother.)
-- [Flashspace](https://github.com/wojciech-kulik/FlashSpace) (space manager. used to maintain virtual spaces)
+- [Aerospace](https://nikitabobko.github.io/AeroSpace) (space manager. used to maintain virtual spaces)
 - [Rectangle](https://rectangleapp.com) (window manager. used to snap windows to the sides of the screen)
 - [Hammerspoon](https://www.hammerspoon.org) (scriptable automation tool. can do arbitrary things)
 
