@@ -3,14 +3,13 @@ if vim.env.IS_TEMP_SESSION == "1" then
 	return
 end
 
--- vim.api.nvim_create_autocmd("BufReadPre", {
--- 	once = true,
--- 	callback = function()
--- 		-- single line plugins just live here.
+-- stop persistence if opening a claude-code CLI scratch file
+if vim.fn.argc() > 0 and tostring(vim.fn.argv(0)):match("claude%-prompt") then
+	return
+end
+
 vim.pack.add({ "https://github.com/folke/persistence.nvim" })
 require("persistence").setup()
--- 	end,
--- })
 
 vim.keymap.set("n", "<leader>qs", function()
 	require("persistence").load()
