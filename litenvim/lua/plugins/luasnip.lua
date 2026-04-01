@@ -1,14 +1,14 @@
-return {
-	"L3MON4D3/LuaSnip",
-	lazy = true,
-	dependencies = { "rafamadriz/friendly-snippets" },
-	opts = function(_, opts)
-		local ls = require("luasnip")
-		local luasnip_loader = require("luasnip.loaders.from_vscode")
-		luasnip_loader.lazy_load({ paths = { "./snippets" } })
-		luasnip_loader.lazy_load()
-		opts.history = true
-		opts.delete_check_events = "TextChanged"
-		return opts
-	end,
-}
+vim.pack.add({
+	"https://github.com/L3MON4D3/LuaSnip",
+	"https://github.com/rafamadriz/friendly-snippets",
+})
+
+local vscode_loader = require("luasnip.loaders.from_vscode")
+
+require("luasnip").setup({
+	history = true,
+	delete_check_events = "TextChanged",
+})
+
+vscode_loader.lazy_load({ paths = { "./snippets" } })
+vscode_loader.lazy_load()

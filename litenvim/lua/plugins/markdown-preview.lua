@@ -1,9 +1,9 @@
-return {
-	"iamcco/markdown-preview.nvim",
-	cmd = { "MarkdownPreviewToggle", "MarkdownPreview", "MarkdownPreviewStop" },
-	ft = { "markdown" },
-	build = "cd app && npm install && git restore .",
-	init = function()
-		vim.g.mkdp_filetypes = { "markdown" }
+vim.g.mkdp_filetypes = { "markdown" }
+
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = "markdown",
+	once = true,
+	callback = function()
+		vim.pack.add({ "https://github.com/iamcco/markdown-preview.nvim" })
 	end,
-}
+})
