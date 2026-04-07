@@ -117,8 +117,7 @@ bind -T resize Escape switch-client -T root \; display "Normal Mode"
 bind -T resize C-c switch-client -T root \; display "Normal Mode"
 
 # make everything even
-bind E select-layout even-horizontal
-bind C-e select-layout even-vertical
+bind E select-layout -E
 
 # set current pane to max height (essentially stacks)
 bind o resize-pane -y 100%
