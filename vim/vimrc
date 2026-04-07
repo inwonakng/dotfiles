@@ -68,6 +68,53 @@ nmap <leader>wd :q<CR>
 " re-bind C-w to this (same as winc)
 nmap <leader>w <C-w>
 
+function! WinResizeModeFunc()
+  echo "-- RESIZE MODE -- (hjkl: resize, q/ESC: exit)"
+  while 1
+    let key = getchar()
+    let char = nr2char(key)
+    if char ==# 'h'
+      execute "vertical resize -2"
+    elseif char ==# 'l'
+      execute "vertical resize +2"
+    elseif char ==# 'k'
+      execute "resize -2"
+    elseif char ==# 'j'
+      execute "resize +2"
+    elseif char ==# 'q' || key == 27
+      echo ""
+      break
+    endif
+    redraw
+    echo "-- RESIZE MODE -- (hjkl: resize, q/ESC: exit)"
+  endwhile
+endfunction
+
+function! WinMoveModeFunc()
+  echo "-- MOVE MODE -- (hjkl: move, q/ESC: exit)"
+  while 1
+    let key = getchar()
+    let char = nr2char(key)
+    if char ==# 'h'
+      execute "normal! \<C-w>H"
+    elseif char ==# 'l'
+      execute "normal! \<C-w>L"
+    elseif char ==# 'k'
+      execute "normal! \<C-w>K"
+    elseif char ==# 'j'
+      execute "normal! \<C-w>J"
+    elseif char ==# 'q' || key == 27
+      echo ""
+      break
+    endif
+    redraw
+    echo "-- MOVE MODE -- (hjkl: move, q/ESC: exit)"
+  endwhile
+endfunction
+
+nmap <leader>wr <cmd>call WinResizeModeFunc()<CR>
+nmap <leader>wm <cmd>call WinMoveModeFunc()<CR>
+
 " buffer commands
 nmap <leader>bd :q<CR>
 
