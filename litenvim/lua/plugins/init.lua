@@ -30,21 +30,23 @@ require("plugins.gitsigns")
 require("plugins.lsp")
 require("plugins.luasnip")
 require("plugins.markdown-preview")
-require("plugins.noice")
+require("plugins.autopairs")
+require("plugins.nvumi")
 require("plugins.obsidian")
 require("plugins.oil")
 require("plugins.persistence")
 require("plugins.render-markdown")
 require("plugins.sidekick")
 require("plugins.todo-comments")
+require("plugins.tiny-inline-diagnostic")
 require("plugins.vim-slime")
 require("plugins.treesitter")
 require("plugins.vimtex")
 require("plugins.which-key")
+require("plugins.tiny-cmdline")
 
 -- add the rest here
 vim.pack.add({
-	"https://github.com/windwp/nvim-autopairs",
 	"https://github.com/MagicDuck/grug-far.nvim",
 	"https://github.com/stevearc/overseer.nvim",
 	"https://github.com/nvim-lua/plenary.nvim",

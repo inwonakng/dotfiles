@@ -12,4 +12,3 @@ require("config.autocmds")
 require("config.lsp")
 require("config.folds")
 require("ui")
-

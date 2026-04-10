@@ -34,13 +34,12 @@ local get_recent_daily_note_content = function()
 	end
 	return most_recent_content
 end
+vim.pack.add({ "https://github.com/obsidian-nvim/obsidian.nvim" })
 
 vim.api.nvim_create_autocmd("FileType", {
 	pattern = "markdown",
 	once = true,
 	callback = function()
-		vim.pack.add({ "https://github.com/obsidian-nvim/obsidian.nvim" })
-
 		vim.keymap.set("n", "<leader>ot", "<cmd>Obsidian template<cr>", { desc = "Insert template" })
 		vim.keymap.set("n", "<leader>oT", "<cmd>Obsidian template default.md<cr>", { desc = "Insert default template" })
 		vim.keymap.set("n", "<leader>od", "<cmd>Obsidian today<cr>", { desc = "Create a daily note" })
