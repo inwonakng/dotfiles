@@ -53,6 +53,15 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 })
 
 
+-- numi calculator scratch buffer
+vim.filetype.add({ extension = { numi = "numi" } })
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = "numi",
+	callback = function()
+		require("utils.calc-mode").setup(vim.api.nvim_get_current_buf())
+	end,
+})
+
 -- close unnamed buffers -- this is for stuff like the compiler output window
 -- that stays open. We don't want that to come back with the session.
 local close_unnamed_buf = function()
