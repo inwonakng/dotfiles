@@ -52,6 +52,7 @@ vim.pack.add({
 	"https://github.com/nvim-tree/nvim-web-devicons",
 	"https://github.com/folke/trouble.nvim",
 	"https://github.com/ledger/vim-ledger",
+	"https://github.com/sindrets/diffview.nvim",
 })
 
 -- keymaps for the one-line plugins.
@@ -71,3 +72,6 @@ vim.keymap.set(
 )
 vim.keymap.set("n", "<leader>xL", "<cmd>Trouble loclist toggle<cr>", { desc = "Location List (Trouble)" })
 vim.keymap.set("n", "<leader>xQ", "<cmd>Trouble qflist toggle<cr>", { desc = "Quickfix List (Trouble)" })
+
+vim.keymap.set("n", "<leader>gh", "<cmd>DiffviewFileHistory %<cr>", { desc = "Git file history (Diffview)" })
+vim.keymap.set("n", "<leader>gv", "<cmd>DiffviewOpen<cr>", { desc = "Open Diffview" })
