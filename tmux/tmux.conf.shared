@@ -216,6 +216,8 @@ bind V run-shell "edit-in-vim.sh"
 bind g run-shell "bash $HOME/.config/tmux/scripts/toggle-popup.sh"
 # special popup window with midnight commander
 bind e run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-mc.sh"
+# freehand calculator popup
+bind c run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-calc.sh"
 
 # FZF stuff
 TMUX_FZF_OPTIONS="-p -w 80% -h 80% -m --layout=reverse --preview-window=top:70%,nowrap"
