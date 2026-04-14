@@ -43,3 +43,4 @@ claude/stats-cache.json
 gemini/state.json
 claude/backups
 /claude/plans
+/claude/sessions
