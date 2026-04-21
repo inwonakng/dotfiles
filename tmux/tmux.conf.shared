@@ -193,7 +193,7 @@ bind -T copy-mode-vi 'y' send -X copy-pipe-no-clear "bash $HOME/dotfiles/tmux/sc
 ###=========================###
 
 bind v copy-mode
-bind P paste-buffer
+bind P send-keys "\e[200~" \; paste-buffer \; send-keys "\e[201~"
 bind -T copy-mode-vi 'v' send -X begin-selection
 bind -T copy-mode-vi 'C-v' send -X begin-selection \; send -X rectangle-toggle
 bind -T copy-mode-vi 'V' send -X select-line
