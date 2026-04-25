@@ -21,7 +21,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     SCRATCH_NOTE_FILE="$HOME/.cache/scratch.md"
     export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
     export NODE_DEFAULT_PATH="$NVM_DIR/versions/node/v22.16.0/bin"
-    export PATH="$NODE_DEFAULT_PATH:$PATH"
+    export PATH="$LOCAL_BIN_DIR:$NODE_DEFAULT_PATH:$PATH"
 else
     # NOTE: to self. the reason we do it like this is b/c there are cases where a the same directory erves as an entry point to multiple compute nodes with different architectures. In that case, we must keep a separation of binaries for each architecture.
     ARCH=$(uname -i)
@@ -37,8 +37,6 @@ else
         POSTFIX="ppc"
         ;;
     esac
-    # prepend local binaries to path.
-    LOCAL_BIN_DIR="$HOME/.local/bin/$POSTFIX"
 
     CONDA_PARENT_DIR="$HOME"
     # this is specific for RPI clusters. if the hostname contains one of these substrings, we are on a cluster and need to set up the proxy and conda parent dir accordingly.
@@ -47,6 +45,9 @@ else
         export https_proxy=$http_proxy
         CONDA_PARENT_DIR="$HOME/scratch"
     fi
+
+    # prepend local binaries to path.
+    LOCAL_BIN_DIR="$HOME/.local/bin/$POSTFIX"
     CONDA_DIR="$CONDA_PARENT_DIR/miniconda-$POSTFIX"
     NVM_DIR="$HOME/.nvm"
     FZF_DIR="$HOME/.fzf-$POSTFIX"
@@ -54,7 +55,7 @@ else
     SCRATCH_NOTE_FILE="$HOME/scratch.md"
     export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
     export NODE_DEFAULT_PATH="$NVM_DIR/versions/node/v22.15.0/bin"
-    export PATH="$NODE_DEFAULT_PATH:$PATH"
+    export PATH="$LOCAL_BIN_DIR:$NODE_DEFAULT_PATH:$PATH"
 fi
 
 # at this point, we have finished linking the necessary binaries/paths we need
@@ -71,13 +72,10 @@ fi
 ################
 
 # add stuff to path if exists
-# if fzf is installed, set it up here
-[ -f $FZF_SCRIPT_FILE ] && source $FZF_SCRIPT_FILE
 if [[ -d $FZF_DIR ]]; then
     if [[ ! "$PATH" == *$FZF_DIR/bin* ]]; then
         PATH="${PATH:+${PATH}:}$FZF_DIR/bin"
     fi
-    eval "$(fzf --bash)"
 fi
 [ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
 [ -f "$HOME/.config/ripgrep/config" ] && export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"
@@ -90,6 +88,13 @@ fi
 [ -f "$HOME/.bash_utils/completions/git.bash" ] && source "$HOME/.bash_utils/completions/git.bash"
 [ -f "$HOME/.bash_utils/completions/slurm.bash" ] && source "$HOME/.bash_utils/completions/slurm.bash"
 [ -s "$NVM_DIR/bash_completion" ] && source "$NVM_DIR/bash_completion" # This loads nvm bash_completion
+
+# Load fzf after bash_completion so its wrappers take precedence for path-aware commands.
+if command -v fzf >/dev/null 2>&1; then
+    eval "$(fzf --bash)"
+elif [[ -f "$FZF_SCRIPT_FILE" ]]; then
+    source "$FZF_SCRIPT_FILE"
+fi
 
 # selective loading of stuff
 # CONDA_DIR and NVM_DIR should have been set in the sourcing script
