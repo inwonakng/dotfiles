@@ -1,6 +1,6 @@
 vim.pack.add({ "https://github.com/rachartier/tiny-cmdline.nvim" })
 vim.api.nvim_set_hl(0, "TinyCmdlineBorder", { fg = "#95959e" })
-vim.api.nvim_set_hl(0, "TinyCmdlineNormal", { bg = "#4c4c6b" })
+-- vim.api.nvim_set_hl(0, "TinyCmdlineNormal", { bg = "#4c4c6b" })
 -- vim.api.nvim_set_hl(0, "TinyCmdlineNormal", { bg = "#d5d5e3" })
 
 require("tiny-cmdline").setup({

@@ -23,24 +23,19 @@ source $PATH_TO_DOTFILES/bash/bashrc/extras.sh
 If git is too old, lazyvim will not install correctly.
 You can use conda to install a new git. (synlink the binary to `~/.local/bin` and it will be picked up next time bashrc is sourced)
 
-## Apps
+## Main Apps & Tools
 
-### OSX
-
-- [Wezterm](https://github.com/wez/wezterm)
-- conda
-- [karabiner](https://karabiner-elements.pqrs.org) (rebinding)
-- [homerow](https://github.com/nchudleigh/homerow#user-guide) (vim-like navigation for clicking things)
-- [scrolla](https://scrolla.app) (just for scrolling. It's smoother.)
-- [Aerospace](https://nikitabobko.github.io/AeroSpace) (space manager. used to maintain virtual spaces)
-- [Rectangle](https://rectangleapp.com) (window manager. used to snap windows to the sides of the screen)
-- [Hammerspoon](https://www.hammerspoon.org) (scriptable automation tool. can do arbitrary things)
-
-### Linux
-
-- zsh
-- conda
-- tmux
+- [Kitty](https://sw.kovidgoyal.net/kitty/)/[Ghostty](https://ghostty.org)
+- [conda](https://www.anaconda.com/docs/getting-started/miniconda/main) package manager. used for global binaries
+  - [pixi](https://pixi.prefix.dev/latest/) project-based package manager. used for actual projects
+- [karabiner](https://karabiner-elements.pqrs.org) keyborad remapper
+- [homerow](https://github.com/nchudleigh/homerow#user-guide) vim-like navigation for clicking things
+- [scrolla](https://scrolla.app) just for scrolling. It's smoother.
+- [Aerospace](https://nikitabobko.github.io/AeroSpace) space manager. used to maintain virtual spaces
+- [Rectangle](https://rectangleapp.com) window manager. used to snap windows to the sides of the screen
+- [Hammerspoon](https://www.hammerspoon.org) scriptable automation tool. can do arbitrary things
+- [Zotero](https://www.zotero.org) paper manager
+  - [AIdea](https://github.com/Visterainer/aidea-zotero) AI assistant integration for Zotero
 
 ## Notes
 

@@ -31,10 +31,18 @@ map("n", "<leader>bo", function()
 	for _, win in ipairs(vim.api.nvim_list_wins()) do
 		non_hidden_buffer[vim.api.nvim_win_get_buf(win)] = true
 	end
+	local failed = {}
 	for _, i in ipairs(bufs) do
 		if non_hidden_buffer[i] == nil then
-			vim.api.nvim_buf_delete(i, {})
+			local ok, err = pcall(vim.api.nvim_buf_delete, i, {})
+			if not ok then
+				local name = vim.api.nvim_buf_get_name(i)
+				table.insert(failed, name ~= "" and name or ("[buf " .. i .. "]"))
+			end
 		end
+	end
+	if #failed > 0 then
+		vim.notify("Could not close:\n" .. table.concat(failed, "\n"), vim.log.levels.WARN)
 	end
 end, { desc = "delete hidden buffers" })
 
@@ -108,7 +116,7 @@ end, { desc = "Insert Date", noremap = true, silent = true })
 
 -- open notes.md from project root if exists
 map("n", "<leader>on", function()
-	local notes_path = vim.fn.getcwd() .. "/notes.md"
+	local notes_path = vim.fn.getcwd() .. "/notes/daily.md"
 	if vim.fn.filereadable(notes_path) == 1 then
 		-- Check if buffer is already open
 		local bufnr = vim.fn.bufnr(notes_path)

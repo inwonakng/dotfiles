@@ -53,6 +53,33 @@ vim.pack.add({
 	"https://github.com/folke/trouble.nvim",
 	"https://github.com/ledger/vim-ledger",
 	"https://github.com/sindrets/diffview.nvim",
+	{ src = "https://github.com/catppuccin/nvim", name = "catppuccin" },
+	"https://github.com/hedyhli/outline.nvim",
+	"https://github.com/nvim-treesitter/nvim-treesitter-context",
+})
+
+require("catppuccin").setup({
+	color_overrides = {
+		mocha = {
+			base = "#14161b",
+			mantle = "#14161b",
+			crust = "#14161b",
+		},
+	},
+})
+vim.cmd.colorscheme("catppuccin")
+
+require("outline").setup({
+	preview_window = {
+		auto_preview = true,
+		open_hover_on_preview = true,
+		width = 30, -- Percentage or integer of columns
+		min_width = 50,
+	},
+})
+
+require("treesitter-context").setup({
+  enable = true,
 })
 
 -- keymaps for the one-line plugins.
@@ -61,17 +88,7 @@ vim.keymap.set("n", "<leader>sr", "<cmd>GrugFar<cr>", { desc = "Find files with 
 vim.keymap.set("n", "<leader>ow", "<cmd>OverseerToggle<cr>", { desc = "Task list" })
 vim.keymap.set("n", "<leader>or", "<cmd>OverseerRun<cr>", { desc = "Run task" })
 
-vim.keymap.set("n", "<leader>xx", "<cmd>Trouble diagnostics toggle<cr>", { desc = "Diagnostics (Trouble)" })
-vim.keymap.set("n", "<leader>xX", "<cmd>Trouble diagnostics toggle<cr>", { desc = "Buffer Diagnostics (Trouble)" })
-vim.keymap.set("n", "<leader>cs", "<cmd>Trouble symbols toggle<cr>", { desc = "Symbols (Trouble)" })
-vim.keymap.set(
-	"n",
-	"<leader>cl",
-	"<cmd>Trouble lsp toggle focus=false win.position=right<cr>",
-	{ desc = "LSP Definitions / references / ... (Trouble)" }
-)
-vim.keymap.set("n", "<leader>xL", "<cmd>Trouble loclist toggle<cr>", { desc = "Location List (Trouble)" })
-vim.keymap.set("n", "<leader>xQ", "<cmd>Trouble qflist toggle<cr>", { desc = "Quickfix List (Trouble)" })
-
 vim.keymap.set("n", "<leader>gh", "<cmd>DiffviewFileHistory %<cr>", { desc = "Git file history (Diffview)" })
 vim.keymap.set("n", "<leader>gv", "<cmd>DiffviewOpen<cr>", { desc = "Open Diffview" })
+
+vim.keymap.set("n", "<leader>cs", "<cmd>Outline<CR>", { desc = "Code Symbols" })
