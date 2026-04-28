@@ -79,7 +79,7 @@ bind '}' swap-pane -D
 ###=======================###
 
 # (t) enter transfer mode — relocate panes/windows to other sessions/windows
-bind t display "Transfer Mode (Esc to exit)" \; switch-client -T transfer
+bind t display-message -d 5000 "Transfer: [b] break pane  [w] move window  [p] move pane  [Esc] cancel" \; switch-client -T transfer
 bind T clock-mode
 
 # (b) *b*reak current pane as new window into fzf-selected session

@@ -1,6 +1,6 @@
 #!/bin/bash
 # script for controlling what is rendered in the status bar
-WINDOW_WIDTH=$(tmux display-message -p '#{window_width}')
+WINDOW_WIDTH=$(tmux display-message -p '#{client_width}')
 
 # --- OS-Specific Stats Functions ---
 get_cpu_usage() {
@@ -56,25 +56,24 @@ session="#[bg=#{@thm_lavender},fg=#{@thm_crust}]#[reverse]#[noreverse]   #[bg
 pane="#[bg=#{@thm_teal},fg=#{@thm_crust}]#[reverse]#[noreverse]   #[bg=#{@thm_surface_0},fg=#{@thm_fg}] #{pane_id} "
 justpane="#[bg=#{@thm_teal},fg=#{@thm_crust}]#[reverse]#[noreverse]   #[bg=#{@thm_surface_0},fg=#{@thm_fg}] #{pane_id} "
 
+# always show cpu and ram usage
+cpu_percentage=$(get_cpu_usage)
+ram_percentage=$(get_ram_usage)
+
+# set color for CPU usage
+cpu_usage_val=$(echo "$cpu_percentage" | sed 's/%//')
+cpu_fg_color="thm_green" # Default to "low" color
+if (($(echo "$cpu_usage_val > 70" | bc -l))); then
+    cpu_fg_color="thm_red"
+elif (($(echo "$cpu_usage_val > 40" | bc -l))); then
+    cpu_fg_color="thm_yellow"
+fi
+
+cpu=$(printf "#[bg=#{@thm_sapphire},fg=#{@thm_crust}]#[reverse]#[noreverse]   #[bg=#{@thm_surface_0},fg=#{@thm_fg}] #[fg=#{@cpu_fg_color}]%s " "$cpu_percentage")
+ram=$(printf "#[bg=#{@thm_flamingo},fg=#{@thm_crust}]#[reverse]#[noreverse]   #[bg=#{@thm_surface_0},fg=#{@thm_fg}] %s " "$ram_percentage")
+
 status_bar=""
 if [ "$WINDOW_WIDTH" -gt 120 ]; then
-
-    # only compute if we are going to use it.
-    cpu_percentage=$(get_cpu_usage)
-    ram_percentage=$(get_ram_usage)
-
-    # set color for CPU usage
-    cpu_usage_val=$(echo "$cpu_percentage" | sed 's/%//')
-    cpu_fg_color="thm_green" # Default to "low" color
-    if (($(echo "$cpu_usage_val > 70" | bc -l))); then
-        cpu_fg_color="thm_red"
-    elif (($(echo "$cpu_usage_val > 40" | bc -l))); then
-        cpu_fg_color="thm_yellow"
-    fi
-
-    cpu=$(printf "#[bg=#{@thm_sapphire},fg=#{@thm_crust}]#[reverse]#[noreverse]   #[bg=#{@thm_surface_0},fg=#{@thm_fg}] #[fg=#{@cpu_fg_color}]%s " "$cpu_percentage")
-    ram=$(printf "#[bg=#{@thm_flamingo},fg=#{@thm_crust}]#[reverse]#[noreverse]   #[bg=#{@thm_surface_0},fg=#{@thm_fg}] %s " "$ram_percentage")
-
     status_bar+="$host"
     status_bar+="$session"
     status_bar+="$pane"
@@ -82,6 +81,8 @@ if [ "$WINDOW_WIDTH" -gt 120 ]; then
     status_bar+="$ram"
 else
     status_bar+="$justpane"
+    status_bar+="$cpu"
+    status_bar+="$ram"
 fi
 
 echo "$status_bar"
