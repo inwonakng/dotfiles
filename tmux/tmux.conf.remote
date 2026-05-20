@@ -5,9 +5,7 @@ bind C-Space send-prefix
 source-file "$HOME/dotfiles/tmux/tmux.conf.shared"
 set-option -g status-position bottom
 
-set -ogq @thm_mantle "#292c3c"
-set -ogq @thm_crust "#232634"
-set -g @catppuccin_flavor "latte"
+set -g @catppuccin_flavor "mocha"
 
 # Initialize TMUX plugin manager (keep this line at the very bottom of tmux.conf)
 run "$HOME/.config/tmux/plugins/tpm/tpm"
