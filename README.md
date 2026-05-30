@@ -18,15 +18,28 @@ OR just include this line in your existing `.bashrc`:
 source $PATH_TO_DOTFILES/bash/bashrc/extras.sh
 ```
 
+**Most other things**
+
+Most apps here use the `~/.config` directory as their config home. Symlink the directory something like this:
+
+```bash
+ln -sn $PATH_TO_DOTFILES/$APP_NAME $HOME/.config/
+```
+
+This will create a directory called `~/.config/$APP_NAME` as a symlink.
+
+Vim is an exception. link to `~/.vim`
+
 ## Notes
 
-If git is too old, lazyvim will not install correctly.
-You can use conda to install a new git. (synlink the binary to `~/.local/bin` and it will be picked up next time bashrc is sourced)
+- If git is too old, lazyvim will not install correctly.
+- You can use conda to install a new git. (synlink the binary to `~/.local/bin/$ARCH` and it will be picked up next time bashrc is sourced)
+  - `$ARCH` can be `x86` or `ppc`. This setting is really only required because I sometimes have to use machines with IBM PowerPC architecture, where the login node is connected to both x86 and ppc compute nodes. In that case we need to be able to tell apart the binaries for diff. systems.
 
 ## Main Apps & Tools
 
 - [Kitty](https://sw.kovidgoyal.net/kitty/)/[Ghostty](https://ghostty.org)
-- [conda](https://www.anaconda.com/docs/getting-started/miniconda/main) package manager. used for global binaries
+- [conda](https://www.anaconda.com/docs/getting-started/miniconda/main) package manager. used for global binaries only
   - [pixi](https://pixi.prefix.dev/latest/) project-based package manager. used for actual projects
 - [karabiner](https://karabiner-elements.pqrs.org) keyborad remapper
 - [homerow](https://github.com/nchudleigh/homerow#user-guide) vim-like navigation for clicking things
@@ -36,6 +49,7 @@ You can use conda to install a new git. (synlink the binary to `~/.local/bin` an
 - [Hammerspoon](https://www.hammerspoon.org) scriptable automation tool. can do arbitrary things
 - [Zotero](https://www.zotero.org) paper manager
   - [AIdea](https://github.com/Visterainer/aidea-zotero) AI assistant integration for Zotero
+- [btop](https://github.com/aristocratos/btop) system monitor (top/htop alternative).
 
 ## Notes
 

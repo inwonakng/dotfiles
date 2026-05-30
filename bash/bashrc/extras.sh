@@ -275,6 +275,7 @@ alias mail-search="bash $HOME/dotfiles/utils/search_mail.sh"
 alias g="lazygit"
 alias ls="ls --color"
 alias oil-ssh="bash $HOME/.bash_utils/oil-ssh.sh"
+alias tmux-start="bash ~/dotfiles/tmux/scripts/start.sh"
 alias tmux-kill="bash ~/dotfiles/tmux/scripts/clean-exit.sh"
 # remove global conda from path... i don't use this
 export PATH=$(echo "$PATH" | sed -e 's/:\/software\/anaconda3.24\/bin//g')

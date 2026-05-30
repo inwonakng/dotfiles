@@ -3,8 +3,10 @@ if vim.env.IS_TEMP_SESSION == "1" then
 	return
 end
 
--- stop persistence if opening a claude-code CLI scratch file
-if vim.fn.argc() > 0 and tostring(vim.fn.argv(0)):match("claude%-prompt") then
+local argv0 = vim.fn.argc() > 0 and tostring(vim.fn.argv(0)) or ""
+
+-- stop persistence if opening a CLI scratch file
+if argv0:match("claude%-prompt") or argv0:match("^/private/var/folders/.*/T/%.tmp.*%.md$") then
 	return
 end
 

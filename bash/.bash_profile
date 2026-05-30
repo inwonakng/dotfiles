@@ -11,3 +11,5 @@ export LC_TYPE=en_US.UTF-8
 if [ -f ~/.bashrc ]; then
     source ~/.bashrc
 fi
+
+export PATH='/opt/homebrew/bin':$PATH
