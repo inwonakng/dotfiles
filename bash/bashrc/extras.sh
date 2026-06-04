@@ -279,6 +279,7 @@ alias tmux-start="bash ~/dotfiles/tmux/scripts/start.sh"
 alias tmux-kill="bash ~/dotfiles/tmux/scripts/clean-exit.sh"
 # remove global conda from path... i don't use this
 export PATH=$(echo "$PATH" | sed -e 's/:\/software\/anaconda3.24\/bin//g')
+export OPENCODE_CONFIG="$HOME/dotfiles/opencode/machine-specific-config.jsonc"
 
 # if pixi is installed, just add to path. this doesn't auto load the full thing though.
 if [[ -d "$HOME/.pixi" ]]; then
