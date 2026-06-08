@@ -1,5 +1,5 @@
 # bash stuff
-ln -snf ~/dotfiles/bash/bashrc/remote.sh ~/.bashrc
+ln -snf ~/dotfiles/bash/bashrc/default.sh ~/.bashrc
 ln -snf ~/dotfiles/bash/.bash_profile ~/.bash_profile
 ln -snf ~/dotfiles/bash/utils ~/.bash_utils
 
