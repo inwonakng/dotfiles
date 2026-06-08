@@ -99,7 +99,7 @@ bind -T transfer Escape switch-client -T root
 ###================###
 
 # Enter Resize Mode
-bind r display "Resize Mode (Esc/C-c to exit)" \; switch-client -T resize
+bind r display-message -d 5000 "Resize Mode (Esc/C-c to exit)" \; switch-client -T resize
 
 # We chain "switch-client -T resize" to every command to keep the mode active.
 bind -T resize h resize-pane -L 5 \; switch-client -T resize
@@ -118,16 +118,6 @@ bind -T resize C-c switch-client -T root \; display "Normal Mode"
 
 # make everything even
 bind E select-layout -E
-
-# set current pane to max height (essentially stacks)
-bind o resize-pane -y 100%
-bind O resize-pane -x 100%
-
-#also add commands to resize everything else when moving
-bind C-k 'resize-pane -y 1 ; select-pane -U ; resize-pane -y 999'
-bind C-j 'resize-pane -y 1 ; select-pane -D ; resize-pane -y 999'
-bind C-h 'resize-pane -x 1 ; select-pane -L ; resize-pane -x 999'
-bind C-l 'resize-pane -x 1 ; select-pane -R ; resize-pane -x 999'
 
 # unbind space from cycling window layouts.
 unbind Space
