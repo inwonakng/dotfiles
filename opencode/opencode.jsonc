@@ -66,7 +66,6 @@
           "*": "deny",
           "coding": "allow",
           "debugging": "allow",
-          "orchestrate-plans": "allow",
           "write-plan": "allow",
         },
       },
