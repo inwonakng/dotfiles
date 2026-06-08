@@ -46,6 +46,29 @@ vim.api.nvim_create_user_command("YankRelativeFilePath", function()
 	print("Relative file path yanked: " .. relative_path)
 end, {})
 
+local function yank_this_location(absolute, line1, line2)
+	local path = vim.fn.expand("%:p")
+	if not absolute then
+		path = vim.fn.fnamemodify(path, ":." .. vim.fn.getcwd() .. ":~:.")
+	end
+
+	local location = path .. ":" .. line1
+	if line2 ~= line1 then
+		location = location .. "-" .. line2
+	end
+
+	vim.fn.setreg("+", location)
+	print("Location yanked: " .. location)
+end
+
+vim.api.nvim_create_user_command("YankThisLocation", function(opts)
+	yank_this_location(false, opts.line1, opts.line2)
+end, { range = true })
+
+vim.api.nvim_create_user_command("YankThisAbsoluteLocation", function(opts)
+	yank_this_location(true, opts.line1, opts.line2)
+end, { range = true })
+
 vim.api.nvim_create_user_command("FixReadingImagePath", function()
 	local bufnr = vim.api.nvim_get_current_buf()
 	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
@@ -128,4 +151,3 @@ function EditFromLazygit(file_path)
 		vim.cmd("e " .. file_path)
 	end
 end
-

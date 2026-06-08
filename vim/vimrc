@@ -181,8 +181,28 @@ function! YankRelativeFilePathFunc()
 endfunction
 command! YankRelativeFilePath call YankRelativeFilePathFunc()
 
+function! YankThisLocationFunc(absolute, line1, line2)
+    let path = a:absolute ? expand('%:p') : fnamemodify(expand('%:p'), ':.' . getcwd() . ':~:.')
+    let location = path . ':' . a:line1
+    if a:line2 != a:line1
+      let location .= '-' . a:line2
+    endif
+    if has("clipboard")
+      let @+ = location
+    else
+      let @" = location
+    endif
+    echo location
+endfunction
+command! -range YankThisLocation call YankThisLocationFunc(0, <line1>, <line2>)
+command! -range YankThisAbsoluteLocation call YankThisLocationFunc(1, <line1>, <line2>)
+
 nnoremap <leader>yP :YankFilePath<CR>
 nnoremap <leader>yp :YankRelativeFilePath<CR>
+nnoremap <leader>yT :YankThisAbsoluteLocation<CR>
+nnoremap <leader>yt :YankThisLocation<CR>
+xnoremap <leader>yT :YankThisAbsoluteLocation<CR>
+xnoremap <leader>yt :YankThisLocation<CR>
 
 " Search forward using visually selected text. Override the default behavior
 xnoremap # "zy/\V<C-R>=escape(@z, '/\')<CR><CR>

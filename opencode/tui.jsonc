@@ -7,6 +7,7 @@
     "app_exit": "ctrl+c,<leader>q",
     "session_delete": "ctrl+x",
     "session_timeline": "<leader>/",
+    "session_list": "<leader>s",
     "stash_delete": "", // don't even know what this does
     "input_delete": "delete,shift+delete",
     // freeing up ctrl+u
@@ -50,7 +51,6 @@
 //     "session_export": "<leader>x",
 //     "session_copy": "none",
 //     "session_new": "<leader>n",
-//     "session_list": "<leader>l",
 //     "session_timeline": "<leader>g",
 //     "session_fork": "none",
 //     "session_rename": "ctrl+r",

@@ -20,3 +20,5 @@ claude/file-history
 /claude/
 /codex/
 /opencode/machine-specific-config.jsonc
+/bob/tmp
+/bob
