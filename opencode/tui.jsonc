@@ -8,6 +8,12 @@
     "session_delete": "ctrl+x",
     "session_timeline": "<leader>/",
     "session_list": "<leader>s",
+
+    "session_parent": "q",
+    "session_child_first": "<leader>z",
+    "session_child_cycle": "ctrl+n",
+    "session_child_cycle_reverse": "ctrl+p",
+
     "stash_delete": "", // don't even know what this does
     "input_delete": "delete,shift+delete",
     // freeing up ctrl+u
@@ -51,7 +57,6 @@
 //     "session_export": "<leader>x",
 //     "session_copy": "none",
 //     "session_new": "<leader>n",
-//     "session_timeline": "<leader>g",
 //     "session_fork": "none",
 //     "session_rename": "ctrl+r",
 //     "session_delete": "ctrl+d",
@@ -62,9 +67,6 @@
 //     "session_toggle_timestamps": "none",
 //     "session_toggle_generic_tool_output": "none",
 //     "session_child_first": "<leader>down",
-//     "session_child_cycle": "right",
-//     "session_child_cycle_reverse": "left",
-//     "session_parent": "up",
 //
 //     "stash_delete": "ctrl+d",
 //     "model_provider_list": "ctrl+a",

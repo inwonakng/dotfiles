@@ -49,11 +49,11 @@
     "plan": {
       "mode": "primary",
       "color": "warning",
+      "prompt": "{file:./prompts/plan.md}",
       "permission": {
         "task": {
           "*": "deny",
           "explore": "allow",
-          "analyze": "allow",
           "debugging": "allow",
         },
       },
@@ -61,12 +61,12 @@
     "build": {
       "mode": "primary",
       "color": "primary",
+      "prompt": "{file:./prompts/build.md}",
       "permission": {
         "task": {
           "*": "deny",
           "coding": "allow",
           "debugging": "allow",
-          "write-plan": "allow",
         },
       },
     },

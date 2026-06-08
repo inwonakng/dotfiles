@@ -1,5 +1,5 @@
 ---
-description: Investigates bugs from errors, traces, failing behavior, or problem descriptions. Use from Plan mode when diagnosis requires code inspection or safe reproduction commands.
+description: Use from Plan mode for crashes, errors, failing tests, logs, runtime failures, and bug diagnosis requiring code inspection.
 mode: subagent
 permission:
   read: allow
