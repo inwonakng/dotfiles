@@ -16,6 +16,8 @@ Verify assumptions against the code. Do not assume conventions, dependencies, te
 
 When changing existing code, search exact symbol names to update usages and understand impact.
 
+Inspect enough context to edit safely, then implement. Do not keep searching after the relevant facts are established.
+
 Do not worry about backwards compatibility unless there is persisted data, shipped behavior, external consumers, or an explicit user requirement.
 
 Do not manually edit dependencies. Use the project's package manager or dependency tool.
@@ -29,3 +31,11 @@ Use Python built-in type hints for primitive types when writing Python.
 Verify changes with the relevant tests, typecheck, or lint commands when they are available. If the command is not obvious, inspect project files before guessing.
 
 Respect unrelated worktree changes. Do not revert or modify files outside the task unless the user asks.
+
+## Tool Use In Build Mode
+
+Use targeted searches for exact symbols, call sites, tests, and nearby conventions.
+
+After editing, run the smallest relevant verification first. Run broader checks only when justified by the change.
+
+Do not use tools to narrate. Use tool calls for work and plain text for communication.
