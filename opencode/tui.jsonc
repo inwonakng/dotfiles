@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/tui.json",
-  "theme": "catppuccin-macchiato-black",
+  "theme": "catppuccin-frappe-black",
   "keybinds": {
     // freeing up ctrl+d
     "leader": "ctrl+e",

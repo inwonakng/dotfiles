@@ -165,7 +165,7 @@ cd() {
     fi
 }
 
-scratch_buffer() {
+open_scratch_buffer() {
     # Create a temporary file
     local TMP_FILE=$(mktemp)
     # Save current command line to the temporary file
@@ -183,8 +183,8 @@ scratch_buffer() {
 if [[ "$(set -o | grep 'emacs\|\bvi\b' | cut -f2 | tr '\n' ':')" != 'off:off:' ]]; then
     # standard output is a tty
     # do interactive initialization
-    bind -x '"\C-s": scratch_buffer'
-    bind -m vi-insert -x '"\C-s": scratch_buffer'
+    bind -x '"\C-o": open_scratch_buffer'
+    bind -m vi-insert -x '"\C-o": open_scratch_buffer'
     bind -m vi-command '"v": abort'
 fi
 
