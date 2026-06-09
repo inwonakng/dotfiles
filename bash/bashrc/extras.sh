@@ -7,10 +7,10 @@ set -o vi
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # NOTE: for now, we assume mac is always a local machine.
     export HOMEBREW_NO_AUTO_UPDATE=true
-    export HOMEBREW_PATH="/opt/homebrew/bin"
     if [ -d /opt/homebrew/bin ]; then
-        PATH="$HOMEBREW_PATH:$PATH"
+        PATH="/opt/homebrew/bin:$PATH"
     fi
+
     # add local bin
     [ -d "$LOCAL_BIN_DIR" ] && export PATH="$LOCAL_BIN_DIR:$PATH"
     CONDA_DIR="$HOME/miniconda3"
@@ -165,7 +165,7 @@ cd() {
     fi
 }
 
-edit_command_line() {
+scratch_buffer() {
     # Create a temporary file
     local TMP_FILE=$(mktemp)
     # Save current command line to the temporary file
@@ -183,8 +183,8 @@ edit_command_line() {
 if [[ "$(set -o | grep 'emacs\|\bvi\b' | cut -f2 | tr '\n' ':')" != 'off:off:' ]]; then
     # standard output is a tty
     # do interactive initialization
-    bind -x '"\C-e": edit_command_line'
-    bind -m vi-insert -x '"\C-e": edit_command_line'
+    bind -x '"\C-s": scratch_buffer'
+    bind -m vi-insert -x '"\C-s": scratch_buffer'
     bind -m vi-command '"v": abort'
 fi
 
