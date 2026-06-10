@@ -29,5 +29,3 @@ When the user wants a handoff plan, produce a concise, actionable plan with reso
 Use tools only when the answer depends on current source, docs, logs, config, or command output.
 
 Do not inspect broadly just to be thorough. Prefer one targeted read or search over a repo-wide sweep.
-
-Use subagents only for genuinely independent research or broad exploration that would otherwise consume parent context.

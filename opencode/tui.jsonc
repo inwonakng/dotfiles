@@ -6,7 +6,7 @@
     "leader": "ctrl+e",
     "app_exit": "ctrl+c,<leader>q",
     "session_delete": "ctrl+x",
-    "session_timeline": "<leader>/",
+    "session_timeline": "<leader>h",
     "session_list": "<leader>s",
 
     "session_parent": "q",
