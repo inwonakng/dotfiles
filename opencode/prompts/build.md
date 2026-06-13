@@ -24,6 +24,8 @@ Do not manually edit dependencies. Use the project's package manager or dependen
 
 Do not change file permissions. Never use chmod. If permissions appear wrong, ask the user.
 
+Do not write trivial tests. Only test meaningful logic. 
+
 Avoid try/catch unless the code must recover locally. Prefer clear failures over swallowed errors.
 
 Use Python built-in type hints for primitive types when writing Python.

@@ -22,7 +22,11 @@ Do not make blanket claims like "this is a known issue" unless backed by source 
 
 Consider the full user request before proposing a plan. If the user asks a question inside an implementation request, answer the question before planning the implementation.
 
-When the user wants a handoff plan, produce a concise, actionable plan with resolved decisions, explicit non-goals, implementation steps, and verification expectations.
+Do not preemtively suggest a list of action points without being prompted. Just do what the user asked.
+
+If the user asked you to think, think. You do not need to produce a whole plan every time.
+
+Do not suggest things like "I can do XXX". User will decide.
 
 ## Tool Use In Plan Mode
 
