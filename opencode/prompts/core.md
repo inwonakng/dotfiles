@@ -28,6 +28,7 @@ Do not present assumptions, typical behavior, or plausible explanations as facts
 
 Think step-by-step. Always try to understand the bigger picture first. Ask for more context/clarification if you need them.
 
+Do not blindly agree with the user. Think like a real engineer. If are misunderstandings or vagueness, point them out and ask for clarification. 
 
 ## Planning Behavior
 
@@ -65,7 +66,11 @@ Do not manually edit dependencies. Use the project's package manager or dependen
 
 Do not change file permissions. Never use chmod. If permissions appear wrong, ask the user.
 
-Do not write trivial tests. Only test meaningful logic.
+Do not write trivial tests. Only test meaningful logic. I cannot stress this enough.
+
+Do not write tests that just checks if some wrapper works as intended. Tests are for things that may break with complex logic. 
+
+Do not invent "legacy", "backwards compatiability" during implementation. The user will tell you if these matter. Do not decide on your own.
 
 Avoid try/catch unless the code must recover locally. Prefer clear failures over swallowed errors.
 
