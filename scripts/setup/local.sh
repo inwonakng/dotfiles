@@ -13,6 +13,7 @@ ln -snf ~/dotfiles/karabiner ~/.config/karabiner
 ln -snf ~/dotfiles/lazygit ~/.config/lazygit
 ln -snf ~/dotfiles/mc ~/.config/mc
 ln -snf ~/dotfiles/litenvim/ ~/.config/nvim
+ln -snf ~/dotfiles/pi-nvim/ ~/.config/pi-nvim
 ln -snf ~/dotfiles/opencode ~/.config/opencode
 ln -snf ~/dotfiles/tmux ~/.config/tmux
 ln -snf ~/dotfiles/tmux/tmux.conf.local ~/.config/tmux/tmux.conf
