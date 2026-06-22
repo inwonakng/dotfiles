@@ -1,0 +1,9 @@
+{
+  "lastChangelogVersion": "0.79.10",
+  "theme": "dark",
+  "packages": ["npm:pi-provider-litellm"],
+  "defaultProvider": "litellm",
+  "defaultModel": "azure/gpt-5.5",
+  "defaultThinkingLevel": "medium"
+}
+

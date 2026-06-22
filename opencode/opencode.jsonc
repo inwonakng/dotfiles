@@ -28,7 +28,8 @@
       "git diff": "allow",
       "git diff *": "allow",
       "git ls-files": "allow",
-      "git ls-files *": "allow"
+      "git ls-files *": "allow",
+      "git checkout *": "allow",
     },
 
     "edit": "ask",
@@ -43,7 +44,7 @@
     "question": "deny",
 
     "doom_loop": "ask",
-    "external_directory": "ask"
+    "external_directory": "ask",
   },
 
   "agent": {
@@ -53,11 +54,10 @@
       "prompt": "{file:./prompts/core.md}",
       "permission": {
         "edit": "ask",
-        "webfetch": "ask",
-        "websearch": "ask"
-      }
+        "webfetch": "allow",
+        "websearch": "allow",
+      },
     },
-
     "build": {
       "mode": "primary",
       "color": "primary",
@@ -65,8 +65,8 @@
       "permission": {
         "edit": "allow",
         "webfetch": "ask",
-        "websearch": "ask"
-      }
-    }
-  }
+        "websearch": "ask",
+      },
+    },
+  },
 }

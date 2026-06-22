@@ -24,3 +24,7 @@ claude/file-history
 /bob
 /scratch.md
 /opencode/package-lock.json
+/pi/agent/auth.json
+/pi/agent/litellm-models.json
+/pi/agent/sessions
+/pi/agent/bin
