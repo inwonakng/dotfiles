@@ -22,6 +22,44 @@ local dotfiles_root = vim.fn.fnamemodify(config_root, ":h")
 local ui_bg = "#080808"
 local pane_border = "#2a2a2a"
 
+local render_markdown_config = {
+	ignore = function(buf)
+		return vim.api.nvim_buf_get_name(buf):match("pi://input$") ~= nil
+	end,
+	overrides = {
+		buftype = {
+			nofile = {
+				render_modes = true,
+			},
+		},
+	},
+	heading = {
+		sign = false,
+		custom = {
+			pi_user_you = {
+				pattern = "You$",
+				icon = "󰭹 ",
+				background = "PiUserHeader",
+				foreground = "PiUserHeader",
+			},
+			pi_user_user = {
+				pattern = "User$",
+				icon = "󰭹 ",
+				background = "PiUserHeader",
+				foreground = "PiUserHeader",
+			},
+			pi_assistant = {
+				pattern = "Assistant$",
+				icon = "󰚩 ",
+				background = "PiAssistantHeader",
+				foreground = "PiAssistantHeader",
+			},
+		},
+	},
+	latex = { enabled = true },
+}
+vim.g.render_markdown_config = render_markdown_config
+
 vim.pack.add({
 	{ src = "https://github.com/catppuccin/nvim", name = "catppuccin" },
 	"https://github.com/ibhagwan/fzf-lua",
@@ -150,42 +188,7 @@ else
 	vim.notify("fzf-lua unavailable; using native vim.ui.select", vim.log.levels.WARN)
 end
 
-require("render-markdown").setup({
-	ignore = function(buf)
-		return vim.api.nvim_buf_get_name(buf):match("pi://input$") ~= nil
-	end,
-	overrides = {
-		buftype = {
-			nofile = {
-				render_modes = true,
-			},
-		},
-	},
-	heading = {
-		sign = false,
-		custom = {
-			pi_user_you = {
-				pattern = "You$",
-				icon = "󰭹 ",
-				background = "PiUserHeader",
-				foreground = "PiUserHeader",
-			},
-			pi_user_user = {
-				pattern = "User$",
-				icon = "󰭹 ",
-				background = "PiUserHeader",
-				foreground = "PiUserHeader",
-			},
-			pi_assistant = {
-				pattern = "Assistant$",
-				icon = "󰚩 ",
-				background = "PiAssistantHeader",
-				foreground = "PiAssistantHeader",
-			},
-		},
-	},
-	latex = { enabled = true },
-})
+require("render-markdown").setup(render_markdown_config)
 
 require("pi-integration").setup({
 	binary = vim.env.PI_BINARY or "pi",
