@@ -47,6 +47,8 @@ require("catppuccin").setup({
 			EndOfBuffer = { bg = ui_bg },
 			PiPaneBorder = { fg = pane_border, bg = ui_bg },
 			PiUsageStats = { fg = colors.subtext1, bg = ui_bg },
+			PiUserHeader = { fg = colors.blue, bg = "#102033", bold = true },
+			PiAssistantHeader = { fg = colors.mauve, bg = "#1b1424", bold = true },
 			PiModeReadonly = { fg = colors.blue, bg = ui_bg, bold = true },
 			PiModeWrite = { fg = colors.peach, bg = ui_bg, bold = true },
 			PiModeUnknown = { fg = colors.subtext1, bg = ui_bg, bold = true },
@@ -161,6 +163,26 @@ require("render-markdown").setup({
 	},
 	heading = {
 		sign = false,
+		custom = {
+			pi_user_you = {
+				pattern = "You$",
+				icon = "󰭹 ",
+				background = "PiUserHeader",
+				foreground = "PiUserHeader",
+			},
+			pi_user_user = {
+				pattern = "User$",
+				icon = "󰭹 ",
+				background = "PiUserHeader",
+				foreground = "PiUserHeader",
+			},
+			pi_assistant = {
+				pattern = "Assistant$",
+				icon = "󰚩 ",
+				background = "PiAssistantHeader",
+				foreground = "PiAssistantHeader",
+			},
+		},
 	},
 	latex = { enabled = true },
 })
