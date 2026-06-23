@@ -279,6 +279,7 @@ alias tmux-start="bash ~/dotfiles/tmux/scripts/start.sh"
 alias tmux-kill="bash ~/dotfiles/tmux/scripts/clean-exit.sh"
 alias oc="opencode"
 alias bc="bob --chat-mode code"
+alias pn="NVIM_APPNAME=pi-nvim nvim"
 
 # remove global conda from path... i don't use this
 export PATH=$(echo "$PATH" | sed -e 's/:\/software\/anaconda3.24\/bin//g')

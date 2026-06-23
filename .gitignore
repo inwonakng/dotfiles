@@ -28,3 +28,5 @@ claude/file-history
 /pi/agent/litellm-models.json
 /pi/agent/sessions
 /pi/agent/bin
+/node_modules
+/pi/agent/history
