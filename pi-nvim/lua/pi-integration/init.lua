@@ -14,8 +14,10 @@ local state = {
 	help_win = nil,
 	is_streaming = false,
 	access_mode = "readonly",
+	pending_access_mode = nil,
 	current_message_started = false,
 	session_file = nil,
+	pending_session_file = nil,
 	session_name = nil,
 	message_count = 0,
 	provider = nil,
@@ -295,11 +297,69 @@ local function format_session_stats()
 	return table.concat(parts, " · ")
 end
 
+local function statusline_escape(text)
+	return tostring(text or ""):gsub("%%", "%%%%")
+end
+
+local function truncate_plain_to_width(text, width)
+	if vim.fn.strdisplaywidth(text) <= width then
+		return text
+	end
+
+	local result = ""
+	for _, char in ipairs(vim.fn.split(text, "\\zs")) do
+		local next_result = result .. char
+		if vim.fn.strdisplaywidth(next_result) > width then
+			break
+		end
+		result = next_result
+	end
+	return result
+end
+
+local function mode_statusline_highlight(mode)
+	if mode == "readonly" then
+		return "%#PiModeReadonly#"
+	elseif mode == "write" then
+		return "%#PiModeWrite#"
+	end
+	return "%#PiModeUnknown#"
+end
+
 _G._pi_nvim_transcript_statusline = function()
-	local label = " " .. format_session_stats() .. " "
+	local mode = state.access_mode or "--"
+	local mode_prefix = " "
+	local mode_suffix = " "
+	local mode_label = mode_prefix .. mode .. mode_suffix
+	local stats_label = " " .. format_session_stats() .. " "
 	local width = vim.api.nvim_win_get_width(0)
-	local fill_width = math.max(0, width - vim.fn.strdisplaywidth(label))
-	return "%#PiPaneBorder#" .. string.rep("─", fill_width) .. "%#PiUsageStats#" .. label .. "%*"
+	local mode_width = vim.fn.strdisplaywidth(mode_label)
+	local stats_width = vim.fn.strdisplaywidth(stats_label)
+	local show_stats = width >= (mode_width + stats_width + 3)
+	local mode_highlight = mode_statusline_highlight(mode)
+
+	if width <= mode_width then
+		local prefix_width = vim.fn.strdisplaywidth(mode_prefix)
+		if width <= prefix_width then
+			return "%#PiUsageStats#" .. statusline_escape(truncate_plain_to_width(mode_prefix, width)) .. "%*"
+		end
+		return "%#PiUsageStats#"
+			.. statusline_escape(mode_prefix)
+			.. mode_highlight
+			.. statusline_escape(truncate_plain_to_width(mode .. mode_suffix, width - prefix_width))
+			.. "%*"
+	end
+
+	local left_label = "%#PiUsageStats#"
+		.. statusline_escape(mode_prefix)
+		.. mode_highlight
+		.. statusline_escape(mode)
+		.. "%#PiUsageStats#"
+		.. statusline_escape(mode_suffix)
+	local right_label = show_stats and ("%#PiUsageStats#" .. statusline_escape(stats_label)) or ""
+	local right_width = show_stats and stats_width or 0
+	local fill_width = math.max(0, width - mode_width - right_width)
+	return left_label .. "%#PiPaneBorder#" .. string.rep("─", fill_width) .. right_label .. "%*"
 end
 
 update_transcript_statusline = function()
@@ -980,7 +1040,6 @@ local function handle_message_update(event)
 	elseif update.type == "toolcall_start" then
 		clear_assistant_placeholder_spinner()
 		state.current_message_started = true
-		append_status("Preparing tool call…")
 	elseif update.type == "toolcall_delta" then
 		-- Tool-call deltas are usually raw JSON arguments. For multiline edits this
 		-- can be thousands of characters streamed token-by-token before the useful
@@ -989,8 +1048,7 @@ local function handle_message_update(event)
 		-- previews render the meaningful result.
 		return
 	elseif update.type == "toolcall_end" then
-		local tool = update.toolCall or {}
-		append_status("Tool call ready: " .. (tool.name or tool.type or "tool"))
+		return
 	elseif update.type == "error" then
 		render_error_message("Agent Error", event_error_text(update) or "unknown")
 	end
@@ -1089,6 +1147,9 @@ end
 
 local function argv()
 	local args = { M.config.binary, "--mode", "rpc" }
+	if state.pending_session_file and state.pending_session_file ~= "" then
+		vim.list_extend(args, { "--session", vim.fn.expand(state.pending_session_file) })
+	end
 	if M.config.provider and M.config.provider ~= "" then
 		vim.list_extend(args, { "--provider", M.config.provider })
 	end
@@ -1302,9 +1363,9 @@ function M.open()
 	apply_window_padding(state.input_win)
 
 	refresh_transcript_ui()
+	append_status("No Pi session started yet. Send a message or pick a session.")
 
 	setup_keymaps()
-	M.start()
 end
 
 function M.start()
@@ -1341,6 +1402,9 @@ function M.start()
 		end,
 		on_exit = function(_, code, _)
 			vim.schedule(function()
+				if state.session_file and state.session_file ~= "" then
+					state.pending_session_file = state.session_file
+				end
 				if assistant_placeholder_active() and not state.error_rendered_for_active_run then
 					render_error_message(
 						"Pi Error",
@@ -1364,10 +1428,21 @@ function M.start()
 
 	send({ type = "get_state" }, function(event)
 		if event.success and event.data then
+			state.pending_session_file = nil
 			apply_session_state(event.data)
 			M.refresh_session_stats()
 		end
 	end)
+	if state.pending_access_mode then
+		local mode = state.pending_access_mode
+		send({ type = "prompt", message = "/pi-mode " .. mode }, function(event)
+			if event.success then
+				state.pending_access_mode = nil
+			else
+				notify(event.error or "Could not set access mode", vim.log.levels.ERROR)
+			end
+		end)
+	end
 end
 
 function M.submit_prompt()
@@ -1413,6 +1488,21 @@ function M.rename_session()
 end
 
 function M.new_session()
+	if not (state.job and state.job > 0) then
+		state.pending_session_file = nil
+		state.session_file = nil
+		set_modifiable(state.transcript_buf, true)
+		vim.api.nvim_buf_set_lines(state.transcript_buf, 0, -1, false, {})
+		set_modifiable(state.transcript_buf, false)
+		delete_tool_folds()
+		state.session_name = nil
+		state.message_count = 0
+		state.session_stats = nil
+		refresh_transcript_ui()
+		append_status("New session will be created when you send a message.")
+		return
+	end
+
 	send({ type = "new_session" }, function(event)
 		if event.success then
 			set_modifiable(state.transcript_buf, true)
@@ -1434,22 +1524,78 @@ function M.new_session()
 	end)
 end
 
+local decode_session_record
+
+local function load_session_messages_from_file(path)
+	local fallback_messages = {}
+	local by_id = {}
+	local leaf_id = nil
+	if not path or vim.fn.filereadable(path) ~= 1 then
+		return fallback_messages
+	end
+	for _, line in ipairs(vim.fn.readfile(path)) do
+		local record = decode_session_record(line)
+		if record and record.type == "session_info" and type(record.name) == "string" then
+			state.session_name = record.name
+		end
+		if record and record.id then
+			by_id[record.id] = record
+			leaf_id = record.id
+		end
+		if record and record.type == "message" and record.message then
+			table.insert(fallback_messages, record.message)
+		end
+	end
+
+	local branch = {}
+	local seen = {}
+	local id = leaf_id
+	while id and by_id[id] and not seen[id] do
+		seen[id] = true
+		local record = by_id[id]
+		table.insert(branch, 1, record)
+		id = record.parentId
+	end
+
+	local messages = {}
+	for _, record in ipairs(branch) do
+		if record.type == "message" and record.message then
+			table.insert(messages, record.message)
+		end
+	end
+	return #messages > 0 and messages or fallback_messages
+end
+
+local function render_messages(messages)
+	set_modifiable(state.transcript_buf, true)
+	vim.api.nvim_buf_set_lines(state.transcript_buf, 0, -1, false, {})
+	set_modifiable(state.transcript_buf, false)
+	delete_tool_folds()
+	refresh_transcript_ui()
+
+	for _, message in ipairs(messages or {}) do
+		render_message(message)
+	end
+end
+
 function M.refresh_messages()
+	if not (state.job and state.job > 0) then
+		local path = state.pending_session_file or state.session_file
+		if path and path ~= "" then
+			render_messages(load_session_messages_from_file(path))
+		else
+			notify("No Pi session has been started yet.", vim.log.levels.WARN)
+		end
+		return
+	end
+
 	send({ type = "get_messages" }, function(event)
 		if not event.success or not event.data then
 			notify("Could not get messages", vim.log.levels.ERROR)
 			return
 		end
 
-		set_modifiable(state.transcript_buf, true)
-		vim.api.nvim_buf_set_lines(state.transcript_buf, 0, -1, false, {})
-		set_modifiable(state.transcript_buf, false)
-		delete_tool_folds()
-		refresh_transcript_ui()
-
-		for _, message in ipairs(event.data.messages or {}) do
-			render_message(message)
-		end
+		render_messages(event.data.messages or {})
 		M.refresh_session_stats()
 	end)
 end
@@ -1458,6 +1604,11 @@ function M.set_access_mode(mode)
 	assert(is_access_mode(mode), "invalid access mode: " .. tostring(mode))
 	state.access_mode = mode
 	refresh_transcript_ui()
+	if not (state.job and state.job > 0) then
+		state.pending_access_mode = mode
+		notify("Access mode will be applied when Pi starts: " .. mode)
+		return
+	end
 	send({ type = "prompt", message = "/pi-mode " .. mode }, function(event)
 		if not event.success then
 			notify(event.error or "Could not set access mode", vim.log.levels.ERROR)
@@ -1619,7 +1770,7 @@ local function dirname(path)
 	return vim.fn.fnamemodify(path, ":h")
 end
 
-local function decode_session_record(line)
+decode_session_record = function(line)
 	local ok, decoded
 	if vim.json and vim.json.decode then
 		ok, decoded = pcall(vim.json.decode, line)
@@ -1721,6 +1872,14 @@ function M.pick_session()
 		format_item = session_item_label,
 	}, function(choice)
 		if not choice then
+			return
+		end
+		if not (state.job and state.job > 0) then
+			state.pending_session_file = choice.path
+			state.session_file = choice.path
+			state.session_name = choice.title
+			render_messages(load_session_messages_from_file(choice.path))
+			notify("Selected session. Pi will attach to it when you send a message.")
 			return
 		end
 		send({ type = "switch_session", sessionPath = choice.path }, function(event)

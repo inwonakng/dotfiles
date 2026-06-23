@@ -39,6 +39,7 @@ const READONLY_BASH_ALLOWLIST = [
   "git diff *",
   "git ls-files",
   "git ls-files *",
+  "stat *",
 ];
 
 let accessMode: AccessMode = "readonly";
@@ -126,11 +127,38 @@ function shellWords(command: string): string[] | undefined {
   return words;
 }
 
+function hasUnquotedRedirection(command: string): boolean {
+  let quote: "'" | '"' | undefined;
+  for (let index = 0; index < command.length; index++) {
+    const char = command[index];
+    if (quote) {
+      if (char === quote) {
+        quote = undefined;
+      } else if (quote === '"' && char === "\\") {
+        index++;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      continue;
+    }
+    if (char === "\\") {
+      index++;
+      continue;
+    }
+    if (char === "<" || char === ">") {
+      return true;
+    }
+  }
+  return false;
+}
+
 function stripSafeReadonlyRedirections(command: string): string | undefined {
   // Sending stderr to /dev/null is common for read-only probes (find/grep/etc.)
   // and does not mutate project files. Keep all other redirection ask-gated.
   const stripped = command.replace(/(^|\s)2>\s*\/dev\/null(?=\s|$)/g, " ");
-  if (/[<>]/.test(stripped)) {
+  if (hasUnquotedRedirection(stripped)) {
     return undefined;
   }
   return stripped;
@@ -165,6 +193,10 @@ function splitShellOperator(command: string, operator: "&&" | "||" | "|" | ";"):
       quote = char;
       continue;
     }
+    if (char === "\\") {
+      index++;
+      continue;
+    }
     if (command.startsWith(operator, index)) {
       parts.push(command.slice(start, index).trim());
       index += operator.length - 1;
@@ -174,6 +206,19 @@ function splitShellOperator(command: string, operator: "&&" | "||" | "|" | ";"):
 
   parts.push(command.slice(start).trim());
   return parts;
+}
+
+function findExecIsReadonly(words: string[], startIndex: number): number | undefined {
+  // Allow the common read-only pattern used to print file names and counts:
+  //   find ... -exec wc -l {} \;
+  // shellWords unescapes \; to ;.
+  const expected = ["wc", "-l", "{}", ";"];
+  for (let offset = 0; offset < expected.length; offset++) {
+    if (words[startIndex + 1 + offset] !== expected[offset]) {
+      return undefined;
+    }
+  }
+  return startIndex + expected.length;
 }
 
 function findReadonlyCommandAllowed(command: string): boolean {
@@ -186,8 +231,6 @@ function findReadonlyCommandAllowed(command: string): boolean {
   // run arbitrary commands, and f*print/f*ls variants can write output files.
   const unsafeFindPrimaries = new Set([
     "-delete",
-    "-exec",
-    "-execdir",
     "-ok",
     "-okdir",
     "-fprint",
@@ -195,7 +238,21 @@ function findReadonlyCommandAllowed(command: string): boolean {
     "-fprintf",
     "-fls",
   ]);
-  return !words.some((word) => unsafeFindPrimaries.has(word));
+
+  for (let index = 1; index < words.length; index++) {
+    const word = words[index];
+    if (unsafeFindPrimaries.has(word)) {
+      return false;
+    }
+    if (word === "-exec" || word === "-execdir") {
+      const execEndIndex = findExecIsReadonly(words, index);
+      if (execEndIndex === undefined) {
+        return false;
+      }
+      index = execEndIndex;
+    }
+  }
+  return true;
 }
 
 function simpleReadonlyCommandAllowed(command: string): boolean {
