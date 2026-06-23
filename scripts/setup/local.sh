@@ -1,5 +1,5 @@
 # shell
-ln -snf ~/dotfiles/bash/bashrc/local.sh ~/.bashrc
+ln -snf ~/dotfiles/bash/bashrc/default.sh ~/.bashrc
 ln -snf ~/dotfiles/bash/.bash_profile ~/.bash_profile
 ln -snf ~/dotfiles/bash/utils ~/.bash_utils
 ln -snf ~/dotfiles/.inputrc ~/.inputrc
@@ -18,4 +18,3 @@ ln -snf ~/dotfiles/opencode ~/.config/opencode
 ln -snf ~/dotfiles/tmux ~/.config/tmux
 ln -snf ~/dotfiles/tmux/tmux.conf.local ~/.config/tmux/tmux.conf
 ln -snf ~/dotfiles/pi ~/.pi
-ln -snf ~/dotfiles/ghostty ~/.pi

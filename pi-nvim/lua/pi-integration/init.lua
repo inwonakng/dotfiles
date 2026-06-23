@@ -27,6 +27,11 @@ local state = {
 	placeholder_start_line = nil,
 	placeholder_line = nil,
 	placeholder_tick = 1,
+	abort_requested = false,
+	error_rendered_for_active_run = false,
+	last_stderr_lines = {},
+	active_tool_fold = nil,
+	tool_folds = {},
 }
 
 M.config = {
@@ -37,7 +42,7 @@ M.config = {
 	session_dir = nil,
 	show_thinking = false,
 	show_stderr = false,
-	access_modes = { "readonly", "ask", "review", "write" },
+	access_modes = { "readonly", "write" },
 	session_dirs = {
 		"~/.pi/agent/sessions",
 		"~/.pi/sessions",
@@ -197,6 +202,28 @@ local function schedule_transcript_refresh()
 	end, 30)
 end
 
+local function transcript_line_count()
+	if not valid_buf(state.transcript_buf) then
+		return 0
+	end
+	return vim.api.nvim_buf_line_count(state.transcript_buf)
+end
+
+local function with_transcript_win(callback)
+	if not (state.transcript_win and vim.api.nvim_win_is_valid(state.transcript_win)) then
+		return
+	end
+	vim.api.nvim_win_call(state.transcript_win, callback)
+end
+
+local function delete_tool_folds()
+	state.tool_folds = {}
+	state.active_tool_fold = nil
+	with_transcript_win(function()
+		vim.cmd("normal! zE")
+	end)
+end
+
 local function append_lines(lines)
 	if not valid_buf(state.transcript_buf) then
 		return
@@ -259,6 +286,68 @@ end
 
 local function append_status(text)
 	append_lines({ "> " .. text })
+end
+
+local function create_tool_fold(start_line, end_line)
+	if end_line <= start_line then
+		return
+	end
+
+	table.insert(state.tool_folds, {
+		start_line = start_line,
+		end_line = end_line,
+	})
+
+	with_transcript_win(function()
+		local cursor = vim.api.nvim_win_get_cursor(state.transcript_win)
+		vim.cmd(string.format("%d,%dfold", start_line, end_line))
+		vim.api.nvim_win_set_cursor(state.transcript_win, { start_line, 0 })
+		vim.cmd("normal! zc")
+		local line_count = transcript_line_count()
+		if cursor[1] <= line_count then
+			vim.api.nvim_win_set_cursor(state.transcript_win, cursor)
+		else
+			vim.api.nvim_win_set_cursor(state.transcript_win, { line_count, 0 })
+		end
+	end)
+end
+
+local function start_tool_fold()
+	state.active_tool_fold = {
+		start_line = transcript_line_count(),
+	}
+end
+
+local function finish_tool_fold()
+	if not state.active_tool_fold then
+		return
+	end
+
+	local tool_fold = state.active_tool_fold
+	state.active_tool_fold = nil
+	create_tool_fold(tool_fold.start_line, transcript_line_count())
+end
+
+local function line_in_tool_fold(line)
+	for _, tool_fold in ipairs(state.tool_folds) do
+		local header_line = math.max(1, tool_fold.start_line - 1)
+		if line >= header_line and line <= tool_fold.end_line then
+			return tool_fold
+		end
+	end
+	return nil
+end
+
+local function toggle_tool_fold()
+	local cursor = vim.api.nvim_win_get_cursor(0)
+	local tool_fold = line_in_tool_fold(cursor[1])
+	if not tool_fold then
+		return false
+	end
+	vim.api.nvim_win_set_cursor(0, { tool_fold.start_line, 0 })
+	vim.cmd("normal! za")
+	vim.api.nvim_win_set_cursor(0, cursor)
+	return true
 end
 
 local function stop_placeholder_timer()
@@ -339,6 +428,38 @@ local function start_assistant_placeholder()
 	end))
 end
 
+local function assistant_placeholder_active()
+	return state.placeholder_start_line ~= nil and state.placeholder_line ~= nil
+end
+
+local function render_error_message(title, message)
+	clear_assistant_placeholder()
+	state.error_rendered_for_active_run = true
+	append_message_header(title)
+	append_lines({ message })
+end
+
+local function event_error_text(event)
+	if type(event) ~= "table" then
+		return nil
+	end
+
+	for _, key in ipairs({ "error", "message", "reason" }) do
+		if type(event[key]) == "string" and event[key] ~= "" then
+			return event[key]
+		end
+	end
+
+	return nil
+end
+
+local function recent_stderr_text()
+	if #state.last_stderr_lines == 0 then
+		return nil
+	end
+	return table.concat(state.last_stderr_lines, "\n")
+end
+
 local function encode_json(obj)
 	if vim.json and vim.json.encode then
 		return vim.json.encode(obj)
@@ -356,8 +477,7 @@ local function decode_json(line)
 	if ok then
 		return decoded
 	end
-	append_message_header("Pi Error")
-	append_lines({ "Bad JSON from pi: " .. line })
+	render_error_message("Pi Error", "Bad JSON from pi: " .. line)
 	return nil
 end
 
@@ -368,6 +488,10 @@ end
 
 local function send(cmd, callback)
 	M.start()
+	if not state.job or state.job <= 0 then
+		render_error_message("Pi Error", "Could not start pi. Is `pi` on PATH?")
+		return
+	end
 
 	if callback then
 		cmd.id = cmd.id or next_request_id()
@@ -375,7 +499,13 @@ local function send(cmd, callback)
 	end
 
 	local line = encode_json(cmd) .. "\n"
-	vim.fn.chansend(state.job, line)
+	local sent = vim.fn.chansend(state.job, line)
+	if sent == 0 then
+		if cmd.id then
+			state.callbacks[cmd.id] = nil
+		end
+		render_error_message("Pi Error", "Could not send request to pi; the RPC channel is closed.")
+	end
 end
 
 local function get_input()
@@ -460,6 +590,14 @@ local function render_message(message)
 	local role = message.role or message.type or "message"
 	local text = extract_text(message)
 	if not text or text == "" then
+		return
+	end
+	if role == "toolResult" then
+		local name = message.toolName or "tool"
+		append_lines({ "", "### Tool: " .. name, "" })
+		start_tool_fold()
+		append_text(text)
+		finish_tool_fold()
 		return
 	end
 	append_message_header(role:gsub("^%l", string.upper))
@@ -598,9 +736,7 @@ local function handle_response(event)
 	end
 
 	if event.success == false then
-		clear_assistant_placeholder()
-		append_message_header("Pi Error")
-		append_lines({ event.error or event.message or vim.inspect(event) })
+		render_error_message("Pi Error", event_error_text(event) or vim.inspect(event))
 	end
 end
 
@@ -628,15 +764,15 @@ local function handle_message_update(event)
 	elseif update.type == "toolcall_start" then
 		clear_assistant_placeholder()
 		append_lines({ "### Tool Call", "" })
+		start_tool_fold()
 	elseif update.type == "toolcall_delta" then
 		append_text(update.delta or "")
 	elseif update.type == "toolcall_end" then
+		finish_tool_fold()
 		local tool = update.toolCall or {}
 		append_status("Tool call ended: " .. (tool.name or tool.type or "tool"))
 	elseif update.type == "error" then
-		clear_assistant_placeholder()
-		append_message_header("Agent Error")
-		append_lines({ update.reason or "unknown" })
+		render_error_message("Agent Error", event_error_text(update) or "unknown")
 	end
 end
 
@@ -646,11 +782,25 @@ local function handle_event(event)
 	elseif event.type == "agent_start" then
 		state.is_streaming = true
 		state.current_message_started = false
+		state.error_rendered_for_active_run = false
 		notify("Pi is working")
 	elseif event.type == "agent_end" then
 		state.is_streaming = false
 		state.current_message_started = false
-		clear_assistant_placeholder()
+		local message = event_error_text(event)
+		if message and not state.error_rendered_for_active_run then
+			render_error_message("Agent Error", message)
+		elseif assistant_placeholder_active() and state.abort_requested then
+			clear_assistant_placeholder()
+		elseif assistant_placeholder_active() and not state.error_rendered_for_active_run then
+			render_error_message(
+				"Agent Error",
+				recent_stderr_text() or "Agent stopped before returning a message. No error details were provided."
+			)
+		else
+			clear_assistant_placeholder()
+		end
+		state.abort_requested = false
 		notify("Pi finished")
 	elseif event.type == "message_update" then
 		handle_message_update(event)
@@ -667,10 +817,13 @@ local function handle_event(event)
 		render_message(event.message)
 	elseif event.type == "tool_execution_start" then
 		clear_assistant_placeholder()
-		append_lines({ "### Tool: " .. (event.name or event.toolName or "started"), "" })
+		local name = event.name or event.toolName or "started"
+		append_lines({ "### Tool: " .. name, "" })
+		start_tool_fold()
 	elseif event.type == "tool_execution_update" then
 		append_text(event.output or event.delta or event.text or "")
 	elseif event.type == "tool_execution_end" then
+		finish_tool_fold()
 		append_status("Tool ended")
 	elseif event.type == "queue_update" then
 		local count = event.pendingMessageCount or event.count
@@ -746,6 +899,21 @@ local function set_buffer_lines(buf, lines, modifiable)
 	set_modifiable(buf, true)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 	set_modifiable(buf, modifiable)
+end
+
+local function apply_window_padding(win)
+	vim.api.nvim_set_option_value("winbar", " ", { win = win })
+	vim.api.nvim_set_option_value("statusline", "%#PiPaneBorder#%{repeat('─',winwidth(0))}%*", { win = win })
+	vim.api.nvim_set_option_value("signcolumn", "yes:1", { win = win })
+	vim.api.nvim_set_option_value("scrolloff", 1, { win = win })
+	vim.api.nvim_set_option_value("sidescrolloff", 2, { win = win })
+end
+
+local function apply_transcript_window_options(win)
+	apply_window_padding(win)
+	vim.api.nvim_set_option_value("foldmethod", "manual", { win = win })
+	vim.api.nvim_set_option_value("foldenable", true, { win = win })
+	vim.api.nvim_set_option_value("foldlevel", 0, { win = win })
 end
 
 local function map_input(mode, lhs, rhs, desc)
@@ -824,6 +992,11 @@ local function setup_keymaps()
 	map_transcript("<leader>R", function()
 		M.rename_session()
 	end, "Rename session")
+	map_transcript("<CR>", function()
+		if not toggle_tool_fold() then
+			vim.cmd("normal! za")
+		end
+	end, "Toggle fold")
 end
 
 function M.setup(opts)
@@ -842,9 +1015,11 @@ function M.open()
 
 	vim.api.nvim_win_set_buf(0, state.transcript_buf)
 	state.transcript_win = vim.api.nvim_get_current_win()
+	apply_transcript_window_options(state.transcript_win)
 	vim.cmd("botright 12split")
 	vim.api.nvim_win_set_buf(0, state.input_buf)
 	state.input_win = vim.api.nvim_get_current_win()
+	apply_window_padding(state.input_win)
 
 	refresh_transcript_ui()
 
@@ -856,6 +1031,8 @@ function M.start()
 	if state.job and state.job > 0 then
 		return
 	end
+	state.last_stderr_lines = {}
+	state.error_rendered_for_active_run = false
 
 	state.job = vim.fn.jobstart(argv(), {
 		stdin = "pipe",
@@ -870,6 +1047,12 @@ function M.start()
 		on_stderr = function(_, data, _)
 			vim.schedule(function()
 				for _, line in ipairs(data or {}) do
+					if line ~= "" then
+						table.insert(state.last_stderr_lines, line)
+						if #state.last_stderr_lines > 20 then
+							table.remove(state.last_stderr_lines, 1)
+						end
+					end
 					if M.config.show_stderr and line ~= "" then
 						append_status("pi stderr: " .. line)
 					end
@@ -878,9 +1061,17 @@ function M.start()
 		end,
 		on_exit = function(_, code, _)
 			vim.schedule(function()
-				append_status("pi exited with code " .. tostring(code))
+				if assistant_placeholder_active() and not state.error_rendered_for_active_run then
+					render_error_message(
+						"Pi Error",
+						recent_stderr_text() or ("pi exited with code " .. tostring(code) .. " before returning a message")
+					)
+				else
+					append_status("pi exited with code " .. tostring(code))
+				end
 				state.job = nil
 				state.is_streaming = false
+				state.abort_requested = false
 			end)
 		end,
 	})
@@ -903,6 +1094,8 @@ function M.submit_prompt()
 	if text == "" then
 		return
 	end
+	state.abort_requested = false
+	state.error_rendered_for_active_run = false
 	clear_input()
 	state.pending_user_message = text
 	append_message_header("You")
@@ -918,6 +1111,7 @@ function M.submit_prompt()
 end
 
 function M.abort()
+	state.abort_requested = true
 	send({ type = "abort" })
 end
 
@@ -943,6 +1137,7 @@ function M.new_session()
 			set_modifiable(state.transcript_buf, true)
 			vim.api.nvim_buf_set_lines(state.transcript_buf, 0, -1, false, {})
 			set_modifiable(state.transcript_buf, false)
+			delete_tool_folds()
 			state.session_name = nil
 			state.message_count = 0
 			refresh_transcript_ui()
@@ -966,6 +1161,7 @@ function M.refresh_messages()
 		set_modifiable(state.transcript_buf, true)
 		vim.api.nvim_buf_set_lines(state.transcript_buf, 0, -1, false, {})
 		set_modifiable(state.transcript_buf, false)
+		delete_tool_folds()
 		refresh_transcript_ui()
 
 		for _, message in ipairs(event.data.messages or {}) do
@@ -1032,7 +1228,7 @@ function M.show_help()
 		"## Keys",
 		"",
 		"- `<C-CR>` submit the input buffer.",
-		"- `<Tab>` cycle access mode: readonly -> ask -> review -> write.",
+		"- `<Tab>` cycle access mode: readonly -> write.",
 		"- `<leader>p` pick access mode.",
 		"- `<leader>m` pick model.",
 		"- `<leader>t` pick thinking level.",
@@ -1041,14 +1237,13 @@ function M.show_help()
 		"- `<leader>n` new session.",
 		"- `<leader>r` refresh transcript.",
 		"- `<leader>R` rename session.",
+		"- `<CR>` toggle the current tool output fold.",
 		"- `<C-c>` abort PI.",
 		"- `q` or `<Esc>` close this help.",
 		"",
 		"## Access Modes",
 		"",
-		"- `readonly`: allow only read, grep, find, and ls.",
-		"- `ask`: ask before bash, edit, write, or custom tools.",
-		"- `review`: preview edit/write diffs before approval.",
+		"- `readonly`: allow listed read-only bash commands; ask before other bash, edit, or write tools.",
 		"- `write`: allow available tools.",
 		"",
 		"## Streaming",

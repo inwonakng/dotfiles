@@ -4,10 +4,30 @@ import assert from "assert";
 import { existsSync, readFileSync } from "fs";
 import { dirname, resolve } from "path";
 
-type AccessMode = "readonly" | "ask" | "review" | "write";
+type AccessMode = "readonly" | "write";
+type PermissionDecision = "allow" | "ask";
 
-const ACCESS_MODES: AccessMode[] = ["readonly", "ask", "review", "write"];
-const READONLY_TOOLS = new Set(["read", "grep", "find", "ls"]);
+const ACCESS_MODES: AccessMode[] = ["readonly", "write"];
+const WRITE_TOOLS = new Set(["edit", "write"]);
+// this is for things we allow during readonly mode
+const READONLY_BASH_ALLOWLIST = [
+	"pwd",
+	"uv *",
+	"ls",
+	"ls *",
+	"rg *",
+	"grep *",
+	"cat *",
+	"sed *",
+	"head *",
+	"tail *",
+	"git status",
+	"git status *",
+	"git diff",
+	"git diff *",
+	"git ls-files",
+	"git ls-files *",
+];
 
 let accessMode: AccessMode = "readonly";
 
@@ -18,15 +38,44 @@ function parseAccessMode(input: string): AccessMode | undefined {
 
 function modeDescription(): string {
 	if (accessMode === "readonly") {
-		return "Only read, grep, find, and ls may run. bash, edit, write, and custom tools are blocked.";
-	}
-	if (accessMode === "ask") {
-		return "read, grep, find, and ls may run. Any other tool requires user approval.";
-	}
-	if (accessMode === "review") {
-		return "read, grep, find, and ls may run. edit and write require diff approval; bash and custom tools require user approval.";
+		return "Read-only work is allowed. Bash commands matching the readonly allowlist, web search, and custom tools may run. Other bash commands plus file edit and write tools require user approval.";
 	}
 	return "All available tools may run without an access-mode prompt.";
+}
+
+function normalizeCommand(command: string): string {
+	return command.trim().replace(/\s+/g, " ");
+}
+
+function escapeRegExp(value: string): string {
+	return value.replace(/[\\^$+?.()|[\]{}]/g, "\\$&");
+}
+
+function globToRegExp(pattern: string): RegExp {
+	const parts = pattern.split("*").map(escapeRegExp);
+	return new RegExp(`^${parts.join(".*")}$`);
+}
+
+function commandHasShellComposition(command: string): boolean {
+	return /[;&|<>`]/.test(command) || command.includes("$(");
+}
+
+function bashPermission(input: Record<string, unknown>): PermissionDecision {
+	if (typeof input.command !== "string") {
+		return "ask";
+	}
+
+	const command = normalizeCommand(input.command);
+	if (command === "" || commandHasShellComposition(command)) {
+		return "ask";
+	}
+
+	for (const pattern of READONLY_BASH_ALLOWLIST) {
+		if (globToRegExp(pattern).test(command)) {
+			return "allow";
+		}
+	}
+	return "ask";
 }
 
 function setStatus(ctx: ExtensionContext): void {
@@ -154,19 +203,17 @@ export default function accessModeExtension(pi: ExtensionAPI) {
 	pi.on("tool_call", async (event, ctx) => {
 		setStatus(ctx);
 
-		if (READONLY_TOOLS.has(event.toolName)) {
-			return undefined;
-		}
-
 		if (accessMode === "write") {
 			return undefined;
 		}
 
-		if (accessMode === "readonly") {
-			return {
-				block: true,
-				reason: `Tool "${event.toolName}" blocked in readonly mode.`,
-			};
+		const input = event.input as Record<string, unknown>;
+		if (event.toolName === "bash") {
+			if (bashPermission(input) === "allow") {
+				return undefined;
+			}
+		} else if (!WRITE_TOOLS.has(event.toolName)) {
+			return undefined;
 		}
 
 		if (!ctx.hasUI) {
@@ -188,11 +235,11 @@ export default function accessModeExtension(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("pi-mode", {
-		description: "Set access mode: /pi-mode readonly|ask|review|write",
+		description: "Set access mode: /pi-mode readonly|write",
 		handler: async (args, ctx) => {
 			const requestedMode = parseAccessMode(args);
 			if (!requestedMode) {
-				ctx.ui.notify("Usage: /pi-mode readonly|ask|review|write", "warning");
+				ctx.ui.notify("Usage: /pi-mode readonly|write", "warning");
 				setStatus(ctx);
 				return;
 			}

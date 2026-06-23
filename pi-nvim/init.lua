@@ -12,10 +12,15 @@ vim.opt.termguicolors = true
 vim.opt.splitbelow = true
 vim.opt.splitright = true
 vim.opt.hidden = true
+vim.schedule(function()
+	vim.opt.clipboard = "unnamedplus"
+end)
 
 local uv = vim.uv or vim.loop
 local config_root = uv.fs_realpath(vim.fn.stdpath("config")) or vim.fn.stdpath("config")
 local dotfiles_root = vim.fn.fnamemodify(config_root, ":h")
+local ui_bg = "#080808"
+local pane_border = "#2a2a2a"
 
 vim.pack.add({
 	{ src = "https://github.com/catppuccin/nvim", name = "catppuccin" },
@@ -27,14 +32,23 @@ require("catppuccin").setup({
 	flavour = "frappe",
 	color_overrides = {
 		frappe = {
-			base = "#000000",
-			mantle = "#000000",
-			crust = "#000000",
+			base = ui_bg,
+			mantle = ui_bg,
+			crust = ui_bg,
 		},
 	},
 	custom_highlights = function(colors)
 		return {
-			Normal = { bg = "#000000" },
+			Normal = { bg = ui_bg },
+			NormalNC = { bg = ui_bg },
+			SignColumn = { bg = ui_bg },
+			EndOfBuffer = { bg = ui_bg },
+			PiPaneBorder = { fg = pane_border, bg = ui_bg },
+			StatusLine = { fg = pane_border, bg = ui_bg },
+			StatusLineNC = { fg = pane_border, bg = ui_bg },
+			WinBar = { bg = ui_bg },
+			WinBarNC = { bg = ui_bg },
+			WinSeparator = { fg = pane_border, bg = ui_bg },
 			DiffAdd = { fg = colors.green, bg = "#102418" },
 			DiffChange = { fg = colors.yellow, bg = "#24210f" },
 			DiffDelete = { fg = colors.red, bg = "#2a1014" },
@@ -122,6 +136,7 @@ require("pi-integration").setup({
 	show_thinking = false,
 })
 require("config.keymaps")
+require("config.commands")
 
 -- startup commands
 vim.api.nvim_create_autocmd("VimEnter", {
