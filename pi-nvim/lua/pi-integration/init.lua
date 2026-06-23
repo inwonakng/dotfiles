@@ -1335,6 +1335,39 @@ local function dirname(path)
 	return vim.fn.fnamemodify(path, ":h")
 end
 
+local function decode_session_record(line)
+	local ok, decoded
+	if vim.json and vim.json.decode then
+		ok, decoded = pcall(vim.json.decode, line)
+	else
+		ok, decoded = pcall(vim.fn.json_decode, line)
+	end
+	if ok and type(decoded) == "table" then
+		return decoded
+	end
+	return nil
+end
+
+local function read_session_candidate(path)
+	local candidate = {
+		path = path,
+		mtime = vim.fn.getftime(path),
+		title = nil,
+		cwd = nil,
+	}
+
+	for _, line in ipairs(vim.fn.readfile(path)) do
+		local record = decode_session_record(line)
+		if record and record.type == "session" and type(record.cwd) == "string" and record.cwd ~= "" then
+			candidate.cwd = record.cwd
+		elseif record and record.type == "session_info" and type(record.name) == "string" and vim.trim(record.name) ~= "" then
+			candidate.title = vim.trim(record.name)
+		end
+	end
+
+	return candidate
+end
+
 local function session_candidates()
 	local dirs = {}
 	local seen_dirs = {}
@@ -1343,8 +1376,12 @@ local function session_candidates()
 			return
 		end
 		path = vim.fn.expand(path)
-		if vim.fn.isdirectory(path) == 1 and not seen_dirs[path] then
-			seen_dirs[path] = true
+		local resolved = vim.fn.resolve(path)
+		if resolved == "" then
+			resolved = path
+		end
+		if vim.fn.isdirectory(path) == 1 and not seen_dirs[resolved] then
+			seen_dirs[resolved] = true
 			table.insert(dirs, path)
 		end
 	end
@@ -1358,47 +1395,53 @@ local function session_candidates()
 		add_dir(dir)
 	end
 
-	local files = {}
+	local candidates = {}
 	local seen_files = {}
 	for _, dir in ipairs(dirs) do
 		for _, path in ipairs(vim.fn.globpath(dir, "**/*.jsonl", false, true)) do
-			if not seen_files[path] then
-				seen_files[path] = true
-				table.insert(files, path)
+			local resolved = vim.fn.resolve(path)
+			if resolved == "" then
+				resolved = path
+			end
+			if not seen_files[resolved] then
+				seen_files[resolved] = true
+				table.insert(candidates, read_session_candidate(path))
 			end
 		end
 	end
 
-	table.sort(files, function(a, b)
-		return vim.fn.getftime(a) > vim.fn.getftime(b)
+	table.sort(candidates, function(a, b)
+		return a.mtime > b.mtime
 	end)
-	return files
+	return candidates
 end
 
-local function session_label(path)
-	local name = vim.fn.fnamemodify(path, ":t")
-	local parent = vim.fn.fnamemodify(vim.fn.fnamemodify(path, ":h"), ":t")
-	local time = os.date("%Y-%m-%d %H:%M", vim.fn.getftime(path))
-	return string.format("%s/%s  %s", parent, name, time)
+local function session_item_label(candidate)
+	local title = candidate.title or vim.fn.fnamemodify(candidate.path, ":t")
+	local time = os.date("%Y-%m-%d %H:%M", candidate.mtime)
+	if candidate.cwd and candidate.cwd ~= "" then
+		return string.format("%s  pwd: %s  %s", title, vim.fn.fnamemodify(candidate.cwd, ":~"), time)
+	end
+	return string.format("%s  %s", title, time)
 end
 
 function M.pick_session()
-	local files = session_candidates()
-	if #files == 0 then
+	local candidates = session_candidates()
+	if #candidates == 0 then
 		notify("No session files found. Set PI_SESSION_DIR if your Pi sessions live elsewhere.", vim.log.levels.WARN)
 		return
 	end
 
-	vim.ui.select(files, {
+	vim.ui.select(candidates, {
 		prompt = "Pi session",
-		format_item = session_label,
+		format_item = session_item_label,
 	}, function(choice)
 		if not choice then
 			return
 		end
-		send({ type = "switch_session", sessionPath = choice }, function(event)
+		send({ type = "switch_session", sessionPath = choice.path }, function(event)
 			if event.success and not (event.data and event.data.cancelled) then
-				state.session_file = choice
+				state.session_file = choice.path
 				send({ type = "get_state" }, function(state_event)
 					if state_event.success and state_event.data then
 						apply_session_state(state_event.data)
