@@ -26,6 +26,7 @@ vim.pack.add({
 	{ src = "https://github.com/catppuccin/nvim", name = "catppuccin" },
 	"https://github.com/ibhagwan/fzf-lua",
 	"https://github.com/MeanderingProgrammer/render-markdown.nvim",
+	"https://github.com/folke/which-key.nvim",
 })
 
 require("catppuccin").setup({
@@ -57,6 +58,21 @@ require("catppuccin").setup({
 	end,
 })
 vim.cmd.colorscheme("catppuccin")
+
+local ok_which_key, which_key = pcall(require, "which-key")
+if ok_which_key then
+	which_key.setup({})
+	which_key.add({
+		{ "<leader><tab>", group = "tabs" },
+		{ "<leader>b", group = "buffers" },
+		{ "<leader>i", group = "insert" },
+		{ "<leader>u", group = "ui" },
+		{ "<leader>w", group = "windows" },
+		{ "<leader>y", group = "yank" },
+	})
+else
+	vim.notify("which-key unavailable", vim.log.levels.WARN)
+end
 
 local fzf_opts = {
 	default = {

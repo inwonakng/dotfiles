@@ -125,19 +125,23 @@ local function metadata_end()
 	return nil
 end
 
+local preserve_focused_transcript_view
+
 local function update_metadata()
 	if not valid_buf(state.transcript_buf) then
 		return
 	end
-	set_modifiable(state.transcript_buf, true)
-	local end_line = metadata_end()
-	local lines = metadata_lines()
-	if end_line then
-		vim.api.nvim_buf_set_lines(state.transcript_buf, 0, end_line, false, lines)
-	else
-		vim.api.nvim_buf_set_lines(state.transcript_buf, 0, 0, false, lines)
-	end
-	set_modifiable(state.transcript_buf, false)
+	preserve_focused_transcript_view(function()
+		set_modifiable(state.transcript_buf, true)
+		local end_line = metadata_end()
+		local lines = metadata_lines()
+		if end_line then
+			vim.api.nvim_buf_set_lines(state.transcript_buf, 0, end_line, false, lines)
+		else
+			vim.api.nvim_buf_set_lines(state.transcript_buf, 0, 0, false, lines)
+		end
+		set_modifiable(state.transcript_buf, false)
+	end)
 end
 
 local function has_transcript_body()
@@ -209,8 +213,42 @@ local function transcript_line_count()
 	return vim.api.nvim_buf_line_count(state.transcript_buf)
 end
 
+local function transcript_win_valid()
+	return state.transcript_win and vim.api.nvim_win_is_valid(state.transcript_win)
+end
+
+local function transcript_is_focused()
+	return transcript_win_valid() and vim.api.nvim_get_current_win() == state.transcript_win
+end
+
+local function scroll_transcript_to_bottom_unless_focused()
+	if transcript_win_valid() and not transcript_is_focused() then
+		vim.api.nvim_win_set_cursor(state.transcript_win, { vim.api.nvim_buf_line_count(state.transcript_buf), 0 })
+	end
+end
+
+preserve_focused_transcript_view = function(callback)
+	if not transcript_is_focused() then
+		callback()
+		return
+	end
+
+	local cursor = vim.api.nvim_win_get_cursor(state.transcript_win)
+	local view = vim.fn.winsaveview()
+	callback()
+
+	if not transcript_win_valid() or not valid_buf(state.transcript_buf) then
+		return
+	end
+	local line_count = vim.api.nvim_buf_line_count(state.transcript_buf)
+	cursor[1] = math.min(cursor[1], line_count)
+	vim.api.nvim_win_set_cursor(state.transcript_win, cursor)
+	view.lnum = cursor[1]
+	vim.fn.winrestview(view)
+end
+
 local function with_transcript_win(callback)
-	if not (state.transcript_win and vim.api.nvim_win_is_valid(state.transcript_win)) then
+	if not transcript_win_valid() then
 		return
 	end
 	vim.api.nvim_win_call(state.transcript_win, callback)
@@ -231,21 +269,21 @@ local function append_lines(lines)
 	if type(lines) == "string" then
 		lines = vim.split(lines, "\n", { plain = true })
 	end
-	set_modifiable(state.transcript_buf, true)
-	local line_count = vim.api.nvim_buf_line_count(state.transcript_buf)
-	local last_line = vim.api.nvim_buf_get_lines(state.transcript_buf, line_count - 1, line_count, false)[1]
-	if lines[1] == "" and last_line == "" then
-		table.remove(lines, 1)
-	end
-	if line_count == 1 and vim.api.nvim_buf_get_lines(state.transcript_buf, 0, 1, false)[1] == "" then
-		vim.api.nvim_buf_set_lines(state.transcript_buf, 0, 1, false, lines)
-	else
-		vim.api.nvim_buf_set_lines(state.transcript_buf, line_count, line_count, false, lines)
-	end
-	set_modifiable(state.transcript_buf, false)
-	if state.transcript_win and vim.api.nvim_win_is_valid(state.transcript_win) then
-		vim.api.nvim_win_set_cursor(state.transcript_win, { vim.api.nvim_buf_line_count(state.transcript_buf), 0 })
-	end
+	preserve_focused_transcript_view(function()
+		set_modifiable(state.transcript_buf, true)
+		local line_count = vim.api.nvim_buf_line_count(state.transcript_buf)
+		local last_line = vim.api.nvim_buf_get_lines(state.transcript_buf, line_count - 1, line_count, false)[1]
+		if lines[1] == "" and last_line == "" then
+			table.remove(lines, 1)
+		end
+		if line_count == 1 and vim.api.nvim_buf_get_lines(state.transcript_buf, 0, 1, false)[1] == "" then
+			vim.api.nvim_buf_set_lines(state.transcript_buf, 0, 1, false, lines)
+		else
+			vim.api.nvim_buf_set_lines(state.transcript_buf, line_count, line_count, false, lines)
+		end
+		set_modifiable(state.transcript_buf, false)
+	end)
+	scroll_transcript_to_bottom_unless_focused()
 	schedule_transcript_refresh()
 end
 
@@ -255,24 +293,24 @@ local function append_text(text)
 	end
 
 	local parts = vim.split(text, "\n", { plain = true })
-	set_modifiable(state.transcript_buf, true)
+	preserve_focused_transcript_view(function()
+		set_modifiable(state.transcript_buf, true)
 
-	local last = vim.api.nvim_buf_line_count(state.transcript_buf)
-	local current = vim.api.nvim_buf_get_lines(state.transcript_buf, last - 1, last, false)[1] or ""
-	vim.api.nvim_buf_set_lines(state.transcript_buf, last - 1, last, false, { current .. parts[1] })
+		local last = vim.api.nvim_buf_line_count(state.transcript_buf)
+		local current = vim.api.nvim_buf_get_lines(state.transcript_buf, last - 1, last, false)[1] or ""
+		vim.api.nvim_buf_set_lines(state.transcript_buf, last - 1, last, false, { current .. parts[1] })
 
-	if #parts > 1 then
-		local rest = {}
-		for i = 2, #parts do
-			table.insert(rest, parts[i])
+		if #parts > 1 then
+			local rest = {}
+			for i = 2, #parts do
+				table.insert(rest, parts[i])
+			end
+			vim.api.nvim_buf_set_lines(state.transcript_buf, last, last, false, rest)
 		end
-		vim.api.nvim_buf_set_lines(state.transcript_buf, last, last, false, rest)
-	end
 
-	set_modifiable(state.transcript_buf, false)
-	if state.transcript_win and vim.api.nvim_win_is_valid(state.transcript_win) then
-		vim.api.nvim_win_set_cursor(state.transcript_win, { vim.api.nvim_buf_line_count(state.transcript_buf), 0 })
-	end
+		set_modifiable(state.transcript_buf, false)
+	end)
+	scroll_transcript_to_bottom_unless_focused()
 	schedule_transcript_refresh()
 end
 
@@ -366,9 +404,11 @@ local function set_placeholder_line(text)
 	if state.placeholder_line < 1 or state.placeholder_line > line_count then
 		return
 	end
-	set_modifiable(state.transcript_buf, true)
-	vim.api.nvim_buf_set_lines(state.transcript_buf, state.placeholder_line - 1, state.placeholder_line, false, { text })
-	set_modifiable(state.transcript_buf, false)
+	preserve_focused_transcript_view(function()
+		set_modifiable(state.transcript_buf, true)
+		vim.api.nvim_buf_set_lines(state.transcript_buf, state.placeholder_line - 1, state.placeholder_line, false, { text })
+		set_modifiable(state.transcript_buf, false)
+	end)
 	schedule_transcript_refresh()
 end
 
@@ -387,9 +427,11 @@ local function clear_assistant_placeholder()
 		state.placeholder_line = nil
 		return
 	end
-	set_modifiable(state.transcript_buf, true)
-	vim.api.nvim_buf_set_lines(state.transcript_buf, start_line, end_line, false, {})
-	set_modifiable(state.transcript_buf, false)
+	preserve_focused_transcript_view(function()
+		set_modifiable(state.transcript_buf, true)
+		vim.api.nvim_buf_set_lines(state.transcript_buf, start_line, end_line, false, {})
+		set_modifiable(state.transcript_buf, false)
+	end)
 	state.placeholder_start_line = nil
 	state.placeholder_line = nil
 	schedule_transcript_refresh()
@@ -763,14 +805,17 @@ local function handle_message_update(event)
 		append_lines({ "</details>" })
 	elseif update.type == "toolcall_start" then
 		clear_assistant_placeholder()
-		append_lines({ "### Tool Call", "" })
-		start_tool_fold()
+		append_status("Preparing tool call…")
 	elseif update.type == "toolcall_delta" then
-		append_text(update.delta or "")
+		-- Tool-call deltas are usually raw JSON arguments. For multiline edits this
+		-- can be thousands of characters streamed token-by-token before the useful
+		-- approval preview/diff appears, making the UI feel much slower than Codex.
+		-- Ignore the raw argument stream and let tool_execution_* plus approval
+		-- previews render the meaningful result.
+		return
 	elseif update.type == "toolcall_end" then
-		finish_tool_fold()
 		local tool = update.toolCall or {}
-		append_status("Tool call ended: " .. (tool.name or tool.type or "tool"))
+		append_status("Tool call ready: " .. (tool.name or tool.type or "tool"))
 	elseif update.type == "error" then
 		render_error_message("Agent Error", event_error_text(update) or "unknown")
 	end
@@ -924,6 +969,49 @@ local function map_transcript(lhs, rhs, desc)
 	vim.keymap.set("n", lhs, rhs, { buffer = state.transcript_buf, desc = desc })
 end
 
+local function register_pi_which_key()
+	local ok, which_key = pcall(require, "which-key")
+	if not ok then
+		return
+	end
+
+	local shared = {
+		{ "<leader>?", desc = "Pi help" },
+		{ "<leader>h", desc = "History" },
+		{ "<leader>m", desc = "Pick model" },
+		{ "<leader>n", desc = "New session" },
+		{ "<leader>p", desc = "Pick access mode" },
+		{ "<leader>r", desc = "Refresh transcript" },
+		{ "<leader>R", desc = "Rename session" },
+		{ "<leader>s", desc = "Pick session" },
+		{ "<leader>t", desc = "Pick thinking level" },
+		{ "<Tab>", desc = "Cycle access mode" },
+	}
+
+	if valid_buf(state.input_buf) then
+		local input_specs = vim.deepcopy(shared)
+		vim.list_extend(input_specs, {
+			{ "<C-CR>", desc = "Submit prompt", mode = { "n", "i" } },
+		})
+		for _, spec in ipairs(input_specs) do
+			spec.buffer = state.input_buf
+		end
+		which_key.add(input_specs)
+	end
+
+	if valid_buf(state.transcript_buf) then
+		local transcript_specs = vim.deepcopy(shared)
+		vim.list_extend(transcript_specs, {
+			{ "<CR>", desc = "Toggle fold" },
+			{ "<Esc><Esc>", desc = "Abort Pi" },
+		})
+		for _, spec in ipairs(transcript_specs) do
+			spec.buffer = state.transcript_buf
+		end
+		which_key.add(transcript_specs)
+	end
+end
+
 local function setup_keymaps()
 	map_input({ "n", "i" }, "<C-CR>", function()
 		M.submit_prompt()
@@ -997,6 +1085,8 @@ local function setup_keymaps()
 			vim.cmd("normal! za")
 		end
 	end, "Toggle fold")
+
+	register_pi_which_key()
 end
 
 function M.setup(opts)
