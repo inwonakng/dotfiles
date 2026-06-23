@@ -50,7 +50,7 @@ function parseAccessMode(input: string): AccessMode | undefined {
 
 function modeDescription(): string {
   if (accessMode === "readonly") {
-    return "Read-only work is allowed. Bash commands matching the readonly allowlist, web search, and custom tools may run. Other bash commands plus file edit and write tools require user approval.";
+    return "Read-only work is allowed. Bash commands matching the readonly allowlist, safe find commands, web search, and custom tools may run. Other bash commands plus file edit and write tools require user approval.";
   }
   return "All available tools may run without an access-mode prompt.";
 }
@@ -68,17 +68,85 @@ function globToRegExp(pattern: string): RegExp {
   return new RegExp(`^${parts.join(".*")}$`);
 }
 
+function shellWords(command: string): string[] | undefined {
+  const words: string[] = [];
+  let current = "";
+  let quote: "'" | '"' | undefined;
+  let inWord = false;
+
+  for (let index = 0; index < command.length; index++) {
+    const char = command[index];
+    if (quote) {
+      if (char === quote) {
+        quote = undefined;
+      } else if (quote === '"' && char === "\\") {
+        index++;
+        if (index < command.length) {
+          current += command[index];
+        }
+      } else {
+        current += char;
+      }
+      inWord = true;
+      continue;
+    }
+
+    if (char === "'" || char === '"') {
+      quote = char;
+      inWord = true;
+      continue;
+    }
+    if (/\s/.test(char)) {
+      if (inWord) {
+        words.push(current);
+        current = "";
+        inWord = false;
+      }
+      continue;
+    }
+    if (char === "\\") {
+      index++;
+      if (index >= command.length) {
+        return undefined;
+      }
+      current += command[index];
+      inWord = true;
+      continue;
+    }
+    current += char;
+    inWord = true;
+  }
+
+  if (quote) {
+    return undefined;
+  }
+  if (inWord) {
+    words.push(current);
+  }
+  return words;
+}
+
+function stripSafeReadonlyRedirections(command: string): string | undefined {
+  // Sending stderr to /dev/null is common for read-only probes (find/grep/etc.)
+  // and does not mutate project files. Keep all other redirection ask-gated.
+  const stripped = command.replace(/(^|\s)2>\s*\/dev\/null(?=\s|$)/g, " ");
+  if (/[<>]/.test(stripped)) {
+    return undefined;
+  }
+  return stripped;
+}
+
 function commandHasUnsafeShellSyntax(command: string): boolean {
-  // Redirection, command substitution, background jobs, and arbitrary command
-  // separators can write files or hide side effects, so keep asking for those.
-  if (/[;<>`]/.test(command) || command.includes("$(")) {
+  // Command substitution and background jobs can hide side effects, so keep
+  // asking for those. Shell separators are handled structurally below.
+  if (/[`]/.test(command) || command.includes("$(")) {
     return true;
   }
   // Allow &&, but not a bare & background operator.
   return /(^|[^&])&($|[^&])/.test(command);
 }
 
-function splitShellOperator(command: string, operator: "&&" | "||" | "|"): string[] {
+function splitShellOperator(command: string, operator: "&&" | "||" | "|" | ";"): string[] {
   const parts: string[] = [];
   let start = 0;
   let quote: "'" | '"' | undefined;
@@ -108,8 +176,33 @@ function splitShellOperator(command: string, operator: "&&" | "||" | "|"): strin
   return parts;
 }
 
+function findReadonlyCommandAllowed(command: string): boolean {
+  const words = shellWords(command);
+  if (!words || words[0] !== "find") {
+    return false;
+  }
+
+  // GNU/BSD find is read-only by default, but these actions can mutate files or
+  // run arbitrary commands, and f*print/f*ls variants can write output files.
+  const unsafeFindPrimaries = new Set([
+    "-delete",
+    "-exec",
+    "-execdir",
+    "-ok",
+    "-okdir",
+    "-fprint",
+    "-fprint0",
+    "-fprintf",
+    "-fls",
+  ]);
+  return !words.some((word) => unsafeFindPrimaries.has(word));
+}
+
 function simpleReadonlyCommandAllowed(command: string): boolean {
   if (command === "cd" || command.startsWith("cd ")) {
+    return true;
+  }
+  if (findReadonlyCommandAllowed(command)) {
     return true;
   }
   for (const pattern of READONLY_BASH_ALLOWLIST) {
@@ -124,8 +217,19 @@ function readonlyCommandAllowed(command: string): boolean {
   if (command === "") {
     return false;
   }
+  const strippedCommand = stripSafeReadonlyRedirections(command);
+  if (strippedCommand === undefined) {
+    return false;
+  }
+  command = strippedCommand.trim();
+
   if (commandHasUnsafeShellSyntax(command)) {
     return false;
+  }
+
+  const sequenceParts = splitShellOperator(command, ";");
+  if (sequenceParts.length > 1) {
+    return sequenceParts.every(readonlyCommandAllowed);
   }
 
   const orParts = splitShellOperator(command, "||");

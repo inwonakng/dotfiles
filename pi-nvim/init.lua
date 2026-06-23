@@ -26,6 +26,7 @@ vim.pack.add({
 	{ src = "https://github.com/catppuccin/nvim", name = "catppuccin" },
 	"https://github.com/ibhagwan/fzf-lua",
 	"https://github.com/MeanderingProgrammer/render-markdown.nvim",
+	"https://github.com/nvim-treesitter/nvim-treesitter",
 	"https://github.com/folke/which-key.nvim",
 })
 
@@ -45,6 +46,7 @@ require("catppuccin").setup({
 			SignColumn = { bg = ui_bg },
 			EndOfBuffer = { bg = ui_bg },
 			PiPaneBorder = { fg = pane_border, bg = ui_bg },
+			PiUsageStats = { fg = colors.subtext1, bg = ui_bg },
 			StatusLine = { fg = pane_border, bg = ui_bg },
 			StatusLineNC = { fg = pane_border, bg = ui_bg },
 			WinBar = { bg = ui_bg },
@@ -95,6 +97,22 @@ local fzf_winopts = {
 	},
 }
 
+local ok_treesitter, treesitter = pcall(require, "nvim-treesitter.config")
+if ok_treesitter then
+	treesitter.setup({
+		ensure_installed = {
+			"markdown",
+			"markdown_inline",
+			"yaml",
+		},
+		highlight = {
+			enable = true,
+		},
+	})
+else
+	vim.notify("nvim-treesitter unavailable; markdown injections may be missing", vim.log.levels.WARN)
+end
+
 local ok, fzf = pcall(require, "fzf-lua")
 if ok then
 	fzf.register_ui_select(function(select_opts)
@@ -105,6 +123,7 @@ if ok then
 				layout = "vertical",
 				vertical = "up:78%",
 				border = "none",
+				wrap = true,
 			}
 		else
 			winopts.height = 0.4

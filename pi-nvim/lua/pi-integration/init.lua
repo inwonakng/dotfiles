@@ -32,6 +32,8 @@ local state = {
 	last_stderr_lines = {},
 	active_tool_fold = nil,
 	tool_folds = {},
+	pending_tool_separator = false,
+	session_stats = nil,
 }
 
 M.config = {
@@ -126,6 +128,8 @@ local function metadata_end()
 end
 
 local preserve_focused_transcript_view
+local update_transcript_bottom_padding
+local update_transcript_statusline
 
 local function update_metadata()
 	if not valid_buf(state.transcript_buf) then
@@ -181,6 +185,8 @@ end
 local function refresh_transcript_ui()
 	state.last_updated = os.date("%Y-%m-%d %H:%M:%S %z")
 	update_metadata()
+	update_transcript_bottom_padding()
+	update_transcript_statusline()
 	render_transcript()
 end
 
@@ -206,6 +212,8 @@ local function schedule_transcript_refresh()
 	end, 30)
 end
 
+local transcript_padding_ns = vim.api.nvim_create_namespace("pi-nvim-transcript-padding")
+
 local function transcript_line_count()
 	if not valid_buf(state.transcript_buf) then
 		return 0
@@ -213,8 +221,92 @@ local function transcript_line_count()
 	return vim.api.nvim_buf_line_count(state.transcript_buf)
 end
 
+update_transcript_bottom_padding = function()
+	if not valid_buf(state.transcript_buf) then
+		return
+	end
+
+	vim.api.nvim_buf_clear_namespace(state.transcript_buf, transcript_padding_ns, 0, -1)
+	local line_count = vim.api.nvim_buf_line_count(state.transcript_buf)
+	if line_count < 1 then
+		return
+	end
+
+	vim.api.nvim_buf_set_extmark(state.transcript_buf, transcript_padding_ns, line_count - 1, 0, {
+		virt_lines = { { { " ", "Normal" } } },
+		virt_lines_above = false,
+		virt_lines_leftcol = true,
+		priority = 1,
+	})
+end
+
 local function transcript_win_valid()
 	return state.transcript_win and vim.api.nvim_win_is_valid(state.transcript_win)
+end
+
+local function non_null(value)
+	return value ~= nil and value ~= vim.NIL
+end
+
+local function format_count(value)
+	value = tonumber(value) or 0
+	if value >= 1000000 then
+		return string.format("%.1fM", value / 1000000)
+	elseif value >= 1000 then
+		return string.format("%.1fk", value / 1000)
+	end
+	return tostring(value)
+end
+
+local function format_session_stats()
+	local stats = state.session_stats
+	if not stats then
+		return "tokens: --"
+	end
+
+	local tokens = stats.tokens or {}
+	local parts = {
+		"↑" .. format_count(tokens.input),
+		"↓" .. format_count(tokens.output),
+	}
+
+	local cache_read = tonumber(tokens.cacheRead) or 0
+	local cache_write = tonumber(tokens.cacheWrite) or 0
+	if cache_read > 0 or cache_write > 0 then
+		table.insert(parts, "R" .. format_count(cache_read))
+		table.insert(parts, "W" .. format_count(cache_write))
+	end
+
+	local context = stats.contextUsage
+	if context then
+		local context_tokens = non_null(context.tokens) and format_count(context.tokens) or "?"
+		local context_window = non_null(context.contextWindow) and format_count(context.contextWindow) or "?"
+		if non_null(context.percent) then
+			table.insert(parts, string.format("ctx %d%%/%s", math.floor(context.percent + 0.5), context_window))
+		else
+			table.insert(parts, "ctx " .. context_tokens .. "/" .. context_window)
+		end
+	end
+
+	if non_null(stats.cost) then
+		table.insert(parts, string.format("$%.3f", stats.cost))
+	end
+
+	return table.concat(parts, " · ")
+end
+
+_G._pi_nvim_transcript_statusline = function()
+	local label = " " .. format_session_stats() .. " "
+	local width = vim.api.nvim_win_get_width(0)
+	local fill_width = math.max(0, width - vim.fn.strdisplaywidth(label))
+	return "%#PiPaneBorder#" .. string.rep("─", fill_width) .. "%#PiUsageStats#" .. label .. "%*"
+end
+
+update_transcript_statusline = function()
+	if not transcript_win_valid() then
+		return
+	end
+	vim.api.nvim_set_option_value("statusline", "%!v:lua._pi_nvim_transcript_statusline()", { win = state.transcript_win })
 end
 
 local function transcript_is_focused()
@@ -266,6 +358,7 @@ local function append_lines(lines)
 	if not valid_buf(state.transcript_buf) then
 		return
 	end
+	state.pending_tool_separator = false
 	if type(lines) == "string" then
 		lines = vim.split(lines, "\n", { plain = true })
 	end
@@ -283,6 +376,7 @@ local function append_lines(lines)
 		end
 		set_modifiable(state.transcript_buf, false)
 	end)
+	update_transcript_bottom_padding()
 	scroll_transcript_to_bottom_unless_focused()
 	schedule_transcript_refresh()
 end
@@ -298,7 +392,13 @@ local function append_text(text)
 
 		local last = vim.api.nvim_buf_line_count(state.transcript_buf)
 		local current = vim.api.nvim_buf_get_lines(state.transcript_buf, last - 1, last, false)[1] or ""
-		vim.api.nvim_buf_set_lines(state.transcript_buf, last - 1, last, false, { current .. parts[1] })
+		if state.pending_tool_separator and current == "" then
+			vim.api.nvim_buf_set_lines(state.transcript_buf, last, last, false, { parts[1] })
+			last = last + 1
+		else
+			vim.api.nvim_buf_set_lines(state.transcript_buf, last - 1, last, false, { current .. parts[1] })
+		end
+		state.pending_tool_separator = false
 
 		if #parts > 1 then
 			local rest = {}
@@ -310,6 +410,7 @@ local function append_text(text)
 
 		set_modifiable(state.transcript_buf, false)
 	end)
+	update_transcript_bottom_padding()
 	scroll_transcript_to_bottom_unless_focused()
 	schedule_transcript_refresh()
 end
@@ -326,34 +427,68 @@ local function append_status(text)
 	append_lines({ "> " .. text })
 end
 
-local function create_tool_fold(start_line, end_line)
+local function create_tool_fold(start_line, end_line, header_line)
 	if end_line <= start_line then
 		return
 	end
 
+	-- If the tool body starts with blank separator lines, don't include those in
+	-- the closed fold. Otherwise a closed fold can look like an empty line under
+	-- the tool header even though output exists.
+	local fold_start = start_line
+	local lines = vim.api.nvim_buf_get_lines(state.transcript_buf, start_line - 1, end_line, false)
+	for index, line in ipairs(lines) do
+		if line ~= "" then
+			fold_start = start_line + index - 1
+			break
+		end
+	end
+
 	table.insert(state.tool_folds, {
-		start_line = start_line,
+		header_line = header_line or math.max(1, fold_start - 1),
+		start_line = fold_start,
 		end_line = end_line,
 	})
 
 	with_transcript_win(function()
 		local cursor = vim.api.nvim_win_get_cursor(state.transcript_win)
-		vim.cmd(string.format("%d,%dfold", start_line, end_line))
-		vim.api.nvim_win_set_cursor(state.transcript_win, { start_line, 0 })
+		local view = vim.fn.winsaveview()
+		local cursor_at_or_after_fold = cursor[1] >= fold_start
+		vim.cmd(string.format("%d,%dfold", fold_start, end_line))
+		vim.api.nvim_win_set_cursor(state.transcript_win, { fold_start, 0 })
 		vim.cmd("normal! zc")
 		local line_count = transcript_line_count()
-		if cursor[1] <= line_count then
-			vim.api.nvim_win_set_cursor(state.transcript_win, cursor)
+		if cursor_at_or_after_fold then
+			vim.api.nvim_win_set_cursor(state.transcript_win, { math.min(end_line + 1, line_count), 0 })
+			vim.cmd("normal! zb")
 		else
-			vim.api.nvim_win_set_cursor(state.transcript_win, { line_count, 0 })
+			vim.api.nvim_win_set_cursor(state.transcript_win, { math.min(cursor[1], line_count), cursor[2] })
+			vim.fn.winrestview(view)
 		end
 	end)
 end
 
 local function start_tool_fold()
+	local line_count = transcript_line_count()
 	state.active_tool_fold = {
-		start_line = transcript_line_count(),
+		header_line = math.max(1, line_count - 1),
+		start_line = line_count,
 	}
+end
+
+local function append_tool_fold_separator()
+	-- append_lines() intentionally coalesces leading blank lines with an existing
+	-- trailing blank. Here we specifically need one line outside the fold, even
+	-- when the tool output itself ended with a blank line inside the folded range.
+	preserve_focused_transcript_view(function()
+		set_modifiable(state.transcript_buf, true)
+		local line_count = vim.api.nvim_buf_line_count(state.transcript_buf)
+		vim.api.nvim_buf_set_lines(state.transcript_buf, line_count, line_count, false, { "" })
+		set_modifiable(state.transcript_buf, false)
+	end)
+	state.pending_tool_separator = true
+	update_transcript_bottom_padding()
+	schedule_transcript_refresh()
 end
 
 local function finish_tool_fold()
@@ -363,12 +498,14 @@ local function finish_tool_fold()
 
 	local tool_fold = state.active_tool_fold
 	state.active_tool_fold = nil
-	create_tool_fold(tool_fold.start_line, transcript_line_count())
+	local end_line = transcript_line_count()
+	append_tool_fold_separator()
+	create_tool_fold(tool_fold.start_line, end_line, tool_fold.header_line)
 end
 
 local function line_in_tool_fold(line)
 	for _, tool_fold in ipairs(state.tool_folds) do
-		local header_line = math.max(1, tool_fold.start_line - 1)
+		local header_line = tool_fold.header_line or math.max(1, tool_fold.start_line - 1)
 		if line >= header_line and line <= tool_fold.end_line then
 			return tool_fold
 		end
@@ -409,6 +546,7 @@ local function set_placeholder_line(text)
 		vim.api.nvim_buf_set_lines(state.transcript_buf, state.placeholder_line - 1, state.placeholder_line, false, { text })
 		set_modifiable(state.transcript_buf, false)
 	end)
+	update_transcript_bottom_padding()
 	schedule_transcript_refresh()
 end
 
@@ -434,6 +572,31 @@ local function clear_assistant_placeholder()
 	end)
 	state.placeholder_start_line = nil
 	state.placeholder_line = nil
+	update_transcript_bottom_padding()
+	schedule_transcript_refresh()
+end
+
+local function clear_assistant_placeholder_spinner()
+	stop_placeholder_timer()
+	if not valid_buf(state.transcript_buf) or not state.placeholder_line then
+		state.placeholder_start_line = nil
+		state.placeholder_line = nil
+		return
+	end
+	local line_count = vim.api.nvim_buf_line_count(state.transcript_buf)
+	if state.placeholder_line < 1 or state.placeholder_line > line_count then
+		state.placeholder_start_line = nil
+		state.placeholder_line = nil
+		return
+	end
+	preserve_focused_transcript_view(function()
+		set_modifiable(state.transcript_buf, true)
+		vim.api.nvim_buf_set_lines(state.transcript_buf, state.placeholder_line - 1, state.placeholder_line, false, {})
+		set_modifiable(state.transcript_buf, false)
+	end)
+	state.placeholder_start_line = nil
+	state.placeholder_line = nil
+	update_transcript_bottom_padding()
 	schedule_transcript_refresh()
 end
 
@@ -548,6 +711,15 @@ local function send(cmd, callback)
 		end
 		render_error_message("Pi Error", "Could not send request to pi; the RPC channel is closed.")
 	end
+end
+
+function M.refresh_session_stats()
+	send({ type = "get_session_stats" }, function(event)
+		if event.success and event.data then
+			state.session_stats = event.data
+			update_transcript_statusline()
+		end
+	end)
 end
 
 local function get_input()
@@ -786,9 +958,11 @@ local function handle_message_update(event)
 	local update = event.assistantMessageEvent or {}
 
 	if update.type == "text_start" then
-		clear_assistant_placeholder()
+		if not state.current_message_started then
+			clear_assistant_placeholder()
+			append_message_header("Assistant")
+		end
 		state.current_message_started = true
-		append_message_header("Assistant")
 	elseif update.type == "text_delta" then
 		if not state.current_message_started then
 			clear_assistant_placeholder()
@@ -804,7 +978,8 @@ local function handle_message_update(event)
 	elseif update.type == "thinking_end" and M.config.show_thinking then
 		append_lines({ "</details>" })
 	elseif update.type == "toolcall_start" then
-		clear_assistant_placeholder()
+		clear_assistant_placeholder_spinner()
+		state.current_message_started = true
 		append_status("Preparing tool call…")
 	elseif update.type == "toolcall_delta" then
 		-- Tool-call deltas are usually raw JSON arguments. For multiline edits this
@@ -846,10 +1021,11 @@ local function handle_event(event)
 			clear_assistant_placeholder()
 		end
 		state.abort_requested = false
+		M.refresh_session_stats()
 		notify("Pi finished")
 	elseif event.type == "message_update" then
 		handle_message_update(event)
-	elseif event.type == "message_end" and not state.current_message_started then
+	elseif event.type == "message_end" then
 		if
 			event.message
 			and event.message.role == "user"
@@ -859,17 +1035,20 @@ local function handle_event(event)
 			state.pending_user_message = nil
 			return
 		end
-		render_message(event.message)
+		if event.message and (event.message.role == "toolResult" or not state.current_message_started) then
+			render_message(event.message)
+		end
 	elseif event.type == "tool_execution_start" then
-		clear_assistant_placeholder()
-		local name = event.name or event.toolName or "started"
-		append_lines({ "### Tool: " .. name, "" })
-		start_tool_fold()
+		clear_assistant_placeholder_spinner()
+		state.current_message_started = true
+		-- Tool output is rendered from the final toolResult message. Rendering the
+		-- tool_execution_* stream as well creates an empty/duplicate tool block for
+		-- tools that only publish their output at completion.
+		return
 	elseif event.type == "tool_execution_update" then
-		append_text(event.output or event.delta or event.text or "")
+		return
 	elseif event.type == "tool_execution_end" then
-		finish_tool_fold()
-		append_status("Tool ended")
+		return
 	elseif event.type == "queue_update" then
 		local count = event.pendingMessageCount or event.count
 		if count then
@@ -938,6 +1117,15 @@ local function create_buffer(name, filetype, modifiable)
 	vim.api.nvim_set_option_value("filetype", filetype, { buf = buf })
 	vim.api.nvim_set_option_value("modifiable", modifiable, { buf = buf })
 	return buf
+end
+
+local function start_markdown_treesitter(buf)
+	if not valid_buf(buf) then
+		return
+	end
+	-- pi:// buffers are synthetic nofile buffers, so do not rely on the
+	-- normal file read/filetype path to attach Tree-sitter and its injections.
+	pcall(vim.treesitter.start, buf, "markdown")
 end
 
 local function set_buffer_lines(buf, lines, modifiable)
@@ -1102,6 +1290,8 @@ function M.open()
 
 	state.transcript_buf = create_buffer("pi://transcript", "markdown", false)
 	state.input_buf = create_buffer("pi://input", "markdown", true)
+	start_markdown_treesitter(state.transcript_buf)
+	start_markdown_treesitter(state.input_buf)
 
 	vim.api.nvim_win_set_buf(0, state.transcript_buf)
 	state.transcript_win = vim.api.nvim_get_current_win()
@@ -1175,6 +1365,7 @@ function M.start()
 	send({ type = "get_state" }, function(event)
 		if event.success and event.data then
 			apply_session_state(event.data)
+			M.refresh_session_stats()
 		end
 	end)
 end
@@ -1230,11 +1421,13 @@ function M.new_session()
 			delete_tool_folds()
 			state.session_name = nil
 			state.message_count = 0
+			state.session_stats = nil
 			refresh_transcript_ui()
 			append_status("New session.")
 			send({ type = "get_state" }, function(state_event)
 				if state_event.success and state_event.data then
 					apply_session_state(state_event.data)
+					M.refresh_session_stats()
 				end
 			end)
 		end
@@ -1257,6 +1450,7 @@ function M.refresh_messages()
 		for _, message in ipairs(event.data.messages or {}) do
 			render_message(message)
 		end
+		M.refresh_session_stats()
 	end)
 end
 
@@ -1535,6 +1729,7 @@ function M.pick_session()
 				send({ type = "get_state" }, function(state_event)
 					if state_event.success and state_event.data then
 						apply_session_state(state_event.data)
+						M.refresh_session_stats()
 					end
 				end)
 				M.refresh_messages()
