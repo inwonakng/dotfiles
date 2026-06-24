@@ -121,12 +121,12 @@ local fzf_opts = {
 }
 local fzf_keymap = {
 	builtin = {
-		["<C-d>"] = "preview-page-down",
-		["<C-u>"] = "preview-page-up",
+		["<C-d>"] = "preview-half-page-down",
+		["<C-u>"] = "preview-half-page-up",
 	},
 	fzf = {
-		["ctrl-d"] = "preview-page-down",
-		["ctrl-u"] = "preview-page-up",
+		["ctrl-d"] = "preview-half-page-down",
+		["ctrl-u"] = "preview-half-page-up",
 	},
 }
 
