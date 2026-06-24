@@ -444,14 +444,12 @@ export default function historyExtension(pi: ExtensionAPI) {
 				if (!reverted) {
 					return;
 				}
-				const text = messageText(entry);
-				await ctx.fork(entry.id, {
-					position: "before",
-					withSession: async (newCtx) => {
-						newCtx.ui.setEditorText(text);
-						markHistoryChanged(newCtx);
-					},
-				});
+				const result = await ctx.navigateTree(entry.id);
+				if (result.cancelled) {
+					return;
+				}
+				ctx.ui.setEditorText(messageText(entry));
+				markHistoryChanged(ctx);
 			}
 		},
 	});
