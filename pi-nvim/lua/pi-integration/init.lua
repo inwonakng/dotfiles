@@ -1,5 +1,7 @@
 local M = {}
 
+local tree_preview_augroup = vim.api.nvim_create_augroup("PiNvimTreePreview", { clear = true })
+
 local INITIAL_SESSION_NOTICE = "No Pi session started yet. Send a message or pick a session."
 
 local state = {
@@ -16,8 +18,11 @@ local state = {
 	help_win = nil,
 	tree_buf = nil,
 	tree_win = nil,
+	tree_preview_buf = nil,
+	tree_preview_win = nil,
 	tree_nodes_by_line = {},
 	tree_leaf_id = nil,
+	tree_filter_mode = "default",
 	is_streaming = false,
 	access_mode = "readonly",
 	pending_access_mode = nil,
@@ -63,7 +68,13 @@ M.config = {
 		message = true,
 		branch_summary = true,
 		compaction = true,
+		bashExecution = true,
+		custom_message = true,
+		model_change = true,
+		thinking_level_change = true,
+		label = true,
 	},
+	tree_filter_modes = { "default", "no-tools", "user-only", "all" },
 }
 
 local function notify(msg, level)
@@ -1834,11 +1845,26 @@ end
 
 local function tree_record_text(record)
 	if record.type == "message" and record.message then
+		if record.message.role == "bashExecution" then
+			return record.message.command or record.message.output or "bash execution"
+		end
 		return extract_text(record.message) or ""
 	elseif record.type == "branch_summary" then
 		return record.summary or "branch summary"
 	elseif record.type == "compaction" then
 		return record.summary or "compaction summary"
+	elseif record.type == "bashExecution" then
+		return record.command or record.output or "bash execution"
+	elseif record.type == "custom_message" then
+		return extract_text(record) or record.content or "custom message"
+	elseif record.type == "model_change" then
+		return table.concat(vim.tbl_filter(function(part)
+			return part and part ~= ""
+		end, { record.provider, record.modelId }), "/")
+	elseif record.type == "thinking_level_change" then
+		return record.thinkingLevel or "thinking level changed"
+	elseif record.type == "label" then
+		return record.label or "label cleared"
 	end
 	return ""
 end
@@ -1846,13 +1872,84 @@ end
 local function tree_record_title(record)
 	if record.type == "message" and record.message then
 		local role = record.message.role or "message"
+		if role == "bashExecution" then
+			return "Bash"
+		elseif role == "toolResult" then
+			return "Tool"
+		end
 		return role:gsub("^%l", string.upper)
 	elseif record.type == "branch_summary" then
 		return "Branch summary"
 	elseif record.type == "compaction" then
 		return "Compaction"
+	elseif record.type == "bashExecution" then
+		return "Bash"
+	elseif record.type == "custom_message" then
+		return "Custom"
+	elseif record.type == "model_change" then
+		return "Model"
+	elseif record.type == "thinking_level_change" then
+		return "Thinking"
+	elseif record.type == "label" then
+		return "Label"
 	end
 	return record.type or "entry"
+end
+
+local function tree_message_has_visible_text(message)
+	return vim.trim(extract_text(message) or "") ~= ""
+end
+
+local function tree_is_tool_record(record)
+	if record.type == "bashExecution" then
+		return true
+	end
+	if record.type ~= "message" or not record.message then
+		return false
+	end
+	local role = record.message.role
+	if role == "toolResult" or role == "bashExecution" then
+		return true
+	end
+	-- Assistant messages that only contain tool calls/thinking have no user-facing
+	-- text and clutter the navigation tree. Keep them available in "all" mode.
+	if role == "assistant" and not tree_message_has_visible_text(record.message) then
+		return true
+	end
+	return false
+end
+
+local function tree_record_visible(record, mode)
+	mode = mode or state.tree_filter_mode or "default"
+	if not M.config.tree_entry_types[record.type] then
+		return false
+	end
+	if mode == "all" then
+		return true
+	end
+	if mode == "user-only" then
+		return record.type == "message" and record.message and record.message.role == "user"
+	end
+	if mode == "no-tools" or mode == "default" then
+		if not vim.tbl_contains({ "message", "branch_summary", "compaction", "custom_message" }, record.type) then
+			return false
+		end
+		return not tree_is_tool_record(record)
+	end
+	return not tree_is_tool_record(record)
+end
+
+local function cycle_tree_filter_mode()
+	local modes = M.config.tree_filter_modes or { "default", "no-tools", "user-only", "all" }
+	local current = state.tree_filter_mode or modes[1]
+	for index, mode in ipairs(modes) do
+		if mode == current then
+			state.tree_filter_mode = modes[(index % #modes) + 1]
+			return state.tree_filter_mode
+		end
+	end
+	state.tree_filter_mode = modes[1]
+	return state.tree_filter_mode
 end
 
 local function compact_tree_text(text)
@@ -1906,11 +2003,9 @@ local function read_session_tree(path)
 		if record and record.id then
 			by_id[record.id] = record
 			last_id = record.id
-			if M.config.tree_entry_types[record.type] then
-				if record.type ~= "message" or (record.message and record.message.role ~= "toolResult") then
-					table.insert(records, record)
-					visible_by_id[record.id] = true
-				end
+			if tree_record_visible(record, state.tree_filter_mode) then
+				table.insert(records, record)
+				visible_by_id[record.id] = true
 			end
 		end
 	end
@@ -1974,12 +2069,64 @@ local function close_tree_window()
 	if state.tree_win and vim.api.nvim_win_is_valid(state.tree_win) then
 		vim.api.nvim_win_close(state.tree_win, true)
 	end
+	if state.tree_preview_win and vim.api.nvim_win_is_valid(state.tree_preview_win) then
+		vim.api.nvim_win_close(state.tree_preview_win, true)
+	end
 	state.tree_win = nil
+	state.tree_preview_win = nil
 end
 
 local function tree_current_node()
 	local cursor = vim.api.nvim_win_get_cursor(0)
 	return state.tree_nodes_by_line[cursor[1]]
+end
+
+local function tree_preview_lines(node)
+	if not node or not node.record then
+		return { "No tree entry selected." }
+	end
+	local record = node.record
+	local lines = {
+		string.format("%s  %s", tree_record_title(record), record.id or ""),
+	}
+	if record.parentId then
+		table.insert(lines, "parent: " .. record.parentId)
+	end
+	if record.timestamp then
+		table.insert(lines, "time: " .. tostring(record.timestamp))
+	end
+	if record.type then
+		table.insert(lines, "type: " .. tostring(record.type))
+	end
+	if record.type == "message" and record.message and record.message.role then
+		table.insert(lines, "role: " .. tostring(record.message.role))
+	end
+	if record.type == "message" and record.message and record.message.toolName then
+		table.insert(lines, "tool: " .. tostring(record.message.toolName))
+	end
+	if record.type == "model_change" then
+		table.insert(lines, "model: " .. tree_record_text(record))
+	elseif record.type == "thinking_level_change" then
+		table.insert(lines, "thinking: " .. tree_record_text(record))
+	end
+	table.insert(lines, "")
+
+	local text = tree_record_text(record)
+	if text == "" and record.type == "message" and record.message then
+		text = vim.inspect(record.message.content or record.message)
+	end
+	if text == "" then
+		text = vim.inspect(record)
+	end
+	vim.list_extend(lines, vim.split(tostring(text), "\n", { plain = true }))
+	return lines
+end
+
+local function update_tree_preview()
+	if not valid_buf(state.tree_preview_buf) then
+		return
+	end
+	set_buffer_lines(state.tree_preview_buf, tree_preview_lines(tree_current_node()), false)
 end
 
 local function jump_to_tree_node(summarize)
@@ -2023,11 +2170,14 @@ function M.show_tree()
 	if not valid_buf(state.tree_buf) then
 		state.tree_buf = create_buffer("pi://tree", "text", false)
 	end
+	if not valid_buf(state.tree_preview_buf) then
+		state.tree_preview_buf = create_buffer("pi://tree-preview", "markdown", false)
+	end
 
 	local lines = {
 		"Pi session tree",
-		"",
-		"<CR> jump   S jump with summary   r refresh   q close",
+		"Filter: " .. (state.tree_filter_mode or "default"),
+		"<CR> jump   S jump with summary   o cycle filter   r refresh   q close",
 		"",
 	}
 	state.tree_nodes_by_line = {}
@@ -2035,15 +2185,17 @@ function M.show_tree()
 	set_buffer_lines(state.tree_buf, lines, false)
 
 	local width = math.min(math.max(72, math.floor(vim.o.columns * 0.72)), vim.o.columns - 4)
-	local height = math.min(math.max(18, math.floor(vim.o.lines * 0.72)), vim.o.lines - 4)
-	local row = math.max(1, math.floor((vim.o.lines - height) / 2))
+	local outer_height = math.min(math.max(22, math.floor(vim.o.lines * 0.78)), vim.o.lines - 4)
+	local top_height = math.max(8, math.floor((outer_height - 4) * 0.6))
+	local preview_height = math.max(6, outer_height - top_height - 4)
+	local row = math.max(1, math.floor((vim.o.lines - outer_height) / 2))
 	local col = math.max(0, math.floor((vim.o.columns - width) / 2))
 
 	close_tree_window()
 	state.tree_win = vim.api.nvim_open_win(state.tree_buf, true, {
 		relative = "editor",
 		width = width,
-		height = height,
+		height = top_height,
 		row = row,
 		col = col,
 		style = "minimal",
@@ -2051,8 +2203,22 @@ function M.show_tree()
 		title = " Pi Tree ",
 		title_pos = "center",
 	})
+	state.tree_preview_win = vim.api.nvim_open_win(state.tree_preview_buf, false, {
+		relative = "editor",
+		width = width,
+		height = preview_height,
+		row = row + top_height + 2,
+		col = col,
+		style = "minimal",
+		border = "rounded",
+		title = " Preview ",
+		title_pos = "center",
+	})
 	vim.api.nvim_set_option_value("wrap", false, { win = state.tree_win })
 	vim.api.nvim_set_option_value("cursorline", true, { win = state.tree_win })
+	vim.api.nvim_set_option_value("wrap", true, { win = state.tree_preview_win })
+	vim.api.nvim_set_option_value("cursorline", false, { win = state.tree_preview_win })
+	update_tree_preview()
 
 	vim.keymap.set("n", "q", close_tree_window, { buffer = state.tree_buf, desc = "Close Pi tree" })
 	vim.keymap.set("n", "<Esc>", close_tree_window, { buffer = state.tree_buf, desc = "Close Pi tree" })
@@ -2062,9 +2228,19 @@ function M.show_tree()
 	vim.keymap.set("n", "S", function()
 		jump_to_tree_node(true)
 	end, { buffer = state.tree_buf, desc = "Jump to tree entry with summary" })
+	vim.keymap.set("n", "o", function()
+		cycle_tree_filter_mode()
+		M.show_tree()
+	end, { buffer = state.tree_buf, desc = "Cycle Pi tree filter" })
 	vim.keymap.set("n", "r", function()
 		M.show_tree()
 	end, { buffer = state.tree_buf, desc = "Refresh Pi tree" })
+	vim.api.nvim_clear_autocmds({ group = tree_preview_augroup, buffer = state.tree_buf })
+	vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+		group = tree_preview_augroup,
+		buffer = state.tree_buf,
+		callback = update_tree_preview,
+	})
 end
 
 function M.set_access_mode(mode)
