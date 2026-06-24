@@ -165,19 +165,19 @@ require("render-markdown").setup({
 		sign = false,
 		custom = {
 			pi_user_you = {
-				pattern = "You$",
+				pattern = "You%s*$",
 				icon = "󰭹 ",
 				background = "PiUserHeader",
 				foreground = "PiUserHeader",
 			},
 			pi_user_user = {
-				pattern = "User$",
+				pattern = "User%s*$",
 				icon = "󰭹 ",
 				background = "PiUserHeader",
 				foreground = "PiUserHeader",
 			},
 			pi_assistant = {
-				pattern = "Assistant$",
+				pattern = "Assistant%s*$",
 				icon = "󰚩 ",
 				background = "PiAssistantHeader",
 				foreground = "PiAssistantHeader",
