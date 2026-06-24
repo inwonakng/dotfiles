@@ -429,7 +429,7 @@ export default function historyExtension(pi: ExtensionAPI) {
 			if (!entry) {
 				return;
 			}
-			const action = await ctx.ui.select("History action", ["Fork", "Revert"]);
+			const action = await ctx.ui.select("History action", ["Revert", "Fork"]);
 			if (action === "Fork") {
 				const text = messageText(entry);
 				await ctx.fork(entry.id, {
