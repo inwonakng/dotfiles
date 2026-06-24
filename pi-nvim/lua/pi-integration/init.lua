@@ -1,5 +1,7 @@
 local M = {}
 
+local INITIAL_SESSION_NOTICE = "No Pi session started yet. Send a message or pick a session."
+
 local state = {
 	job = nil,
 	stdout_pending = "",
@@ -12,6 +14,10 @@ local state = {
 	input_win = nil,
 	help_buf = nil,
 	help_win = nil,
+	tree_buf = nil,
+	tree_win = nil,
+	tree_nodes_by_line = {},
+	tree_leaf_id = nil,
 	is_streaming = false,
 	access_mode = "readonly",
 	pending_access_mode = nil,
@@ -36,6 +42,7 @@ local state = {
 	tool_folds = {},
 	pending_tool_separator = false,
 	session_stats = nil,
+	todo_status = nil,
 }
 
 M.config = {
@@ -50,6 +57,11 @@ M.config = {
 	session_dirs = {
 		"~/.pi/agent/sessions",
 		"~/.pi/sessions",
+	},
+	tree_entry_types = {
+		message = true,
+		branch_summary = true,
+		compaction = true,
 	},
 }
 
@@ -193,6 +205,9 @@ local function refresh_transcript_ui()
 end
 
 local function apply_session_state(data)
+	if data.sessionFile ~= state.session_file then
+		state.tree_leaf_id = nil
+	end
 	state.session_file = data.sessionFile
 	state.session_name = data.sessionName
 	state.message_count = data.messageCount or state.message_count
@@ -326,16 +341,33 @@ local function mode_statusline_highlight(mode)
 	return "%#PiModeUnknown#"
 end
 
+local function current_model_statusline_label()
+	local model = state.model_id or M.config.model
+	local provider = state.provider or M.config.provider
+	if type(model) ~= "string" or model == "" then
+		return "--"
+	end
+	if type(provider) == "string" and provider ~= "" and not model:find("/", 1, true) then
+		return provider .. "/" .. model
+	end
+	return model
+end
+
 _G._pi_nvim_transcript_statusline = function()
 	local mode = state.access_mode or "--"
 	local mode_prefix = " "
 	local mode_suffix = " "
 	local mode_label = mode_prefix .. mode .. mode_suffix
+	local todo_label = state.todo_status and ("· " .. state.todo_status .. " ") or ""
+	local model_label = "· " .. current_model_statusline_label() .. " "
 	local stats_label = " " .. format_session_stats() .. " "
 	local width = vim.api.nvim_win_get_width(0)
 	local mode_width = vim.fn.strdisplaywidth(mode_label)
+	local todo_width = vim.fn.strdisplaywidth(todo_label)
+	local model_width = vim.fn.strdisplaywidth(model_label)
+	local left_width = mode_width + todo_width + model_width
 	local stats_width = vim.fn.strdisplaywidth(stats_label)
-	local show_stats = width >= (mode_width + stats_width + 3)
+	local show_stats = width >= (left_width + stats_width + 3)
 	local mode_highlight = mode_statusline_highlight(mode)
 
 	if width <= mode_width then
@@ -356,9 +388,18 @@ _G._pi_nvim_transcript_statusline = function()
 		.. statusline_escape(mode)
 		.. "%#PiUsageStats#"
 		.. statusline_escape(mode_suffix)
+
+	if width <= left_width then
+		return left_label
+			.. "%#PiUsageStats#"
+			.. statusline_escape(truncate_plain_to_width(todo_label .. model_label, width - mode_width))
+			.. "%*"
+	end
+
+	left_label = left_label .. "%#PiUsageStats#" .. statusline_escape(todo_label) .. statusline_escape(model_label)
 	local right_label = show_stats and ("%#PiUsageStats#" .. statusline_escape(stats_label)) or ""
 	local right_width = show_stats and stats_width or 0
-	local fill_width = math.max(0, width - mode_width - right_width)
+	local fill_width = math.max(0, width - left_width - right_width)
 	return left_label .. "%#PiPaneBorder#" .. string.rep("─", fill_width) .. right_label .. "%*"
 end
 
@@ -485,6 +526,25 @@ end
 
 local function append_status(text)
 	append_lines({ "> " .. text })
+end
+
+local function remove_status(text)
+	if not valid_buf(state.transcript_buf) then
+		return
+	end
+	local target = "> " .. text
+	preserve_focused_transcript_view(function()
+		set_modifiable(state.transcript_buf, true)
+		local lines = vim.api.nvim_buf_get_lines(state.transcript_buf, 0, -1, false)
+		for index = #lines, 1, -1 do
+			if lines[index] == target then
+				vim.api.nvim_buf_set_lines(state.transcript_buf, index - 1, index, false, {})
+			end
+		end
+		set_modifiable(state.transcript_buf, false)
+	end)
+	update_transcript_bottom_padding()
+	schedule_transcript_refresh()
 end
 
 local function create_tool_fold(start_line, end_line, header_line)
@@ -964,6 +1024,11 @@ local function handle_extension_ui_request(event)
 		elseif event.statusKey == "pi-session-title" then
 			state.session_name = event.statusText
 			refresh_transcript_ui()
+		elseif event.statusKey == "pi-tree-leaf" then
+			state.tree_leaf_id = event.statusText
+		elseif event.statusKey == "pi-todos" then
+			state.todo_status = event.statusText
+			refresh_transcript_ui()
 		end
 	elseif event.method == "setTitle" and type(event.title) == "string" then
 		vim.opt.titlestring = event.title
@@ -1234,6 +1299,7 @@ local function register_pi_which_key()
 		{ "<leader>R", desc = "Rename session" },
 		{ "<leader>s", desc = "Pick session" },
 		{ "<leader>t", desc = "Pick thinking level" },
+		{ "<leader>T", desc = "Session tree" },
 		{ "<Tab>", desc = "Cycle access mode" },
 	}
 
@@ -1286,6 +1352,9 @@ local function setup_keymaps()
 	map_input("n", "<leader>h", function()
 		M.history()
 	end, "History")
+	map_input("n", "<leader>T", function()
+		M.show_tree()
+	end, "Session tree")
 	map_input("n", "<leader>n", function()
 		M.new_session()
 	end, "New session")
@@ -1320,6 +1389,9 @@ local function setup_keymaps()
 	map_transcript("<leader>h", function()
 		M.history()
 	end, "History")
+	map_transcript("<leader>T", function()
+		M.show_tree()
+	end, "Session tree")
 	map_transcript("<leader>n", function()
 		M.new_session()
 	end, "New session")
@@ -1363,7 +1435,7 @@ function M.open()
 	apply_window_padding(state.input_win)
 
 	refresh_transcript_ui()
-	append_status("No Pi session started yet. Send a message or pick a session.")
+	append_status(INITIAL_SESSION_NOTICE)
 
 	setup_keymaps()
 end
@@ -1453,6 +1525,7 @@ function M.submit_prompt()
 	state.abort_requested = false
 	state.error_rendered_for_active_run = false
 	clear_input()
+	remove_status(INITIAL_SESSION_NOTICE)
 	state.pending_user_message = text
 	append_message_header("You")
 	append_text(text)
@@ -1498,6 +1571,8 @@ function M.new_session()
 		state.session_name = nil
 		state.message_count = 0
 		state.session_stats = nil
+		state.todo_status = nil
+		state.tree_leaf_id = nil
 		refresh_transcript_ui()
 		append_status("New session will be created when you send a message.")
 		return
@@ -1512,6 +1587,8 @@ function M.new_session()
 			state.session_name = nil
 			state.message_count = 0
 			state.session_stats = nil
+			state.todo_status = nil
+			state.tree_leaf_id = nil
 			refresh_transcript_ui()
 			append_status("New session.")
 			send({ type = "get_state" }, function(state_event)
@@ -1566,16 +1643,93 @@ local function load_session_messages_from_file(path)
 	return #messages > 0 and messages or fallback_messages
 end
 
-local function render_messages(messages)
-	set_modifiable(state.transcript_buf, true)
-	vim.api.nvim_buf_set_lines(state.transcript_buf, 0, -1, false, {})
-	set_modifiable(state.transcript_buf, false)
-	delete_tool_folds()
-	refresh_transcript_ui()
+local function message_role_title(message)
+	local role = message.role or message.type or "message"
+	return role:gsub("^%l", string.upper)
+end
+
+local function add_message_separator(lines, has_body)
+	if has_body then
+		vim.list_extend(lines, { "", "---", "" })
+	else
+		table.insert(lines, "")
+	end
+end
+
+local function collect_message_lines(messages)
+	local lines = metadata_lines()
+	local folds = {}
+	local has_body = false
 
 	for _, message in ipairs(messages or {}) do
-		render_message(message)
+		local text = extract_text(message)
+		if text and text ~= "" then
+			local role = message.role or message.type
+			local text_lines = vim.split(text, "\n", { plain = true })
+			if role == "toolResult" then
+				add_message_separator(lines, has_body)
+				table.insert(lines, "### Tool: " .. (message.toolName or "tool"))
+				table.insert(lines, "")
+				local start_line = #lines + 1
+				vim.list_extend(lines, text_lines)
+				local end_line = #lines
+				table.insert(lines, "")
+				table.insert(folds, {
+					header_line = math.max(1, start_line - 2),
+					start_line = start_line,
+					end_line = end_line,
+				})
+			else
+				add_message_separator(lines, has_body)
+				table.insert(lines, "## " .. message_role_title(message))
+				table.insert(lines, "")
+				vim.list_extend(lines, text_lines)
+			end
+			has_body = true
+		end
 	end
+
+	return lines, folds
+end
+
+local function apply_collected_tool_folds(folds)
+	state.tool_folds = folds or {}
+	state.active_tool_fold = nil
+	with_transcript_win(function()
+		vim.cmd("normal! zE")
+		for _, tool_fold in ipairs(state.tool_folds) do
+			if tool_fold.end_line > tool_fold.start_line then
+				vim.cmd(string.format("%d,%dfold", tool_fold.start_line, tool_fold.end_line))
+				vim.api.nvim_win_set_cursor(state.transcript_win, { tool_fold.start_line, 0 })
+				vim.cmd("normal! zc")
+			end
+		end
+	end)
+end
+
+local function scroll_transcript_to_bottom()
+	if transcript_win_valid() and valid_buf(state.transcript_buf) then
+		vim.api.nvim_win_set_cursor(state.transcript_win, { vim.api.nvim_buf_line_count(state.transcript_buf), 0 })
+		with_transcript_win(function()
+			vim.cmd("normal! zb")
+		end)
+	end
+end
+
+local function render_messages(messages)
+	if not valid_buf(state.transcript_buf) then
+		return
+	end
+
+	state.last_updated = os.date("%Y-%m-%d %H:%M:%S %z")
+	local lines, folds = collect_message_lines(messages)
+	set_buffer_lines(state.transcript_buf, lines, false)
+	apply_collected_tool_folds(folds)
+	update_transcript_bottom_padding()
+	update_transcript_statusline()
+	render_transcript()
+	scroll_transcript_to_bottom()
+	vim.schedule(scroll_transcript_to_bottom)
 end
 
 function M.refresh_messages()
@@ -1598,6 +1752,254 @@ function M.refresh_messages()
 		render_messages(event.data.messages or {})
 		M.refresh_session_stats()
 	end)
+end
+
+local function tree_decode_record(line)
+	local ok, decoded
+	if vim.json and vim.json.decode then
+		ok, decoded = pcall(vim.json.decode, line)
+	else
+		ok, decoded = pcall(vim.fn.json_decode, line)
+	end
+	if ok and type(decoded) == "table" then
+		return decoded
+	end
+	return nil
+end
+
+local function tree_record_text(record)
+	if record.type == "message" and record.message then
+		return extract_text(record.message) or ""
+	elseif record.type == "branch_summary" then
+		return record.summary or "branch summary"
+	elseif record.type == "compaction" then
+		return record.summary or "compaction summary"
+	end
+	return ""
+end
+
+local function tree_record_title(record)
+	if record.type == "message" and record.message then
+		local role = record.message.role or "message"
+		return role:gsub("^%l", string.upper)
+	elseif record.type == "branch_summary" then
+		return "Branch summary"
+	elseif record.type == "compaction" then
+		return "Compaction"
+	end
+	return record.type or "entry"
+end
+
+local function compact_tree_text(text)
+	text = tostring(text or ""):gsub("%s+", " ")
+	text = vim.trim(text)
+	if text == "" then
+		return "(no text)"
+	end
+	if #text > 96 then
+		return text:sub(1, 93) .. "..."
+	end
+	return text
+end
+
+local function visible_tree_parent(record, visible_by_id, by_id)
+	local parent_id = record.parentId
+	local seen = {}
+	while parent_id and by_id[parent_id] and not seen[parent_id] do
+		if visible_by_id[parent_id] then
+			return parent_id
+		end
+		seen[parent_id] = true
+		parent_id = by_id[parent_id].parentId
+	end
+	return nil
+end
+
+local function nearest_visible_tree_id(id, visible_by_id, by_id)
+	local seen = {}
+	while id and by_id[id] and not seen[id] do
+		if visible_by_id[id] then
+			return id
+		end
+		seen[id] = true
+		id = by_id[id].parentId
+	end
+	return nil
+end
+
+local function read_session_tree(path)
+	local records = {}
+	local by_id = {}
+	local visible_by_id = {}
+	local last_id = nil
+	if not path or vim.fn.filereadable(path) ~= 1 then
+		return {}, nil
+	end
+
+	for _, line in ipairs(vim.fn.readfile(path)) do
+		local record = tree_decode_record(line)
+		if record and record.id then
+			by_id[record.id] = record
+			last_id = record.id
+			if M.config.tree_entry_types[record.type] then
+				if record.type ~= "message" or (record.message and record.message.role ~= "toolResult") then
+					table.insert(records, record)
+					visible_by_id[record.id] = true
+				end
+			end
+		end
+	end
+
+	local nodes_by_id = {}
+	local roots = {}
+	for _, record in ipairs(records) do
+		nodes_by_id[record.id] = {
+			record = record,
+			children = {},
+		}
+	end
+	for _, record in ipairs(records) do
+		local node = nodes_by_id[record.id]
+		local parent_id = visible_tree_parent(record, visible_by_id, by_id)
+		if parent_id and nodes_by_id[parent_id] then
+			table.insert(nodes_by_id[parent_id].children, node)
+		else
+			table.insert(roots, node)
+		end
+	end
+
+	local leaf_id = nearest_visible_tree_id(state.tree_leaf_id, visible_by_id, by_id)
+		or nearest_visible_tree_id(last_id, visible_by_id, by_id)
+	return roots, leaf_id
+end
+
+local function render_tree_nodes(nodes, leaf_id, lines, line_nodes, prefix)
+	for index, node in ipairs(nodes) do
+		local is_last = index == #nodes
+		local connector = prefix == "" and "" or (is_last and "└─ " or "├─ ")
+		local child_prefix = prefix .. (is_last and "   " or "│  ")
+		local record = node.record
+		local current = record.id == leaf_id
+		local marker = current and "●" or "○"
+		local label = string.format(
+			"%s%s %s %s  %s  %s",
+			prefix,
+			connector,
+			marker,
+			record.id,
+			tree_record_title(record),
+			compact_tree_text(tree_record_text(record))
+		)
+		if current then
+			label = label .. "  ← current"
+		end
+		table.insert(lines, label)
+		line_nodes[#lines] = node
+		render_tree_nodes(node.children, leaf_id, lines, line_nodes, child_prefix)
+	end
+end
+
+local function focus_input_window()
+	if state.input_win and vim.api.nvim_win_is_valid(state.input_win) then
+		vim.api.nvim_set_current_win(state.input_win)
+	end
+end
+
+local function close_tree_window()
+	if state.tree_win and vim.api.nvim_win_is_valid(state.tree_win) then
+		vim.api.nvim_win_close(state.tree_win, true)
+	end
+	state.tree_win = nil
+end
+
+local function tree_current_node()
+	local cursor = vim.api.nvim_win_get_cursor(0)
+	return state.tree_nodes_by_line[cursor[1]]
+end
+
+local function jump_to_tree_node(summarize)
+	local node = tree_current_node()
+	if not node then
+		return
+	end
+	local entry_id = node.record.id
+	state.tree_leaf_id = entry_id
+	close_tree_window()
+	local message = "/pi-tree-jump " .. entry_id .. (summarize and " --summary" or "")
+	if not (state.job and state.job > 0) then
+		notify("Start Pi before navigating the session tree.", vim.log.levels.WARN)
+		return
+	end
+	send({ type = "prompt", message = message }, function(event)
+		if not event.success then
+			notify(event.error or "Could not navigate session tree", vim.log.levels.ERROR)
+			return
+		end
+		vim.defer_fn(function()
+			M.refresh_messages()
+			focus_input_window()
+		end, 100)
+	end)
+end
+
+function M.show_tree()
+	local path = state.session_file or state.pending_session_file
+	if not path or path == "" then
+		notify("No Pi session selected yet.", vim.log.levels.WARN)
+		return
+	end
+
+	local roots, leaf_id = read_session_tree(path)
+	if #roots == 0 then
+		notify("No tree entries found in this session.", vim.log.levels.WARN)
+		return
+	end
+
+	if not valid_buf(state.tree_buf) then
+		state.tree_buf = create_buffer("pi://tree", "text", false)
+	end
+
+	local lines = {
+		"Pi session tree",
+		"",
+		"<CR> jump   S jump with summary   r refresh   q close",
+		"",
+	}
+	state.tree_nodes_by_line = {}
+	render_tree_nodes(roots, leaf_id, lines, state.tree_nodes_by_line, "")
+	set_buffer_lines(state.tree_buf, lines, false)
+
+	local width = math.min(math.max(72, math.floor(vim.o.columns * 0.72)), vim.o.columns - 4)
+	local height = math.min(math.max(18, math.floor(vim.o.lines * 0.72)), vim.o.lines - 4)
+	local row = math.max(1, math.floor((vim.o.lines - height) / 2))
+	local col = math.max(0, math.floor((vim.o.columns - width) / 2))
+
+	close_tree_window()
+	state.tree_win = vim.api.nvim_open_win(state.tree_buf, true, {
+		relative = "editor",
+		width = width,
+		height = height,
+		row = row,
+		col = col,
+		style = "minimal",
+		border = "rounded",
+		title = " Pi Tree ",
+		title_pos = "center",
+	})
+	vim.api.nvim_set_option_value("wrap", false, { win = state.tree_win })
+	vim.api.nvim_set_option_value("cursorline", true, { win = state.tree_win })
+
+	vim.keymap.set("n", "q", close_tree_window, { buffer = state.tree_buf, desc = "Close Pi tree" })
+	vim.keymap.set("n", "<Esc>", close_tree_window, { buffer = state.tree_buf, desc = "Close Pi tree" })
+	vim.keymap.set("n", "<CR>", function()
+		jump_to_tree_node(false)
+	end, { buffer = state.tree_buf, desc = "Jump to tree entry" })
+	vim.keymap.set("n", "S", function()
+		jump_to_tree_node(true)
+	end, { buffer = state.tree_buf, desc = "Jump to tree entry with summary" })
+	vim.keymap.set("n", "r", function()
+		M.show_tree()
+	end, { buffer = state.tree_buf, desc = "Refresh Pi tree" })
 end
 
 function M.set_access_mode(mode)
@@ -1669,6 +2071,7 @@ function M.show_help()
 		"- `<leader>t` pick thinking level.",
 		"- `<leader>s` pick session.",
 		"- `<leader>h` pick a previous user message to fork or revert.",
+		"- `<leader>T` open the session tree.",
 		"- `<leader>n` new session.",
 		"- `<leader>r` refresh transcript.",
 		"- `<leader>R` rename session.",
@@ -1878,6 +2281,7 @@ function M.pick_session()
 			state.pending_session_file = choice.path
 			state.session_file = choice.path
 			state.session_name = choice.title
+			state.tree_leaf_id = nil
 			render_messages(load_session_messages_from_file(choice.path))
 			notify("Selected session. Pi will attach to it when you send a message.")
 			return
@@ -1885,6 +2289,7 @@ function M.pick_session()
 		send({ type = "switch_session", sessionPath = choice.path }, function(event)
 			if event.success and not (event.data and event.data.cancelled) then
 				state.session_file = choice.path
+				state.tree_leaf_id = nil
 				send({ type = "get_state" }, function(state_event)
 					if state_event.success and state_event.data then
 						apply_session_state(state_event.data)
