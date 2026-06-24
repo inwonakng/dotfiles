@@ -255,6 +255,118 @@ function findReadonlyCommandAllowed(command: string): boolean {
   return true;
 }
 
+function commandWordsAllowedByReadonlyAllowlist(words: string[]): boolean {
+  const command = words.join(" ");
+  for (const pattern of READONLY_BASH_ALLOWLIST) {
+    if (globToRegExp(pattern).test(command)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function xargsCommandStartIndex(words: string[]): number | undefined {
+  if (words[0] !== "xargs") {
+    return undefined;
+  }
+
+  // Covers common GNU/BSD xargs forms. Be conservative: if we do not
+  // understand an option well enough to know whether it consumes the next token,
+  // ask for approval instead of guessing where the invoked command starts.
+  const shortOptionsWithRequiredArgument = [
+    "-a",
+    "-d",
+    "-E",
+    "-I",
+    "-J",
+    "-L",
+    "-n",
+    "-P",
+    "-s",
+  ];
+  const longOptionsWithRequiredArgument = [
+    "--arg-file",
+    "--delimiter",
+    "--eof",
+    "--replace",
+    "--max-lines",
+    "--max-args",
+    "--max-procs",
+    "--max-chars",
+    "--process-slot-var",
+  ];
+  const exactOptionsWithoutArgument = new Set([
+    "-0",
+    "-p",
+    "-r",
+    "-t",
+    "-x",
+    "--null",
+    "--open-tty",
+    "--interactive",
+    "--no-run-if-empty",
+    "--verbose",
+    "--exit",
+  ]);
+
+  for (let index = 1; index < words.length; index++) {
+    const word = words[index];
+    if (word === "--") {
+      return index + 1;
+    }
+    if (!word.startsWith("-") || word === "-") {
+      return index;
+    }
+
+    const consumesRequiredArgument = longOptionsWithRequiredArgument.some(
+      (option) => word === option,
+    );
+    if (consumesRequiredArgument) {
+      index++;
+      continue;
+    }
+    if (longOptionsWithRequiredArgument.some((option) => word.startsWith(`${option}=`))) {
+      continue;
+    }
+    if (shortOptionsWithRequiredArgument.some((option) => word === option)) {
+      index++;
+      continue;
+    }
+    if (shortOptionsWithRequiredArgument.some((option) => word.startsWith(option) && word !== option)) {
+      continue;
+    }
+    if (exactOptionsWithoutArgument.has(word)) {
+      continue;
+    }
+
+    return undefined;
+  }
+
+  return words.length;
+}
+
+function xargsReadonlyCommandAllowed(command: string): boolean {
+  const words = shellWords(command);
+  if (!words || words[0] !== "xargs") {
+    return false;
+  }
+
+  const commandStartIndex = xargsCommandStartIndex(words);
+  if (commandStartIndex === undefined) {
+    return false;
+  }
+
+  const invokedCommand = words.slice(commandStartIndex);
+  if (invokedCommand.length === 0) {
+    // xargs defaults to echo, which only writes to stdout.
+    return true;
+  }
+  if (invokedCommand[0] === "xargs") {
+    return false;
+  }
+  return commandWordsAllowedByReadonlyAllowlist(invokedCommand);
+}
+
 function simpleReadonlyCommandAllowed(command: string): boolean {
   if (command === "cd" || command.startsWith("cd ")) {
     return true;
@@ -262,10 +374,11 @@ function simpleReadonlyCommandAllowed(command: string): boolean {
   if (findReadonlyCommandAllowed(command)) {
     return true;
   }
-  for (const pattern of READONLY_BASH_ALLOWLIST) {
-    if (globToRegExp(pattern).test(command)) {
-      return true;
-    }
+  if (xargsReadonlyCommandAllowed(command)) {
+    return true;
+  }
+  if (commandWordsAllowedByReadonlyAllowlist([command])) {
+    return true;
   }
   return false;
 }

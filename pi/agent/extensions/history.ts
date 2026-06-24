@@ -340,9 +340,12 @@ async function revertAfter(ctx: ExtensionCommandContext, targetId: string | null
 }
 
 async function pickUserMessage(ctx: ExtensionCommandContext) {
-	const entries = ctx.sessionManager.getBranch().filter((entry) => {
-		return entry.type === "message" && entry.message.role === "user";
-	});
+	const entries = ctx.sessionManager
+		.getBranch()
+		.filter((entry) => {
+			return entry.type === "message" && entry.message.role === "user";
+		})
+		.reverse();
 	if (entries.length === 0) {
 		ctx.ui.notify("No user messages in this session.", "warning");
 		return undefined;
