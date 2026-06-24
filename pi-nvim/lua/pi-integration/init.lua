@@ -43,6 +43,7 @@ local state = {
 	pending_tool_separator = false,
 	session_stats = nil,
 	todo_status = nil,
+	notification_status = nil,
 }
 
 M.config = {
@@ -287,8 +288,11 @@ local function format_session_stats()
 		"↓" .. format_count(tokens.output),
 	}
 
-	local cache_read = tonumber(tokens.cacheRead) or 0
-	local cache_write = tonumber(tokens.cacheWrite) or 0
+	-- Pi core currently reports cacheRead/cacheWrite as cumulative per-request
+	-- token events. For statusline purposes, show the session cache footprint
+	-- instead: the largest cache read/write reported by any single model turn.
+	local cache_read = tonumber(tokens.sessionCacheRead or tokens.cacheRead) or 0
+	local cache_write = tonumber(tokens.sessionCacheWrite or tokens.cacheWrite) or 0
 	if cache_read > 0 or cache_write > 0 then
 		table.insert(parts, "R" .. format_count(cache_read))
 		table.insert(parts, "W" .. format_count(cache_write))
@@ -353,19 +357,30 @@ local function current_model_statusline_label()
 	return model
 end
 
+local function notification_statusline_highlight(status)
+	if status == "notify on" then
+		return "%#PiNotifyOn#"
+	elseif status == "notify off" then
+		return "%#PiNotifyOff#"
+	end
+	return "%#PiUsageStats#"
+end
+
 _G._pi_nvim_transcript_statusline = function()
 	local mode = state.access_mode or "--"
 	local mode_prefix = " "
 	local mode_suffix = " "
 	local mode_label = mode_prefix .. mode .. mode_suffix
 	local todo_label = state.todo_status and ("· " .. state.todo_status .. " ") or ""
+	local notification_label = state.notification_status and ("· " .. state.notification_status .. " ") or ""
 	local model_label = "· " .. current_model_statusline_label() .. " "
 	local stats_label = " " .. format_session_stats() .. " "
 	local width = vim.api.nvim_win_get_width(0)
 	local mode_width = vim.fn.strdisplaywidth(mode_label)
 	local todo_width = vim.fn.strdisplaywidth(todo_label)
+	local notification_width = vim.fn.strdisplaywidth(notification_label)
 	local model_width = vim.fn.strdisplaywidth(model_label)
-	local left_width = mode_width + todo_width + model_width
+	local left_width = mode_width + todo_width + notification_width + model_width
 	local stats_width = vim.fn.strdisplaywidth(stats_label)
 	local show_stats = width >= (left_width + stats_width + 3)
 	local mode_highlight = mode_statusline_highlight(mode)
@@ -392,11 +407,18 @@ _G._pi_nvim_transcript_statusline = function()
 	if width <= left_width then
 		return left_label
 			.. "%#PiUsageStats#"
-			.. statusline_escape(truncate_plain_to_width(todo_label .. model_label, width - mode_width))
+			.. statusline_escape(truncate_plain_to_width(todo_label .. notification_label .. model_label, width - mode_width))
 			.. "%*"
 	end
 
-	left_label = left_label .. "%#PiUsageStats#" .. statusline_escape(todo_label) .. statusline_escape(model_label)
+	left_label = left_label .. "%#PiUsageStats#" .. statusline_escape(todo_label)
+	if notification_label ~= "" then
+		left_label = left_label
+			.. notification_statusline_highlight(state.notification_status)
+			.. statusline_escape(notification_label)
+			.. "%#PiUsageStats#"
+	end
+	left_label = left_label .. statusline_escape(model_label)
 	local right_label = show_stats and ("%#PiUsageStats#" .. statusline_escape(stats_label)) or ""
 	local right_width = show_stats and stats_width or 0
 	local fill_width = math.max(0, width - left_width - right_width)
@@ -833,11 +855,36 @@ local function send(cmd, callback)
 	end
 end
 
+local function apply_session_cache_footprint(stats, messages)
+	if type(stats) ~= "table" or type(stats.tokens) ~= "table" or type(messages) ~= "table" then
+		return
+	end
+
+	local cache_read = 0
+	local cache_write = 0
+	for _, message in ipairs(messages) do
+		if type(message) == "table" and message.role == "assistant" and type(message.usage) == "table" then
+			cache_read = math.max(cache_read, tonumber(message.usage.cacheRead) or 0)
+			cache_write = math.max(cache_write, tonumber(message.usage.cacheWrite) or 0)
+		end
+	end
+
+	stats.tokens.sessionCacheRead = cache_read
+	stats.tokens.sessionCacheWrite = cache_write
+end
+
 function M.refresh_session_stats()
 	send({ type = "get_session_stats" }, function(event)
 		if event.success and event.data then
 			state.session_stats = event.data
 			update_transcript_statusline()
+
+			send({ type = "get_messages" }, function(messages_event)
+				if messages_event.success and messages_event.data then
+					apply_session_cache_footprint(state.session_stats, messages_event.data.messages)
+					update_transcript_statusline()
+				end
+			end)
 		end
 	end)
 end
@@ -1028,6 +1075,9 @@ local function handle_extension_ui_request(event)
 			state.tree_leaf_id = event.statusText
 		elseif event.statusKey == "pi-todos" then
 			state.todo_status = event.statusText
+			refresh_transcript_ui()
+		elseif event.statusKey == "pi-notifications" then
+			state.notification_status = event.statusText
 			refresh_transcript_ui()
 		end
 	elseif event.method == "setTitle" and type(event.title) == "string" then
@@ -1294,6 +1344,7 @@ local function register_pi_which_key()
 		{ "<leader>h", desc = "History" },
 		{ "<leader>m", desc = "Pick model" },
 		{ "<leader>n", desc = "New session" },
+		{ "<leader>N", desc = "Toggle notifications" },
 		{ "<leader>p", desc = "Pick access mode" },
 		{ "<leader>r", desc = "Refresh transcript" },
 		{ "<leader>R", desc = "Rename session" },
@@ -1358,6 +1409,9 @@ local function setup_keymaps()
 	map_input("n", "<leader>n", function()
 		M.new_session()
 	end, "New session")
+	map_input("n", "<leader>N", function()
+		M.toggle_notifications()
+	end, "Toggle notifications")
 	map_input("n", "<leader>r", function()
 		M.refresh_messages()
 	end, "Refresh transcript")
@@ -1395,6 +1449,9 @@ local function setup_keymaps()
 	map_transcript("<leader>n", function()
 		M.new_session()
 	end, "New session")
+	map_transcript("<leader>N", function()
+		M.toggle_notifications()
+	end, "Toggle notifications")
 	map_transcript("<leader>r", function()
 		M.refresh_messages()
 	end, "Refresh transcript")
@@ -1548,6 +1605,14 @@ function M.history()
 	send({ type = "prompt", message = "/pi-history" }, function(event)
 		if not event.success then
 			notify(event.error or "Could not open history", vim.log.levels.ERROR)
+		end
+	end)
+end
+
+function M.toggle_notifications()
+	send({ type = "prompt", message = "/pi-notify toggle" }, function(event)
+		if not event.success then
+			notify(event.error or "Could not toggle notifications", vim.log.levels.ERROR)
 		end
 	end)
 end

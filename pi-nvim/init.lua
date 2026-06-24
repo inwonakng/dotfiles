@@ -16,6 +16,19 @@ vim.schedule(function()
 	vim.opt.clipboard = "unnamedplus"
 end)
 
+vim.api.nvim_create_autocmd({ "BufWinEnter", "VimResized", "WinResized" }, {
+	callback = function()
+		for _, win in ipairs(vim.api.nvim_list_wins()) do
+			local buf = vim.api.nvim_win_get_buf(win)
+			if vim.api.nvim_buf_get_name(buf):match("pi://input$") then
+				vim.api.nvim_set_option_value("wrap", true, { win = win })
+				vim.api.nvim_set_option_value("linebreak", true, { win = win })
+				vim.api.nvim_set_option_value("breakindent", true, { win = win })
+			end
+		end
+	end,
+})
+
 local uv = vim.uv or vim.loop
 local config_root = uv.fs_realpath(vim.fn.stdpath("config")) or vim.fn.stdpath("config")
 local dotfiles_root = vim.fn.fnamemodify(config_root, ":h")
@@ -69,6 +82,8 @@ require("catppuccin").setup({
 			PiModeReadonly = { fg = colors.blue, bg = ui_bg, bold = true },
 			PiModeWrite = { fg = colors.peach, bg = ui_bg, bold = true },
 			PiModeUnknown = { fg = colors.subtext1, bg = ui_bg, bold = true },
+			PiNotifyOn = { fg = colors.green, bg = ui_bg, bold = true },
+			PiNotifyOff = { fg = colors.overlay0, bg = ui_bg },
 			StatusLine = { fg = pane_border, bg = ui_bg },
 			StatusLineNC = { fg = pane_border, bg = ui_bg },
 			WinBar = { bg = ui_bg },

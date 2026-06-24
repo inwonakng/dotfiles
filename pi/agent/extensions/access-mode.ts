@@ -40,6 +40,8 @@ const READONLY_BASH_ALLOWLIST = [
   "git ls-files",
   "git ls-files *",
   "stat *",
+  "readlink",
+  "readlink *",
 ];
 
 let accessMode: AccessMode = "readonly";
@@ -209,16 +211,36 @@ function splitShellOperator(command: string, operator: "&&" | "||" | "|" | ";"):
 }
 
 function findExecIsReadonly(words: string[], startIndex: number): number | undefined {
-  // Allow the common read-only pattern used to print file names and counts:
+  // Allow find -exec only when the invoked command itself is on the
+  // read-only allowlist, e.g.:
   //   find ... -exec wc -l {} \;
+  //   find ... -exec grep -n "pattern" {} \;
   // shellWords unescapes \; to ;.
-  const expected = ["wc", "-l", "{}", ";"];
-  for (let offset = 0; offset < expected.length; offset++) {
-    if (words[startIndex + 1 + offset] !== expected[offset]) {
-      return undefined;
-    }
+  const terminatorIndex = words.indexOf(";", startIndex + 1);
+  if (terminatorIndex === -1) {
+    return undefined;
   }
-  return startIndex + expected.length;
+
+  const invokedCommand = words.slice(startIndex + 1, terminatorIndex);
+  const readonlyExecCommands = new Set([
+    "cat",
+    "grep",
+    "head",
+    "ls",
+    "readlink",
+    "rg",
+    "stat",
+    "tail",
+    "wc",
+  ]);
+  if (
+    invokedCommand.length === 0 ||
+    !readonlyExecCommands.has(invokedCommand[0]) ||
+    !commandWordsAllowedByReadonlyAllowlist(invokedCommand)
+  ) {
+    return undefined;
+  }
+  return terminatorIndex;
 }
 
 function findReadonlyCommandAllowed(command: string): boolean {
