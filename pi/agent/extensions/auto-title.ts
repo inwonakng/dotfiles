@@ -1,11 +1,30 @@
-import type { ExtensionAPI, ExtensionContext, InputEvent } from "@earendil-works/pi-coding-agent";
+import { AuthStorage, getAgentDir, type ExtensionAPI, type ExtensionContext, type InputEvent } from "@earendil-works/pi-coding-agent";
+import { join } from "node:path";
 
-const DEFAULT_TITLE_MODEL = "opencode/north-mini-code-free";
+const DEFAULT_TITLE_PROVIDER = "opencode";
+const DEFAULT_TITLE_MODEL = "opencode/mimo-v2.5-free";
 const DEFAULT_TITLE_ENDPOINT = "https://opencode.ai/zen/v1/chat/completions";
 const TITLE_LIMIT = 64;
 
-function titleApiKey() {
-	return process.env.PI_TITLE_API_KEY || process.env.OPENCODE_ZEN_API_KEY || process.env.OPENCODE_API_KEY;
+let authStorage: ReturnType<typeof AuthStorage.create> | undefined;
+
+function titleProvider() {
+	return process.env.PI_TITLE_PROVIDER || DEFAULT_TITLE_PROVIDER;
+}
+
+function getAuthStorage() {
+	if (!authStorage) {
+		authStorage = AuthStorage.create(join(getAgentDir(), "auth.json"));
+	}
+	return authStorage;
+}
+
+async function titleApiKey() {
+	const envKey = process.env.PI_TITLE_API_KEY || process.env.OPENCODE_ZEN_API_KEY || process.env.OPENCODE_API_KEY;
+	if (envKey) {
+		return envKey;
+	}
+	return getAuthStorage().getApiKey(titleProvider());
 }
 
 function titleModel() {
@@ -63,17 +82,17 @@ function cleanModelTitle(text: string) {
 }
 
 async function modelTitle(prompt: string) {
-	const apiKey = titleApiKey();
-	if (!apiKey) {
-		return undefined;
+	const apiKey = await titleApiKey();
+	const headers: Record<string, string> = {
+		"content-type": "application/json",
+	};
+	if (apiKey) {
+		headers.authorization = `Bearer ${apiKey}`;
 	}
 
 	const response = await fetch(titleEndpoint(), {
 		method: "POST",
-		headers: {
-			authorization: `Bearer ${apiKey}`,
-			"content-type": "application/json",
-		},
+		headers,
 		body: JSON.stringify({
 			model: apiModelId(titleModel()),
 			messages: [
@@ -87,7 +106,7 @@ async function modelTitle(prompt: string) {
 					content: prompt.slice(0, 1200),
 				},
 			],
-			max_tokens: 24,
+			max_tokens: 512,
 			temperature: 0,
 		}),
 	});
@@ -148,6 +167,36 @@ export default function autoTitleExtension(pi: ExtensionAPI) {
 				ctx.ui.notify("Usage: /pi-title <title>", "warning");
 				return;
 			}
+			setTitle(pi, ctx, title);
+		},
+	});
+
+	pi.registerCommand("pi-retitle", {
+		description: "Regenerate the current session title using the title model",
+		handler: async (_args, ctx) => {
+			const userMessages = ctx.sessionManager
+				.getBranch()
+				.filter((entry) => entry.type === "message" && entry.message.role === "user")
+				.map((entry) => {
+					const content = entry.message.content;
+					if (typeof content === "string") {
+						return content;
+					}
+					return content
+						.filter((item) => item.type === "text")
+						.map((item) => item.text)
+						.join("");
+				})
+				.filter((text) => text.trim() !== "");
+
+			const prompt = userMessages.slice(0, 3).join("\n\n");
+			if (!prompt) {
+				ctx.ui.notify("No user messages to title.", "warning");
+				return;
+			}
+
+			const fallback = deterministicTitle(prompt);
+			const title = (await modelTitle(prompt)) || fallback;
 			setTitle(pi, ctx, title);
 		},
 	});
