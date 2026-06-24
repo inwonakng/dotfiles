@@ -33,6 +33,7 @@ local state = {
 	message_count = 0,
 	provider = nil,
 	model_id = nil,
+	thinking_level = nil,
 	last_updated = nil,
 	transcript_refresh_scheduled = false,
 	pending_user_message = nil,
@@ -128,6 +129,7 @@ local function metadata_lines()
 		"title: " .. yaml_value(state.session_name or "Pi Session"),
 		"model: " .. yaml_value(state.model_id or M.config.model),
 		"provider: " .. yaml_value(state.provider or M.config.provider),
+		"thinking: " .. yaml_value(state.thinking_level),
 		"access: " .. yaml_value(state.access_mode),
 		"session: " .. yaml_value(session_label()),
 		"cwd: " .. yaml_value(vim.fn.getcwd()),
@@ -224,6 +226,7 @@ local function apply_session_state(data)
 	state.session_name = data.sessionName
 	state.message_count = data.messageCount or state.message_count
 	state.is_streaming = data.isStreaming or false
+	state.thinking_level = data.thinkingLevel or data.thinking_level or state.thinking_level
 	set_model_metadata(data.provider or data.providerId or data.providerName, data.model or data.modelId)
 	refresh_transcript_ui()
 end
@@ -368,6 +371,31 @@ local function current_model_statusline_label()
 	return model
 end
 
+local function current_thinking_level_label()
+	local level = state.thinking_level
+	if type(level) ~= "string" or level == "" then
+		return nil
+	end
+	return level
+end
+
+local function thinking_statusline_highlight(level)
+	if level == "off" then
+		return "%#PiThinkingOff#"
+	elseif level == "minimal" then
+		return "%#PiThinkingMinimal#"
+	elseif level == "low" then
+		return "%#PiThinkingLow#"
+	elseif level == "medium" then
+		return "%#PiThinkingMedium#"
+	elseif level == "high" then
+		return "%#PiThinkingHigh#"
+	elseif level == "xhigh" then
+		return "%#PiThinkingXhigh#"
+	end
+	return "%#PiUsageStats#"
+end
+
 local function notification_statusline_highlight(status)
 	if status == "notify on" then
 		return "%#PiNotifyOn#"
@@ -385,13 +413,16 @@ _G._pi_nvim_transcript_statusline = function()
 	local todo_label = state.todo_status and ("· " .. state.todo_status .. " ") or ""
 	local notification_label = state.notification_status and ("· " .. state.notification_status .. " ") or ""
 	local model_label = "· " .. current_model_statusline_label() .. " "
+	local thinking_level = current_thinking_level_label()
+	local thinking_label = thinking_level and ("[" .. thinking_level .. "] ") or ""
 	local stats_label = " " .. format_session_stats() .. " "
 	local width = vim.api.nvim_win_get_width(0)
 	local mode_width = vim.fn.strdisplaywidth(mode_label)
 	local todo_width = vim.fn.strdisplaywidth(todo_label)
 	local notification_width = vim.fn.strdisplaywidth(notification_label)
 	local model_width = vim.fn.strdisplaywidth(model_label)
-	local left_width = mode_width + todo_width + notification_width + model_width
+	local thinking_width = vim.fn.strdisplaywidth(thinking_label)
+	local left_width = mode_width + todo_width + notification_width + model_width + thinking_width
 	local stats_width = vim.fn.strdisplaywidth(stats_label)
 	local show_stats = width >= (left_width + stats_width + 3)
 	local mode_highlight = mode_statusline_highlight(mode)
@@ -418,7 +449,7 @@ _G._pi_nvim_transcript_statusline = function()
 	if width <= left_width then
 		return left_label
 			.. "%#PiUsageStats#"
-			.. statusline_escape(truncate_plain_to_width(todo_label .. notification_label .. model_label, width - mode_width))
+			.. statusline_escape(truncate_plain_to_width(todo_label .. notification_label .. model_label .. thinking_label, width - mode_width))
 			.. "%*"
 	end
 
@@ -430,6 +461,12 @@ _G._pi_nvim_transcript_statusline = function()
 			.. "%#PiUsageStats#"
 	end
 	left_label = left_label .. statusline_escape(model_label)
+	if thinking_label ~= "" then
+		left_label = left_label
+			.. thinking_statusline_highlight(thinking_level)
+			.. statusline_escape(thinking_label)
+			.. "%#PiUsageStats#"
+	end
 	local right_label = show_stats and ("%#PiUsageStats#" .. statusline_escape(stats_label)) or ""
 	local right_width = show_stats and stats_width or 0
 	local fill_width = math.max(0, width - left_width - right_width)
@@ -1679,8 +1716,21 @@ end
 
 local decode_session_record
 
+local function apply_session_record_metadata(records)
+	for _, record in ipairs(records or {}) do
+		if record.type == "session_info" and type(record.name) == "string" then
+			state.session_name = record.name
+		elseif record.type == "model_change" then
+			set_model_metadata(record.provider or record.providerId or record.providerName, record.modelId or record.model or record.id)
+		elseif record.type == "thinking_level_change" and type(record.thinkingLevel) == "string" then
+			state.thinking_level = record.thinkingLevel
+		end
+	end
+end
+
 local function load_session_messages_from_file(path)
 	local fallback_messages = {}
+	local all_records = {}
 	local by_id = {}
 	local leaf_id = nil
 	if not path or vim.fn.filereadable(path) ~= 1 then
@@ -1688,8 +1738,8 @@ local function load_session_messages_from_file(path)
 	end
 	for _, line in ipairs(vim.fn.readfile(path)) do
 		local record = decode_session_record(line)
-		if record and record.type == "session_info" and type(record.name) == "string" then
-			state.session_name = record.name
+		if record then
+			table.insert(all_records, record)
 		end
 		if record and record.id then
 			by_id[record.id] = record
@@ -1709,6 +1759,8 @@ local function load_session_messages_from_file(path)
 		table.insert(branch, 1, record)
 		id = record.parentId
 	end
+
+	apply_session_record_metadata(#branch > 0 and branch or all_records)
 
 	local messages = {}
 	for _, record in ipairs(branch) do
@@ -2364,6 +2416,8 @@ function M.pick_thinking()
 		end
 		send({ type = "set_thinking_level", level = choice }, function(event)
 			if event.success then
+				state.thinking_level = choice
+				refresh_transcript_ui()
 				notify("Thinking: " .. choice)
 			else
 				notify("Could not set thinking level", vim.log.levels.ERROR)
