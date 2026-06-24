@@ -42,6 +42,11 @@ const READONLY_BASH_ALLOWLIST = [
   "stat *",
   "readlink",
   "readlink *",
+  "test *",
+  "[ * ]",
+  "[[ * ]]",
+  "true",
+  "false",
 ];
 
 let accessMode: AccessMode = "readonly";
