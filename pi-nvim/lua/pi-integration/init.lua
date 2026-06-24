@@ -316,18 +316,14 @@ local function format_session_stats()
 	if context then
 		local context_tokens = non_null(context.tokens) and format_count(context.tokens) or "?"
 		local context_window = non_null(context.contextWindow) and format_count(context.contextWindow) or "?"
-		if non_null(context.percent) then
-			table.insert(parts, string.format("ctx %d%%/%s", math.floor(context.percent + 0.5), context_window))
-		else
-			table.insert(parts, "ctx " .. context_tokens .. "/" .. context_window)
-		end
+		table.insert(parts, "ctx " .. context_tokens .. "/" .. context_window)
 	end
 
 	if non_null(stats.cost) then
 		table.insert(parts, string.format("$%.3f", stats.cost))
 	end
 
-	return table.concat(parts, " · ")
+	return table.concat(parts, "·")
 end
 
 local function statusline_escape(text)
@@ -408,13 +404,14 @@ end
 _G._pi_nvim_transcript_statusline = function()
 	local mode = state.access_mode or "--"
 	local mode_prefix = " "
-	local mode_suffix = " "
+	local mode_suffix = ""
 	local mode_label = mode_prefix .. mode .. mode_suffix
-	local todo_label = state.todo_status and ("· " .. state.todo_status .. " ") or ""
-	local notification_label = state.notification_status and ("· " .. state.notification_status .. " ") or ""
-	local model_label = "· " .. current_model_statusline_label() .. " "
+	local status_delimiter = "·"
+	local todo_label = state.todo_status and (status_delimiter .. state.todo_status) or ""
+	local notification_label = state.notification_status and (status_delimiter .. state.notification_status) or ""
+	local model_label = status_delimiter .. current_model_statusline_label()
 	local thinking_level = current_thinking_level_label()
-	local thinking_label = thinking_level and ("[" .. thinking_level .. "] ") or ""
+	local thinking_label = thinking_level and (" [" .. thinking_level .. "]") or ""
 	local stats_label = " " .. format_session_stats() .. " "
 	local width = vim.api.nvim_win_get_width(0)
 	local mode_width = vim.fn.strdisplaywidth(mode_label)
