@@ -18,6 +18,8 @@ local state = {
 	input_win = nil,
 	help_buf = nil,
 	help_win = nil,
+	defer_buf = nil,
+	defer_win = nil,
 	tree_buf = nil,
 	tree_win = nil,
 	tree_preview_buf = nil,
@@ -638,13 +640,41 @@ local function reset_tool_outputs()
 	state.next_tool_output_id = 0
 end
 
-local function store_tool_output(tool_name, text, filetype)
+local open_defer_text
+
+local function path_from_artifact_line(text, label)
+	if type(text) ~= "string" then
+		return nil
+	end
+	return text:match("%- " .. label .. ": ([^\n]+)")
+end
+
+local function defer_artifacts(tool_name, text, details)
+	if tool_name ~= "defer_task" then
+		return nil
+	end
+	details = type(details) == "table" and details or {}
+	local artifacts = {
+		brief = details.briefPath or path_from_artifact_line(text, "Brief"),
+		result = details.resultPath or path_from_artifact_line(text, "Result"),
+		transcript = details.transcriptPath or path_from_artifact_line(text, "Transcript"),
+		status = details.statusPath or path_from_artifact_line(text, "Status"),
+	}
+	if artifacts.brief or artifacts.result or artifacts.transcript or artifacts.status then
+		return artifacts
+	end
+	return nil
+end
+
+local function store_tool_output(tool_name, text, filetype, details)
 	state.next_tool_output_id = state.next_tool_output_id + 1
 	local id = state.next_tool_output_id
 	state.tool_outputs[id] = {
 		name = tool_name or "tool",
 		text = text or "",
 		filetype = filetype or infer_tool_filetype(tool_name, text),
+		details = details,
+		defer = defer_artifacts(tool_name, text, details),
 	}
 	return id
 end
@@ -656,8 +686,9 @@ local function tool_output_summary_lines(output_id)
 	end
 	local lines = line_count_text(output.text)
 	local line_label = lines == 1 and "1 line" or (tostring(lines) .. " lines")
+	local action = output.defer and "open defer artifacts" or "open"
 	return {
-		"> Tool: " .. tostring(output.name or "tool") .. " · " .. line_label .. " · " .. (output.filetype or "text") .. " · press `<CR>` to open",
+		"> Tool: " .. tostring(output.name or "tool") .. " · " .. line_label .. " · " .. (output.filetype or "text") .. " · press `<CR>` to " .. action,
 	}
 end
 
@@ -802,10 +833,44 @@ local function close_window(win)
 	end
 end
 
+local function open_defer_artifacts(output)
+	if not output.defer then
+		return false
+	end
+	local choices = {}
+	local function add(label, path, filetype)
+		if path and path ~= "" then
+			table.insert(choices, { label = label, path = path, filetype = filetype })
+		end
+	end
+	add("result", output.defer.result, "markdown")
+	add("transcript", output.defer.transcript, "json")
+	add("brief", output.defer.brief, "markdown")
+	add("status", output.defer.status, "json")
+	if #choices == 0 then
+		notify("No defer artifacts found for this tool call", vim.log.levels.WARN)
+		return true
+	end
+	vim.ui.select(choices, {
+		prompt = "Open defer artifact",
+		format_item = function(item)
+			return item.label .. "  " .. item.path
+		end,
+	}, function(choice)
+		if choice and open_defer_text then
+			open_defer_text("Defer " .. choice.label, choice.path, choice.filetype)
+		end
+	end)
+	return true
+end
+
 local function open_tool_output_float(output_id)
 	local output = state.tool_outputs[output_id]
 	if not output then
 		notify("Tool output unavailable", vim.log.levels.WARN)
+		return true
+	end
+	if output.defer and open_defer_artifacts(output) then
 		return true
 	end
 
@@ -1113,6 +1178,17 @@ local function clear_input()
 	end
 end
 
+local function set_input_text(text)
+	if not valid_buf(state.input_buf) then
+		return
+	end
+	vim.api.nvim_buf_set_lines(state.input_buf, 0, -1, false, vim.split(text or "", "\n", { plain = true }))
+	if state.input_win and vim.api.nvim_win_is_valid(state.input_win) then
+		vim.api.nvim_set_current_win(state.input_win)
+		vim.api.nvim_win_set_cursor(state.input_win, { vim.api.nvim_buf_line_count(state.input_buf), 0 })
+	end
+end
+
 local function is_access_mode(mode)
 	for _, candidate in ipairs(M.config.access_modes or {}) do
 		if candidate == mode then
@@ -1185,7 +1261,7 @@ local function render_message(message)
 	end
 	if role == "toolResult" then
 		local name = message.toolName or "tool"
-		local output_id = store_tool_output(name, text)
+		local output_id = store_tool_output(name, text, nil, message.details)
 		remove_pending_tool_separator()
 		append_lines(tool_output_summary_lines(output_id))
 		local line = transcript_line_count()
@@ -1554,6 +1630,7 @@ local function register_pi_which_key()
 
 	local shared = {
 		{ "<leader>?", desc = "Pi help" },
+		{ "<leader>/", desc = "Pick Pi command" },
 		{ "<leader>h", desc = "History" },
 		{ "<leader>m", desc = "Pick model" },
 		{ "<leader>n", desc = "New session" },
@@ -1601,6 +1678,9 @@ local function setup_keymaps()
 	map_input("n", "<leader>?", function()
 		M.show_help()
 	end, "Pi help")
+	map_input("n", "<leader>/", function()
+		M.pick_command()
+	end, "Pick Pi command")
 	map_input("n", "<leader>m", function()
 		M.pick_model()
 	end, "Pick model")
@@ -1647,6 +1727,9 @@ local function setup_keymaps()
 	map_transcript("<leader>?", function()
 		M.show_help()
 	end, "Pi help")
+	map_transcript("<leader>/", function()
+		M.pick_command()
+	end, "Pick Pi command")
 	map_transcript("<leader>p", function()
 		M.pick_access_mode()
 	end, "Pick access mode")
@@ -1966,7 +2049,7 @@ local function collect_message_lines(messages)
 			local role = message.role or message.type
 			if role == "toolResult" then
 				local name = message.toolName or "tool"
-				local output_id = store_tool_output(name, text)
+				local output_id = store_tool_output(name, text, nil, message.details)
 				if has_body and last_role == "toolResult" then
 					if lines[#lines] == "" then
 						table.remove(lines)
@@ -2538,6 +2621,8 @@ function M.show_help()
 		"",
 		"- `<C-CR>` submit the input buffer.",
 		"- `<Tab>` cycle access mode: readonly -> write.",
+		"- `<leader>/` pick a Pi slash command/template/skill and insert it into input.",
+		"- `<CR>` on a `defer_task` tool result opens that deferred agent's artifacts.",
 		"- `<leader>p` pick access mode.",
 		"- `<leader>m` pick model.",
 		"- `<leader>t` pick thinking level.",
@@ -2637,6 +2722,100 @@ function M.pick_model()
 				end
 			end)
 		end)
+	end)
+end
+
+local function command_label(command)
+	local prefix = "/" .. tostring(command.name or "")
+	local source = command.source and (" [" .. command.source .. "]") or ""
+	local description = command.description and command.description ~= "" and (" — " .. command.description) or ""
+	return prefix .. source .. description
+end
+
+function M.pick_command()
+	send({ type = "get_commands" }, function(event)
+		local commands = event.data and event.data.commands or {}
+		if #commands == 0 then
+			notify("No Pi commands returned", vim.log.levels.WARN)
+			return
+		end
+		table.sort(commands, function(a, b)
+			return tostring(a.name or "") < tostring(b.name or "")
+		end)
+		vim.ui.select(commands, {
+			prompt = "Pi command",
+			format_item = command_label,
+		}, function(choice)
+			if not choice or not choice.name then
+				return
+			end
+			set_input_text("/" .. tostring(choice.name) .. " ")
+		end)
+	end)
+end
+
+local function read_file_text(path)
+	if not path or vim.fn.filereadable(path) ~= 1 then
+		return nil
+	end
+	return table.concat(vim.fn.readfile(path), "\n")
+end
+
+open_defer_text = function(title, path, filetype)
+	local text = read_file_text(path)
+	if not text then
+		notify("Could not read " .. tostring(path), vim.log.levels.WARN)
+		return
+	end
+	if state.defer_win and vim.api.nvim_win_is_valid(state.defer_win) then
+		vim.api.nvim_win_close(state.defer_win, true)
+	end
+	state.defer_buf = vim.api.nvim_create_buf(false, true)
+	vim.api.nvim_buf_set_name(state.defer_buf, "pi://defer/" .. vim.fn.fnamemodify(path, ":t"))
+	vim.api.nvim_set_option_value("buftype", "nofile", { buf = state.defer_buf })
+	vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = state.defer_buf })
+	vim.api.nvim_set_option_value("swapfile", false, { buf = state.defer_buf })
+	vim.api.nvim_set_option_value("filetype", filetype or "markdown", { buf = state.defer_buf })
+	vim.api.nvim_buf_set_lines(state.defer_buf, 0, -1, false, vim.split(text, "\n", { plain = true }))
+	vim.api.nvim_set_option_value("modifiable", false, { buf = state.defer_buf })
+
+	local width = math.min(math.max(72, math.floor(vim.o.columns * 0.82)), vim.o.columns - 4)
+	local height = math.min(math.max(16, math.floor(vim.o.lines * 0.75)), vim.o.lines - 4)
+	local row = math.max(1, math.floor((vim.o.lines - height) / 2))
+	local col = math.max(0, math.floor((vim.o.columns - width) / 2))
+	state.defer_win = vim.api.nvim_open_win(state.defer_buf, true, {
+		relative = "editor",
+		width = width,
+		height = height,
+		row = row,
+		col = col,
+		style = "minimal",
+		border = "rounded",
+		title = " " .. title .. " ",
+		title_pos = "left",
+	})
+	vim.api.nvim_set_option_value("wrap", true, { win = state.defer_win })
+	vim.api.nvim_set_option_value("number", false, { win = state.defer_win })
+	vim.api.nvim_set_option_value("relativenumber", false, { win = state.defer_win })
+	vim.keymap.set("n", "q", function()
+		close_window(state.defer_win)
+	end, { buffer = state.defer_buf, silent = true, desc = "Close defer output" })
+	vim.keymap.set("n", "<Esc>", function()
+		close_window(state.defer_win)
+	end, { buffer = state.defer_buf, silent = true, desc = "Close defer output" })
+	vim.keymap.set("n", "y", function()
+		vim.fn.setreg("+", text)
+		notify("Yanked defer output")
+	end, { buffer = state.defer_buf, silent = true, desc = "Yank defer output" })
+end
+
+function M.reload()
+	send({ type = "prompt", message = "/reload" }, function(event)
+		if event.success then
+			notify("Pi reload requested")
+		else
+			notify(event.error or "Could not reload Pi", vim.log.levels.ERROR)
+		end
 	end)
 end
 

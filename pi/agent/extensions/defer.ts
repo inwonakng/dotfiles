@@ -208,9 +208,9 @@ Task:
 ${input.task}`;
 }
 
-function resultSummary(text: string, resultPath: string, transcriptPath: string, briefPath: string): string {
+function resultSummary(text: string, resultPath: string, transcriptPath: string, briefPath: string, statusPath: string): string {
   const trimmed = text.trim() || "Deferred agent produced no final text.";
-  return `${trimmed}\n\nArtifacts:\n- Brief: ${briefPath}\n- Result: ${resultPath}\n- Transcript: ${transcriptPath}`;
+  return `${trimmed}\n\nArtifacts:\n- Brief: ${briefPath}\n- Result: ${resultPath}\n- Transcript: ${transcriptPath}\n- Status: ${statusPath}`;
 }
 
 export default function deferExtension(pi: ExtensionAPI) {
@@ -293,7 +293,7 @@ export default function deferExtension(pi: ExtensionAPI) {
         writeFileSync(resultPath, resultText, "utf8");
         writeFileSync(statusPath, JSON.stringify({ status: "done", runId, accessMode, role: params.role ?? null, completedAt: new Date().toISOString(), briefPath, resultPath, transcriptPath }, null, 2), "utf8");
         return {
-          content: [{ type: "text", text: resultSummary(resultText, resultPath, transcriptPath, briefPath) }],
+          content: [{ type: "text", text: resultSummary(resultText, resultPath, transcriptPath, briefPath, statusPath) }],
           details: { runId, runDir, briefPath, resultPath, transcriptPath, statusPath, accessMode },
         };
       } catch (error) {
@@ -301,7 +301,7 @@ export default function deferExtension(pi: ExtensionAPI) {
         writeFileSync(resultPath, `Deferred agent failed: ${message}\n`, "utf8");
         writeFileSync(statusPath, JSON.stringify({ status: "error", runId, accessMode, role: params.role ?? null, error: message, completedAt: new Date().toISOString(), briefPath, resultPath, transcriptPath }, null, 2), "utf8");
         return {
-          content: [{ type: "text", text: `Deferred agent failed: ${message}\n\nArtifacts:\n- Brief: ${briefPath}\n- Result: ${resultPath}\n- Transcript: ${transcriptPath}` }],
+          content: [{ type: "text", text: `Deferred agent failed: ${message}\n\nArtifacts:\n- Brief: ${briefPath}\n- Result: ${resultPath}\n- Transcript: ${transcriptPath}\n- Status: ${statusPath}` }],
           isError: true,
           details: { runId, runDir, briefPath, resultPath, transcriptPath, statusPath, accessMode, error: message },
         };

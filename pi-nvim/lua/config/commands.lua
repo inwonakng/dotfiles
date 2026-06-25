@@ -41,3 +41,11 @@ vim.api.nvim_create_user_command("YankThisAbsoluteLocation", function(opts)
 		line2 = opts.line2,
 	})
 end, { range = true })
+
+vim.api.nvim_create_user_command("PiCommand", function()
+	require("pi-integration").pick_command()
+end, { desc = "Pick a Pi slash command/template/skill" })
+
+vim.api.nvim_create_user_command("PiReload", function()
+	require("pi-integration").reload()
+end, { desc = "Reload Pi resources" })
