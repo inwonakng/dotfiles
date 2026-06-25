@@ -1,4 +1,4 @@
-import { AuthStorage, getAgentDir, type ExtensionAPI, type ExtensionContext, type InputEvent } from "@earendil-works/pi-coding-agent";
+import { AuthStorage, getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { join } from "node:path";
 
 const DEFAULT_TITLE_PROVIDER = "opencode";
@@ -53,18 +53,9 @@ function apiModelId(model: string) {
 	return model.startsWith("opencode/") ? model.slice("opencode/".length) : model;
 }
 
-function isTitleCandidate(event: InputEvent, ctx: ExtensionContext) {
-	if (event.streamingBehavior) {
-		return false;
-	}
-	const text = event.text.trim();
-	if (text === "" || text.startsWith("/") || text.startsWith("!") || text.startsWith("#")) {
-		return false;
-	}
-	if (ctx.sessionManager.getBranch().some((entry) => entry.type === "message" && entry.message.role === "user")) {
-		return false;
-	}
-	return true;
+function isPromptTitleCandidate(text: string) {
+	const trimmed = text.trim();
+	return trimmed !== "" && !trimmed.startsWith("/") && !trimmed.startsWith("!") && !trimmed.startsWith("#");
 }
 
 function normalizeWhitespace(text: string) {
@@ -125,6 +116,48 @@ function titleUserPrompt(text: string) {
 	return `Generate a title for this conversation:\n${text.slice(0, 1200)}`;
 }
 
+function messageText(message: unknown) {
+	if (!message || typeof message !== "object") {
+		return "";
+	}
+	const content = (message as { content?: unknown }).content;
+	if (typeof content === "string") {
+		return content;
+	}
+	if (Array.isArray(content)) {
+		return content
+			.map((item) => {
+				if (typeof item === "string") {
+					return item;
+				}
+				if (item && typeof item === "object" && "type" in item && item.type === "text" && "text" in item) {
+					const text = item.text;
+					return typeof text === "string" ? text : "";
+				}
+				return "";
+			})
+			.join("");
+	}
+	return "";
+}
+
+function branchUserMessages(ctx: ExtensionContext) {
+	return ctx.sessionManager
+		.getBranch()
+		.filter((entry) => entry.type === "message" && entry.message.role === "user")
+		.map((entry) => messageText(entry.message))
+		.filter((text) => text.trim() !== "");
+}
+
+function branchUserMessagesWithEvent(ctx: ExtensionContext, message: unknown) {
+	const messages = branchUserMessages(ctx);
+	const text = messageText(message);
+	if (text.trim() !== "" && !messages.includes(text)) {
+		messages.push(text);
+	}
+	return messages;
+}
+
 async function modelTitle(prompt: string) {
 	const apiKey = await titleApiKey();
 	const headers: Record<string, string> = {
@@ -172,7 +205,10 @@ function setTitle(pi: ExtensionAPI, ctx: ExtensionContext, title: string) {
 }
 
 export default function autoTitleExtension(pi: ExtensionAPI) {
+	let titleGenerationInFlightForSession: string | undefined;
+
 	pi.on("session_start", (_event, ctx) => {
+		titleGenerationInFlightForSession = undefined;
 		const title = pi.getSessionName();
 		if (title) {
 			ctx.ui.setTitle(`Pi - ${title}`);
@@ -180,23 +216,44 @@ export default function autoTitleExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	pi.on("input", (event, ctx) => {
-		if (!isTitleCandidate(event, ctx) || pi.getSessionName()) {
+	pi.on("message_end", (event, ctx) => {
+		if (event.message.role !== "user" || pi.getSessionName()) {
 			return undefined;
 		}
 
-		const fallback = deterministicTitle(event.text);
-		setTitle(pi, ctx, fallback);
+		const userMessages = branchUserMessagesWithEvent(ctx, event.message);
+		if (userMessages.length !== 1 || !isPromptTitleCandidate(userMessages[0])) {
+			return undefined;
+		}
 
-		void modelTitle(event.text)
+		const currentSessionKey = () => ctx.sessionManager.getSessionFile() || "ephemeral";
+		const sessionKey = currentSessionKey();
+		if (titleGenerationInFlightForSession === sessionKey) {
+			return undefined;
+		}
+		titleGenerationInFlightForSession = sessionKey;
+
+		const prompt = userMessages[0];
+		ctx.ui.setStatus("pi-session-title", "Generating title…");
+
+		void modelTitle(prompt)
 			.then((title) => {
-				if (title && title !== fallback && pi.getSessionName() === fallback) {
-					setTitle(pi, ctx, title);
+				if (currentSessionKey() !== sessionKey || pi.getSessionName()) {
+					return;
 				}
+				setTitle(pi, ctx, title || deterministicTitle(prompt));
 			})
 			.catch((error: unknown) => {
+				if (currentSessionKey() === sessionKey && !pi.getSessionName()) {
+					setTitle(pi, ctx, deterministicTitle(prompt));
+				}
 				const message = error instanceof Error ? error.message : String(error);
 				ctx.ui.notify(`Could not generate model session title: ${message}`, "warning");
+			})
+			.finally(() => {
+				if (titleGenerationInFlightForSession === sessionKey) {
+					titleGenerationInFlightForSession = undefined;
+				}
 			});
 
 		return undefined;
@@ -217,22 +274,7 @@ export default function autoTitleExtension(pi: ExtensionAPI) {
 	pi.registerCommand("pi-retitle", {
 		description: "Regenerate the current session title using the title model",
 		handler: async (_args, ctx) => {
-			const userMessages = ctx.sessionManager
-				.getBranch()
-				.filter((entry) => entry.type === "message" && entry.message.role === "user")
-				.map((entry) => {
-					const content = entry.message.content;
-					if (typeof content === "string") {
-						return content;
-					}
-					return content
-						.filter((item) => item.type === "text")
-						.map((item) => item.text)
-						.join("");
-				})
-				.filter((text) => text.trim() !== "");
-
-			const prompt = userMessages.slice(0, 3).join("\n\n");
+			const prompt = branchUserMessages(ctx).slice(0, 3).join("\n\n");
 			if (!prompt) {
 				ctx.ui.notify("No user messages to title.", "warning");
 				return;
