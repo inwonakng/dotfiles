@@ -22,6 +22,8 @@ const READONLY_BASH_ALLOWLIST = [
   "rg *",
   "grep *",
   "cat *",
+  "basename",
+  "basename *",
   "sed *",
   "head",
   "head *",
@@ -228,6 +230,7 @@ function findExecIsReadonly(words: string[], startIndex: number): number | undef
 
   const invokedCommand = words.slice(startIndex + 1, terminatorIndex);
   const readonlyExecCommands = new Set([
+    "basename",
     "cat",
     "grep",
     "head",
