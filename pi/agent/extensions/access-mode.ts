@@ -27,6 +27,8 @@ const READONLY_BASH_ALLOWLIST = [
   "sed *",
   "head",
   "head *",
+  "nl",
+  "nl *",
   "tail",
   "tail *",
   "wc",
@@ -35,12 +37,6 @@ const READONLY_BASH_ALLOWLIST = [
   "sort *",
   "uniq",
   "uniq *",
-  "git status",
-  "git status *",
-  "git diff",
-  "git diff *",
-  "git ls-files",
-  "git ls-files *",
   "stat *",
   "readlink",
   "readlink *",
@@ -49,14 +45,20 @@ const READONLY_BASH_ALLOWLIST = [
   "[[ * ]]",
   "true",
   "false",
+  "file *",
 ];
 
-let accessMode: AccessMode = "readonly";
-
-function parseAccessMode(input: string): AccessMode | undefined {
+function parseAccessMode(input: string | undefined): AccessMode | undefined {
+  if (!input) {
+    return undefined;
+  }
   const value = input.trim().toLowerCase();
   return ACCESS_MODES.find((mode) => mode === value);
 }
+
+let accessMode: AccessMode =
+  parseAccessMode(process.env.PI_DEFER_ACCESS_MODE) ?? "readonly";
+const isDeferredAgent = process.env.PI_DEFER_AGENT === "1";
 
 function modeDescription(): string {
   if (accessMode === "readonly") {
@@ -183,7 +185,10 @@ function commandHasUnsafeShellSyntax(command: string): boolean {
   return /(^|[^&])&($|[^&])/.test(command);
 }
 
-function splitShellOperator(command: string, operator: "&&" | "||" | "|" | ";"): string[] {
+function splitShellOperator(
+  command: string,
+  operator: "&&" | "||" | "|" | ";",
+): string[] {
   const parts: string[] = [];
   let start = 0;
   let quote: "'" | '"' | undefined;
@@ -217,7 +222,10 @@ function splitShellOperator(command: string, operator: "&&" | "||" | "|" | ";"):
   return parts;
 }
 
-function findExecIsReadonly(words: string[], startIndex: number): number | undefined {
+function findExecIsReadonly(
+  words: string[],
+  startIndex: number,
+): number | undefined {
   // Allow find -exec only when the invoked command itself is on the
   // read-only allowlist, e.g.:
   //   find ... -exec wc -l {} \;
@@ -355,14 +363,22 @@ function xargsCommandStartIndex(words: string[]): number | undefined {
       index++;
       continue;
     }
-    if (longOptionsWithRequiredArgument.some((option) => word.startsWith(`${option}=`))) {
+    if (
+      longOptionsWithRequiredArgument.some((option) =>
+        word.startsWith(`${option}=`),
+      )
+    ) {
       continue;
     }
     if (shortOptionsWithRequiredArgument.some((option) => word === option)) {
       index++;
       continue;
     }
-    if (shortOptionsWithRequiredArgument.some((option) => word.startsWith(option) && word !== option)) {
+    if (
+      shortOptionsWithRequiredArgument.some(
+        (option) => word.startsWith(option) && word !== option,
+      )
+    ) {
       continue;
     }
     if (exactOptionsWithoutArgument.has(word)) {
@@ -397,6 +413,125 @@ function xargsReadonlyCommandAllowed(command: string): boolean {
   return commandWordsAllowedByReadonlyAllowlist(invokedCommand);
 }
 
+function awkReadonlyCommandAllowed(command: string): boolean {
+  const words = shellWords(command);
+  if (!words || words[0] !== "awk") {
+    return false;
+  }
+
+  let programIndex: number | undefined;
+  for (let index = 1; index < words.length; index++) {
+    const word = words[index];
+    if (word === "--") {
+      programIndex = index + 1;
+      break;
+    }
+    if (word === "-F" || word === "-v") {
+      index++;
+      if (index >= words.length) {
+        return false;
+      }
+      continue;
+    }
+    if (word.startsWith("-F") && word !== "-F") {
+      continue;
+    }
+    if (word.startsWith("-")) {
+      // This intentionally ask-gates -f/--file and extension/loading options:
+      // the external awk program could contain writes or system calls.
+      return false;
+    }
+    programIndex = index;
+    break;
+  }
+
+  if (programIndex === undefined || programIndex >= words.length) {
+    return false;
+  }
+
+  const program = words[programIndex];
+  if (/\bsystem\s*\(/.test(program)) {
+    return false;
+  }
+  // Awk can run shell commands with pipe redirections, e.g. print | "cmd".
+  if (/(^|[^|])\|($|[^|])/.test(program)) {
+    return false;
+  }
+  // Ask-gate output redirections in print/printf statements, while still
+  // allowing comparison operators such as NR>=1285 in the user's range probes.
+  if (/\bprint(?:f)?\b.*(^|[^<>!])>{1,2}($|[^=])/.test(program)) {
+    return false;
+  }
+
+  return true;
+}
+
+function gitSubcommandStartIndex(words: string[]): number | undefined {
+  if (words[0] !== "git") {
+    return undefined;
+  }
+
+  // Parse the small set of global git options we want to support in readonly
+  // mode. In particular, this allows common probes such as:
+  //   git -C /path/to/repo log -1 --oneline
+  // Unknown global options ask for approval instead of guessing where the
+  // subcommand starts.
+  const globalOptionsWithRequiredArgument = new Set(["-C"]);
+  const globalOptionsWithoutArgument = new Set(["--no-pager"]);
+
+  for (let index = 1; index < words.length; index++) {
+    const word = words[index];
+    if (word === "--") {
+      return undefined;
+    }
+    if (!word.startsWith("-") || word === "-") {
+      return index;
+    }
+    if (globalOptionsWithRequiredArgument.has(word)) {
+      index++;
+      if (index >= words.length) {
+        return undefined;
+      }
+      continue;
+    }
+    if (globalOptionsWithoutArgument.has(word)) {
+      continue;
+    }
+    return undefined;
+  }
+
+  return undefined;
+}
+
+function gitReadonlyCommandAllowed(command: string): boolean {
+  const words = shellWords(command);
+  if (!words || words[0] !== "git") {
+    return false;
+  }
+
+  const commandStartIndex = gitSubcommandStartIndex(words);
+  if (commandStartIndex === undefined) {
+    return false;
+  }
+
+  const subcommand = words[commandStartIndex];
+  const readonlySubcommands = new Set(["diff", "log", "ls-files", "status"]);
+  if (!readonlySubcommands.has(subcommand)) {
+    return false;
+  }
+
+  // Keep command-level output/execution escape hatches ask-gated. Shell-level
+  // redirection is handled separately by stripSafeReadonlyRedirections().
+  const unsafeOptions = new Set(["--ext-diff", "--external-diff", "--output"]);
+  for (const word of words.slice(commandStartIndex + 1)) {
+    if (unsafeOptions.has(word) || word.startsWith("--output=")) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function simpleReadonlyCommandAllowed(command: string): boolean {
   if (command === "cd" || command.startsWith("cd ")) {
     return true;
@@ -405,6 +540,12 @@ function simpleReadonlyCommandAllowed(command: string): boolean {
     return true;
   }
   if (xargsReadonlyCommandAllowed(command)) {
+    return true;
+  }
+  if (awkReadonlyCommandAllowed(command)) {
+    return true;
+  }
+  if (gitReadonlyCommandAllowed(command)) {
     return true;
   }
   if (commandWordsAllowedByReadonlyAllowlist([command])) {
@@ -432,19 +573,21 @@ function readonlyCommandAllowed(command: string): boolean {
     return sequenceParts.every(readonlyCommandAllowed);
   }
 
+  const andParts = splitShellOperator(command, "&&");
+  if (andParts.length > 1) {
+    return andParts.every(readonlyCommandAllowed);
+  }
+
   const orParts = splitShellOperator(command, "||");
   if (orParts.length > 1) {
-    // Common read-only pattern: grep/rg may exit 1 when there are no matches.
+    // Common read-only pattern: grep/rg/find may exit non-zero when there are
+    // no matches. Handle this after && splitting so commands like
+    // `find ... || true && rg ...` are checked as separate read-only clauses.
     return (
       orParts.length === 2 &&
       orParts[1] === "true" &&
       readonlyCommandAllowed(orParts[0])
     );
-  }
-
-  const andParts = splitShellOperator(command, "&&");
-  if (andParts.length > 1) {
-    return andParts.every(readonlyCommandAllowed);
   }
 
   const pipeParts = splitShellOperator(command, "|");
@@ -601,8 +744,12 @@ export default function accessModeExtension(pi: ExtensionAPI) {
   });
 
   pi.on("before_agent_start", (event) => {
+    const deferredNote =
+      isDeferredAgent && accessMode === "readonly"
+        ? " This is a deferred subagent: actions requiring approval are blocked instead of asking the user. If blocked, stop and report BLOCKED with the exact action that required write access."
+        : "";
     return {
-      systemPrompt: `${event.systemPrompt}\n\nAccess mode: ${accessMode}. ${modeDescription()}`,
+      systemPrompt: `${event.systemPrompt}\n\nAccess mode: ${accessMode}. ${modeDescription()}${deferredNote}`,
     };
   });
 
@@ -620,6 +767,13 @@ export default function accessModeExtension(pi: ExtensionAPI) {
       }
     } else if (!WRITE_TOOLS.has(event.toolName)) {
       return undefined;
+    }
+
+    if (isDeferredAgent) {
+      return {
+        block: true,
+        reason: `Tool "${event.toolName}" requires approval, but this deferred agent is running in readonly mode.`,
+      };
     }
 
     if (!ctx.hasUI) {
