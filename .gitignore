@@ -30,3 +30,4 @@ claude/file-history
 /pi/agent/bin
 /node_modules
 /pi/agent/history
+/plans
