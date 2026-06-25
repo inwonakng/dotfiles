@@ -52,7 +52,11 @@ function M.metadata_end(ctx)
 end
 
 function M.win_valid(ctx)
-	return ctx.state.transcript_win and vim.api.nvim_win_is_valid(ctx.state.transcript_win)
+	local state = ctx.state
+	return state.transcript_win
+		and vim.api.nvim_win_is_valid(state.transcript_win)
+		and ctx.valid_buf(state.transcript_buf)
+		and vim.api.nvim_win_get_buf(state.transcript_win) == state.transcript_buf
 end
 
 function M.is_focused(ctx)

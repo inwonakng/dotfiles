@@ -5,6 +5,7 @@ if ok_which_key then
 		{ "<leader><tab>", group = "tabs" },
 		{ "<leader>b", group = "buffers" },
 		{ "<leader>i", group = "insert" },
+		{ "<leader>p", group = "pi" },
 		{ "<leader>u", group = "ui" },
 		{ "<leader>w", group = "windows" },
 		{ "<leader>y", group = "yank" },

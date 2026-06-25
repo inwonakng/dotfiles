@@ -8,6 +8,8 @@ M.specs = {
 		{ lhs = "<Tab>", action = "cycle_access_mode", desc = "Cycle access mode" },
 		{ lhs = "<leader>?", action = "show_help", desc = "Pi help" },
 		{ lhs = "<leader>/", action = "pick_command", desc = "Pick Pi command" },
+		{ lhs = "<leader>pi", action = "show_input", desc = "Show Pi input" },
+		{ lhs = "<leader>pt", action = "show_transcript", desc = "Show Pi transcript" },
 		{ lhs = "<leader>m", action = "pick_model", desc = "Pick model" },
 		{ lhs = "<leader>t", action = "pick_thinking", desc = "Pick thinking level" },
 		{ lhs = "<leader>p", action = "pick_access_mode", desc = "Pick access mode" },

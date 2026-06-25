@@ -377,6 +377,19 @@ function M.open()
 	pi_layout.open(integration_ctx())
 end
 
+function M.show_input()
+	pi_layout.show_input(integration_ctx())
+end
+
+function M.show_transcript()
+	local recreated = pi_layout.show_transcript(integration_ctx())
+	if state.session_file or state.pending_session_file or (state.job and state.job > 0) then
+		M.refresh_messages()
+	elseif recreated then
+		append_status(INITIAL_SESSION_NOTICE)
+	end
+end
+
 function M.start()
 	pi_rpc.start(integration_ctx())
 end

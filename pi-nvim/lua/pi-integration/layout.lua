@@ -41,16 +41,67 @@ function M.apply_transcript_window_options(ctx, win)
 	vim.api.nvim_set_option_value("foldlevel", 0, { win = win })
 end
 
+function M.ensure_transcript_buffer(ctx)
+	local state = ctx.state
+	if ctx.valid_buf(state.transcript_buf) then
+		return false
+	end
+
+	state.transcript_buf = M.create_buffer(ctx, "pi://transcript", "markdown", false)
+	M.start_markdown_treesitter(ctx, state.transcript_buf)
+	return true
+end
+
+function M.ensure_input_buffer(ctx)
+	local state = ctx.state
+	if ctx.valid_buf(state.input_buf) then
+		return false
+	end
+
+	state.input_buf = M.create_buffer(ctx, "pi://input", "markdown", true)
+	M.start_markdown_treesitter(ctx, state.input_buf)
+	return true
+end
+
+function M.show_transcript(ctx)
+	local state = ctx.state
+	local recreated = M.ensure_transcript_buffer(ctx)
+	local win = vim.api.nvim_get_current_win()
+
+	vim.api.nvim_win_set_buf(win, state.transcript_buf)
+	state.transcript_win = win
+	if state.input_win == win then
+		state.input_win = nil
+	end
+	M.apply_transcript_window_options(ctx, win)
+	ctx.setup_keymaps()
+	ctx.refresh_transcript_ui()
+	return recreated
+end
+
+function M.show_input(ctx)
+	local state = ctx.state
+	local recreated = M.ensure_input_buffer(ctx)
+	local win = vim.api.nvim_get_current_win()
+
+	vim.api.nvim_win_set_buf(win, state.input_buf)
+	state.input_win = win
+	if state.transcript_win == win then
+		state.transcript_win = nil
+	end
+	M.apply_window_padding(ctx, win)
+	ctx.setup_keymaps()
+	return recreated
+end
+
 function M.open(ctx)
 	local state = ctx.state
 	if ctx.valid_buf(state.transcript_buf) and ctx.valid_buf(state.input_buf) then
 		return false
 	end
 
-	state.transcript_buf = M.create_buffer(ctx, "pi://transcript", "markdown", false)
-	state.input_buf = M.create_buffer(ctx, "pi://input", "markdown", true)
-	M.start_markdown_treesitter(ctx, state.transcript_buf)
-	M.start_markdown_treesitter(ctx, state.input_buf)
+	M.ensure_transcript_buffer(ctx)
+	M.ensure_input_buffer(ctx)
 
 	vim.api.nvim_win_set_buf(0, state.transcript_buf)
 	state.transcript_win = vim.api.nvim_get_current_win()

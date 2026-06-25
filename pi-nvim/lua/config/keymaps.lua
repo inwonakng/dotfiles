@@ -12,6 +12,14 @@ map("n", "<C-j>", "<C-w><C-j>", { desc = "Move focus to the lower window" })
 map("n", "<C-k>", "<C-w><C-k>", { desc = "Move focus to the upper window" })
 map("n", "<Esc>", "<cmd>nohlsearch<CR>")
 
+-- Pi panes
+map("n", "<leader>pi", function()
+	require("pi-integration").show_input()
+end, { desc = "Pi input" })
+map("n", "<leader>pt", function()
+	require("pi-integration").show_transcript()
+end, { desc = "Pi transcript" })
+
 -- tab manipulation
 map("n", "<leader><tab>]", "<cmd>tabnext<cr>", { desc = "Next tab" })
 map("n", "<leader><tab>[", "<cmd>tabprev<cr>", { desc = "Previous tab" })
