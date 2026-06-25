@@ -1306,13 +1306,18 @@ local function approval_preview_item(payload)
 	if #lines == 0 then
 		lines = { "" }
 	end
-	local filetype = payload.preview_filetype or "text"
+
+	local buf = vim.api.nvim_create_buf(false, true)
+	vim.bo[buf].buftype = "nofile"
+	vim.bo[buf].bufhidden = "wipe"
+	vim.bo[buf].swapfile = false
+	vim.bo[buf].filetype = payload.preview_filetype or "text"
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+	vim.bo[buf].modifiable = false
+
 	return {
-		content = lines,
-		filetype = filetype,
-		path = "pi-approval." .. filetype,
-		line = 1,
-		col = 1,
+		buf = buf,
+		pos = { 1, 1 },
 	}
 end
 
@@ -1323,12 +1328,11 @@ local function confirm_with_preview(event)
 	end
 
 	local prompt = payload.tool and ("Allow " .. payload.tool .. "?") or (event.title or "Pi confirm")
-	local preview_item = approval_preview_item(payload)
 	vim.ui.select({ "Allow", "Deny" }, {
 		prompt = prompt,
 		kind = "pi_approval",
 		preview_item = function()
-			return preview_item
+			return approval_preview_item(payload)
 		end,
 	}, function(choice)
 		send_extension_ui_response(event.id, { confirmed = choice == "Allow" })
@@ -1633,8 +1637,8 @@ local function register_pi_which_key()
 		{ "<leader>/", desc = "Pick Pi command" },
 		{ "<leader>h", desc = "History" },
 		{ "<leader>m", desc = "Pick model" },
-		{ "<leader>n", desc = "New session" },
-		{ "<leader>N", desc = "Toggle notifications" },
+		{ "<leader>N", desc = "New session" },
+		{ "<leader>n", desc = "Toggle notifications" },
 		{ "<leader>p", desc = "Pick access mode" },
 		{ "<leader>r", desc = "Refresh transcript" },
 		{ "<leader>R", desc = "Rename session" },
@@ -1699,10 +1703,10 @@ local function setup_keymaps()
 	map_input("n", "<leader>T", function()
 		M.show_tree()
 	end, "Session tree")
-	map_input("n", "<leader>n", function()
+	map_input("n", "<leader>N", function()
 		M.new_session()
 	end, "New session")
-	map_input("n", "<leader>N", function()
+	map_input("n", "<leader>n", function()
 		M.toggle_notifications()
 	end, "Toggle notifications")
 	map_input("n", "<leader>r", function()
@@ -1742,10 +1746,10 @@ local function setup_keymaps()
 	map_transcript("<leader>T", function()
 		M.show_tree()
 	end, "Session tree")
-	map_transcript("<leader>n", function()
+	map_transcript("<leader>N", function()
 		M.new_session()
 	end, "New session")
-	map_transcript("<leader>N", function()
+	map_transcript("<leader>n", function()
 		M.toggle_notifications()
 	end, "Toggle notifications")
 	map_transcript("<leader>r", function()
@@ -2839,6 +2843,58 @@ decode_session_record = function(line)
 	return nil
 end
 
+local function session_record_message_text(message)
+	if type(message) ~= "table" then
+		return nil
+	end
+	if type(message.content) == "string" then
+		return message.content
+	end
+	if type(message.content) == "table" then
+		local chunks = {}
+		for _, item in ipairs(message.content) do
+			if type(item) == "string" then
+				table.insert(chunks, item)
+			elseif type(item) == "table" and item.type == "text" and type(item.text) == "string" then
+				table.insert(chunks, item.text)
+			end
+		end
+		return table.concat(chunks, "")
+	end
+	return nil
+end
+
+local function fallback_session_title(text)
+	text = vim.trim((text or ""):gsub("%s+", " "))
+	text = text:gsub("^[Hh]ey[,:%s]+", "")
+	text = text:gsub("^[Hh]i[,:%s]+", "")
+	text = text:gsub("^[Hh]ello[,:%s]+", "")
+	text = text:gsub("[%.%?!:;,]+$", "")
+	if #text > 64 then
+		text = vim.trim(text:sub(1, 61)) .. "..."
+	end
+	return text ~= "" and text or nil
+end
+
+local function looks_like_bad_model_title(title)
+	if type(title) ~= "string" or title == "" then
+		return false
+	end
+	local lower = title:lower()
+	return lower:find("<tool_call>", 1, true)
+		or lower:find("```", 1, true)
+		or lower:match("^sure[%s!,.]")
+		or lower:match("^sorry[%s!,.]")
+		or lower:match("^i'm sorry")
+		or lower:match("^im sorry")
+		or lower:match("^i don't")
+		or lower:match("^i cannot")
+		or lower:match("^i can't")
+		or lower:match("^i'll")
+		or lower:match("^i will")
+		or lower:match("^let me")
+end
+
 local function read_session_candidate(path)
 	local candidate = {
 		path = path,
@@ -2846,6 +2902,7 @@ local function read_session_candidate(path)
 		title = nil,
 		cwd = nil,
 	}
+	local first_user_title = nil
 
 	for _, line in ipairs(vim.fn.readfile(path)) do
 		local record = decode_session_record(line)
@@ -2853,7 +2910,13 @@ local function read_session_candidate(path)
 			candidate.cwd = record.cwd
 		elseif record and record.type == "session_info" and type(record.name) == "string" and vim.trim(record.name) ~= "" then
 			candidate.title = vim.trim(record.name)
+		elseif record and not first_user_title and record.type == "message" and type(record.message) == "table" and record.message.role == "user" then
+			first_user_title = fallback_session_title(session_record_message_text(record.message))
 		end
+	end
+
+	if looks_like_bad_model_title(candidate.title) and first_user_title then
+		candidate.title = first_user_title
 	end
 
 	return candidate

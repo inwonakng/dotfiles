@@ -5,6 +5,20 @@ const DEFAULT_TITLE_PROVIDER = "opencode";
 const DEFAULT_TITLE_MODEL = "opencode/mimo-v2.5-free";
 const DEFAULT_TITLE_ENDPOINT = "https://opencode.ai/zen/v1/chat/completions";
 const TITLE_LIMIT = 64;
+const MODEL_TITLE_LIMIT = 50;
+const TITLE_SYSTEM_PROMPT = [
+	"You are a title generator. You output ONLY a thread title. Nothing else.",
+	"Generate a brief title that would help the user find this conversation later.",
+	"Your output must be a single line, at most 50 characters, no quotes, no explanations.",
+	"Use the same language as the user message you are summarizing.",
+	"Focus on the main topic or question the user needs to retrieve.",
+	"Keep exact technical terms, numbers, filenames, and error codes.",
+	"Never include tool names in the title.",
+	"Never use tools.",
+	"NEVER respond to questions or requests; only generate a title for the conversation.",
+	"DO NOT say you cannot generate a title or complain about the input.",
+	"Always output something meaningful, even if the input is minimal.",
+].join("\n");
 
 let authStorage: ReturnType<typeof AuthStorage.create> | undefined;
 
@@ -73,12 +87,42 @@ function deterministicTitle(text: string) {
 	return `${normalized.slice(0, TITLE_LIMIT - 3).trimEnd()}...`;
 }
 
-function cleanModelTitle(text: string) {
+function cleanTitle(text: string, limit = TITLE_LIMIT) {
 	return normalizeWhitespace(text)
 		.replace(/^["'`]+|["'`]+$/g, "")
+		.replace(/^(title|session title)\s*[:\-]\s*/i, "")
 		.replace(/[.?!:;,]+$/g, "")
-		.slice(0, TITLE_LIMIT)
+		.slice(0, limit)
 		.trim();
+}
+
+function isUsefulModelTitle(title: string) {
+	if (!title || title.length > MODEL_TITLE_LIMIT || title.split(/\s+/).length > 8) {
+		return false;
+	}
+	if (/[`{}<>]|<tool_call>|```/i.test(title)) {
+		return false;
+	}
+	if (/\b(i\s+am|i'm|i\s+will|i'll|i\s+can|i\s+cannot|i\s+can't|i\s+don't|let\s+me|sure|sorry)\b/i.test(title)) {
+		return false;
+	}
+	return true;
+}
+
+function cleanModelTitle(text: string) {
+	const withoutThinking = text.replace(/<think>[\s\S]*?<\/think>/gi, "");
+	const firstLine = withoutThinking
+		.split("\n")
+		.map((line) => cleanTitle(line, MODEL_TITLE_LIMIT))
+		.find((line) => line.length > 0);
+	if (!firstLine || !isUsefulModelTitle(firstLine)) {
+		return undefined;
+	}
+	return firstLine;
+}
+
+function titleUserPrompt(text: string) {
+	return `Generate a title for this conversation:\n${text.slice(0, 1200)}`;
 }
 
 async function modelTitle(prompt: string) {
@@ -98,16 +142,15 @@ async function modelTitle(prompt: string) {
 			messages: [
 				{
 					role: "system",
-					content:
-						"Generate a concise session title. Return only the title, no punctuation at the end, no quotes, at most 6 words.",
+					content: TITLE_SYSTEM_PROMPT,
 				},
 				{
 					role: "user",
-					content: prompt.slice(0, 1200),
+					content: titleUserPrompt(prompt),
 				},
 			],
-			max_tokens: 512,
-			temperature: 0,
+			max_tokens: 40,
+			temperature: 0.3,
 		}),
 	});
 	if (!response.ok) {
@@ -162,7 +205,7 @@ export default function autoTitleExtension(pi: ExtensionAPI) {
 	pi.registerCommand("pi-title", {
 		description: "Set the current session title: /pi-title <title>",
 		handler: async (args, ctx) => {
-			const title = cleanModelTitle(args);
+			const title = cleanTitle(args);
 			if (!title) {
 				ctx.ui.notify("Usage: /pi-title <title>", "warning");
 				return;
@@ -204,10 +247,10 @@ export default function autoTitleExtension(pi: ExtensionAPI) {
 	pi.registerCommand("pi-rename", {
 		description: "Rename the current session",
 		handler: async (args, ctx) => {
-			let title = cleanModelTitle(args);
+			let title = cleanTitle(args);
 			if (!title) {
 				const value = await ctx.ui.input("Rename Session: ", pi.getSessionName() || "");
-				title = cleanModelTitle(value || "");
+				title = cleanTitle(value || "");
 			}
 			if (!title) {
 				return;
