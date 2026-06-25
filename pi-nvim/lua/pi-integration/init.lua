@@ -479,6 +479,7 @@ update_transcript_statusline = function()
 		return
 	end
 	vim.api.nvim_set_option_value("statusline", "%!v:lua._pi_nvim_transcript_statusline()", { win = state.transcript_win })
+	vim.cmd("redrawstatus!")
 end
 
 local function transcript_is_focused()
