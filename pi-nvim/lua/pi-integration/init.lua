@@ -3,6 +3,8 @@ local M = {}
 local tree_preview_augroup = vim.api.nvim_create_augroup("PiNvimTreePreview", { clear = true })
 
 local INITIAL_SESSION_NOTICE = "No Pi session started yet. Send a message or pick a session."
+local NEW_SESSION_NOTICE = "New session."
+local PENDING_NEW_SESSION_NOTICE = "New session will be created when you send a message."
 
 local state = {
 	job = nil,
@@ -46,6 +48,8 @@ local state = {
 	last_stderr_lines = {},
 	active_tool_fold = nil,
 	tool_folds = {},
+	tool_outputs = {},
+	next_tool_output_id = 0,
 	pending_tool_separator = false,
 	session_stats = nil,
 	todo_status = nil,
@@ -595,6 +599,87 @@ local function append_status(text)
 	append_lines({ "> " .. text })
 end
 
+local function line_count_text(text)
+	if type(text) ~= "string" or text == "" then
+		return 0
+	end
+	local _, count = text:gsub("\n", "")
+	if text:sub(-1) == "\n" then
+		return count
+	end
+	return count + 1
+end
+
+local function looks_like_json(text)
+	if type(text) ~= "string" then
+		return false
+	end
+	local trimmed = vim.trim(text)
+	if not (trimmed:sub(1, 1) == "{" or trimmed:sub(1, 1) == "[") then
+		return false
+	end
+	local ok = pcall(vim.json.decode, trimmed)
+	return ok
+end
+
+local function infer_tool_filetype(tool_name, text)
+	if looks_like_json(text) then
+		return "json"
+	end
+	if tool_name == "edit" or tool_name == "write" then
+		return "diff"
+	end
+	return "text"
+end
+
+local function reset_tool_outputs()
+	state.tool_outputs = {}
+	state.next_tool_output_id = 0
+end
+
+local function store_tool_output(tool_name, text, filetype)
+	state.next_tool_output_id = state.next_tool_output_id + 1
+	local id = state.next_tool_output_id
+	state.tool_outputs[id] = {
+		name = tool_name or "tool",
+		text = text or "",
+		filetype = filetype or infer_tool_filetype(tool_name, text),
+	}
+	return id
+end
+
+local function tool_output_summary_lines(output_id)
+	local output = state.tool_outputs[output_id]
+	if not output then
+		return { "> Tool output unavailable." }
+	end
+	local lines = line_count_text(output.text)
+	local line_label = lines == 1 and "1 line" or (tostring(lines) .. " lines")
+	return {
+		"> Tool: " .. tostring(output.name or "tool") .. " · " .. line_label .. " · " .. (output.filetype or "text") .. " · press `<CR>` to open",
+	}
+end
+
+local function remove_pending_tool_separator()
+	if not state.pending_tool_separator or not valid_buf(state.transcript_buf) then
+		return false
+	end
+
+	local removed = false
+	preserve_focused_transcript_view(function()
+		set_modifiable(state.transcript_buf, true)
+		local line_count = vim.api.nvim_buf_line_count(state.transcript_buf)
+		local last_line = vim.api.nvim_buf_get_lines(state.transcript_buf, line_count - 1, line_count, false)[1]
+		if last_line == "" then
+			vim.api.nvim_buf_set_lines(state.transcript_buf, line_count - 1, line_count, false, {})
+			removed = true
+		end
+		set_modifiable(state.transcript_buf, false)
+	end)
+	state.pending_tool_separator = false
+	return removed
+end
+
 local function remove_status(text)
 	if not valid_buf(state.transcript_buf) then
 		return
@@ -614,8 +699,8 @@ local function remove_status(text)
 	schedule_transcript_refresh()
 end
 
-local function create_tool_fold(start_line, end_line, header_line)
-	if end_line <= start_line then
+local function create_tool_fold(start_line, end_line, header_line, output_id)
+	if end_line < start_line then
 		return
 	end
 
@@ -635,7 +720,12 @@ local function create_tool_fold(start_line, end_line, header_line)
 		header_line = header_line or math.max(1, fold_start - 1),
 		start_line = fold_start,
 		end_line = end_line,
+		output_id = output_id,
 	})
+
+	if end_line <= fold_start then
+		return
+	end
 
 	with_transcript_win(function()
 		local cursor = vim.api.nvim_win_get_cursor(state.transcript_win)
@@ -655,11 +745,12 @@ local function create_tool_fold(start_line, end_line, header_line)
 	end)
 end
 
-local function start_tool_fold()
+local function start_tool_fold(output_id)
 	local line_count = transcript_line_count()
 	state.active_tool_fold = {
 		header_line = math.max(1, line_count - 1),
 		start_line = line_count,
+		output_id = output_id,
 	}
 end
 
@@ -687,7 +778,7 @@ local function finish_tool_fold()
 	state.active_tool_fold = nil
 	local end_line = transcript_line_count()
 	append_tool_fold_separator()
-	create_tool_fold(tool_fold.start_line, end_line, tool_fold.header_line)
+	create_tool_fold(tool_fold.start_line, end_line, tool_fold.header_line, tool_fold.output_id)
 end
 
 local function line_in_tool_fold(line)
@@ -698,6 +789,79 @@ local function line_in_tool_fold(line)
 		end
 	end
 	return nil
+end
+
+local function sanitize_buf_name_part(value)
+	return tostring(value or "tool"):gsub("[^%w%._%-]+", "-")
+end
+
+local function close_window(win)
+	if win and vim.api.nvim_win_is_valid(win) then
+		vim.api.nvim_win_close(win, true)
+	end
+end
+
+local function open_tool_output_float(output_id)
+	local output = state.tool_outputs[output_id]
+	if not output then
+		notify("Tool output unavailable", vim.log.levels.WARN)
+		return true
+	end
+
+	local width = math.max(40, math.floor(vim.o.columns * 0.85))
+	local height = math.max(10, math.floor(vim.o.lines * 0.8))
+	width = math.min(width, math.max(1, vim.o.columns - 4))
+	height = math.min(height, math.max(1, vim.o.lines - 4))
+	local row = math.floor((vim.o.lines - height) / 2)
+	local col = math.floor((vim.o.columns - width) / 2)
+
+	local buf = vim.api.nvim_create_buf(false, true)
+	vim.api.nvim_buf_set_name(buf, "pi://tool/" .. output_id .. "/" .. sanitize_buf_name_part(output.name))
+	vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
+	vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
+	vim.api.nvim_set_option_value("swapfile", false, { buf = buf })
+	vim.api.nvim_set_option_value("filetype", output.filetype or "text", { buf = buf })
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(output.text or "", "\n", { plain = true }))
+	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+
+	local win = vim.api.nvim_open_win(buf, true, {
+		relative = "editor",
+		width = width,
+		height = height,
+		row = row,
+		col = col,
+		style = "minimal",
+		border = "rounded",
+		title = " Tool: " .. tostring(output.name or "tool") .. " ",
+		title_pos = "left",
+	})
+
+	vim.api.nvim_set_option_value("wrap", false, { win = win })
+	vim.api.nvim_set_option_value("number", false, { win = win })
+	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
+	vim.api.nvim_set_option_value("signcolumn", "no", { win = win })
+
+	vim.keymap.set("n", "q", function()
+		close_window(win)
+	end, { buffer = buf, silent = true, desc = "Close tool output" })
+	vim.keymap.set("n", "<Esc>", function()
+		close_window(win)
+	end, { buffer = buf, silent = true, desc = "Close tool output" })
+	vim.keymap.set("n", "y", function()
+		vim.fn.setreg("+", output.text or "")
+		notify("Yanked tool output")
+	end, { buffer = buf, silent = true, desc = "Yank tool output" })
+
+	return true
+end
+
+local function open_tool_output_under_cursor()
+	local cursor = vim.api.nvim_win_get_cursor(0)
+	local tool_fold = line_in_tool_fold(cursor[1])
+	if not tool_fold or not tool_fold.output_id then
+		return false
+	end
+	return open_tool_output_float(tool_fold.output_id)
 end
 
 local function toggle_tool_fold()
@@ -1020,10 +1184,17 @@ local function render_message(message)
 	end
 	if role == "toolResult" then
 		local name = message.toolName or "tool"
-		append_lines({ "", "### Tool: " .. name, "" })
-		start_tool_fold()
-		append_text(text)
-		finish_tool_fold()
+		local output_id = store_tool_output(name, text)
+		remove_pending_tool_separator()
+		append_lines(tool_output_summary_lines(output_id))
+		local line = transcript_line_count()
+		table.insert(state.tool_folds, {
+			header_line = line,
+			start_line = line,
+			end_line = line,
+			output_id = output_id,
+		})
+		append_tool_fold_separator()
 		return
 	end
 	append_message_header(role:gsub("^%l", string.upper))
@@ -1413,7 +1584,7 @@ local function register_pi_which_key()
 	if valid_buf(state.transcript_buf) then
 		local transcript_specs = vim.deepcopy(shared)
 		vim.list_extend(transcript_specs, {
-			{ "<CR>", desc = "Toggle fold" },
+			{ "<CR>", desc = "Open tool output / toggle fold" },
 			{ "<Esc><Esc>", desc = "Abort Pi" },
 		})
 		for _, spec in ipairs(transcript_specs) do
@@ -1504,10 +1675,13 @@ local function setup_keymaps()
 		M.rename_session()
 	end, "Rename session")
 	map_transcript("<CR>", function()
+		if open_tool_output_under_cursor() then
+			return
+		end
 		if not toggle_tool_fold() then
 			vim.cmd("normal! za")
 		end
-	end, "Toggle fold")
+	end, "Open tool output or toggle fold")
 
 	register_pi_which_key()
 end
@@ -1628,6 +1802,8 @@ function M.submit_prompt()
 	state.error_rendered_for_active_run = false
 	clear_input()
 	remove_status(INITIAL_SESSION_NOTICE)
+	remove_status(NEW_SESSION_NOTICE)
+	remove_status(PENDING_NEW_SESSION_NOTICE)
 	state.pending_user_message = text
 	append_message_header("You")
 	append_text(text)
@@ -1684,7 +1860,7 @@ function M.new_session()
 		state.todo_status = nil
 		state.tree_leaf_id = nil
 		refresh_transcript_ui()
-		append_status("New session will be created when you send a message.")
+		append_status(PENDING_NEW_SESSION_NOTICE)
 		return
 	end
 
@@ -1700,7 +1876,7 @@ function M.new_session()
 			state.todo_status = nil
 			state.tree_leaf_id = nil
 			refresh_transcript_ui()
-			append_status("New session.")
+			append_status(NEW_SESSION_NOTICE)
 			send({ type = "get_state" }, function(state_event)
 				if state_event.success and state_event.data then
 					apply_session_state(state_event.data)
@@ -1785,32 +1961,40 @@ local function collect_message_lines(messages)
 	local lines = metadata_lines()
 	local folds = {}
 	local has_body = false
+	local last_role = nil
 
 	for _, message in ipairs(messages or {}) do
 		local text = extract_text(message)
 		if text and text ~= "" then
 			local role = message.role or message.type
-			local text_lines = vim.split(text, "\n", { plain = true })
 			if role == "toolResult" then
-				add_message_separator(lines, has_body)
-				table.insert(lines, "### Tool: " .. (message.toolName or "tool"))
-				table.insert(lines, "")
-				local start_line = #lines + 1
-				vim.list_extend(lines, text_lines)
-				local end_line = #lines
+				local name = message.toolName or "tool"
+				local output_id = store_tool_output(name, text)
+				if has_body and last_role == "toolResult" then
+					if lines[#lines] == "" then
+						table.remove(lines)
+					end
+				else
+					add_message_separator(lines, has_body)
+				end
+				vim.list_extend(lines, tool_output_summary_lines(output_id))
+				local line = #lines
 				table.insert(lines, "")
 				table.insert(folds, {
-					header_line = math.max(1, start_line - 2),
-					start_line = start_line,
-					end_line = end_line,
+					header_line = line,
+					start_line = line,
+					end_line = line,
+					output_id = output_id,
 				})
 			else
+				local text_lines = vim.split(text, "\n", { plain = true })
 				add_message_separator(lines, has_body)
 				table.insert(lines, "## " .. message_role_title(message))
 				table.insert(lines, "")
 				vim.list_extend(lines, text_lines)
 			end
 			has_body = true
+			last_role = role
 		end
 	end
 
@@ -1847,6 +2031,7 @@ local function render_messages(messages)
 	end
 
 	state.last_updated = os.date("%Y-%m-%d %H:%M:%S %z")
+	reset_tool_outputs()
 	local lines, folds = collect_message_lines(messages)
 	set_buffer_lines(state.transcript_buf, lines, false)
 	apply_collected_tool_folds(folds)
@@ -2365,7 +2550,7 @@ function M.show_help()
 		"- `<leader>n` new session.",
 		"- `<leader>r` refresh transcript.",
 		"- `<leader>R` rename session.",
-		"- `<CR>` toggle the current tool output fold.",
+		"- `<CR>` open the current tool output, or toggle a normal fold.",
 		"- `<C-c>` abort PI.",
 		"- `q` or `<Esc>` close this help.",
 		"",
