@@ -1229,17 +1229,13 @@ local function approval_preview_item(payload)
 	if #lines == 0 then
 		lines = { "" }
 	end
-	local buf = vim.api.nvim_create_buf(false, true)
-	vim.bo[buf].buftype = "nofile"
-	vim.bo[buf].bufhidden = "wipe"
-	vim.bo[buf].swapfile = false
-	vim.bo[buf].filetype = payload.preview_filetype or "text"
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-	vim.bo[buf].modifiable = false
+	local filetype = payload.preview_filetype or "text"
 	return {
-		buf = buf,
-		pos = { 1, 1 },
-		pos_end = { 1, 1 },
+		content = lines,
+		filetype = filetype,
+		path = "pi-approval." .. filetype,
+		line = 1,
+		col = 1,
 	}
 end
 
