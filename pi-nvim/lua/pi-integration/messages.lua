@@ -139,17 +139,34 @@ local function append_assistant_blocks(ctx, lines, items, message, has_body)
 		return false
 	end
 
+	local started = false
 	local appended = false
 	local pending_text = {}
+
+	local function ensure_assistant_message()
+		if started then
+			return
+		end
+		add_message_separator(lines, has_body)
+		table.insert(lines, "## " .. message_role_title(message))
+		table.insert(lines, "")
+		started = true
+	end
+
+	local function ensure_inline_gap()
+		if appended and lines[#lines] ~= "" then
+			table.insert(lines, "")
+		end
+	end
+
 	local function flush_text()
 		local text = table.concat(pending_text, "")
 		pending_text = {}
 		if text == "" then
 			return
 		end
-		add_message_separator(lines, has_body or appended)
-		table.insert(lines, "## " .. message_role_title(message))
-		table.insert(lines, "")
+		ensure_assistant_message()
+		ensure_inline_gap()
 		vim.list_extend(lines, vim.split(text, "\n", { plain = true }))
 		appended = true
 	end
@@ -160,9 +177,13 @@ local function append_assistant_blocks(ctx, lines, items, message, has_body)
 		elseif type(item) == "table" then
 			if item.type == "thinking" then
 				flush_text()
-				add_message_separator(lines, has_body or appended)
-				if append_thinking_summary(ctx, lines, items, item.thinking or item.text or "") then
-					appended = true
+				local thinking = item.thinking or item.text or ""
+				if thinking ~= "" then
+					ensure_assistant_message()
+					ensure_inline_gap()
+					if append_thinking_summary(ctx, lines, items, thinking) then
+						appended = true
+					end
 				end
 			elseif item.type == "text" or item.text then
 				table.insert(pending_text, item.text or item.content or item.delta or "")

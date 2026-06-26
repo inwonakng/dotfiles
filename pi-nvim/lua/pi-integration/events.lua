@@ -175,7 +175,11 @@ function M.handle_message_update(ctx, event)
 		end
 		ctx.append_text(update.delta or "")
 	elseif update.type == "thinking_start" and ctx.config.show_thinking then
-		ctx.clear_assistant_placeholder()
+		if not state.current_message_started then
+			ctx.clear_assistant_placeholder()
+			ctx.append_message_header("Assistant")
+			state.current_message_started = true
+		end
 		local output_id = ctx.store_thinking_output("")
 		state.active_thinking_output_id = output_id
 		state.current_thinking_rendered = true
