@@ -142,7 +142,15 @@ function notifyPermissionRequest(pi: ExtensionAPI, ctx: ExtensionContext): void 
 
 function modeDescription(): string {
   if (accessMode === "readonly") {
-    return "Read-only work is allowed. Bash commands matching the readonly allowlist, safe find commands, web search, and custom tools may run. Other bash commands plus file edit and write tools require user approval.";
+    return [
+      "Read-only work is allowed.",
+      "Bash commands matching the readonly allowlist, safe find commands, web search, and custom tools may run.",
+      "Other bash commands plus file edit and write tools require user approval.",
+      "Prefer simple commands and pipelines that can be statically checked.",
+      "Avoid shell loops, command substitution `$()`, backticks, background jobs, and ad-hoc shell scripting because they require approval.",
+      "Rewrite inspection commands as pipelines using allowlisted tools such as find, xargs, rg, grep, ls, head, tail, sort, uniq, wc, stat, and git diff/log/status/ls-files.",
+      "Example: prefer `find path -print0 | xargs -0 ls -t | head -5 | xargs head -5` over `for f in $(find ...); do ...; done`.",
+    ].join(" ");
   }
   return "All available tools may run without an access-mode prompt.";
 }
