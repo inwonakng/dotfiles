@@ -509,6 +509,13 @@ function M.pick_command()
 	pi_pickers.pick_command(integration_ctx())
 end
 
+function M.get_commands(callback)
+	send({ type = "get_commands" }, function(event)
+		local commands = event.success and event.data and event.data.commands or {}
+		callback(commands)
+	end)
+end
+
 function M.reload()
 	pi_pickers.reload(integration_ctx())
 end

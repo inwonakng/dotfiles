@@ -222,6 +222,10 @@ export default function deferExtension(pi: ExtensionAPI) {
     name: "defer_task",
     label: "Defer Task",
     description: "Run a bounded task in an isolated deferred pi subagent. Use for research, planning, review, or implementation work that should not pollute the main context. Artifacts are written under the project's .pi/defer directory.",
+    promptSnippet: "Run bounded isolated deferred pi subagents for research, planning, review, or implementation.",
+    promptGuidelines: [
+      "Use defer_task only for bounded work that benefits from isolated context; load the defer skill for non-trivial delegation policy before using it.",
+    ],
     parameters: Type.Object({
       task: Type.String({ description: "The complete bounded task for the deferred agent." }),
       role: Type.Optional(Type.String({ description: "Optional role/instructions label, e.g. researcher, planner, implementer, reviewer." })),

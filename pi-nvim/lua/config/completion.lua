@@ -34,12 +34,18 @@ if ok_blink then
 		},
 		sources = {
 			default = {
+				"pi_commands",
 				"lsp",
 				"path",
 				"snippets",
 				"buffer",
 			},
 			providers = {
+				pi_commands = {
+					name = "Pi",
+					module = "pi-integration.completion",
+					score_offset = 100,
+				},
 				path = {
 					opts = {
 						get_cwd = function(_)
