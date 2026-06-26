@@ -214,7 +214,7 @@ local function render_nodes(ctx, nodes, leaf_id, lines, line_nodes, prefix)
 		local current = record.id == leaf_id
 		local marker = current and "●" or "○"
 		local label = string.format(
-			"%s%s %s %s  %s  %s",
+			"%s%s %s %s  %s: %s",
 			prefix,
 			connector,
 			marker,
