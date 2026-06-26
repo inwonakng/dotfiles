@@ -8,7 +8,7 @@ require("pi-integration").setup({
 	provider = vim.env.PI_PROVIDER,
 	model = vim.env.PI_MODEL,
 	session_dir = vim.env.PI_SESSION_DIR,
-	show_thinking = false,
+	show_thinking = true,
 })
 
 vim.api.nvim_create_autocmd("VimEnter", {

@@ -138,7 +138,8 @@ function M.render(ctx)
 	local thinking_level = current_thinking_level_label(state)
 	local thinking_label = thinking_level and (" [" .. thinking_level .. "]") or ""
 	local stats_label = " " .. format_session_stats(state) .. " "
-	local width = vim.api.nvim_win_get_width(0)
+	local statusline_win = tonumber(vim.g.statusline_winid) or ctx.state.transcript_win or 0
+	local width = vim.api.nvim_win_get_width(statusline_win)
 	local mode_width = vim.fn.strdisplaywidth(mode_label)
 	local todo_width = vim.fn.strdisplaywidth(todo_label)
 	local notification_width = vim.fn.strdisplaywidth(notification_label)

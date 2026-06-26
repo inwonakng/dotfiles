@@ -12,7 +12,7 @@ M.config = {
 	provider = nil,
 	model = nil,
 	session_dir = nil,
-	show_thinking = false,
+	show_thinking = true,
 	show_stderr = false,
 	access_modes = { "readonly", "write" },
 	session_dirs = {
@@ -118,8 +118,8 @@ local function transcript_win_valid()
 	return pi_transcript.win_valid(transcript_ctx())
 end
 
-local function delete_tool_folds()
-	return pi_transcript.delete_tool_folds(transcript_ctx())
+local function clear_transcript_items()
+	return pi_transcript.clear_transcript_items(transcript_ctx())
 end
 
 local function append_lines(lines)
@@ -139,6 +139,7 @@ local function append_status(text)
 end
 
 local pi_tool_output = require("pi-integration.tool-output")
+local pi_thinking_output = require("pi-integration.thinking-output")
 local pi_pickers
 
 local function tool_output_ctx()
@@ -148,8 +149,9 @@ local function tool_output_ctx()
 	}
 end
 
-local function reset_tool_outputs()
+local function reset_transcript_outputs()
 	pi_tool_output.reset(state)
+	pi_thinking_output.reset(state)
 end
 
 local function store_tool_output(tool_name, text, filetype, details)
@@ -160,24 +162,50 @@ local function tool_output_summary_lines(output_id)
 	return pi_tool_output.summary_lines(state, output_id)
 end
 
-local function remove_pending_tool_separator()
-	return pi_transcript.remove_pending_tool_separator(transcript_ctx())
+local function store_thinking_output(text)
+	return pi_thinking_output.store(state, text)
+end
+
+local function append_thinking_output(output_id, delta)
+	return pi_thinking_output.append(state, output_id, delta)
+end
+
+local function thinking_output_summary_lines(output_id, streaming)
+	return pi_thinking_output.summary_lines(state, output_id, streaming)
+end
+
+local function remove_pending_transcript_item_separator()
+	return pi_transcript.remove_pending_transcript_item_separator(transcript_ctx())
 end
 
 local function remove_status(text)
 	return pi_transcript.remove_status(transcript_ctx(), text)
 end
 
-local function append_tool_fold_separator()
-	return pi_transcript.append_tool_fold_separator(transcript_ctx())
+local function append_transcript_item_separator()
+	return pi_transcript.append_transcript_item_separator(transcript_ctx())
 end
 
-local function open_tool_output_under_cursor()
-	return pi_tool_output.open_under_cursor(tool_output_ctx())
+local function register_transcript_item(item)
+	return pi_transcript.register_transcript_item(transcript_ctx(), item)
 end
 
-local function toggle_tool_fold()
-	return pi_transcript.toggle_tool_fold(transcript_ctx())
+local function set_transcript_line(line, text)
+	return pi_transcript.set_line(transcript_ctx(), line, text)
+end
+
+local function open_transcript_item_under_cursor()
+	local cursor = vim.api.nvim_win_get_cursor(0)
+	local item = pi_transcript.transcript_item_at_line(transcript_ctx(), cursor[1])
+	if not item then
+		return false
+	end
+	if item.kind == "tool" then
+		return pi_tool_output.open_float(tool_output_ctx(), item.output_id)
+	elseif item.kind == "thinking" then
+		return pi_thinking_output.open_float(tool_output_ctx(), item.output_id)
+	end
+	return false
 end
 
 local function clear_assistant_placeholder()
@@ -321,9 +349,9 @@ integration_ctx = function()
 		append_message_header = append_message_header,
 		remove_status = remove_status,
 		transcript_line_count = transcript_line_count,
-		delete_tool_folds = delete_tool_folds,
-		remove_pending_tool_separator = remove_pending_tool_separator,
-		append_tool_fold_separator = append_tool_fold_separator,
+		clear_transcript_items = clear_transcript_items,
+		remove_pending_transcript_item_separator = remove_pending_transcript_item_separator,
+		append_transcript_item_separator = append_transcript_item_separator,
 		start_assistant_placeholder = start_assistant_placeholder,
 		assistant_placeholder_active = assistant_placeholder_active,
 		clear_assistant_placeholder = clear_assistant_placeholder,
@@ -341,11 +369,15 @@ integration_ctx = function()
 		set_input_text = set_input_text,
 		store_tool_output = store_tool_output,
 		tool_output_summary_lines = tool_output_summary_lines,
+		store_thinking_output = store_thinking_output,
+		append_thinking_output = append_thinking_output,
+		thinking_output_summary_lines = thinking_output_summary_lines,
+		register_transcript_item = register_transcript_item,
+		set_transcript_line = set_transcript_line,
 		apply_session_state = apply_session_state,
 		load_session_messages_from_file = load_session_messages_from_file,
 		render_messages = render_messages,
-		open_tool_output_under_cursor = open_tool_output_under_cursor,
-		toggle_tool_fold = toggle_tool_fold,
+		open_transcript_item_under_cursor = open_transcript_item_under_cursor,
 		setup_keymaps = setup_keymaps,
 		is_access_mode = function(mode)
 			return pi_pickers.is_access_mode({ config = M.config }, mode)
@@ -430,8 +462,8 @@ local function collect_message_lines(messages)
 	return pi_messages.collect_message_lines(integration_ctx(), messages)
 end
 
-local function apply_collected_tool_folds(folds)
-	return pi_transcript.apply_collected_tool_folds(transcript_ctx(), folds)
+local function apply_collected_transcript_items(items)
+	return pi_transcript.apply_collected_transcript_items(transcript_ctx(), items)
 end
 
 local function scroll_transcript_to_bottom()
@@ -444,10 +476,10 @@ render_messages = function(messages)
 	end
 
 	state.last_updated = os.date("%Y-%m-%d %H:%M:%S %z")
-	reset_tool_outputs()
-	local lines, folds = collect_message_lines(messages)
+	reset_transcript_outputs()
+	local lines, items = collect_message_lines(messages)
 	set_buffer_lines(state.transcript_buf, lines, false)
-	apply_collected_tool_folds(folds)
+	apply_collected_transcript_items(items)
 	update_transcript_bottom_padding()
 	update_transcript_statusline()
 	render_transcript()

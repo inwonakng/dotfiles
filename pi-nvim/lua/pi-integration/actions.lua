@@ -110,7 +110,7 @@ local function reset_session_transcript_state(ctx, notice)
 	ctx.set_modifiable(state.transcript_buf, true)
 	vim.api.nvim_buf_set_lines(state.transcript_buf, 0, -1, false, {})
 	ctx.set_modifiable(state.transcript_buf, false)
-	ctx.delete_tool_folds()
+	ctx.clear_transcript_items()
 	state.session_name = nil
 	state.message_count = 0
 	state.session_stats = nil

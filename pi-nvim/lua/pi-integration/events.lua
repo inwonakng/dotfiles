@@ -1,7 +1,6 @@
 local M = {}
 
 function M.render_message(ctx, message)
-	local state = ctx.state
 	local role = message.role or message.type or "message"
 	local text = ctx.extract_text(message)
 	if not text or text == "" then
@@ -10,16 +9,16 @@ function M.render_message(ctx, message)
 	if role == "toolResult" then
 		local name = message.toolName or "tool"
 		local output_id = ctx.store_tool_output(name, text, nil, message.details)
-		ctx.remove_pending_tool_separator()
+		ctx.remove_pending_transcript_item_separator()
 		ctx.append_lines(ctx.tool_output_summary_lines(output_id))
 		local line = ctx.transcript_line_count()
-		table.insert(state.tool_folds, {
-			header_line = line,
+		ctx.register_transcript_item({
+			kind = "tool",
 			start_line = line,
 			end_line = line,
 			output_id = output_id,
 		})
-		ctx.append_tool_fold_separator()
+		ctx.append_transcript_item_separator()
 		return
 	end
 	ctx.append_message_header(role:gsub("^%l", string.upper))
@@ -177,11 +176,30 @@ function M.handle_message_update(ctx, event)
 		ctx.append_text(update.delta or "")
 	elseif update.type == "thinking_start" and ctx.config.show_thinking then
 		ctx.clear_assistant_placeholder()
-		ctx.append_lines({ "<details><summary>Thinking</summary>", "" })
+		local output_id = ctx.store_thinking_output("")
+		state.active_thinking_output_id = output_id
+		state.current_thinking_rendered = true
+		ctx.append_lines(ctx.thinking_output_summary_lines(output_id, true))
+		local line = ctx.transcript_line_count()
+		state.active_thinking_line = line
+		ctx.register_transcript_item({
+			kind = "thinking",
+			start_line = line,
+			end_line = line,
+			output_id = output_id,
+		})
+		ctx.append_transcript_item_separator()
 	elseif update.type == "thinking_delta" and ctx.config.show_thinking then
-		ctx.append_text(update.delta or "")
+		if state.active_thinking_output_id then
+			ctx.append_thinking_output(state.active_thinking_output_id, update.delta or "")
+		end
 	elseif update.type == "thinking_end" and ctx.config.show_thinking then
-		ctx.append_lines({ "</details>" })
+		if state.active_thinking_output_id and state.active_thinking_line then
+			local summary = ctx.thinking_output_summary_lines(state.active_thinking_output_id, false)[1]
+			ctx.set_transcript_line(state.active_thinking_line, summary)
+		end
+		state.active_thinking_output_id = nil
+		state.active_thinking_line = nil
 	elseif update.type == "toolcall_start" then
 		ctx.clear_assistant_placeholder_spinner()
 		state.current_message_started = true
@@ -206,11 +224,17 @@ function M.handle_event(ctx, event)
 	elseif event.type == "agent_start" then
 		state.is_streaming = true
 		state.current_message_started = false
+		state.current_thinking_rendered = false
+		state.active_thinking_output_id = nil
+		state.active_thinking_line = nil
 		state.error_rendered_for_active_run = false
 		ctx.notify("Pi is working")
 	elseif event.type == "agent_end" then
 		state.is_streaming = false
 		state.current_message_started = false
+		state.current_thinking_rendered = false
+		state.active_thinking_output_id = nil
+		state.active_thinking_line = nil
 		local message = ctx.event_error_text(event)
 		if message and not state.error_rendered_for_active_run then
 			ctx.render_error_message("Agent Error", message)
@@ -239,7 +263,9 @@ function M.handle_event(ctx, event)
 			state.pending_user_message = nil
 			return
 		end
-		if event.message and (event.message.role == "toolResult" or not state.current_message_started) then
+		if event.message and event.message.role == "toolResult" then
+			M.render_message(ctx, event.message)
+		elseif event.message and not state.current_message_started and not state.current_thinking_rendered then
 			M.render_message(ctx, event.message)
 		end
 	elseif event.type == "tool_execution_start" then

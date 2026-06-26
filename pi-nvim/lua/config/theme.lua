@@ -19,6 +19,7 @@ require("catppuccin").setup({
 			SignColumn = { bg = M.ui_bg },
 			EndOfBuffer = { bg = M.ui_bg },
 			PiPaneBorder = { fg = M.pane_border, bg = M.ui_bg },
+			PiInputTitle = { fg = colors.subtext1, bg = M.ui_bg },
 			PiUsageStats = { fg = colors.subtext1, bg = M.ui_bg },
 			PiUserHeader = { fg = colors.blue, bg = "#102033", bold = true },
 			PiAssistantHeader = { fg = colors.mauve, bg = "#1b1424", bold = true },

@@ -84,48 +84,129 @@ local function add_message_separator(lines, has_body)
 	end
 end
 
+local function append_tool_summary(ctx, lines, items, message)
+	local name = message.toolName or "tool"
+	local text = ctx.extract_text(message)
+	if not text or text == "" then
+		return false
+	end
+	local output_id = ctx.store_tool_output(name, text, nil, message.details)
+	vim.list_extend(lines, ctx.tool_output_summary_lines(output_id))
+	local line = #lines
+	table.insert(lines, "")
+	table.insert(items, {
+		kind = "tool",
+		start_line = line,
+		end_line = line,
+		output_id = output_id,
+	})
+	return true
+end
+
+local function append_thinking_summary(ctx, lines, items, text)
+	if type(text) ~= "string" or text == "" then
+		return false
+	end
+	local output_id = ctx.store_thinking_output(text)
+	vim.list_extend(lines, ctx.thinking_output_summary_lines(output_id, false))
+	local line = #lines
+	table.insert(lines, "")
+	table.insert(items, {
+		kind = "thinking",
+		start_line = line,
+		end_line = line,
+		output_id = output_id,
+	})
+	return true
+end
+
+local function append_text_message(lines, message, text, has_body)
+	local text_lines = vim.split(text, "\n", { plain = true })
+	add_message_separator(lines, has_body)
+	table.insert(lines, "## " .. message_role_title(message))
+	table.insert(lines, "")
+	vim.list_extend(lines, text_lines)
+end
+
+local function append_assistant_blocks(ctx, lines, items, message, has_body)
+	local content = message.content
+	if type(content) ~= "table" then
+		local text = ctx.extract_text(message)
+		if text and text ~= "" then
+			append_text_message(lines, message, text, has_body)
+			return true
+		end
+		return false
+	end
+
+	local appended = false
+	local pending_text = {}
+	local function flush_text()
+		local text = table.concat(pending_text, "")
+		pending_text = {}
+		if text == "" then
+			return
+		end
+		add_message_separator(lines, has_body or appended)
+		table.insert(lines, "## " .. message_role_title(message))
+		table.insert(lines, "")
+		vim.list_extend(lines, vim.split(text, "\n", { plain = true }))
+		appended = true
+	end
+
+	for _, item in ipairs(content) do
+		if type(item) == "string" then
+			table.insert(pending_text, item)
+		elseif type(item) == "table" then
+			if item.type == "thinking" then
+				flush_text()
+				add_message_separator(lines, has_body or appended)
+				if append_thinking_summary(ctx, lines, items, item.thinking or item.text or "") then
+					appended = true
+				end
+			elseif item.type == "text" or item.text then
+				table.insert(pending_text, item.text or item.content or item.delta or "")
+			end
+		end
+	end
+	flush_text()
+	return appended
+end
+
 function M.collect_message_lines(ctx, messages)
 	local lines = ctx.metadata_lines()
-	local folds = {}
+	local items = {}
 	local has_body = false
 	local last_role = nil
 
 	for _, message in ipairs(messages or {}) do
-		local text = ctx.extract_text(message)
-		if text and text ~= "" then
-			local role = message.role or message.type
-			if role == "toolResult" then
-				local name = message.toolName or "tool"
-				local output_id = ctx.store_tool_output(name, text, nil, message.details)
-				if has_body and last_role == "toolResult" then
-					if lines[#lines] == "" then
-						table.remove(lines)
-					end
-				else
-					add_message_separator(lines, has_body)
+		local role = message.role or message.type
+		local appended = false
+		if role == "toolResult" then
+			if has_body and last_role == "toolResult" then
+				if lines[#lines] == "" then
+					table.remove(lines)
 				end
-				vim.list_extend(lines, ctx.tool_output_summary_lines(output_id))
-				local line = #lines
-				table.insert(lines, "")
-				table.insert(folds, {
-					header_line = line,
-					start_line = line,
-					end_line = line,
-					output_id = output_id,
-				})
 			else
-				local text_lines = vim.split(text, "\n", { plain = true })
 				add_message_separator(lines, has_body)
-				table.insert(lines, "## " .. message_role_title(message))
-				table.insert(lines, "")
-				vim.list_extend(lines, text_lines)
 			end
+			appended = append_tool_summary(ctx, lines, items, message)
+		elseif role == "assistant" then
+			appended = append_assistant_blocks(ctx, lines, items, message, has_body)
+		else
+			local text = ctx.extract_text(message)
+			if text and text ~= "" then
+				append_text_message(lines, message, text, has_body)
+				appended = true
+			end
+		end
+		if appended then
 			has_body = true
 			last_role = role
 		end
 	end
 
-	return lines, folds
+	return lines, items
 end
 
 return M

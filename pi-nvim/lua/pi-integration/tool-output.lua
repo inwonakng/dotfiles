@@ -154,16 +154,6 @@ local function open_defer_artifacts(ctx, output)
 	return true
 end
 
-local function line_in_tool_fold(state, line)
-	for _, tool_fold in ipairs(state.tool_folds) do
-		local header_line = tool_fold.header_line or math.max(1, tool_fold.start_line - 1)
-		if line >= header_line and line <= tool_fold.end_line then
-			return tool_fold
-		end
-	end
-	return nil
-end
-
 function M.reset(state)
 	state.tool_outputs = {}
 	state.next_tool_output_id = 0
@@ -251,15 +241,6 @@ function M.open_float(ctx, output_id)
 	end, { buffer = buf, silent = true, desc = "Yank tool output" })
 
 	return true
-end
-
-function M.open_under_cursor(ctx)
-	local cursor = vim.api.nvim_win_get_cursor(0)
-	local tool_fold = line_in_tool_fold(ctx.state, cursor[1])
-	if not tool_fold or not tool_fold.output_id then
-		return false
-	end
-	return M.open_float(ctx, tool_fold.output_id)
 end
 
 return M

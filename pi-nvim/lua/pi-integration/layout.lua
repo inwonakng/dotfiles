@@ -34,11 +34,14 @@ function M.apply_window_padding(_, win)
 	vim.api.nvim_set_option_value("sidescrolloff", 2, { win = win })
 end
 
+function M.apply_input_window_options(ctx, win)
+	M.apply_window_padding(ctx, win)
+	vim.api.nvim_set_option_value("statusline", "%#PiInputTitle# Pi input %#PiPaneBorder#%{repeat('─',max([0,winwidth(0)-10]))}%*", { win = win })
+end
+
 function M.apply_transcript_window_options(ctx, win)
 	M.apply_window_padding(ctx, win)
-	vim.api.nvim_set_option_value("foldmethod", "manual", { win = win })
 	vim.api.nvim_set_option_value("foldenable", true, { win = win })
-	vim.api.nvim_set_option_value("foldlevel", 0, { win = win })
 end
 
 function M.ensure_transcript_buffer(ctx)
@@ -89,7 +92,7 @@ function M.show_input(ctx)
 	if state.transcript_win == win then
 		state.transcript_win = nil
 	end
-	M.apply_window_padding(ctx, win)
+	M.apply_input_window_options(ctx, win)
 	ctx.setup_keymaps()
 	return recreated
 end
@@ -109,7 +112,7 @@ function M.open(ctx)
 	vim.cmd("botright 12split")
 	vim.api.nvim_win_set_buf(0, state.input_buf)
 	state.input_win = vim.api.nvim_get_current_win()
-	M.apply_window_padding(ctx, state.input_win)
+	M.apply_input_window_options(ctx, state.input_win)
 
 	ctx.refresh_transcript_ui()
 	ctx.append_status(ctx.initial_session_notice)
