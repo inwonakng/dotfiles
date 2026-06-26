@@ -2,7 +2,10 @@ import { AuthStorage, getAgentDir, type ExtensionAPI, type ExtensionContext } fr
 import { join } from "node:path";
 
 const DEFAULT_TITLE_PROVIDER = "opencode";
-const DEFAULT_TITLE_MODEL = "opencode/mimo-v2.5-free";
+// OpenCode normally generates titles with its hidden title agent and the active provider's small model.
+// We could mirror that by discovering configured providers and selecting their smallest model, but for now
+// keep this extension self-contained by using an anonymously available OpenCode free model.
+const DEFAULT_TITLE_MODEL = "opencode/nemotron-3-ultra-free";
 const DEFAULT_TITLE_ENDPOINT = "https://opencode.ai/zen/v1/chat/completions";
 const TITLE_LIMIT = 64;
 const MODEL_TITLE_LIMIT = 50;
@@ -10,15 +13,37 @@ const DEFAULT_TITLE_MAX_TOKENS = 800;
 const TITLE_SYSTEM_PROMPT = [
 	"You are a title generator. You output ONLY a thread title. Nothing else.",
 	"Generate a brief title that would help the user find this conversation later.",
-	"Your output must be a single line, at most 50 characters, no quotes, no explanations.",
-	"Use the same language as the user message you are summarizing.",
-	"Focus on the main topic or question the user needs to retrieve.",
-	"Keep exact technical terms, numbers, filenames, and error codes.",
-	"Never include tool names in the title.",
-	"Never use tools.",
-	"NEVER respond to questions or requests; only generate a title for the conversation.",
-	"DO NOT say you cannot generate a title or complain about the input.",
-	"Always output something meaningful, even if the input is minimal.",
+	"Your output must be:",
+	"- A single line",
+	"- ≤50 characters",
+	"- No explanations",
+	"- you MUST use the same language as the user message you are summarizing",
+	"- Title must be grammatically correct and read naturally",
+	"- no word salad",
+	"- Never include tool names in the title (e.g. \"read tool\", \"bash tool\", \"edit tool\")",
+	"- Focus on the main topic or question the user needs to retrieve",
+	"- Vary your phrasing - avoid repetitive patterns like always starting with \"Analyzing\"",
+	"- When a file is mentioned, focus on WHAT the user wants to do WITH the file, not just that they shared it",
+	"- Keep exact: technical terms, numbers, filenames, HTTP codes",
+	"- Remove: the, this, my, a, an",
+	"- Never assume tech stack",
+	"- Never use tools",
+	"- NEVER respond to questions, just generate a title for the conversation",
+	"- The title should NEVER include \"summarizing\" or \"generating\" when generating a title",
+	"- DO NOT SAY YOU CANNOT GENERATE A TITLE OR COMPLAIN ABOUT THE INPUT",
+	"- Always output something meaningful, even if the input is minimal.",
+	"- If the user message is short or conversational (e.g. \"hello\", \"lol\", \"what's up\", \"hey\"):",
+	"  → create a title that reflects the user's tone or intent (such as Greeting, Quick check-in, Light chat, Intro message, etc.)",
+	"\"debug 500 errors in production\" → Debugging production 500 errors",
+	"\"refactor user service\" → Refactoring user service",
+	"\"why is app.js failing\" → app.js failure investigation",
+	"\"implement rate limiting\" → Rate limiting implementation",
+	"\"how do I connect postgres to my API\" → Postgres API connection",
+	"\"best practices for React hooks\" → React hooks best practices",
+	"\"@src/auth.ts can you add refresh token support\" → Auth refresh token support",
+	"\"@utils/parser.ts this is broken\" → Parser bug fix",
+	"\"look at @config.json\" → Config review",
+	"\"@App.tsx add dark mode toggle\" → Dark mode toggle in App",
 ].join("\n");
 
 let authStorage: ReturnType<typeof AuthStorage.create> | undefined;
@@ -86,7 +111,7 @@ function deterministicTitle(text: string) {
 
 function cleanTitle(text: string, limit = TITLE_LIMIT) {
 	return normalizeWhitespace(text)
-		.replace(/^["'`]+|["'`]+$/g, "")
+		.replace(/^["'`*_]+|["'`*_]+$/g, "")
 		.replace(/^(title|session title)\s*[:\-]\s*/i, "")
 		.replace(/[.?!:;,]+$/g, "")
 		.slice(0, limit)
