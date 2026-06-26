@@ -84,6 +84,46 @@ local function add_message_separator(lines, has_body)
 	end
 end
 
+local function remove_trailing_blank(lines)
+	if lines[#lines] == "" then
+		table.remove(lines)
+	end
+end
+
+local function is_trace_like(kind)
+	return kind == "tool" or kind == "thinking"
+end
+
+local function assistant_trace_only_thinking(message)
+	local content = message.content
+	if type(content) ~= "table" then
+		return nil
+	end
+
+	local thinking = {}
+	for _, item in ipairs(content) do
+		if type(item) == "string" then
+			if item ~= "" then
+				return nil
+			end
+		elseif type(item) == "table" then
+			if item.type == "thinking" then
+				local text = item.thinking or item.text or ""
+				if text ~= "" then
+					table.insert(thinking, text)
+				end
+			elseif item.type == "text" or item.text then
+				local text = item.text or item.content or item.delta or ""
+				if text ~= "" then
+					return nil
+				end
+			end
+		end
+	end
+
+	return #thinking > 0 and thinking or nil
+end
+
 local function append_tool_summary(ctx, lines, items, message)
 	local name = message.toolName or "tool"
 	local text = ctx.extract_text(message)
@@ -128,23 +168,29 @@ local function append_text_message(lines, message, text, has_body)
 	vim.list_extend(lines, text_lines)
 end
 
-local function append_assistant_blocks(ctx, lines, items, message, has_body)
+local function append_assistant_blocks(ctx, lines, items, message, has_body, options)
+	options = options or {}
 	local content = message.content
 	if type(content) ~= "table" then
 		local text = ctx.extract_text(message)
 		if text and text ~= "" then
 			append_text_message(lines, message, text, has_body)
-			return true
+			return true, "message"
 		end
-		return false
+		return false, nil
 	end
 
 	local started = false
 	local appended = false
 	local pending_text = {}
+	local last_rendered_kind = nil
 
 	local function ensure_assistant_message()
 		if started then
+			return
+		end
+		if options.continue_trace then
+			started = true
 			return
 		end
 		add_message_separator(lines, has_body)
@@ -153,8 +199,13 @@ local function append_assistant_blocks(ctx, lines, items, message, has_body)
 		started = true
 	end
 
-	local function ensure_inline_gap()
-		if appended and lines[#lines] ~= "" then
+	local function ensure_inline_gap(kind)
+		if
+			is_trace_like(kind)
+			and (is_trace_like(last_rendered_kind) or (not appended and options.continue_trace and is_trace_like(options.previous_kind)))
+		then
+			remove_trailing_blank(lines)
+		elseif appended and lines[#lines] ~= "" then
 			table.insert(lines, "")
 		end
 	end
@@ -166,9 +217,10 @@ local function append_assistant_blocks(ctx, lines, items, message, has_body)
 			return
 		end
 		ensure_assistant_message()
-		ensure_inline_gap()
+		ensure_inline_gap("message")
 		vim.list_extend(lines, vim.split(text, "\n", { plain = true }))
 		appended = true
+		last_rendered_kind = "message"
 	end
 
 	for _, item in ipairs(content) do
@@ -180,9 +232,10 @@ local function append_assistant_blocks(ctx, lines, items, message, has_body)
 				local thinking = item.thinking or item.text or ""
 				if thinking ~= "" then
 					ensure_assistant_message()
-					ensure_inline_gap()
+					ensure_inline_gap("thinking")
 					if append_thinking_summary(ctx, lines, items, thinking) then
 						appended = true
+						last_rendered_kind = "thinking"
 					end
 				end
 			elseif item.type == "text" or item.text then
@@ -191,39 +244,44 @@ local function append_assistant_blocks(ctx, lines, items, message, has_body)
 		end
 	end
 	flush_text()
-	return appended
+	return appended, last_rendered_kind
 end
 
 function M.collect_message_lines(ctx, messages)
 	local lines = ctx.metadata_lines()
 	local items = {}
 	local has_body = false
-	local last_role = nil
+	local last_rendered_kind = nil
 
 	for _, message in ipairs(messages or {}) do
 		local role = message.role or message.type
 		local appended = false
+		local rendered_kind = nil
 		if role == "toolResult" then
-			if has_body and last_role == "toolResult" then
-				if lines[#lines] == "" then
-					table.remove(lines)
-				end
+			if has_body and is_trace_like(last_rendered_kind) then
+				remove_trailing_blank(lines)
 			else
 				add_message_separator(lines, has_body)
 			end
 			appended = append_tool_summary(ctx, lines, items, message)
+			rendered_kind = appended and "tool" or nil
 		elseif role == "assistant" then
-			appended = append_assistant_blocks(ctx, lines, items, message, has_body)
+			local thinking = assistant_trace_only_thinking(message)
+			appended, rendered_kind = append_assistant_blocks(ctx, lines, items, message, has_body, {
+				continue_trace = thinking ~= nil and is_trace_like(last_rendered_kind),
+				previous_kind = last_rendered_kind,
+			})
 		else
 			local text = ctx.extract_text(message)
 			if text and text ~= "" then
 				append_text_message(lines, message, text, has_body)
 				appended = true
+				rendered_kind = "message"
 			end
 		end
 		if appended then
 			has_body = true
-			last_role = role
+			last_rendered_kind = rendered_kind
 		end
 	end
 

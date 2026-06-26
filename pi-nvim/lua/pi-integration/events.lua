@@ -9,7 +9,7 @@ function M.render_message(ctx, message)
 	if role == "toolResult" then
 		local name = message.toolName or "tool"
 		local output_id = ctx.store_tool_output(name, text, nil, message.details)
-		ctx.remove_pending_transcript_item_separator()
+		ctx.begin_trace_item()
 		ctx.append_lines(ctx.tool_output_summary_lines(output_id))
 		local line = ctx.transcript_line_count()
 		ctx.register_transcript_item({
@@ -18,7 +18,7 @@ function M.render_message(ctx, message)
 			end_line = line,
 			output_id = output_id,
 		})
-		ctx.append_transcript_item_separator()
+		ctx.end_trace_item()
 		return
 	end
 	ctx.append_message_header(role:gsub("^%l", string.upper))
@@ -183,6 +183,7 @@ function M.handle_message_update(ctx, event)
 		local output_id = ctx.store_thinking_output("")
 		state.active_thinking_output_id = output_id
 		state.current_thinking_rendered = true
+		ctx.begin_trace_item()
 		ctx.append_lines(ctx.thinking_output_summary_lines(output_id, true))
 		local line = ctx.transcript_line_count()
 		state.active_thinking_line = line
@@ -192,7 +193,7 @@ function M.handle_message_update(ctx, event)
 			end_line = line,
 			output_id = output_id,
 		})
-		ctx.append_transcript_item_separator()
+		ctx.end_trace_item()
 	elseif update.type == "thinking_delta" and ctx.config.show_thinking then
 		if state.active_thinking_output_id then
 			ctx.append_thinking_output(state.active_thinking_output_id, update.delta or "")

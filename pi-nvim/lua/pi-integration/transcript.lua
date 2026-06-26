@@ -422,6 +422,14 @@ function M.append_transcript_item_separator(ctx)
 	M.schedule_refresh(ctx)
 end
 
+function M.begin_trace_item(ctx)
+	return M.remove_pending_transcript_item_separator(ctx)
+end
+
+function M.end_trace_item(ctx)
+	return M.append_transcript_item_separator(ctx)
+end
+
 function M.stop_placeholder_timer(ctx)
 	local state = ctx.state
 	if state.placeholder_timer then

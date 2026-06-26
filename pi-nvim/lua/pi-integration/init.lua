@@ -174,16 +174,16 @@ local function thinking_output_summary_lines(output_id, streaming)
 	return pi_thinking_output.summary_lines(state, output_id, streaming)
 end
 
-local function remove_pending_transcript_item_separator()
-	return pi_transcript.remove_pending_transcript_item_separator(transcript_ctx())
+local function begin_trace_item()
+	return pi_transcript.begin_trace_item(transcript_ctx())
 end
 
 local function remove_status(text)
 	return pi_transcript.remove_status(transcript_ctx(), text)
 end
 
-local function append_transcript_item_separator()
-	return pi_transcript.append_transcript_item_separator(transcript_ctx())
+local function end_trace_item()
+	return pi_transcript.end_trace_item(transcript_ctx())
 end
 
 local function register_transcript_item(item)
@@ -350,8 +350,8 @@ integration_ctx = function()
 		remove_status = remove_status,
 		transcript_line_count = transcript_line_count,
 		clear_transcript_items = clear_transcript_items,
-		remove_pending_transcript_item_separator = remove_pending_transcript_item_separator,
-		append_transcript_item_separator = append_transcript_item_separator,
+		begin_trace_item = begin_trace_item,
+		end_trace_item = end_trace_item,
 		start_assistant_placeholder = start_assistant_placeholder,
 		assistant_placeholder_active = assistant_placeholder_active,
 		clear_assistant_placeholder = clear_assistant_placeholder,
