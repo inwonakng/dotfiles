@@ -6,6 +6,7 @@ const DEFAULT_TITLE_MODEL = "opencode/mimo-v2.5-free";
 const DEFAULT_TITLE_ENDPOINT = "https://opencode.ai/zen/v1/chat/completions";
 const TITLE_LIMIT = 64;
 const MODEL_TITLE_LIMIT = 50;
+const DEFAULT_TITLE_MAX_TOKENS = 800;
 const TITLE_SYSTEM_PROMPT = [
 	"You are a title generator. You output ONLY a thread title. Nothing else.",
 	"Generate a brief title that would help the user find this conversation later.",
@@ -47,6 +48,11 @@ function titleModel() {
 
 function titleEndpoint() {
 	return process.env.PI_TITLE_ENDPOINT || DEFAULT_TITLE_ENDPOINT;
+}
+
+function titleMaxTokens() {
+	const parsed = Number.parseInt(process.env.PI_TITLE_MAX_TOKENS || "", 10);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TITLE_MAX_TOKENS;
 }
 
 function apiModelId(model: string) {
@@ -116,6 +122,17 @@ function titleUserPrompt(text: string) {
 	return `Generate a title for this conversation:\n${text.slice(0, 1200)}`;
 }
 
+function previewText(value: unknown, limit = 160) {
+	if (typeof value !== "string") {
+		return undefined;
+	}
+	const normalized = normalizeWhitespace(value);
+	if (!normalized) {
+		return undefined;
+	}
+	return normalized.length > limit ? `${normalized.slice(0, limit - 3).trimEnd()}...` : normalized;
+}
+
 function messageText(message: unknown) {
 	if (!message || typeof message !== "object") {
 		return "";
@@ -182,7 +199,7 @@ async function modelTitle(prompt: string) {
 					content: titleUserPrompt(prompt),
 				},
 			],
-			max_tokens: 40,
+			max_tokens: titleMaxTokens(),
 			temperature: 0.3,
 		}),
 	});
@@ -190,12 +207,26 @@ async function modelTitle(prompt: string) {
 		throw new Error(`title request failed: ${response.status} ${response.statusText}`);
 	}
 
-	const data = (await response.json()) as { choices?: { message?: { content?: unknown } }[] };
-	const content = data.choices?.[0]?.message?.content;
-	if (typeof content !== "string") {
-		return undefined;
+	const data = (await response.json()) as {
+		choices?: { finish_reason?: unknown; message?: { content?: unknown; reasoning?: unknown } }[];
+	};
+	const choice = data.choices?.[0];
+	const finishReason = typeof choice?.finish_reason === "string" ? choice.finish_reason : "unknown";
+	const content = choice?.message?.content;
+	if (typeof content !== "string" || content.trim() === "") {
+		const reasoning = previewText(choice?.message?.reasoning);
+		throw new Error(
+			`title response missing content; finish_reason=${finishReason}${reasoning ? `; reasoning=${reasoning}` : ""}`,
+		);
 	}
-	return cleanModelTitle(content);
+
+	const title = cleanModelTitle(content);
+	if (!title) {
+		throw new Error(
+			`title response was not a useful title; finish_reason=${finishReason}; content=${previewText(content) || "<empty>"}`,
+		);
+	}
+	return title;
 }
 
 function setTitle(pi: ExtensionAPI, ctx: ExtensionContext, title: string) {
@@ -241,7 +272,7 @@ export default function autoTitleExtension(pi: ExtensionAPI) {
 				if (currentSessionKey() !== sessionKey || pi.getSessionName()) {
 					return;
 				}
-				setTitle(pi, ctx, title || deterministicTitle(prompt));
+				setTitle(pi, ctx, title);
 			})
 			.catch((error: unknown) => {
 				if (currentSessionKey() === sessionKey && !pi.getSessionName()) {
