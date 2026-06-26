@@ -33,19 +33,5 @@ require("render-markdown").setup({
 			},
 		},
 	},
-	callout = {
-		pi_tool = {
-			raw = "[!PI_TOOL]",
-			rendered = "󰇥 Tool",
-			highlight = "PiToolQuote",
-			category = "pi",
-		},
-		pi_thinking = {
-			raw = "[!PI_THINKING]",
-			rendered = "󰔛 Thinking",
-			highlight = "PiThinkingQuote",
-			category = "pi",
-		},
-	},
 	latex = { enabled = true },
 })

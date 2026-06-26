@@ -1,6 +1,7 @@
 local M = {}
 
 local padding_ns = vim.api.nvim_create_namespace("pi-nvim-transcript-padding")
+local quote_ns = vim.api.nvim_create_namespace("pi-nvim-transcript-quotes")
 
 local function yaml_value(value)
 	if value == nil or value == "" then
@@ -117,6 +118,36 @@ function M.has_body(ctx)
 	return false
 end
 
+function M.apply_quote_highlights(ctx)
+	local state = ctx.state
+	if not ctx.valid_buf(state.transcript_buf) then
+		return
+	end
+
+	vim.api.nvim_buf_clear_namespace(state.transcript_buf, quote_ns, 0, -1)
+	local lines = vim.api.nvim_buf_get_lines(state.transcript_buf, 0, -1, false)
+	for index, line in ipairs(lines) do
+		local highlight
+		if line:find("> 󰇥 Tool:", 1, true) == 1 then
+			highlight = "PiToolQuote"
+		elseif line:find("> 󰔛 Thinking", 1, true) == 1 then
+			highlight = "PiThinkingQuote"
+		end
+		if highlight then
+			vim.api.nvim_buf_set_extmark(state.transcript_buf, quote_ns, index - 1, 0, {
+				end_col = #line,
+				hl_group = highlight,
+				priority = 250,
+			})
+			vim.api.nvim_buf_set_extmark(state.transcript_buf, quote_ns, index - 1, 0, {
+				virt_text = { { "▋", highlight } },
+				virt_text_pos = "overlay",
+				priority = 300,
+			})
+		end
+	end
+end
+
 function M.render(ctx)
 	local state = ctx.state
 	if not ctx.valid_buf(state.transcript_buf) then
@@ -128,12 +159,14 @@ function M.render(ctx)
 
 	local render_markdown = package.loaded["render-markdown"]
 	if not (type(render_markdown) == "table" and type(render_markdown.render) == "function") then
+		M.apply_quote_highlights(ctx)
 		return
 	end
 
 	vim.schedule(function()
 		if ctx.valid_buf(state.transcript_buf) and M.win_valid(ctx) then
 			render_markdown.render({ buf = state.transcript_buf, win = state.transcript_win, event = "PiNvim" })
+			M.apply_quote_highlights(ctx)
 		end
 	end)
 end

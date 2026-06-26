@@ -181,7 +181,7 @@ function M.summary_lines(state, output_id)
 	local line_label = lines == 1 and "1 line" or (tostring(lines) .. " lines")
 	local action = output.defer and "open defer artifacts" or "open"
 	return {
-		"> [!PI_TOOL] " .. tostring(output.name or "tool") .. " · " .. line_label .. " · " .. (output.filetype or "text") .. " · press `<CR>` to " .. action,
+		"> 󰇥 Tool: " .. tostring(output.name or "tool") .. " · " .. line_label .. " · " .. (output.filetype or "text") .. " · press `<CR>` to " .. action,
 	}
 end
 

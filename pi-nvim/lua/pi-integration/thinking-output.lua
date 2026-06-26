@@ -60,7 +60,7 @@ function M.summary_lines(state, output_id, streaming)
 		line_label = lines == 1 and "1 line" or (tostring(lines) .. " lines")
 	end
 	return {
-		"> [!PI_THINKING] " .. line_label .. " · press `<CR>` to open",
+		"> 󰔛 Thinking · " .. line_label .. " · press `<CR>` to open",
 	}
 end
 
