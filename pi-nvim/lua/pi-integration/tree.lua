@@ -1,6 +1,7 @@
 local M = {}
 
 local tree_preview_augroup = vim.api.nvim_create_augroup("PiNvimTreePreview", { clear = true })
+local tree_sender_ns = vim.api.nvim_create_namespace("pi-nvim-tree-senders")
 
 local function decode_record(line)
 	local ok, decoded
@@ -205,7 +206,26 @@ local function read_session_tree(ctx, path)
 	return roots, leaf_id
 end
 
-local function render_nodes(ctx, nodes, leaf_id, lines, line_nodes, prefix)
+local function record_title_highlight(record)
+	if record.type == "message" and record.message then
+		local role = record.message.role
+		if role == "user" then
+			return "PiTreeUser"
+		elseif role == "assistant" then
+			return "PiTreeAssistant"
+		elseif role == "toolResult" or role == "bashExecution" then
+			return "PiTreeTool"
+		end
+		return "PiTreeMeta"
+	elseif record.type == "bashExecution" then
+		return "PiTreeTool"
+	elseif record.type == "custom_message" then
+		return "PiTreeCustom"
+	end
+	return "PiTreeMeta"
+end
+
+local function render_nodes(ctx, nodes, leaf_id, lines, line_nodes, sender_highlights, prefix)
 	for index, node in ipairs(nodes) do
 		local is_last = index == #nodes
 		local connector = prefix == "" and "" or (is_last and "└─ " or "├─ ")
@@ -213,21 +233,36 @@ local function render_nodes(ctx, nodes, leaf_id, lines, line_nodes, prefix)
 		local record = node.record
 		local current = record.id == leaf_id
 		local marker = current and "●" or "○"
-		local label = string.format(
-			"%s%s %s %s  %s: %s",
-			prefix,
-			connector,
-			marker,
-			record.id,
-			record_title(record),
-			compact_text(record_text(ctx, record))
-		)
+		local title = record_title(record)
+		local label_prefix = string.format("%s%s %s %s  ", prefix, connector, marker, record.id)
+		local label = label_prefix .. title .. ": " .. compact_text(record_text(ctx, record))
 		if current then
 			label = label .. "  ← current"
 		end
 		table.insert(lines, label)
 		line_nodes[#lines] = node
-		render_nodes(ctx, node.children, leaf_id, lines, line_nodes, child_prefix)
+		sender_highlights[#lines] = {
+			start_col = #label_prefix,
+			end_col = #label_prefix + #title,
+			hl_group = record_title_highlight(record),
+		}
+		render_nodes(ctx, node.children, leaf_id, lines, line_nodes, sender_highlights, child_prefix)
+	end
+end
+
+local function apply_sender_highlights(ctx)
+	local state = ctx.state
+	if not ctx.valid_buf(state.tree_buf) then
+		return
+	end
+
+	vim.api.nvim_buf_clear_namespace(state.tree_buf, tree_sender_ns, 0, -1)
+	for line, highlight in pairs(state.tree_sender_highlights_by_line or {}) do
+		vim.api.nvim_buf_set_extmark(state.tree_buf, tree_sender_ns, line - 1, highlight.start_col, {
+			end_col = highlight.end_col,
+			hl_group = highlight.hl_group,
+			priority = 250,
+		})
 	end
 end
 
@@ -355,8 +390,10 @@ function M.show(ctx)
 		"",
 	}
 	state.tree_nodes_by_line = {}
-	render_nodes(ctx, roots, leaf_id, lines, state.tree_nodes_by_line, "")
+	state.tree_sender_highlights_by_line = {}
+	render_nodes(ctx, roots, leaf_id, lines, state.tree_nodes_by_line, state.tree_sender_highlights_by_line, "")
 	ctx.set_buffer_lines(state.tree_buf, lines, false)
+	apply_sender_highlights(ctx)
 
 	local width = math.min(math.max(72, math.floor(vim.o.columns * 0.72)), vim.o.columns - 4)
 	local outer_height = math.min(math.max(22, math.floor(vim.o.lines * 0.78)), vim.o.lines - 4)

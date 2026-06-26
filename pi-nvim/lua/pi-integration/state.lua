@@ -20,6 +20,7 @@ function M.new()
 		tree_preview_buf = nil,
 		tree_preview_win = nil,
 		tree_nodes_by_line = {},
+		tree_sender_highlights_by_line = {},
 		tree_leaf_id = nil,
 		tree_filter_mode = "default",
 		is_streaming = false,
