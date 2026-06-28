@@ -67,13 +67,19 @@ local function compact_text(text)
 	return (text:gsub("\r\n", "\n"):gsub("\r", "\n"):gsub("\n", " ⏎ "):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
-local function truncate_text(text, max_len)
-	text = tostring(text or "")
-	max_len = max_len or 80
-	if #text <= max_len then
-		return text
+local function command_preview(command)
+	local compact = compact_text(command)
+	local words = {}
+	local truncated = false
+	for word in compact:gmatch("%S+") do
+		if #words == 3 then
+			truncated = true
+			break
+		end
+		table.insert(words, word)
 	end
-	return text:sub(1, math.max(1, max_len - 1)) .. "…"
+	local preview = #words > 0 and table.concat(words, " ") or "command"
+	return truncated and (preview .. " ...") or preview
 end
 
 local function display_for_call(name, args)
@@ -265,13 +271,13 @@ function M.summary_lines(state, output_id)
 	end
 	local lines = line_count_text(output.text)
 	local line_label = lines == 1 and "1 line" or (tostring(lines) .. " lines")
-	local action = output.defer and "open defer artifacts" or "open"
 	local label = "Tool: " .. tostring(output.name or "tool")
 	if output.display and output.display.kind == "bash" and output.display.command then
-		label = "Bash: " .. truncate_text(compact_text(output.display.command), 96)
+		label = "Bash: " .. command_preview(output.display.command)
 	end
+	local artifact_label = output.defer and " · artifacts" or ""
 	return {
-		"> 󰇥 " .. label .. " · " .. line_label .. " · " .. (output.filetype or "text") .. " · press `<CR>` to " .. action,
+		"> 󰇥 " .. label .. " · " .. line_label .. artifact_label,
 	}
 end
 

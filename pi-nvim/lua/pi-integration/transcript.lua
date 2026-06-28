@@ -128,7 +128,7 @@ function M.apply_quote_highlights(ctx)
 	local lines = vim.api.nvim_buf_get_lines(state.transcript_buf, 0, -1, false)
 	for index, line in ipairs(lines) do
 		local highlight
-		if line:find("> 󰇥 Tool:", 1, true) == 1 then
+		if line:find("> 󰇥 ", 1, true) == 1 then
 			highlight = "PiToolQuote"
 		elseif line:find("> 󰔛 Thinking", 1, true) == 1 then
 			highlight = "PiThinkingQuote"

@@ -167,7 +167,7 @@ function M.summary_lines(state, output_id)
 	if not output then
 		return { "> 󰢱 Skill unavailable." }
 	end
-	return { "> 󰢱 Using skill: " .. tostring(output.name or "unknown") .. " · press `<CR>` to open" }
+	return { "> 󰢱 Using skill: " .. tostring(output.name or "unknown") }
 end
 
 function M.open_float(ctx, output_id)
