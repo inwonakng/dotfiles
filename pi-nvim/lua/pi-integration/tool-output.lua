@@ -1,3 +1,5 @@
+local floats = require("pi-integration.floats")
+
 local M = {}
 
 local function line_count_text(text)
@@ -120,12 +122,6 @@ local function sanitize_buf_name_part(value)
 	return tostring(value or "tool"):gsub("[^%w%._%-]+", "-")
 end
 
-local function close_window(win)
-	if win and vim.api.nvim_win_is_valid(win) then
-		vim.api.nvim_win_close(win, true)
-	end
-end
-
 local function read_file_text(path)
 	if not path or vim.fn.filereadable(path) ~= 1 then
 		return nil
@@ -140,9 +136,8 @@ local function open_defer_text(ctx, title, path, filetype)
 		ctx.notify("Could not read " .. tostring(path), vim.log.levels.WARN)
 		return
 	end
-	if state.defer_win and vim.api.nvim_win_is_valid(state.defer_win) then
-		vim.api.nvim_win_close(state.defer_win, true)
-	end
+	floats.close_window(state.defer_win)
+	state.defer_win = nil
 	state.defer_buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_buf_set_name(state.defer_buf, "pi://defer/" .. vim.fn.fnamemodify(path, ":t"))
 	vim.api.nvim_set_option_value("buftype", "nofile", { buf = state.defer_buf })
@@ -170,12 +165,13 @@ local function open_defer_text(ctx, title, path, filetype)
 	vim.api.nvim_set_option_value("wrap", true, { win = state.defer_win })
 	vim.api.nvim_set_option_value("number", false, { win = state.defer_win })
 	vim.api.nvim_set_option_value("relativenumber", false, { win = state.defer_win })
-	vim.keymap.set("n", "q", function()
-		close_window(state.defer_win)
-	end, { buffer = state.defer_buf, silent = true, desc = "Close defer output" })
-	vim.keymap.set("n", "<Esc>", function()
-		close_window(state.defer_win)
-	end, { buffer = state.defer_buf, silent = true, desc = "Close defer output" })
+	local close_defer_win = function()
+		floats.close_window(state.defer_win)
+		state.defer_win = nil
+	end
+	floats.close_on_win_leave(state.defer_buf, close_defer_win)
+	vim.keymap.set("n", "q", close_defer_win, { buffer = state.defer_buf, silent = true, desc = "Close defer output" })
+	vim.keymap.set("n", "<Esc>", close_defer_win, { buffer = state.defer_buf, silent = true, desc = "Close defer output" })
 	vim.keymap.set("n", "y", function()
 		vim.fn.setreg("+", text)
 		ctx.notify("Yanked defer output")
@@ -340,12 +336,12 @@ function M.open_float(ctx, output_id)
 	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
 	vim.api.nvim_set_option_value("signcolumn", "no", { win = win })
 
-	vim.keymap.set("n", "q", function()
-		close_window(win)
-	end, { buffer = buf, silent = true, desc = "Close tool output" })
-	vim.keymap.set("n", "<Esc>", function()
-		close_window(win)
-	end, { buffer = buf, silent = true, desc = "Close tool output" })
+	local close_tool_win = function()
+		floats.close_window(win)
+	end
+	floats.close_on_win_leave(buf, close_tool_win)
+	vim.keymap.set("n", "q", close_tool_win, { buffer = buf, silent = true, desc = "Close tool output" })
+	vim.keymap.set("n", "<Esc>", close_tool_win, { buffer = buf, silent = true, desc = "Close tool output" })
 	vim.keymap.set("n", "y", function()
 		vim.fn.setreg("+", output.text or "")
 		ctx.notify("Yanked tool output")

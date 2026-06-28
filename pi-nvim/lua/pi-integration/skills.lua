@@ -1,3 +1,5 @@
+local floats = require("pi-integration.floats")
+
 local M = {}
 
 local function normalized_path(path)
@@ -5,12 +7,6 @@ local function normalized_path(path)
 		return nil
 	end
 	return path:gsub("\\", "/")
-end
-
-local function close_window(win)
-	if win and vim.api.nvim_win_is_valid(win) then
-		vim.api.nvim_win_close(win, true)
-	end
 end
 
 local function sanitize_buf_name_part(value)
@@ -221,12 +217,12 @@ function M.open_float(ctx, output_id)
 	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
 	vim.api.nvim_set_option_value("signcolumn", "no", { win = win })
 
-	vim.keymap.set("n", "q", function()
-		close_window(win)
-	end, { buffer = buf, silent = true, desc = "Close skill prompt" })
-	vim.keymap.set("n", "<Esc>", function()
-		close_window(win)
-	end, { buffer = buf, silent = true, desc = "Close skill prompt" })
+	local close_skill_win = function()
+		floats.close_window(win)
+	end
+	floats.close_on_win_leave(buf, close_skill_win)
+	vim.keymap.set("n", "q", close_skill_win, { buffer = buf, silent = true, desc = "Close skill prompt" })
+	vim.keymap.set("n", "<Esc>", close_skill_win, { buffer = buf, silent = true, desc = "Close skill prompt" })
 	vim.keymap.set("n", "y", function()
 		vim.fn.setreg("+", text)
 		ctx.notify("Yanked skill prompt")

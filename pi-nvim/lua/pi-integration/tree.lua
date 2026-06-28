@@ -1,3 +1,5 @@
+local floats = require("pi-integration.floats")
+
 local M = {}
 
 local tree_preview_augroup = vim.api.nvim_create_augroup("PiNvimTreePreview", { clear = true })
@@ -274,12 +276,8 @@ end
 
 local function close_tree_window(ctx)
 	local state = ctx.state
-	if state.tree_win and vim.api.nvim_win_is_valid(state.tree_win) then
-		vim.api.nvim_win_close(state.tree_win, true)
-	end
-	if state.tree_preview_win and vim.api.nvim_win_is_valid(state.tree_preview_win) then
-		vim.api.nvim_win_close(state.tree_preview_win, true)
-	end
+	floats.close_window(state.tree_win)
+	floats.close_window(state.tree_preview_win)
 	state.tree_win = nil
 	state.tree_preview_win = nil
 end
@@ -430,6 +428,9 @@ function M.show(ctx)
 	vim.api.nvim_set_option_value("wrap", true, { win = state.tree_preview_win })
 	vim.api.nvim_set_option_value("cursorline", false, { win = state.tree_preview_win })
 	update_preview(ctx)
+	floats.close_on_win_leave(state.tree_buf, function()
+		close_tree_window(ctx)
+	end)
 
 	vim.keymap.set("n", "q", function()
 		close_tree_window(ctx)

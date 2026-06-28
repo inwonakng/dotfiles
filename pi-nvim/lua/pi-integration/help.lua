@@ -1,3 +1,4 @@
+local floats = require("pi-integration.floats")
 local keymaps = require("pi-integration.keymaps")
 
 local M = {}
@@ -5,7 +6,7 @@ local M = {}
 function M.toggle(ctx)
 	local state = ctx.state
 	if state.help_win and vim.api.nvim_win_is_valid(state.help_win) then
-		vim.api.nvim_win_close(state.help_win, true)
+		floats.close_window(state.help_win)
 		state.help_win = nil
 		return
 	end
@@ -51,12 +52,13 @@ function M.toggle(ctx)
 		title_pos = "center",
 	})
 
-	vim.keymap.set("n", "q", function()
-		M.toggle(ctx)
-	end, { buffer = state.help_buf, desc = "Close help" })
-	vim.keymap.set("n", "<Esc>", function()
-		M.toggle(ctx)
-	end, { buffer = state.help_buf, desc = "Close help" })
+	local close_help_win = function()
+		floats.close_window(state.help_win)
+		state.help_win = nil
+	end
+	floats.close_on_win_leave(state.help_buf, close_help_win)
+	vim.keymap.set("n", "q", close_help_win, { buffer = state.help_buf, desc = "Close help" })
+	vim.keymap.set("n", "<Esc>", close_help_win, { buffer = state.help_buf, desc = "Close help" })
 end
 
 return M

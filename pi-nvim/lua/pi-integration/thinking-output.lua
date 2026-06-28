@@ -1,3 +1,5 @@
+local floats = require("pi-integration.floats")
+
 local M = {}
 
 local function line_count_text(text)
@@ -9,12 +11,6 @@ local function line_count_text(text)
 		return count
 	end
 	return count + 1
-end
-
-local function close_window(win)
-	if win and vim.api.nvim_win_is_valid(win) then
-		vim.api.nvim_win_close(win, true)
-	end
 end
 
 function M.reset(state)
@@ -105,12 +101,12 @@ function M.open_float(ctx, output_id)
 	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
 	vim.api.nvim_set_option_value("signcolumn", "no", { win = win })
 
-	vim.keymap.set("n", "q", function()
-		close_window(win)
-	end, { buffer = buf, silent = true, desc = "Close thinking output" })
-	vim.keymap.set("n", "<Esc>", function()
-		close_window(win)
-	end, { buffer = buf, silent = true, desc = "Close thinking output" })
+	local close_thinking_win = function()
+		floats.close_window(win)
+	end
+	floats.close_on_win_leave(buf, close_thinking_win)
+	vim.keymap.set("n", "q", close_thinking_win, { buffer = buf, silent = true, desc = "Close thinking output" })
+	vim.keymap.set("n", "<Esc>", close_thinking_win, { buffer = buf, silent = true, desc = "Close thinking output" })
 	vim.keymap.set("n", "y", function()
 		vim.fn.setreg("+", output.text or "")
 		ctx.notify("Yanked thinking output")
