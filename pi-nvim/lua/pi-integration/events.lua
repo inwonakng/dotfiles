@@ -1,5 +1,22 @@
 local M = {}
 
+local pi_skills = require("pi-integration.skills")
+
+local function render_skill_loads(ctx, message)
+	local loads = pi_skills.collect_loads(ctx.state, message)
+	if #loads == 0 then
+		return false
+	end
+	local lines = {}
+	for _, load in ipairs(loads) do
+		vim.list_extend(lines, pi_skills.summary_lines(load))
+	end
+	ctx.begin_trace_item()
+	ctx.append_lines(lines)
+	ctx.end_trace_item()
+	return true
+end
+
 function M.render_message(ctx, message)
 	local role = message.role or message.type or "message"
 	local text = ctx.extract_text(message)
@@ -289,7 +306,15 @@ function M.handle_event(ctx, event)
 			return
 		end
 		if event.message and event.message.role == "toolResult" then
+			if pi_skills.tool_result_skill_name(state, event.message) then
+				return
+			end
 			M.render_message(ctx, event.message)
+		elseif event.message and event.message.role == "assistant" then
+			if not state.current_message_started and not state.current_thinking_rendered then
+				M.render_message(ctx, event.message)
+			end
+			render_skill_loads(ctx, event.message)
 		elseif event.message and not state.current_message_started and not state.current_thinking_rendered then
 			M.render_message(ctx, event.message)
 		end

@@ -1,5 +1,7 @@
 local M = {}
 
+local pi_skills = require("pi-integration.skills")
+
 function M.decode_session_record(line)
 	local ok, decoded
 	if vim.json and vim.json.decode then
@@ -91,7 +93,7 @@ local function remove_trailing_blank(lines)
 end
 
 local function is_trace_like(kind)
-	return kind == "tool" or kind == "thinking"
+	return kind == "tool" or kind == "thinking" or kind == "skill"
 end
 
 local function assistant_trace_only_thinking(message)
@@ -157,6 +159,22 @@ local function append_thinking_summary(ctx, lines, items, text)
 		end_line = line,
 		output_id = output_id,
 	})
+	return true
+end
+
+local function append_skill_load_summaries(lines, loads, has_body, previous_kind)
+	if type(loads) ~= "table" or #loads == 0 then
+		return false
+	end
+	if has_body and is_trace_like(previous_kind) then
+		remove_trailing_blank(lines)
+	else
+		add_message_separator(lines, has_body)
+	end
+	for _, load in ipairs(loads) do
+		vim.list_extend(lines, pi_skills.summary_lines(load))
+	end
+	table.insert(lines, "")
 	return true
 end
 
@@ -258,19 +276,32 @@ function M.collect_message_lines(ctx, messages)
 		local appended = false
 		local rendered_kind = nil
 		if role == "toolResult" then
-			if has_body and is_trace_like(last_rendered_kind) then
+			if pi_skills.tool_result_skill_name(ctx.state, message) then
+				appended = false
+			elseif has_body and is_trace_like(last_rendered_kind) then
 				remove_trailing_blank(lines)
+				appended = append_tool_summary(ctx, lines, items, message)
+				rendered_kind = appended and "tool" or nil
 			else
 				add_message_separator(lines, has_body)
+				appended = append_tool_summary(ctx, lines, items, message)
+				rendered_kind = appended and "tool" or nil
 			end
-			appended = append_tool_summary(ctx, lines, items, message)
-			rendered_kind = appended and "tool" or nil
 		elseif role == "assistant" then
+			local skill_loads = pi_skills.collect_loads(ctx.state, message)
 			local thinking = assistant_trace_only_thinking(message)
 			appended, rendered_kind = append_assistant_blocks(ctx, lines, items, message, has_body, {
 				continue_trace = thinking ~= nil and is_trace_like(last_rendered_kind),
 				previous_kind = last_rendered_kind,
 			})
+			if appended then
+				has_body = true
+				last_rendered_kind = rendered_kind
+			end
+			if append_skill_load_summaries(lines, skill_loads, has_body, last_rendered_kind) then
+				appended = true
+				rendered_kind = "skill"
+			end
 		else
 			local text = ctx.extract_text(message)
 			if text and text ~= "" then

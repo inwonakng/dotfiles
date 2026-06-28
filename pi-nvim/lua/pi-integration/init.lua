@@ -140,6 +140,7 @@ end
 
 local pi_tool_output = require("pi-integration.tool-output")
 local pi_thinking_output = require("pi-integration.thinking-output")
+local pi_skills = require("pi-integration.skills")
 local pi_pickers
 
 local function tool_output_ctx()
@@ -152,6 +153,7 @@ end
 local function reset_transcript_outputs()
 	pi_tool_output.reset(state)
 	pi_thinking_output.reset(state)
+	pi_skills.reset(state)
 end
 
 local function store_tool_output(tool_name, text, filetype, details)

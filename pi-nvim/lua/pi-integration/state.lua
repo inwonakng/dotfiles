@@ -50,6 +50,7 @@ function M.new()
 		next_tool_output_id = 0,
 		thinking_outputs = {},
 		next_thinking_output_id = 0,
+		skill_tool_calls = {},
 		active_thinking_output_id = nil,
 		active_thinking_line = nil,
 		pending_transcript_item_separator = false,

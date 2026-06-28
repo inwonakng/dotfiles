@@ -132,6 +132,8 @@ function M.apply_quote_highlights(ctx)
 			highlight = "PiToolQuote"
 		elseif line:find("> 󰔛 Thinking", 1, true) == 1 then
 			highlight = "PiThinkingQuote"
+		elseif line:find("> 󰢱 Using skill:", 1, true) == 1 then
+			highlight = "PiSkillQuote"
 		end
 		if highlight then
 			vim.api.nvim_buf_set_extmark(state.transcript_buf, quote_ns, index - 1, 0, {
