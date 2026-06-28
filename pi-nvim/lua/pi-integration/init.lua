@@ -142,6 +142,7 @@ local pi_tool_output = require("pi-integration.tool-output")
 local pi_thinking_output = require("pi-integration.thinking-output")
 local pi_skills = require("pi-integration.skills")
 local pi_pickers
+local extract_text
 
 local function tool_output_ctx()
 	return {
@@ -156,8 +157,12 @@ local function reset_transcript_outputs()
 	pi_skills.reset(state)
 end
 
-local function store_tool_output(tool_name, text, filetype, details)
-	return pi_tool_output.store(state, tool_name, text, filetype, details)
+local function record_tool_calls(message)
+	return pi_tool_output.record_calls(state, message)
+end
+
+local function store_tool_output(tool_name, text, filetype, details, message)
+	return pi_tool_output.store(state, tool_name, text, filetype, details, pi_tool_output.display_for_result(state, message))
 end
 
 local function tool_output_summary_lines(output_id)
@@ -178,6 +183,18 @@ end
 
 local function thinking_output_summary_lines(output_id, streaming)
 	return pi_thinking_output.summary_lines(state, output_id, streaming)
+end
+
+local function store_skill_prompt(load)
+	return pi_skills.store_load(state, load)
+end
+
+local function skill_summary_lines(output_id)
+	return pi_skills.summary_lines(state, output_id)
+end
+
+local function apply_skill_tool_result(message)
+	return pi_skills.apply_tool_result(state, message, extract_text(message))
 end
 
 local function begin_trace_item()
@@ -210,6 +227,8 @@ local function open_transcript_item_under_cursor()
 		return pi_tool_output.open_float(tool_output_ctx(), item.output_id)
 	elseif item.kind == "thinking" then
 		return pi_thinking_output.open_float(tool_output_ctx(), item.output_id)
+	elseif item.kind == "skill" then
+		return pi_skills.open_float(tool_output_ctx(), item.output_id)
 	end
 	return false
 end
@@ -270,7 +289,7 @@ local function set_input_text(text)
 	end
 end
 
-local function extract_text(message)
+extract_text = function(message)
 	if type(message) ~= "table" then
 		return nil
 	end
@@ -373,12 +392,16 @@ integration_ctx = function()
 		-- Feature helpers.
 		set_model_metadata = set_model_metadata,
 		set_input_text = set_input_text,
+		record_tool_calls = record_tool_calls,
 		store_tool_output = store_tool_output,
 		tool_output_summary_lines = tool_output_summary_lines,
 		store_thinking_output = store_thinking_output,
 		append_thinking_output = append_thinking_output,
 		thinking_output_text = thinking_output_text,
 		thinking_output_summary_lines = thinking_output_summary_lines,
+		store_skill_prompt = store_skill_prompt,
+		skill_summary_lines = skill_summary_lines,
+		apply_skill_tool_result = apply_skill_tool_result,
 		register_transcript_item = register_transcript_item,
 		set_transcript_line = set_transcript_line,
 		apply_session_state = apply_session_state,

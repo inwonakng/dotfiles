@@ -41,7 +41,6 @@ end
 
 function M.apply_transcript_window_options(ctx, win)
 	M.apply_window_padding(ctx, win)
-	vim.api.nvim_set_option_value("foldenable", true, { win = win })
 end
 
 function M.ensure_transcript_buffer(ctx)

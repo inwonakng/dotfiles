@@ -30,7 +30,7 @@ require("catppuccin").setup({
 			PiTreeMeta = { fg = colors.subtext1, bg = M.ui_bg, bold = true },
 			PiToolQuote = { fg = colors.peach, bg = M.ui_bg, bold = true },
 			PiThinkingQuote = { fg = colors.sky, bg = M.ui_bg, bold = true },
-			PiSkillQuote = { fg = colors.teal, bg = M.ui_bg, bold = true },
+			PiSkillQuote = { fg = colors.green, bg = "#102418", bold = true },
 			PiModeReadonly = { fg = colors.blue, bg = M.ui_bg, bold = true },
 			PiModeWrite = { fg = colors.peach, bg = M.ui_bg, bold = true },
 			PiModeUnknown = { fg = colors.subtext1, bg = M.ui_bg, bold = true },

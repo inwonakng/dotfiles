@@ -33,6 +33,59 @@ local function infer_filetype(tool_name, text)
 	return "text"
 end
 
+local function tool_call_id(item)
+	return item.id or item.toolCallId or item.tool_call_id or item.callId
+end
+
+local function tool_call_name(item)
+	return item.name or item.toolName or item.tool_name
+end
+
+local function decode_json_object(text)
+	if type(text) ~= "string" or text == "" then
+		return nil
+	end
+	local ok, decoded = pcall(vim.json.decode, text)
+	if ok and type(decoded) == "table" then
+		return decoded
+	end
+	return nil
+end
+
+local function tool_call_arguments(item)
+	local args = item.arguments or item.args or item.input
+	if type(args) == "table" then
+		return args
+	end
+	return decode_json_object(args)
+end
+
+local function compact_text(text)
+	if type(text) ~= "string" then
+		return ""
+	end
+	return (text:gsub("\r\n", "\n"):gsub("\r", "\n"):gsub("\n", " ⏎ "):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+local function truncate_text(text, max_len)
+	text = tostring(text or "")
+	max_len = max_len or 80
+	if #text <= max_len then
+		return text
+	end
+	return text:sub(1, math.max(1, max_len - 1)) .. "…"
+end
+
+local function display_for_call(name, args)
+	if name == "bash" and type(args) == "table" and type(args.command) == "string" and args.command ~= "" then
+		return {
+			kind = "bash",
+			command = args.command,
+		}
+	end
+	return nil
+end
+
 local function path_from_artifact_line(text, label)
 	if type(text) ~= "string" then
 		return nil
@@ -157,9 +210,41 @@ end
 function M.reset(state)
 	state.tool_outputs = {}
 	state.next_tool_output_id = 0
+	state.tool_calls = {}
 end
 
-function M.store(state, tool_name, text, filetype, details)
+function M.record_calls(state, message)
+	state.tool_calls = state.tool_calls or {}
+	if type(message) ~= "table" or type(message.content) ~= "table" then
+		return
+	end
+	for _, item in ipairs(message.content) do
+		if type(item) == "table" and (item.type == "toolCall" or item.type == "tool_call") then
+			local id = tool_call_id(item)
+			local name = tool_call_name(item)
+			if id and name then
+				local display = display_for_call(name, tool_call_arguments(item))
+				if display then
+					state.tool_calls[id] = {
+						name = name,
+						display = display,
+					}
+				end
+			end
+		end
+	end
+end
+
+function M.display_for_result(state, message)
+	if type(message) ~= "table" then
+		return nil
+	end
+	local id = message.toolCallId or message.tool_call_id or message.id
+	local call = id and state.tool_calls and state.tool_calls[id]
+	return call and call.display or nil
+end
+
+function M.store(state, tool_name, text, filetype, details, display)
 	state.next_tool_output_id = state.next_tool_output_id + 1
 	local id = state.next_tool_output_id
 	state.tool_outputs[id] = {
@@ -167,6 +252,7 @@ function M.store(state, tool_name, text, filetype, details)
 		text = text or "",
 		filetype = filetype or infer_filetype(tool_name, text),
 		details = details,
+		display = display,
 		defer = defer_artifacts(tool_name, text, details),
 	}
 	return id
@@ -180,8 +266,12 @@ function M.summary_lines(state, output_id)
 	local lines = line_count_text(output.text)
 	local line_label = lines == 1 and "1 line" or (tostring(lines) .. " lines")
 	local action = output.defer and "open defer artifacts" or "open"
+	local label = "Tool: " .. tostring(output.name or "tool")
+	if output.display and output.display.kind == "bash" and output.display.command then
+		label = "Bash: " .. truncate_text(compact_text(output.display.command), 96)
+	end
 	return {
-		"> 󰇥 Tool: " .. tostring(output.name or "tool") .. " · " .. line_label .. " · " .. (output.filetype or "text") .. " · press `<CR>` to " .. action,
+		"> 󰇥 " .. label .. " · " .. line_label .. " · " .. (output.filetype or "text") .. " · press `<CR>` to " .. action,
 	}
 end
 
@@ -209,7 +299,22 @@ function M.open_float(ctx, output_id)
 	vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
 	vim.api.nvim_set_option_value("swapfile", false, { buf = buf })
 	vim.api.nvim_set_option_value("filetype", output.filetype or "text", { buf = buf })
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(output.text or "", "\n", { plain = true }))
+	local content_lines = vim.split(output.text or "", "\n", { plain = true })
+	if output.display and output.display.kind == "bash" and output.display.command then
+		local command_lines = vim.split(output.display.command, "\n", { plain = true })
+		local rendered = {}
+		if #command_lines == 1 then
+			table.insert(rendered, "$ " .. command_lines[1])
+		else
+			table.insert(rendered, "$ <<'COMMAND'")
+			vim.list_extend(rendered, command_lines)
+			table.insert(rendered, "COMMAND")
+		end
+		table.insert(rendered, "")
+		vim.list_extend(rendered, content_lines)
+		content_lines = rendered
+	end
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, content_lines)
 	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 
 	local win = vim.api.nvim_open_win(buf, true, {

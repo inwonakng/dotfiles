@@ -132,7 +132,7 @@ local function append_tool_summary(ctx, lines, items, message)
 	if not text or text == "" then
 		return false
 	end
-	local output_id = ctx.store_tool_output(name, text, nil, message.details)
+	local output_id = ctx.store_tool_output(name, text, nil, message.details, message)
 	vim.list_extend(lines, ctx.tool_output_summary_lines(output_id))
 	local line = #lines
 	table.insert(lines, "")
@@ -162,7 +162,7 @@ local function append_thinking_summary(ctx, lines, items, text)
 	return true
 end
 
-local function append_skill_load_summaries(lines, loads, has_body, previous_kind)
+local function append_skill_load_summaries(ctx, lines, items, loads, has_body, previous_kind)
 	if type(loads) ~= "table" or #loads == 0 then
 		return false
 	end
@@ -172,7 +172,15 @@ local function append_skill_load_summaries(lines, loads, has_body, previous_kind
 		add_message_separator(lines, has_body)
 	end
 	for _, load in ipairs(loads) do
-		vim.list_extend(lines, pi_skills.summary_lines(load))
+		local output_id = ctx.store_skill_prompt(load)
+		vim.list_extend(lines, ctx.skill_summary_lines(output_id))
+		local line = #lines
+		table.insert(items, {
+			kind = "skill",
+			start_line = line,
+			end_line = line,
+			output_id = output_id,
+		})
 	end
 	table.insert(lines, "")
 	return true
@@ -277,6 +285,7 @@ function M.collect_message_lines(ctx, messages)
 		local rendered_kind = nil
 		if role == "toolResult" then
 			if pi_skills.tool_result_skill_name(ctx.state, message) then
+				ctx.apply_skill_tool_result(message)
 				appended = false
 			elseif has_body and is_trace_like(last_rendered_kind) then
 				remove_trailing_blank(lines)
@@ -288,6 +297,7 @@ function M.collect_message_lines(ctx, messages)
 				rendered_kind = appended and "tool" or nil
 			end
 		elseif role == "assistant" then
+			ctx.record_tool_calls(message)
 			local skill_loads = pi_skills.collect_loads(ctx.state, message)
 			local thinking = assistant_trace_only_thinking(message)
 			appended, rendered_kind = append_assistant_blocks(ctx, lines, items, message, has_body, {
@@ -298,7 +308,7 @@ function M.collect_message_lines(ctx, messages)
 				has_body = true
 				last_rendered_kind = rendered_kind
 			end
-			if append_skill_load_summaries(lines, skill_loads, has_body, last_rendered_kind) then
+			if append_skill_load_summaries(ctx, lines, items, skill_loads, has_body, last_rendered_kind) then
 				appended = true
 				rendered_kind = "skill"
 			end

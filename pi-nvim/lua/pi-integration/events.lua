@@ -7,12 +7,18 @@ local function render_skill_loads(ctx, message)
 	if #loads == 0 then
 		return false
 	end
-	local lines = {}
-	for _, load in ipairs(loads) do
-		vim.list_extend(lines, pi_skills.summary_lines(load))
-	end
 	ctx.begin_trace_item()
-	ctx.append_lines(lines)
+	for _, load in ipairs(loads) do
+		local output_id = ctx.store_skill_prompt(load)
+		ctx.append_lines(ctx.skill_summary_lines(output_id))
+		local line = ctx.transcript_line_count()
+		ctx.register_transcript_item({
+			kind = "skill",
+			start_line = line,
+			end_line = line,
+			output_id = output_id,
+		})
+	end
 	ctx.end_trace_item()
 	return true
 end
@@ -25,7 +31,7 @@ function M.render_message(ctx, message)
 	end
 	if role == "toolResult" then
 		local name = message.toolName or "tool"
-		local output_id = ctx.store_tool_output(name, text, nil, message.details)
+		local output_id = ctx.store_tool_output(name, text, nil, message.details, message)
 		ctx.begin_trace_item()
 		ctx.append_lines(ctx.tool_output_summary_lines(output_id))
 		local line = ctx.transcript_line_count()
@@ -307,10 +313,12 @@ function M.handle_event(ctx, event)
 		end
 		if event.message and event.message.role == "toolResult" then
 			if pi_skills.tool_result_skill_name(state, event.message) then
+				ctx.apply_skill_tool_result(event.message)
 				return
 			end
 			M.render_message(ctx, event.message)
 		elseif event.message and event.message.role == "assistant" then
+			ctx.record_tool_calls(event.message)
 			if not state.current_message_started and not state.current_thinking_rendered then
 				M.render_message(ctx, event.message)
 			end

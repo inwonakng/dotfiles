@@ -25,19 +25,16 @@ M.specs = {
 		{ lhs = "<Esc><Esc>", action = "abort", desc = "Abort Pi" },
 		{
 			lhs = "<CR>",
-			action = "open_transcript_item_or_toggle_fold",
-			desc = "Open tool/thinking output or toggle fold",
+			action = "open_transcript_item",
+			desc = "Open tool/thinking/skill output",
 		},
 	},
 }
 
 local function action_fn(ctx, action)
-	if action == "open_transcript_item_or_toggle_fold" then
+	if action == "open_transcript_item" then
 		return function()
-			if ctx.open_transcript_item_under_cursor() then
-				return
-			end
-			vim.cmd("normal! za")
+			ctx.open_transcript_item_under_cursor()
 		end
 	end
 
@@ -114,7 +111,7 @@ function M.help_key_lines()
 		table.insert(lines, "- `" .. spec.lhs .. "` " .. spec.desc .. ".")
 	end
 	vim.list_extend(lines, {
-		"- `<CR>` open the current tool/thinking output, or toggle a normal fold.",
+		"- `<CR>` open the current tool/thinking/skill output.",
 		"- `<Esc><Esc>` abort Pi.",
 		"- `q` or `<Esc>` close this help.",
 	})
