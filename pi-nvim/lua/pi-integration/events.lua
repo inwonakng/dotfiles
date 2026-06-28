@@ -161,6 +161,34 @@ function M.handle_message_update(ctx, event)
 	local state = ctx.state
 	local update = event.assistantMessageEvent or {}
 
+	local function render_active_thinking_if_visible(streaming)
+		local output_id = state.active_thinking_output_id
+		if not output_id or state.active_thinking_line then
+			return
+		end
+		local text = ctx.thinking_output_text(output_id) or ""
+		if vim.trim(text) == "" then
+			return
+		end
+		if not state.current_message_started then
+			ctx.clear_assistant_placeholder()
+			ctx.append_message_header("Assistant")
+			state.current_message_started = true
+		end
+		state.current_thinking_rendered = true
+		ctx.begin_trace_item()
+		ctx.append_lines(ctx.thinking_output_summary_lines(output_id, streaming))
+		local line = ctx.transcript_line_count()
+		state.active_thinking_line = line
+		ctx.register_transcript_item({
+			kind = "thinking",
+			start_line = line,
+			end_line = line,
+			output_id = output_id,
+		})
+		ctx.end_trace_item()
+	end
+
 	if update.type == "text_start" then
 		if not state.current_message_started then
 			ctx.clear_assistant_placeholder()
@@ -175,33 +203,25 @@ function M.handle_message_update(ctx, event)
 		end
 		ctx.append_text(update.delta or "")
 	elseif update.type == "thinking_start" and ctx.config.show_thinking then
-		if not state.current_message_started then
-			ctx.clear_assistant_placeholder()
-			ctx.append_message_header("Assistant")
-			state.current_message_started = true
-		end
-		local output_id = ctx.store_thinking_output("")
-		state.active_thinking_output_id = output_id
-		state.current_thinking_rendered = true
-		ctx.begin_trace_item()
-		ctx.append_lines(ctx.thinking_output_summary_lines(output_id, true))
-		local line = ctx.transcript_line_count()
-		state.active_thinking_line = line
-		ctx.register_transcript_item({
-			kind = "thinking",
-			start_line = line,
-			end_line = line,
-			output_id = output_id,
-		})
-		ctx.end_trace_item()
+		state.active_thinking_output_id = ctx.store_thinking_output("")
+		state.active_thinking_line = nil
 	elseif update.type == "thinking_delta" and ctx.config.show_thinking then
 		if state.active_thinking_output_id then
 			ctx.append_thinking_output(state.active_thinking_output_id, update.delta or "")
+			render_active_thinking_if_visible(true)
 		end
 	elseif update.type == "thinking_end" and ctx.config.show_thinking then
-		if state.active_thinking_output_id and state.active_thinking_line then
-			local summary = ctx.thinking_output_summary_lines(state.active_thinking_output_id, false)[1]
-			ctx.set_transcript_line(state.active_thinking_line, summary)
+		if state.active_thinking_output_id then
+			local text = ctx.thinking_output_text(state.active_thinking_output_id) or ""
+			local final_content = update.content or ""
+			if vim.trim(text) == "" and vim.trim(final_content) ~= "" then
+				ctx.append_thinking_output(state.active_thinking_output_id, final_content)
+			end
+			render_active_thinking_if_visible(false)
+			if state.active_thinking_line then
+				local summary = ctx.thinking_output_summary_lines(state.active_thinking_output_id, false)[1]
+				ctx.set_transcript_line(state.active_thinking_line, summary)
+			end
 		end
 		state.active_thinking_output_id = nil
 		state.active_thinking_line = nil

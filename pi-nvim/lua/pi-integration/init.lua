@@ -170,6 +170,10 @@ local function append_thinking_output(output_id, delta)
 	return pi_thinking_output.append(state, output_id, delta)
 end
 
+local function thinking_output_text(output_id)
+	return pi_thinking_output.text(state, output_id)
+end
+
 local function thinking_output_summary_lines(output_id, streaming)
 	return pi_thinking_output.summary_lines(state, output_id, streaming)
 end
@@ -371,6 +375,7 @@ integration_ctx = function()
 		tool_output_summary_lines = tool_output_summary_lines,
 		store_thinking_output = store_thinking_output,
 		append_thinking_output = append_thinking_output,
+		thinking_output_text = thinking_output_text,
 		thinking_output_summary_lines = thinking_output_summary_lines,
 		register_transcript_item = register_transcript_item,
 		set_transcript_line = set_transcript_line,
