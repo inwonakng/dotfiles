@@ -44,7 +44,7 @@ local function format_session_stats(state)
 	end
 
 	if non_null(stats.cost) then
-		table.insert(parts, string.format("$%.3f", stats.cost))
+		table.insert(parts, string.format("$%.2f", stats.cost))
 	end
 
 	return table.concat(parts, "·")
