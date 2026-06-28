@@ -16,6 +16,7 @@ Inspired by Superpowers' brainstorming and writing-plans workflows, but adapted 
 - If the user already provided an approved plan and asks to execute it, use the `implement` skill instead.
 - If the request is actually a bug or failing test, use the `debug` skill first.
 - If relevant information is missing, ask one focused clarifying question at a time.
+- When writing an implementation plan file, include the Agent Handoff marker below. This is mandatory unless the user explicitly asks for a scratch note or non-implementation document.
 
 ## Process
 
@@ -40,6 +41,7 @@ Inspired by Superpowers' brainstorming and writing-plans workflows, but adapted 
    - Include verification commands or checks.
    - Include risks, open questions, and assumptions.
    - For complex work, ask whether to save the plan under `plans/` before implementation.
+   - If saving an implementation plan file, include status, source-of-truth notes, and the Agent Handoff marker so a later implementation agent knows to use `defer-driven-implementation`.
 
 5. **Stop**
    - Ask the user to approve or revise the plan.
@@ -50,6 +52,13 @@ Inspired by Superpowers' brainstorming and writing-plans workflows, but adapted 
 Use this shape unless the task calls for something shorter:
 
 ```markdown
+# [Name] Implementation Plan
+
+> **Agent handoff:** When asked to implement this plan, use the `defer-driven-implementation` skill. Start with a readonly deferred plan review to identify blocking questions before editing. Execute tasks in order unless this plan explicitly marks tasks independent.
+
+**Status:** Draft | Approved
+**Source of truth:** [conversation summary, issue, spec, or design doc]
+
 ## Goal
 
 ## Recommended approach
@@ -62,6 +71,16 @@ Use this shape unless the task calls for something shorter:
 
 ## Risks / open questions
 ```
+
+## Agent Handoff Marker
+
+When writing a durable implementation plan file, include this marker verbatim near the top:
+
+```markdown
+> **Agent handoff:** When asked to implement this plan, use the `defer-driven-implementation` skill. Start with a readonly deferred plan review to identify blocking questions before editing. Execute tasks in order unless this plan explicitly marks tasks independent.
+```
+
+If the plan is not approved yet, mark `**Status:** Draft`. Do not imply approval. If the user approves the plan, update or state the approved status clearly before implementation.
 
 ## Quality Bar
 

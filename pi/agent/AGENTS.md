@@ -9,6 +9,7 @@ Before responding or acting, check whether any available skill applies to the us
 Use skills as the source of truth for reusable workflows. In particular:
 - Use `plan` for non-trivial planning/design before implementation.
 - Use `implement` when the user explicitly asks to change files or execute an approved plan.
+- Use `defer-driven-implementation` when executing an approved implementation plan file, multiple plan files, or a complex approved conversation plan. Plan-file execution must route here by default unless the user explicitly requests inline implementation.
 - Use `debug` for bugs, failing tests, build errors, or unexpected behavior before fixing.
 - Use `review` for plan/diff/implementation review.
 - Use `verify` before claiming work is done, fixed, passing, or ready.
@@ -32,9 +33,13 @@ Think with the user before code is written: identify the problem, root cause, tr
 
 When planning implementation, preserve the prior discussion and agreed direction. Do not restart planning from scratch unless new evidence invalidates the plan.
 
+When writing a durable implementation plan file, include an explicit agent handoff marker directing future implementation to `defer-driven-implementation`, plus a clear Draft/Approved status. Plan files are handoff artifacts, not just notes.
+
 ## Implementation
 
 When the user explicitly asks for implementation, execute the agreed plan. If no clear plan exists, inspect enough context to understand the task before editing.
+
+If the implementation source of truth is an approved implementation plan file, do not execute it inline by default. Use `implement` as the entry point, then route to `defer-driven-implementation`. If multiple plausible plan files exist, or the plan is Draft/unapproved, ask before editing.
 
 Follow the plan unless the codebase shows it is wrong, incomplete, or unsafe. If a material deviation is needed, explain why before changing direction.
 
