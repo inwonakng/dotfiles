@@ -10,9 +10,9 @@ M.specs = {
 		{ lhs = "<leader>/", action = "pick_command", desc = "Pick Pi command" },
 		{ lhs = "<leader>pi", action = "show_input", desc = "Show Pi input" },
 		{ lhs = "<leader>pt", action = "show_transcript", desc = "Show Pi transcript" },
+		{ lhs = "<leader>a", action = "pick_access_mode", desc = "Pick access mode" },
 		{ lhs = "<leader>m", action = "pick_model", desc = "Pick model" },
 		{ lhs = "<leader>t", action = "pick_thinking", desc = "Pick thinking level" },
-		{ lhs = "<leader>p", action = "pick_access_mode", desc = "Pick access mode" },
 		{ lhs = "<leader>s", action = "pick_session", desc = "Pick session" },
 		{ lhs = "<leader>h", action = "history", desc = "History" },
 		{ lhs = "<leader>T", action = "show_tree", desc = "Session tree" },
@@ -23,7 +23,11 @@ M.specs = {
 	},
 	transcript = {
 		{ lhs = "<Esc><Esc>", action = "abort", desc = "Abort Pi" },
-		{ lhs = "<CR>", action = "open_transcript_item_or_toggle_fold", desc = "Open tool/thinking output or toggle fold" },
+		{
+			lhs = "<CR>",
+			action = "open_transcript_item_or_toggle_fold",
+			desc = "Open tool/thinking output or toggle fold",
+		},
 	},
 }
 
