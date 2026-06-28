@@ -18,19 +18,27 @@ type AlerterNotificationOptions = {
 const defaultIconPath = resolve(dirname(fileURLToPath(import.meta.url)), "../../assets/pi-logo.png");
 const DISABLED_SOUND_VALUES = new Set(["0", "false", "no", "none", "off", "silent"]);
 
-let desktopNotificationsEnabled = false;
+type NotificationState = {
+	desktopNotificationsEnabled: boolean;
+};
+
+const notificationStateKey = Symbol.for("pi.extensions.notifications.state");
+const notificationStateHost = globalThis as Record<PropertyKey, unknown>;
+const notificationState = (notificationStateHost[notificationStateKey] ??= {
+	desktopNotificationsEnabled: false,
+}) as NotificationState;
 
 export function notificationsEnabled(): boolean {
-	return desktopNotificationsEnabled;
+	return notificationState.desktopNotificationsEnabled;
 }
 
 export function setNotificationsEnabled(enabled: boolean): void {
-	desktopNotificationsEnabled = enabled;
+	notificationState.desktopNotificationsEnabled = enabled;
 }
 
 export function toggleNotificationsEnabled(): boolean {
-	desktopNotificationsEnabled = !desktopNotificationsEnabled;
-	return desktopNotificationsEnabled;
+	notificationState.desktopNotificationsEnabled = !notificationState.desktopNotificationsEnabled;
+	return notificationState.desktopNotificationsEnabled;
 }
 
 export function parseNotificationMode(input: string | undefined): boolean | "toggle" | undefined {
