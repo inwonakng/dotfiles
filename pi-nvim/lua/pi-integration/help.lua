@@ -56,7 +56,7 @@ function M.toggle(ctx)
 		floats.close_window(state.help_win)
 		state.help_win = nil
 	end
-	floats.close_on_win_leave(state.help_buf, close_help_win)
+	floats.close_on_win_leave(state.help_buf, close_help_win, { win = state.help_win })
 	vim.keymap.set("n", "q", close_help_win, { buffer = state.help_buf, desc = "Close help" })
 	vim.keymap.set("n", "<Esc>", close_help_win, { buffer = state.help_buf, desc = "Close help" })
 end

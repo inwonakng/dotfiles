@@ -188,6 +188,45 @@ function assertSuccess(event: RpcEvent, action: string): void {
   }
 }
 
+function compactOneLine(value: unknown, maxLength = 96): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+  const compact = value.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n/g, " ⏎ ").replace(/\s+/g, " ").trim();
+  return compact.length > maxLength ? `${compact.slice(0, Math.max(0, maxLength - 1))}…` : compact;
+}
+
+function pathBasename(path: unknown): string | undefined {
+  if (typeof path !== "string" || path === "") {
+    return undefined;
+  }
+  return path.split(/[\\/]/).filter(Boolean).pop() ?? path;
+}
+
+function previewToolArgs(toolName: unknown, args: unknown): string {
+  if (typeof toolName !== "string" || typeof args !== "object" || args === null) {
+    return "";
+  }
+  const input = args as Record<string, unknown>;
+  if (toolName === "read") {
+    const path = pathBasename(input.path);
+    return path ? ` ${path}` : "";
+  }
+  if (toolName === "bash") {
+    const command = compactOneLine(input.command, 72);
+    return command ? ` ${command}` : "";
+  }
+  if (toolName === "web_fetch") {
+    const url = compactOneLine(input.url, 72);
+    return url ? ` ${url}` : "";
+  }
+  if (toolName === "web_search") {
+    const query = compactOneLine(input.query, 72);
+    return query ? ` ${query}` : "";
+  }
+  return "";
+}
+
 function deferPrompt(input: { task: string; role?: string; accessMode: AccessMode; briefPath: string }): string {
   const role = input.role?.trim() || "general deferred subagent";
   return `You are a deferred subagent working inside a pi parent session.
@@ -261,8 +300,80 @@ export default function deferExtension(pi: ExtensionAPI) {
         argv.push("--model", params.model);
       }
 
+      const artifactDetails = {
+        runId,
+        runDir,
+        briefPath,
+        resultPath,
+        transcriptPath,
+        statusPath,
+        accessMode,
+        role: params.role ?? null,
+      };
+      let latestProgress = `Deferred agent ${runId} starting (${accessMode}).`;
+      let assistantPreview = "";
+      let progressTimer: NodeJS.Timeout | undefined;
+      const publishProgress = (text: string, immediate = false) => {
+        latestProgress = text;
+        const emit = () => {
+          progressTimer = undefined;
+          onUpdate?.({
+            content: [{ type: "text", text: latestProgress }],
+            details: { ...artifactDetails, status: "running", progress: latestProgress },
+          });
+        };
+        if (immediate) {
+          if (progressTimer) {
+            clearTimeout(progressTimer);
+            progressTimer = undefined;
+          }
+          emit();
+          return;
+        }
+        if (!progressTimer) {
+          progressTimer = setTimeout(emit, 150);
+        }
+      };
+      const summarizeChildEvent = (event: RpcEvent): string | undefined => {
+        if (event.type === "agent_start") {
+          return `Deferred agent ${runId} started (${accessMode}).`;
+        }
+        if (event.type === "turn_start") {
+          return "Deferred agent thinking…";
+        }
+        if (event.type === "tool_execution_start") {
+          const toolName = typeof event.toolName === "string" ? event.toolName : "tool";
+          return `Deferred agent running ${toolName}${previewToolArgs(toolName, event.args)}.`;
+        }
+        if (event.type === "tool_execution_end") {
+          const toolName = typeof event.toolName === "string" ? event.toolName : "tool";
+          return `Deferred agent completed ${toolName}.`;
+        }
+        if (event.type === "message_update") {
+          const update = event.assistantMessageEvent as { type?: unknown; delta?: unknown } | undefined;
+          if (update?.type === "text_delta" && typeof update.delta === "string") {
+            assistantPreview = compactOneLine(`${assistantPreview}${update.delta}`, 120);
+            if (assistantPreview) {
+              return `Deferred agent writing final report: ${assistantPreview}`;
+            }
+          }
+        }
+        if (event.type === "child_stderr") {
+          const text = compactOneLine(event.text, 120);
+          return text ? `Deferred agent stderr: ${text}` : undefined;
+        }
+        if (event.type === "child_exit") {
+          return `Deferred agent process exited: code=${String(event.code ?? "null")} signal=${String(event.signal ?? "null")}.`;
+        }
+        return undefined;
+      };
+
       const transcript = (event: RpcEvent) => {
         writeFileSync(transcriptPath, `${JSON.stringify({ timestamp: new Date().toISOString(), event })}\n`, { flag: "a" });
+        const progress = summarizeChildEvent(event);
+        if (progress) {
+          publishProgress(progress);
+        }
       };
 
       const childEnv: NodeJS.ProcessEnv = {
@@ -286,7 +397,7 @@ export default function deferExtension(pi: ExtensionAPI) {
       signal?.addEventListener("abort", abort, { once: true });
 
       try {
-        onUpdate?.({ content: [{ type: "text", text: `Deferred agent ${runId} started (${accessMode}).` }] });
+        publishProgress(`Deferred agent ${runId} started (${accessMode}).`, true);
         const agentEnd = child.waitForAgentEnd();
         const promptResponse = await child.send({ type: "prompt", message: deferPrompt({ task: params.task, role: params.role, accessMode, briefPath }) });
         assertSuccess(promptResponse, "deferred prompt");
@@ -298,7 +409,7 @@ export default function deferExtension(pi: ExtensionAPI) {
         writeFileSync(statusPath, JSON.stringify({ status: "done", runId, accessMode, role: params.role ?? null, completedAt: new Date().toISOString(), briefPath, resultPath, transcriptPath }, null, 2), "utf8");
         return {
           content: [{ type: "text", text: resultSummary(resultText, resultPath, transcriptPath, briefPath, statusPath) }],
-          details: { runId, runDir, briefPath, resultPath, transcriptPath, statusPath, accessMode },
+          details: { runId, runDir, briefPath, resultPath, transcriptPath, statusPath, accessMode, role: params.role ?? null, status: "done" },
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -307,10 +418,13 @@ export default function deferExtension(pi: ExtensionAPI) {
         return {
           content: [{ type: "text", text: `Deferred agent failed: ${message}\n\nArtifacts:\n- Brief: ${briefPath}\n- Result: ${resultPath}\n- Transcript: ${transcriptPath}\n- Status: ${statusPath}` }],
           isError: true,
-          details: { runId, runDir, briefPath, resultPath, transcriptPath, statusPath, accessMode, error: message },
+          details: { runId, runDir, briefPath, resultPath, transcriptPath, statusPath, accessMode, role: params.role ?? null, status: "error", error: message },
         };
       } finally {
         clearTimeout(timeout);
+        if (progressTimer) {
+          clearTimeout(progressTimer);
+        }
         signal?.removeEventListener("abort", abort);
         child.dispose();
       }

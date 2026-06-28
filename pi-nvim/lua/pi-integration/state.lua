@@ -49,6 +49,8 @@ function M.new()
 		tool_outputs = {},
 		next_tool_output_id = 0,
 		tool_calls = {},
+		live_tool_output_by_call = {},
+		live_tool_lines = {},
 		thinking_outputs = {},
 		next_thinking_output_id = 0,
 		skill_tool_calls = {},

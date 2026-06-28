@@ -69,6 +69,15 @@ local function compact_text(text)
 	return (text:gsub("\r\n", "\n"):gsub("\r", "\n"):gsub("\n", " ⏎ "):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
+local function truncate_text(text, max_len)
+	text = compact_text(text)
+	max_len = max_len or 120
+	if #text <= max_len then
+		return text
+	end
+	return text:sub(1, math.max(1, max_len - 1)) .. "…"
+end
+
 local function command_preview(command)
 	local compact = compact_text(command)
 	local words = {}
@@ -169,7 +178,7 @@ local function open_defer_text(ctx, title, path, filetype)
 		floats.close_window(state.defer_win)
 		state.defer_win = nil
 	end
-	floats.close_on_win_leave(state.defer_buf, close_defer_win)
+	floats.close_on_win_leave(state.defer_buf, close_defer_win, { win = state.defer_win, parent = ctx.parent_win })
 	vim.keymap.set("n", "q", close_defer_win, { buffer = state.defer_buf, silent = true, desc = "Close defer output" })
 	vim.keymap.set("n", "<Esc>", close_defer_win, { buffer = state.defer_buf, silent = true, desc = "Close defer output" })
 	vim.keymap.set("n", "y", function()
@@ -203,7 +212,11 @@ local function open_defer_artifacts(ctx, output)
 		end,
 	}, function(choice)
 		if choice then
-			open_defer_text(ctx, "Defer " .. choice.label, choice.path, choice.filetype)
+			if choice.label == "transcript" then
+				require("pi-integration.defer-transcript").open(ctx, choice.path, "Defer transcript")
+			else
+				open_defer_text(ctx, "Defer " .. choice.label, choice.path, choice.filetype)
+			end
 		end
 	end)
 	return true
@@ -213,6 +226,8 @@ function M.reset(state)
 	state.tool_outputs = {}
 	state.next_tool_output_id = 0
 	state.tool_calls = {}
+	state.live_tool_output_by_call = {}
+	state.live_tool_lines = {}
 end
 
 function M.record_calls(state, message)
@@ -246,7 +261,7 @@ function M.display_for_result(state, message)
 	return call and call.display or nil
 end
 
-function M.store(state, tool_name, text, filetype, details, display)
+function M.store(state, tool_name, text, filetype, details, display, tool_call_id)
 	state.next_tool_output_id = state.next_tool_output_id + 1
 	local id = state.next_tool_output_id
 	state.tool_outputs[id] = {
@@ -256,8 +271,33 @@ function M.store(state, tool_name, text, filetype, details, display)
 		details = details,
 		display = display,
 		defer = defer_artifacts(tool_name, text, details),
+		tool_call_id = tool_call_id,
 	}
+	if tool_call_id then
+		state.live_tool_output_by_call = state.live_tool_output_by_call or {}
+		state.live_tool_output_by_call[tool_call_id] = id
+	end
 	return id
+end
+
+function M.store_or_update_live(state, tool_name, tool_call_id, text, filetype, details, display)
+	state.live_tool_output_by_call = state.live_tool_output_by_call or {}
+	local output_id = tool_call_id and state.live_tool_output_by_call[tool_call_id]
+	if output_id and state.tool_outputs[output_id] then
+		local output = state.tool_outputs[output_id]
+		output.name = tool_name or output.name or "tool"
+		output.text = text or output.text or ""
+		output.filetype = filetype or output.filetype or infer_filetype(tool_name, text)
+		output.details = details or output.details
+		output.display = display or output.display
+		output.defer = defer_artifacts(output.name, output.text, output.details)
+		return output_id, true
+	end
+	return M.store(state, tool_name, text, filetype, details, display, tool_call_id), false
+end
+
+function M.live_output_id(state, tool_call_id)
+	return tool_call_id and state.live_tool_output_by_call and state.live_tool_output_by_call[tool_call_id] or nil
 end
 
 function M.summary_lines(state, output_id)
@@ -268,7 +308,28 @@ function M.summary_lines(state, output_id)
 	local lines = line_count_text(output.text)
 	local line_label = lines == 1 and "1 line" or (tostring(lines) .. " lines")
 	local label = "Tool: " .. tostring(output.name or "tool")
-	if output.display and output.display.kind == "bash" and output.display.command then
+	if output.name == "defer_task" then
+		label = "Defer"
+		local details = type(output.details) == "table" and output.details or {}
+		if details.role and details.role ~= "" then
+			label = label .. ": " .. tostring(details.role)
+		end
+		local progress = truncate_text(details.progress or output.text or "", 120)
+		local status = details.status and tostring(details.status) or nil
+		local parts = { "> 󰇥 " .. label }
+		if status and status ~= "" then
+			table.insert(parts, status)
+		end
+		if progress ~= "" then
+			table.insert(parts, progress)
+		else
+			table.insert(parts, line_label)
+		end
+		if output.defer then
+			table.insert(parts, "artifacts")
+		end
+		return { table.concat(parts, " · ") }
+	elseif output.display and output.display.kind == "bash" and output.display.command then
 		label = "Bash: " .. command_preview(output.display.command)
 	end
 	local artifact_label = output.defer and " · artifacts" or ""
@@ -339,7 +400,7 @@ function M.open_float(ctx, output_id)
 	local close_tool_win = function()
 		floats.close_window(win)
 	end
-	floats.close_on_win_leave(buf, close_tool_win)
+	floats.close_on_win_leave(buf, close_tool_win, { win = win, parent = ctx.parent_win })
 	vim.keymap.set("n", "q", close_tool_win, { buffer = buf, silent = true, desc = "Close tool output" })
 	vim.keymap.set("n", "<Esc>", close_tool_win, { buffer = buf, silent = true, desc = "Close tool output" })
 	vim.keymap.set("n", "y", function()

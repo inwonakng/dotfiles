@@ -104,7 +104,7 @@ function M.open_float(ctx, output_id)
 	local close_thinking_win = function()
 		floats.close_window(win)
 	end
-	floats.close_on_win_leave(buf, close_thinking_win)
+	floats.close_on_win_leave(buf, close_thinking_win, { win = win, parent = ctx.parent_win })
 	vim.keymap.set("n", "q", close_thinking_win, { buffer = buf, silent = true, desc = "Close thinking output" })
 	vim.keymap.set("n", "<Esc>", close_thinking_win, { buffer = buf, silent = true, desc = "Close thinking output" })
 	vim.keymap.set("n", "y", function()

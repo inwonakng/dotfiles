@@ -430,7 +430,7 @@ function M.show(ctx)
 	update_preview(ctx)
 	floats.close_on_win_leave(state.tree_buf, function()
 		close_tree_window(ctx)
-	end)
+	end, { win = state.tree_win })
 
 	vim.keymap.set("n", "q", function()
 		close_tree_window(ctx)

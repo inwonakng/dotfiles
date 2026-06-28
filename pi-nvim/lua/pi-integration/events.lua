@@ -2,6 +2,66 @@ local M = {}
 
 local pi_skills = require("pi-integration.skills")
 
+local function extract_text_from_content(content)
+	if type(content) == "string" then
+		return content
+	end
+	if type(content) ~= "table" then
+		return ""
+	end
+	local chunks = {}
+	for _, item in ipairs(content) do
+		if type(item) == "string" then
+			table.insert(chunks, item)
+		elseif type(item) == "table" then
+			table.insert(chunks, item.text or item.content or item.delta or "")
+		end
+	end
+	return table.concat(chunks, "")
+end
+
+local function partial_result_text(partial_result)
+	if type(partial_result) ~= "table" then
+		return ""
+	end
+	return extract_text_from_content(partial_result.content)
+end
+
+local function render_or_update_live_tool(ctx, event, text, details)
+	local state = ctx.state
+	local output_id, updated = ctx.store_or_update_live_tool_output(
+		event.toolName or "tool",
+		event.toolCallId,
+		text or "",
+		nil,
+		details,
+		nil
+	)
+	if updated then
+		local line = state.live_tool_lines and event.toolCallId and state.live_tool_lines[event.toolCallId]
+		if line then
+			ctx.set_transcript_line(line, ctx.tool_output_summary_lines(output_id)[1])
+		end
+		return output_id
+	end
+
+	ctx.begin_trace_item()
+	ctx.append_lines(ctx.tool_output_summary_lines(output_id))
+	local line = ctx.transcript_line_count()
+	state.live_tool_lines = state.live_tool_lines or {}
+	if event.toolCallId then
+		state.live_tool_lines[event.toolCallId] = line
+	end
+	ctx.register_transcript_item({
+		kind = "tool",
+		start_line = line,
+		end_line = line,
+		output_id = output_id,
+	})
+	ctx.end_trace_item()
+	return output_id
+end
+
 local function render_skill_loads(ctx, message)
 	local loads = pi_skills.collect_loads(ctx.state, message)
 	if #loads == 0 then
@@ -31,6 +91,16 @@ function M.render_message(ctx, message)
 	end
 	if role == "toolResult" then
 		local name = message.toolName or "tool"
+		local tool_call_id = message.toolCallId or message.tool_call_id or message.id
+		local live_output_id = ctx.live_tool_output_id(tool_call_id)
+		if live_output_id then
+			ctx.store_or_update_live_tool_output(name, tool_call_id, text, nil, message.details, ctx.store_tool_display and ctx.store_tool_display(message) or nil)
+			local line = ctx.state.live_tool_lines and ctx.state.live_tool_lines[tool_call_id]
+			if line then
+				ctx.set_transcript_line(line, ctx.tool_output_summary_lines(live_output_id)[1])
+			end
+			return
+		end
 		local output_id = ctx.store_tool_output(name, text, nil, message.details, message)
 		ctx.begin_trace_item()
 		ctx.append_lines(ctx.tool_output_summary_lines(output_id))
@@ -329,13 +399,24 @@ function M.handle_event(ctx, event)
 	elseif event.type == "tool_execution_start" then
 		ctx.clear_assistant_placeholder_spinner()
 		state.current_message_started = true
-		-- Tool output is rendered from the final toolResult message. Rendering the
-		-- tool_execution_* stream as well creates an empty/duplicate tool block for
-		-- tools that only publish their output at completion.
+		if event.toolName == "defer_task" then
+			render_or_update_live_tool(ctx, event, "Deferred agent starting…", { status = "running" })
+		end
+		-- Non-defer tool output is rendered from the final toolResult message. Rendering
+		-- every tool_execution_* stream creates empty/duplicate tool blocks for tools
+		-- that only publish their output at completion.
 		return
 	elseif event.type == "tool_execution_update" then
+		if event.toolName == "defer_task" then
+			local partial = type(event.partialResult) == "table" and event.partialResult or {}
+			render_or_update_live_tool(ctx, event, partial_result_text(partial), partial.details or { status = "running" })
+		end
 		return
 	elseif event.type == "tool_execution_end" then
+		if event.toolName == "defer_task" then
+			local result = type(event.result) == "table" and event.result or {}
+			render_or_update_live_tool(ctx, event, extract_text_from_content(result.content), result.details or {})
+		end
 		return
 	elseif event.type == "queue_update" then
 		local count = event.pendingMessageCount or event.count

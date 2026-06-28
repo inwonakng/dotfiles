@@ -144,10 +144,11 @@ local pi_skills = require("pi-integration.skills")
 local pi_pickers
 local extract_text
 
-local function tool_output_ctx()
+local function tool_output_ctx(parent_win)
 	return {
 		state = state,
 		notify = notify,
+		parent_win = parent_win,
 	}
 end
 
@@ -162,7 +163,20 @@ local function record_tool_calls(message)
 end
 
 local function store_tool_output(tool_name, text, filetype, details, message)
-	return pi_tool_output.store(state, tool_name, text, filetype, details, pi_tool_output.display_for_result(state, message))
+	local tool_call_id = message and (message.toolCallId or message.tool_call_id or message.id)
+	return pi_tool_output.store(state, tool_name, text, filetype, details, pi_tool_output.display_for_result(state, message), tool_call_id)
+end
+
+local function store_or_update_live_tool_output(tool_name, tool_call_id, text, filetype, details, display)
+	return pi_tool_output.store_or_update_live(state, tool_name, tool_call_id, text, filetype, details, display)
+end
+
+local function store_tool_display(message)
+	return pi_tool_output.display_for_result(state, message)
+end
+
+local function live_tool_output_id(tool_call_id)
+	return pi_tool_output.live_output_id(state, tool_call_id)
 end
 
 local function tool_output_summary_lines(output_id)
@@ -394,6 +408,9 @@ integration_ctx = function()
 		set_input_text = set_input_text,
 		record_tool_calls = record_tool_calls,
 		store_tool_output = store_tool_output,
+		store_or_update_live_tool_output = store_or_update_live_tool_output,
+		store_tool_display = store_tool_display,
+		live_tool_output_id = live_tool_output_id,
 		tool_output_summary_lines = tool_output_summary_lines,
 		store_thinking_output = store_thinking_output,
 		append_thinking_output = append_thinking_output,

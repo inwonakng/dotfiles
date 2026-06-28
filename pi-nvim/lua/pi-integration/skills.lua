@@ -220,7 +220,7 @@ function M.open_float(ctx, output_id)
 	local close_skill_win = function()
 		floats.close_window(win)
 	end
-	floats.close_on_win_leave(buf, close_skill_win)
+	floats.close_on_win_leave(buf, close_skill_win, { win = win, parent = ctx.parent_win })
 	vim.keymap.set("n", "q", close_skill_win, { buffer = buf, silent = true, desc = "Close skill prompt" })
 	vim.keymap.set("n", "<Esc>", close_skill_win, { buffer = buf, silent = true, desc = "Close skill prompt" })
 	vim.keymap.set("n", "y", function()
