@@ -31,3 +31,4 @@ claude/file-history
 /node_modules
 /pi/agent/history
 /plans
+/.pi
