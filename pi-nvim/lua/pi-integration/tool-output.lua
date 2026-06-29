@@ -29,10 +29,64 @@ local function infer_filetype(tool_name, text)
 	if looks_like_json(text) then
 		return "json"
 	end
-	if tool_name == "edit" or tool_name == "write" then
+	if tool_name == "edit" then
 		return "diff"
 	end
 	return "text"
+end
+
+local function path_from_args(args)
+	if type(args) ~= "table" then
+		return nil
+	end
+	return args.path or args.file_path
+end
+
+local function filetype_from_path(path)
+	if type(path) ~= "string" or path == "" then
+		return "text"
+	end
+	local ok, filetype = pcall(vim.filetype.match, { filename = path })
+	if ok and type(filetype) == "string" and filetype ~= "" then
+		return filetype
+	end
+	return "text"
+end
+
+local function normalize_lines(text)
+	if type(text) ~= "string" or text == "" then
+		return {}
+	end
+	text = text:gsub("\r\n", "\n"):gsub("\r", "\n")
+	local lines = vim.split(text, "\n", { plain = true })
+	if lines[#lines] == "" then
+		table.remove(lines)
+	end
+	return lines
+end
+
+local function edit_args_to_before_after(args)
+	if type(args) ~= "table" then
+		return nil, nil, "missing edit arguments"
+	end
+	local path = path_from_args(args)
+	local edits = args.edits
+	if type(path) ~= "string" or path == "" then
+		return nil, nil, "missing edit path"
+	end
+	if type(edits) ~= "table" then
+		return nil, nil, "missing edit replacements"
+	end
+	local before_parts = {}
+	local after_parts = {}
+	for _, edit in ipairs(edits) do
+		if type(edit) ~= "table" or type(edit.oldText) ~= "string" or type(edit.newText) ~= "string" then
+			return nil, nil, "invalid edit replacement"
+		end
+		table.insert(before_parts, edit.oldText)
+		table.insert(after_parts, edit.newText)
+	end
+	return table.concat(before_parts, "\n"), table.concat(after_parts, "\n"), nil
 end
 
 local function tool_call_id(item)
@@ -240,13 +294,12 @@ function M.record_calls(state, message)
 			local id = tool_call_id(item)
 			local name = tool_call_name(item)
 			if id and name then
-				local display = display_for_call(name, tool_call_arguments(item))
-				if display then
-					state.tool_calls[id] = {
-						name = name,
-						display = display,
-					}
-				end
+				local args = tool_call_arguments(item)
+				local call = state.tool_calls[id] or {}
+				call.name = name
+				call.args = args or call.args
+				call.display = display_for_call(name, call.args) or call.display
+				state.tool_calls[id] = call
 			end
 		end
 	end
@@ -261,6 +314,153 @@ function M.display_for_result(state, message)
 	return call and call.display or nil
 end
 
+function M.record_execution_call(state, tool_name, tool_call_id, args)
+	if not tool_call_id then
+		return
+	end
+	state.tool_calls = state.tool_calls or {}
+	local call = state.tool_calls[tool_call_id] or {}
+	call.name = tool_name or call.name
+	call.args = type(args) == "table" and args or call.args
+	call.display = display_for_call(call.name, call.args) or call.display
+	state.tool_calls[tool_call_id] = call
+end
+
+local function call_args_for_id(state, tool_call_id)
+	local call = tool_call_id and state.tool_calls and state.tool_calls[tool_call_id]
+	return call and call.args or nil
+end
+
+local function rendered_output(output)
+	if not output then
+		return "", "text"
+	end
+	if output.name == "edit" then
+		local details = type(output.details) == "table" and output.details or {}
+		if type(details.patch) == "string" and details.patch ~= "" then
+			return details.patch, "diff"
+		end
+		if type(details.diff) == "string" and details.diff ~= "" then
+			return details.diff, "diff"
+		end
+	elseif output.name == "write" then
+		local args = type(output.args) == "table" and output.args or {}
+		if type(args.content) == "string" then
+			return args.content, filetype_from_path(path_from_args(args))
+		end
+	end
+	local text = output.text or ""
+	return text, output.filetype or infer_filetype(output.name, text)
+end
+
+local function set_diff_window_options(win)
+	vim.api.nvim_set_option_value("wrap", false, { win = win })
+	vim.api.nvim_set_option_value("number", true, { win = win })
+	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
+	vim.api.nvim_set_option_value("signcolumn", "no", { win = win })
+	vim.api.nvim_set_option_value("scrollbind", true, { win = win })
+	vim.api.nvim_set_option_value("cursorbind", true, { win = win })
+	vim.api.nvim_set_option_value("foldmethod", "diff", { win = win })
+	vim.api.nvim_set_option_value("foldenable", true, { win = win })
+	vim.api.nvim_set_option_value("foldlevel", 0, { win = win })
+end
+
+local function set_scratch_buffer(buf, name, filetype, lines)
+	vim.api.nvim_buf_set_name(buf, name)
+	vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
+	vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
+	vim.api.nvim_set_option_value("swapfile", false, { buf = buf })
+	vim.api.nvim_set_option_value("filetype", filetype or "text", { buf = buf })
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+end
+
+local function open_edit_diff_float(ctx, output)
+	local args = type(output.args) == "table" and output.args or {}
+	local path = path_from_args(args)
+	if type(path) ~= "string" or path == "" then
+		return false
+	end
+	local before, after = edit_args_to_before_after(args)
+	if not before then
+		return false
+	end
+
+	local width = math.max(80, math.floor(vim.o.columns * 0.9))
+	local height = math.max(12, math.floor(vim.o.lines * 0.8))
+	width = math.min(width, math.max(2, vim.o.columns - 4))
+	height = math.min(height, math.max(1, vim.o.lines - 4))
+	local left_width = math.max(1, math.floor((width - 1) / 2))
+	local right_width = math.max(1, width - left_width - 1)
+	local row = math.floor((vim.o.lines - height) / 2)
+	local left_col = math.floor((vim.o.columns - width) / 2)
+	local right_col = left_col + left_width + 1
+	local filetype = filetype_from_path(path)
+
+	local left_buf = vim.api.nvim_create_buf(false, true)
+	local right_buf = vim.api.nvim_create_buf(false, true)
+	set_scratch_buffer(left_buf, "pi://tool/" .. tostring(output.tool_call_id or "edit") .. "/before", filetype, normalize_lines(before))
+	set_scratch_buffer(right_buf, "pi://tool/" .. tostring(output.tool_call_id or "edit") .. "/after", filetype, normalize_lines(after))
+
+	local left_win = vim.api.nvim_open_win(left_buf, true, {
+		relative = "editor",
+		width = left_width,
+		height = height,
+		row = row,
+		col = left_col,
+		style = "minimal",
+		border = "rounded",
+		title = " Before: " .. vim.fn.fnamemodify(path, ":t") .. " ",
+		title_pos = "left",
+	})
+	local right_win = vim.api.nvim_open_win(right_buf, false, {
+		relative = "editor",
+		width = right_width,
+		height = height,
+		row = row,
+		col = right_col,
+		style = "minimal",
+		border = "rounded",
+		title = " After: " .. vim.fn.fnamemodify(path, ":t") .. " ",
+		title_pos = "left",
+	})
+
+	set_diff_window_options(left_win)
+	set_diff_window_options(right_win)
+	vim.api.nvim_set_current_win(left_win)
+	vim.cmd("diffthis")
+	vim.api.nvim_set_current_win(right_win)
+	vim.cmd("diffthis")
+
+	local closed = false
+	local close_diff = function()
+		if closed then
+			return
+		end
+		closed = true
+		for _, win in ipairs({ left_win, right_win }) do
+			if win and vim.api.nvim_win_is_valid(win) then
+				vim.api.nvim_win_call(win, function()
+					pcall(vim.cmd, "diffoff")
+				end)
+				floats.close_window(win)
+			end
+		end
+	end
+	floats.close_on_win_leave(left_buf, close_diff, { win = left_win, parent = ctx.parent_win })
+	floats.close_on_win_leave(right_buf, close_diff, { win = right_win, parent = left_win })
+	for _, buf in ipairs({ left_buf, right_buf }) do
+		vim.keymap.set("n", "q", close_diff, { buffer = buf, silent = true, desc = "Close edit diff" })
+		vim.keymap.set("n", "<Esc>", close_diff, { buffer = buf, silent = true, desc = "Close edit diff" })
+		vim.keymap.set("n", "y", function()
+			local rendered_text = rendered_output(output)
+			vim.fn.setreg("+", rendered_text or "")
+			ctx.notify("Yanked edit patch")
+		end, { buffer = buf, silent = true, desc = "Yank edit patch" })
+	end
+	return true
+end
+
 function M.store(state, tool_name, text, filetype, details, display, tool_call_id)
 	state.next_tool_output_id = state.next_tool_output_id + 1
 	local id = state.next_tool_output_id
@@ -272,6 +472,7 @@ function M.store(state, tool_name, text, filetype, details, display, tool_call_i
 		display = display,
 		defer = defer_artifacts(tool_name, text, details),
 		tool_call_id = tool_call_id,
+		args = call_args_for_id(state, tool_call_id),
 	}
 	if tool_call_id then
 		state.live_tool_output_by_call = state.live_tool_output_by_call or {}
@@ -290,6 +491,7 @@ function M.store_or_update_live(state, tool_name, tool_call_id, text, filetype, 
 		output.filetype = filetype or output.filetype or infer_filetype(tool_name, text)
 		output.details = details or output.details
 		output.display = display or output.display
+		output.args = call_args_for_id(state, tool_call_id) or output.args
 		output.defer = defer_artifacts(output.name, output.text, output.details)
 		return output_id, true
 	end
@@ -305,7 +507,8 @@ function M.summary_lines(state, output_id)
 	if not output then
 		return { "> Tool output unavailable." }
 	end
-	local lines = line_count_text(output.text)
+	local rendered_text = rendered_output(output)
+	local lines = line_count_text(rendered_text)
 	local line_label = lines == 1 and "1 line" or (tostring(lines) .. " lines")
 	local label = "Tool: " .. tostring(output.name or "tool")
 	if output.name == "defer_task" then
@@ -348,6 +551,9 @@ function M.open_float(ctx, output_id)
 	if output.defer and open_defer_artifacts(ctx, output) then
 		return true
 	end
+	if output.name == "edit" and open_edit_diff_float(ctx, output) then
+		return true
+	end
 
 	local width = math.max(40, math.floor(vim.o.columns * 0.85))
 	local height = math.max(10, math.floor(vim.o.lines * 0.8))
@@ -361,8 +567,9 @@ function M.open_float(ctx, output_id)
 	vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
 	vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
 	vim.api.nvim_set_option_value("swapfile", false, { buf = buf })
-	vim.api.nvim_set_option_value("filetype", output.filetype or "text", { buf = buf })
-	local content_lines = vim.split(output.text or "", "\n", { plain = true })
+	local rendered_text, rendered_filetype = rendered_output(output)
+	vim.api.nvim_set_option_value("filetype", rendered_filetype or output.filetype or "text", { buf = buf })
+	local content_lines = vim.split(rendered_text or "", "\n", { plain = true })
 	if output.display and output.display.kind == "bash" and output.display.command then
 		local command_lines = vim.split(output.display.command, "\n", { plain = true })
 		local rendered = {}
@@ -404,7 +611,7 @@ function M.open_float(ctx, output_id)
 	vim.keymap.set("n", "q", close_tool_win, { buffer = buf, silent = true, desc = "Close tool output" })
 	vim.keymap.set("n", "<Esc>", close_tool_win, { buffer = buf, silent = true, desc = "Close tool output" })
 	vim.keymap.set("n", "y", function()
-		vim.fn.setreg("+", output.text or "")
+		vim.fn.setreg("+", rendered_text or "")
 		ctx.notify("Yanked tool output")
 	end, { buffer = buf, silent = true, desc = "Yank tool output" })
 

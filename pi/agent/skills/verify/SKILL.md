@@ -7,8 +7,6 @@ description: Use before claiming work is done, fixed, passing, reviewed, or read
 
 Use this skill before any completion or success claim.
 
-Adapted from Superpowers' verification-before-completion workflow.
-
 ## Iron Rule
 
 No completion claims without fresh verification evidence.
@@ -47,16 +45,6 @@ Not enough:
 - relying only on a subagent's success statement
 - tests unrelated to the changed behavior
 - lint passing when the claim is that runtime behavior is fixed
-
-## Regression Tests
-
-When adding a meaningful regression test:
-
-1. Confirm the test fails before the fix when practical.
-2. Apply the fix.
-3. Confirm the test passes.
-
-If red/green verification is impractical, explain why.
 
 ## Final Response Shape
 

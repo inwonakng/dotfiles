@@ -162,6 +162,10 @@ local function record_tool_calls(message)
 	return pi_tool_output.record_calls(state, message)
 end
 
+local function record_tool_execution_call(tool_name, tool_call_id, args)
+	return pi_tool_output.record_execution_call(state, tool_name, tool_call_id, args)
+end
+
 local function store_tool_output(tool_name, text, filetype, details, message)
 	local tool_call_id = message and (message.toolCallId or message.tool_call_id or message.id)
 	return pi_tool_output.store(state, tool_name, text, filetype, details, pi_tool_output.display_for_result(state, message), tool_call_id)
@@ -407,6 +411,7 @@ integration_ctx = function()
 		set_model_metadata = set_model_metadata,
 		set_input_text = set_input_text,
 		record_tool_calls = record_tool_calls,
+		record_tool_execution_call = record_tool_execution_call,
 		store_tool_output = store_tool_output,
 		store_or_update_live_tool_output = store_or_update_live_tool_output,
 		store_tool_display = store_tool_display,

@@ -1,22 +1,21 @@
 ---
 name: plan
-description: Use before implementing non-trivial code changes, when the user asks to plan/design/think through an approach, or when requirements are ambiguous. Produces a user-approved implementation plan without modifying files.
+description: Use before implementing non-trivial code changes, when the user asks to plan/design/think through an approach, or when requirements are ambiguous. Produces a standalone implementation plan that can be executed by subagents without modifying files.
 ---
 
 # Plan
 
 Use this skill to turn a request into a clear, approved plan before code is changed.
 
-Inspired by Superpowers' brainstorming and writing-plans workflows, but adapted for this Pi setup: lightweight by default, durable only when useful, and no automatic commits.
-
 ## Rules
 
-- Do not modify files while using this skill unless the user explicitly asks you to write a plan/spec file.
+- Do not modify files while using this skill unless the user explicitly asks you to write a plan file.
 - Do not silently continue into implementation. Stop after the plan and wait for explicit implementation approval.
 - If the user already provided an approved plan and asks to execute it, use the `implement` skill instead.
 - If the request is actually a bug or failing test, use the `debug` skill first.
 - If relevant information is missing, ask one focused clarifying question at a time.
 - When writing an implementation plan file, include the Agent Handoff marker below. This is mandatory unless the user explicitly asks for a scratch note or non-implementation document.
+- If the plan is more than a few steps, break it up into separate steps. Name the plan files with the order prefix (e.g., `plans/{this-plan}/01-setup.md`, `plans/{this-plan}/02-feature.md`) so they can be executed in order. Each plan should be reviewable and verifiable on its own. If the plan is a single step, name it `plans/{this-plan}.md`, where `{this-plan}` is a descriptive name of the main plan.
 
 ## Process
 

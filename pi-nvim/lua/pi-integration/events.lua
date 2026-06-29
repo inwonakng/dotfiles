@@ -399,6 +399,9 @@ function M.handle_event(ctx, event)
 	elseif event.type == "tool_execution_start" then
 		ctx.clear_assistant_placeholder_spinner()
 		state.current_message_started = true
+		if event.toolName == "edit" or event.toolName == "write" or event.toolName == "bash" then
+			ctx.record_tool_execution_call(event.toolName, event.toolCallId, event.args)
+		end
 		if event.toolName == "defer_task" then
 			render_or_update_live_tool(ctx, event, "Deferred agent starting…", { status = "running" })
 		end
