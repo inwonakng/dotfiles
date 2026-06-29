@@ -1,13 +1,13 @@
 ---
 name: implement
-description: Use when the user explicitly asks to implement, fix, add, remove, refactor, apply, write code, or execute an approved plan. Routes approved plan-file execution to defer-driven-implementation by default; otherwise performs focused changes and verifies results.
+description: Use when the user explicitly asks to implement, fix, add, remove, refactor, apply, write code, or execute an approved plan. Routes approved plan-file execution to subagent-driven-implementation by default; otherwise performs focused changes and verifies results.
 ---
 
 # Implement
 
 Use this skill as the entry point whenever the user explicitly asks for file changes or implementation.
 
-This skill is a router and guardrail. It decides whether to execute a small change inline or hand a plan-file / complex-plan implementation to `defer-driven-implementation`. Do not treat all implementation requests the same.
+This skill is a router and guardrail. It decides whether to execute a small change inline or hand a plan-file / complex-plan implementation to `subagent-driven-implementation`. Do not treat all implementation requests the same.
 
 ## Entry Checks
 
@@ -16,7 +16,7 @@ Before editing:
 1. Confirm the user explicitly asked for implementation or file changes.
 2. Identify the source of truth:
    - If the user points at a plan file, read it first.
-   - If the user says to implement/apply/execute/continue an approved plan file, load and use `defer-driven-implementation`. This is mandatory by default.
+   - If the user says to implement/apply/execute/continue an approved plan file, load and use `subagent-driven-implementation`. This is mandatory by default.
    - If multiple plausible plan files exist and the user did not identify which to execute, ask before editing.
    - If the plan file is marked Draft/unapproved or contains unresolved blocking questions, ask before editing.
    - Use the approved conversation plan if present and no plan file exists.
@@ -35,7 +35,7 @@ Before editing:
 
 ## Plan-File Execution
 
-If implementation is driven by an approved implementation plan file, do not execute it inline by default. Load `defer-driven-implementation` and follow that workflow.
+If implementation is driven by an approved implementation plan file, do not execute it inline by default. Load `subagent-driven-implementation` and follow that workflow.
 
 This applies when the user says things like:
 
@@ -49,19 +49,19 @@ Inline execution is allowed only when:
 
 - there is no implementation plan file and the task is small/local, or
 - the user explicitly requests inline execution, or
-- `defer-driven-implementation` is blocked/unavailable and the user agrees to continue inline.
+- `subagent-driven-implementation` is blocked/unavailable and the user agrees to continue inline.
 
 Do not silently downgrade a plan-file implementation to inline work.
 
-## Deferred Work
+## Subagent Work
 
-For non-plan-file work, use the `defer` skill when delegation would materially help. Typical uses:
+For non-plan-file work, use the `defer` skill when subagent delegation would materially help or the user says "use subagents". Typical uses:
 
 - readonly research into an unfamiliar subsystem
 - independent review of a plan or diff
 - bounded implementation tasks with explicit user approval for write access
 
-Do not delegate just to avoid reasoning. The main agent remains responsible for integrating deferred results, resolving conflicts, and verifying the final state.
+Do not delegate just to avoid reasoning. The main agent remains responsible for integrating subagent results, resolving conflicts, and verifying the final state.
 
 ## Implementation Loop
 
@@ -77,10 +77,10 @@ For complex tasks without a plan file, prefer this stricter loop:
 
 1. Implement one slice.
 2. Run local verification for that slice.
-3. Use `defer_task` in readonly mode with role `reviewer` for a focused review.
+3. Use `defer_task` in readonly mode with `agent: "reviewer"` for a focused review.
 4. Fix Critical/Important findings before moving on.
 
-If the complex task becomes plan-shaped, stop and either write/confirm a plan or route to `defer-driven-implementation`.
+If the complex task becomes plan-shaped, stop and either write/confirm a plan or route to `subagent-driven-implementation`.
 
 ## Completion Gate
 

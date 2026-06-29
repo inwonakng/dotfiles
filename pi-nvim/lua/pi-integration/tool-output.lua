@@ -174,8 +174,9 @@ local function defer_artifacts(tool_name, text, details)
 		result = details.resultPath or path_from_artifact_line(text, "Result"),
 		transcript = details.transcriptPath or path_from_artifact_line(text, "Transcript"),
 		status = details.statusPath or path_from_artifact_line(text, "Status"),
+		agent_prompt = details.agentPromptPath or path_from_artifact_line(text, "Subagent prompt"),
 	}
-	if artifacts.brief or artifacts.result or artifacts.transcript or artifacts.status then
+	if artifacts.brief or artifacts.result or artifacts.transcript or artifacts.status or artifacts.agent_prompt then
 		return artifacts
 	end
 	return nil
@@ -255,6 +256,7 @@ local function open_defer_artifacts(ctx, output)
 	add("transcript", output.defer.transcript, "json")
 	add("brief", output.defer.brief, "markdown")
 	add("status", output.defer.status, "json")
+	add("subagent prompt", output.defer.agent_prompt, "markdown")
 	if #choices == 0 then
 		ctx.notify("No defer artifacts found for this tool call", vim.log.levels.WARN)
 		return true
@@ -512,9 +514,11 @@ function M.summary_lines(state, output_id)
 	local line_label = lines == 1 and "1 line" or (tostring(lines) .. " lines")
 	local label = "Tool: " .. tostring(output.name or "tool")
 	if output.name == "defer_task" then
-		label = "Defer"
+		label = "Subagent"
 		local details = type(output.details) == "table" and output.details or {}
-		if details.role and details.role ~= "" then
+		if details.agent and details.agent ~= "" then
+			label = label .. ": " .. tostring(details.agent)
+		elseif details.role and details.role ~= "" then
 			label = label .. ": " .. tostring(details.role)
 		end
 		local progress = truncate_text(details.progress or output.text or "", 120)

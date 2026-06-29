@@ -403,7 +403,7 @@ function M.handle_event(ctx, event)
 			ctx.record_tool_execution_call(event.toolName, event.toolCallId, event.args)
 		end
 		if event.toolName == "defer_task" then
-			render_or_update_live_tool(ctx, event, "Deferred agent starting…", { status = "running" })
+			render_or_update_live_tool(ctx, event, "Subagent starting…", { status = "running" })
 		end
 		-- Non-defer tool output is rendered from the final toolResult message. Rendering
 		-- every tool_execution_* stream creates empty/duplicate tool blocks for tools

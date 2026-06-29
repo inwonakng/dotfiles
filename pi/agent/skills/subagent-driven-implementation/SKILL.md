@@ -1,27 +1,13 @@
 ---
-name: defer-driven-implementation
-description: Use when executing an approved implementation plan file, multiple plan files, or a complex approved conversation plan that should be coordinated through deferred Pi subagents. Mandatory by default for plan-file execution unless the user explicitly requests inline implementation.
+name: subagent-driven-implementation
+description: Use when executing an approved implementation plan file, multiple plan files, or a complex approved conversation plan that should be coordinated through subagents. Mandatory by default for plan-file execution unless the user explicitly requests inline implementation.
 ---
 
-# Defer-Driven Implementation
+# Subagent-Driven Implementation
 
-Use this skill to execute approved implementation plans through a main-agent controller and bounded deferred Pi subagents.
+Use this skill to execute approved implementation plans through a main-agent controller and bounded Pi subagents.
 
-This is the high-level workflow. The `defer` skill is the low-level policy for using `defer_task` safely. Load and follow `defer` before the first `defer_task` call in this workflow.
-
-## Non-Negotiable Trigger
-
-You MUST use this skill when the user asks to implement, apply, execute, continue, or finish work from an approved implementation plan file.
-
-You MUST also use this skill for a complex approved conversation plan when the user asks for implementation and the work has multiple slices, meaningful review risk, or would benefit from fresh context.
-
-Do not silently execute a plan file inline. If a plan file exists and is the source of implementation truth, this workflow is the default.
-
-Inline implementation is allowed only when:
-
-- there is no implementation plan file and the task is small/local, or
-- the user explicitly requests inline execution, or
-- this workflow is blocked/unavailable and the user agrees to continue inline.
+This is the high-level implementation workflow. The `defer` skill is the low-level policy for using `defer_task` safely. Load and follow `defer` before the first `defer_task` call in this workflow.
 
 ## When to Stop and Ask First
 
@@ -44,14 +30,14 @@ The controller MUST:
 
 - preserve the user's approved intent and plan-file requirements
 - decide which tasks to delegate and which to do inline
-- write precise deferred briefs with bounded scope
-- answer or escalate deferred-agent questions
-- integrate deferred results
+- write precise subagent briefs with bounded scope
+- answer or escalate subagent questions
+- integrate subagent results
 - resolve conflicts and contradictions
 - verify final behavior directly
 - report what was changed, verified, and left unverified
 
-Never treat a deferred agent's success report as proof. Always verify important claims before completion.
+Never treat a subagent's success report as proof. Always verify important claims before completion.
 
 ## Execution Modes
 
@@ -61,9 +47,9 @@ Execute plan files sequentially unless the user explicitly requests parallel exe
 
 Within a plan, execute tasks in order unless the plan states otherwise. Do not reorder tasks just because it seems convenient.
 
-### Readonly defer is encouraged
+### Readonly subagents are encouraged
 
-Use readonly deferred agents freely for bounded:
+Use readonly subagents freely for bounded:
 
 - plan review / question discovery
 - subsystem research
@@ -71,16 +57,16 @@ Use readonly deferred agents freely for bounded:
 - diff or task review
 - verification advice
 
-### Write defer is selective
+### Write subagents are selective
 
-Use write deferred agents only when:
+Use write subagents only when:
 
 - the user has approved implementation, and
 - the task is bounded to specific files or a natural isolated slice, and
 - write conflicts are unlikely, and
-- the deferred brief states exact scope and verification expectations.
+- the subagent brief states exact scope and verification expectations.
 
-Do not run multiple write deferred agents against the same worktree unless the edits are provably non-overlapping and the user accepted the risk.
+Do not run multiple write subagents against the same worktree unless the edits are provably non-overlapping and the user accepted the risk.
 
 ## Workflow
 
@@ -110,9 +96,9 @@ For non-trivial work, use `todowrite` before editing. Include at least:
 
 Keep exactly one todo in progress.
 
-### 3. Run deferred plan preflight
+### 3. Run subagent plan preflight
 
-Before editing a plan-file implementation, use `defer_task` in readonly mode with role `planner` or `reviewer` to inspect the plan for:
+Before editing a plan-file implementation, use `defer_task` in readonly mode with `agent: "planner"` or `agent: "reviewer"` to inspect the plan for:
 
 - blocking ambiguities
 - missing context
@@ -139,25 +125,25 @@ If the plan is tiny and purely mechanical, you may skip this preflight only if y
 - `DONE` with blocking issues: ask or resolve from evidence before editing.
 - `DONE` with only non-blocking risks: proceed and track the risks.
 
-Do not ignore a deferred agent's questions or concerns.
+Do not ignore a subagent's questions or concerns.
 
 ### 5. Implement one slice at a time
 
 For each plan task or natural slice:
 
 1. inspect the smallest relevant context
-2. decide inline vs bounded write defer
+2. decide inline vs bounded write subagent
 3. implement the slice
 4. run the smallest meaningful verification for that slice
 5. review the slice when risk justifies it
 6. fix Critical/Important findings before continuing
 7. update todos
 
-Prefer inline edits for small tightly-coupled changes. Prefer bounded write defer for isolated, well-specified slices from a strong plan.
+Prefer inline edits for small tightly-coupled changes. Prefer bounded write subagents for isolated, well-specified slices from a strong plan.
 
 ### 6. Review gates
 
-Use readonly deferred review for non-trivial slices and before final completion of a plan-file implementation.
+Use readonly subagent review for non-trivial slices and before final completion of a plan-file implementation.
 
 A review brief should include:
 
@@ -177,11 +163,11 @@ Run or inspect the smallest evidence that proves:
 
 - the implementation satisfies the plan
 - relevant tests/build/typechecks pass where applicable
-- deferred-agent claims that matter are backed by current evidence
+- subagent claims that matter are backed by current evidence
 
 If verification cannot be run, say why and what was checked instead.
 
-## Deferred Brief Template
+## Subagent Brief Template
 
 Use this shape for delegated work:
 
@@ -221,7 +207,7 @@ When this workflow is invoked from a plan file, treat any explicit plan-file han
 Recommended marker for future plans:
 
 ```markdown
-> **Agent handoff:** When asked to implement this plan, use the `defer-driven-implementation` skill. Start with a readonly deferred plan review to identify blocking questions before editing. Execute tasks in order unless this plan explicitly marks tasks independent.
+> **Agent handoff:** When asked to implement this plan, use the `subagent-driven-implementation` skill. Start with a readonly planner or reviewer subagent plan review to identify blocking questions before editing. Execute tasks in order unless this plan explicitly marks tasks independent.
 ```
 
 ## Red Flags
@@ -230,9 +216,9 @@ Stop and correct course if you notice any of these:
 
 - implementing a plan file inline without using this skill
 - skipping plan preflight for a multi-task plan file
-- running write deferred agents with vague scope
-- dispatching multiple write agents that may touch the same files
-- treating a deferred report as verified fact
+- running write subagents with vague scope
+- dispatching multiple write subagents that may touch the same files
+- treating a subagent report as verified fact
 - continuing after `NEEDS_CONTEXT` without answering the missing context
 - fixing reviewer Critical/Important findings without rechecking the relevant behavior
 - broadening the plan because it seems useful
@@ -244,7 +230,7 @@ Report concisely:
 
 - plan file(s) executed
 - key changes made
-- deferred agents used and for what
+- subagents used and for what
 - verification run and result
 - anything not verified
 - remaining risks or follow-up decisions
