@@ -3,6 +3,7 @@ local pi_messages = require("pi-integration.messages")
 local pi_tool_output = require("pi-integration.tool-output")
 local pi_thinking_output = require("pi-integration.thinking-output")
 local pi_skills = require("pi-integration.skills")
+local pi_transcript = require("pi-integration.transcript")
 
 local M = {}
 
@@ -59,6 +60,16 @@ local function read_messages(path)
 		end
 	end
 	return messages
+end
+
+local function valid_buf(buf)
+	return buf and vim.api.nvim_buf_is_valid(buf)
+end
+
+local function set_modifiable(buf, value)
+	if valid_buf(buf) then
+		vim.api.nvim_set_option_value("modifiable", value, { buf = buf })
+	end
 end
 
 local function metadata_lines(path)
@@ -119,6 +130,20 @@ local function render_lines(path, state)
 	return lines
 end
 
+local function transcript_ctx(state)
+	return {
+		state = state,
+		valid_buf = valid_buf,
+		set_modifiable = set_modifiable,
+		update_transcript_statusline = function() end,
+	}
+end
+
+local function render_transcript_ui(state)
+	pi_transcript.update_bottom_padding(transcript_ctx(state))
+	pi_transcript.render(transcript_ctx(state))
+end
+
 local function item_at_line(state, line)
 	for _, item in ipairs(state.transcript_items or {}) do
 		local start_line = item.start_line or item.line
@@ -168,6 +193,8 @@ function M.open(ctx, path, title)
 		skill_outputs = {},
 		next_skill_output_id = 0,
 		transcript_items = {},
+		transcript_buf = nil,
+		transcript_win = nil,
 	}
 
 	local buf = vim.api.nvim_create_buf(false, true)
@@ -178,11 +205,16 @@ function M.open(ctx, path, title)
 	vim.api.nvim_set_option_value("filetype", "markdown", { buf = buf })
 	pcall(vim.treesitter.start, buf, "markdown")
 
+	state.transcript_buf = buf
+
 	local function refresh()
 		local lines = render_lines(path, state)
-		vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
+		set_modifiable(buf, true)
 		vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-		vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+		set_modifiable(buf, false)
+		if state.transcript_win then
+			render_transcript_ui(state)
+		end
 	end
 	refresh()
 
@@ -201,10 +233,12 @@ function M.open(ctx, path, title)
 		title = " " .. (title or "Defer transcript") .. " ",
 		title_pos = "left",
 	})
+	state.transcript_win = win
 	vim.api.nvim_set_option_value("wrap", true, { win = win })
 	vim.api.nvim_set_option_value("number", false, { win = win })
 	vim.api.nvim_set_option_value("relativenumber", false, { win = win })
 	vim.api.nvim_set_option_value("signcolumn", "no", { win = win })
+	render_transcript_ui(state)
 
 	local close_win = function()
 		floats.close_window(win)

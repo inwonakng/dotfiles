@@ -60,11 +60,34 @@ local function same_stack(a, b)
 	return a and b and tracked[a] and tracked[b] and root_of(a) == root_of(b)
 end
 
+local function focus_window(win)
+	if win_valid(win) then
+		pcall(vim.api.nvim_set_current_win, win)
+		return true
+	end
+	return false
+end
+
+local function focus_nearest_parent(win)
+	local current = win
+	local seen = {}
+	while current and tracked[current] and not seen[current] do
+		seen[current] = true
+		local parent = tracked[current].parent
+		if focus_window(parent) then
+			return true
+		end
+		current = parent
+	end
+	return false
+end
+
 local function close_tracked(win)
 	local info = tracked[win]
 	if not info then
 		return
 	end
+	focus_nearest_parent(win)
 	tracked[win] = nil
 	if type(info.close) == "function" then
 		info.close()
@@ -98,6 +121,10 @@ end
 function M.close_window(win)
 	if not win then
 		return
+	end
+	local info = tracked[win]
+	if info then
+		focus_nearest_parent(win)
 	end
 	if win_valid(win) then
 		vim.api.nvim_win_close(win, true)

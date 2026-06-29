@@ -42,6 +42,15 @@ local function path_from_args(args)
 	return args.path or args.file_path
 end
 
+local function output_path(output)
+	local args = type(output) == "table" and type(output.args) == "table" and output.args or nil
+	local path = path_from_args(args)
+	if type(path) == "string" and path ~= "" then
+		return path
+	end
+	return nil
+end
+
 local function filetype_from_path(path)
 	if type(path) ~= "string" or path == "" then
 		return "text"
@@ -153,6 +162,15 @@ local function display_for_call(name, args)
 			kind = "bash",
 			command = args.command,
 		}
+	end
+	if (name == "edit" or name == "write") and type(args) == "table" then
+		local path = path_from_args(args)
+		if type(path) == "string" and path ~= "" then
+			return {
+				kind = "file",
+				path = path,
+			}
+		end
 	end
 	return nil
 end
@@ -538,6 +556,8 @@ function M.summary_lines(state, output_id)
 		return { table.concat(parts, " · ") }
 	elseif output.display and output.display.kind == "bash" and output.display.command then
 		label = "Bash: " .. command_preview(output.display.command)
+	elseif (output.name == "edit" or output.name == "write") and output_path(output) then
+		label = label .. ": " .. output_path(output)
 	end
 	local artifact_label = output.defer and " · artifacts" or ""
 	return {
@@ -574,7 +594,12 @@ function M.open_float(ctx, output_id)
 	local rendered_text, rendered_filetype = rendered_output(output)
 	vim.api.nvim_set_option_value("filetype", rendered_filetype or output.filetype or "text", { buf = buf })
 	local content_lines = vim.split(rendered_text or "", "\n", { plain = true })
-	if output.display and output.display.kind == "bash" and output.display.command then
+	local path = output_path(output)
+	if path and (output.name == "edit" or output.name == "write") then
+		local rendered = { "Path: " .. path, "" }
+		vim.list_extend(rendered, content_lines)
+		content_lines = rendered
+	elseif output.display and output.display.kind == "bash" and output.display.command then
 		local command_lines = vim.split(output.display.command, "\n", { plain = true })
 		local rendered = {}
 		if #command_lines == 1 then
@@ -599,7 +624,7 @@ function M.open_float(ctx, output_id)
 		col = col,
 		style = "minimal",
 		border = "rounded",
-		title = " Tool: " .. tostring(output.name or "tool") .. " ",
+		title = path and " Tool: " .. tostring(output.name or "tool") .. " · " .. vim.fn.fnamemodify(path, ":t") .. " " or " Tool: " .. tostring(output.name or "tool") .. " ",
 		title_pos = "left",
 	})
 
