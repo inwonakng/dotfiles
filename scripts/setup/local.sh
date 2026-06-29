@@ -5,6 +5,7 @@ ln -snf ~/dotfiles/bash/utils ~/.bash_utils
 ln -snf ~/dotfiles/.inputrc ~/.inputrc
 
 # software
+ln -snf ~/dotfiles/vim ~/.vim
 ln -snf ~/dotfiles/osx/.latexmkrc ~/.latexmkrc
 ln -snf ~/dotfiles/ipython ~/.ipython
 ln -snf ~/dotfiles/aerospace ~/.config/aerospace
