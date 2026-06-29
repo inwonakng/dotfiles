@@ -118,6 +118,16 @@ function M.has_body(ctx)
 	return false
 end
 
+local function tool_quote_highlight(line)
+	if line:find("> 󰇥 Tool: edit", 1, true) == 1 or line:find("> 󰇥 Tool: write", 1, true) == 1 then
+		return "PiToolEditQuote"
+	end
+	if line:find("> 󰇥 ", 1, true) == 1 then
+		return "PiToolQuote"
+	end
+	return nil
+end
+
 function M.apply_quote_highlights(ctx)
 	local state = ctx.state
 	if not ctx.valid_buf(state.transcript_buf) then
@@ -127,12 +137,10 @@ function M.apply_quote_highlights(ctx)
 	vim.api.nvim_buf_clear_namespace(state.transcript_buf, quote_ns, 0, -1)
 	local lines = vim.api.nvim_buf_get_lines(state.transcript_buf, 0, -1, false)
 	for index, line in ipairs(lines) do
-		local highlight
-		if line:find("> 󰇥 ", 1, true) == 1 then
-			highlight = "PiToolQuote"
-		elseif line:find("> 󰔛 Thinking", 1, true) == 1 then
+		local highlight = tool_quote_highlight(line)
+		if not highlight and line:find("> 󰔛 Thinking", 1, true) == 1 then
 			highlight = "PiThinkingQuote"
-		elseif line:find("> 󰢱 Using skill:", 1, true) == 1 then
+		elseif not highlight and line:find("> 󰢱 Using skill:", 1, true) == 1 then
 			highlight = "PiSkillQuote"
 		end
 		if highlight then
