@@ -28,6 +28,9 @@ local function normalize_options(buf, close_fn, opts)
 end
 
 local function untrack(win)
+	if not win then
+		return
+	end
 	tracked[win] = nil
 end
 
@@ -93,6 +96,9 @@ local function close_stack_for(win)
 end
 
 function M.close_window(win)
+	if not win then
+		return
+	end
 	if win_valid(win) then
 		vim.api.nvim_win_close(win, true)
 	end
