@@ -7,8 +7,6 @@ description: Use for bugs, failing tests, build errors, regressions, unexpected 
 
 Use this skill before proposing or applying fixes for technical failures.
 
-Adapted from Superpowers' systematic-debugging workflow.
-
 ## Iron Rule
 
 No fixes before root-cause investigation.
@@ -32,6 +30,7 @@ Do not patch symptoms because a fix seems obvious. First prove what is happening
   - state changes at each layer
 - Find a similar working example in the codebase and compare behavior.
 - List meaningful differences. Do not dismiss differences without evidence.
+- do not speculate about the cause. Only form hypotheses after evidence is gathered.
 
 Use `defer_task` with `accessMode: "readonly"` for bounded independent investigation when a fresh context would help.
 
