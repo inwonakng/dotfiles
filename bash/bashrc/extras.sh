@@ -7,12 +7,7 @@ set -o vi
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # NOTE: for now, we assume mac is always a local machine.
     export HOMEBREW_NO_AUTO_UPDATE=true
-    if [ -d /opt/homebrew/bin ]; then
-        PATH="/opt/homebrew/bin:$PATH"
-    fi
-
-    # add local bin
-    [ -d "$LOCAL_BIN_DIR" ] && export PATH="$LOCAL_BIN_DIR:$PATH"
+    HOMEBREW_BIN_DIR="/opt/homebrew/bin"
     CONDA_DIR="$HOME/miniconda3"
     NVM_DIR="$HOME/.nvm"
     FZF_DIR=""
@@ -21,44 +16,48 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     SCRATCH_NOTE_FILE="$HOME/.cache/scratch.md"
     export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
     export NODE_DEFAULT_PATH="$NVM_DIR/versions/node/v22.16.0/bin"
-    export PATH="$LOCAL_BIN_DIR:$NODE_DEFAULT_PATH:$PATH"
 else
-    # NOTE: to self. the reason we do it like this is b/c there are cases where a the same directory erves as an entry point to multiple compute nodes with different architectures. In that case, we must keep a separation of binaries for each architecture.
-    ARCH=$(uname -i)
+    NVM_DIR="$HOME/.nvm"
+    SCRATCH_NOTE_FILE="$HOME/scratch.md"
 
-    # you can store architecture specific binaries in ~/.local/bin/$ARCH
-    # and add to path so you can use system-wide
-    case $ARCH in
-    x86_64)
-        POSTFIX="x86"
-        # export LD_LIBRARY_PATH="/usr/local/cuda-11.2/targets/x86_64-linux/"
-        ;;
-    ppc64le)
-        POSTFIX="ppc"
-        ;;
-    esac
-
-    CONDA_PARENT_DIR="$HOME"
-    # this is specific for RPI clusters. if the hostname contains one of these substrings, we are on a cluster and need to set up the proxy and conda parent dir accordingly.
-    if [[ "$HOSTNAME" =~ "blp|dcs|npl" ]]; then
+    # RPI clusters use shared home directories across multiple architectures, so
+    # keep architecture-specific binaries and conda installs separated there.
+    if [[ "$HOSTNAME" =~ (blp|dcs|npl) ]]; then
         export http_proxy=http://proxy:8888
         export https_proxy=$http_proxy
+
+        ARCH=$(uname -i)
+        case $ARCH in
+        x86_64)
+            POSTFIX="x86"
+            # export LD_LIBRARY_PATH="/usr/local/cuda-11.2/targets/x86_64-linux/"
+            ;;
+        ppc64le)
+            POSTFIX="ppc"
+            ;;
+        *)
+            echo "Warning: unsupported architecture for cluster setup: $ARCH" >&2
+            POSTFIX="$ARCH"
+            ;;
+        esac
+
         CONDA_PARENT_DIR="$HOME/scratch"
+        LOCAL_BIN_DIR="$HOME/.local/bin/$POSTFIX"
+        CONDA_DIR="$CONDA_PARENT_DIR/miniconda-$POSTFIX"
+        FZF_DIR="$HOME/.fzf-$POSTFIX"
+        FZF_SCRIPT_FILE="$HOME/.fzf-$POSTFIX.bash"
+    else
+        LOCAL_BIN_DIR="$HOME/.local/bin"
+        CONDA_DIR="$HOME/miniconda3"
+        FZF_DIR="$HOME/.fzf"
+        FZF_SCRIPT_FILE="$HOME/.fzf.bash"
     fi
 
-    # prepend local binaries to path.
-    LOCAL_BIN_DIR="$HOME/.local/bin/$POSTFIX"
-    CONDA_DIR="$CONDA_PARENT_DIR/miniconda-$POSTFIX"
-    NVM_DIR="$HOME/.nvm"
-    FZF_DIR="$HOME/.fzf-$POSTFIX"
-    FZF_SCRIPT_FILE="$HOME/.fzf-$PREFIX.bash"
-    SCRATCH_NOTE_FILE="$HOME/scratch.md"
     export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
     export NODE_DEFAULT_PATH="$NVM_DIR/versions/node/v22.15.0/bin"
-    export PATH="$LOCAL_BIN_DIR:$NODE_DEFAULT_PATH:$PATH"
 fi
 
-# at this point, we have finished linking the necessary binaries/paths we need
+# at this point, we have finished setting the paths to the relevant tools we need
 
 ###################################
 ## Exit early if not interactive ##
@@ -70,6 +69,17 @@ fi
 ################
 ## PATH Setup ##
 ################
+
+if [[ -d ${HOMEBREW_BIN_DIR:-} ]]; then
+    PATH="$HOMEBREW_BIN_DIR:$PATH"
+fi
+if [[ -d $LOCAL_BIN_DIR ]]; then
+    PATH="$LOCAL_BIN_DIR:$PATH"
+fi
+if [[ -d $NODE_DEFAULT_PATH ]]; then
+    PATH="$NODE_DEFAULT_PATH:$PATH"
+fi
+export PATH
 
 # add stuff to path if exists
 if [[ -d $FZF_DIR ]]; then
