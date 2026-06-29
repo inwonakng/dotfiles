@@ -51,13 +51,13 @@ vim.api.nvim_create_autocmd("FileType", {
 		require("obsidian").setup({
 			legacy_commands = false,
 			workspaces = {
-				{
-					name = "personal",
-					path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal",
-				},
+				-- {
+				-- 	name = "personal",
+				-- 	path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal",
+				-- },
 				{
 					name = "work",
-					path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/work",
+					path = "/Users/inwon/Library/Mobile Documents/com~apple~CloudDocs/work",
 				},
 			},
 			daily_notes = {

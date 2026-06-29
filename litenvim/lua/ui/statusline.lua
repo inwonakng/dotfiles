@@ -101,28 +101,6 @@ local function path_widget(buf_bo, root, fname)
 	return path .. " "
 end
 
--- AI stuff (copilot and cli)
-
-local function ai_copilot_info_widget(buf)
-	-- show status about AI code assistants like copilot, chatgpt, etc.
-	local status = require("sidekick.status").get()
-	if status == nil then
-		return ""
-	else
-		local icon = tools.ui.kind_icons.Copilot
-		local color = status.kind == "Error" and "DiagnosticError" or status.busy and "DiagnosticWarn" or "Special"
-		return tools.hl_str(color, icon)
-	end
-end
-
-local function ai_cli_info_widget(buf)
-	-- show status about AI code assistants like copilot, chatgpt, etc.
-	local status = require("sidekick.status").cli()
-	local icon = tools.ui.kind_icons.Bot
-	local color = status.kind == "Error" and "DiagnosticError" or status.busy and "DiagnosticWarn" or "Special"
-	return tools.hl_str(color, icon .. (#status > 1 and #status or ""))
-end
-
 -- diagnostics ---------------------------------------------
 local function diagnostics_widget(buf)
 	if not tools.diagnostics_available(buf) then
@@ -199,8 +177,6 @@ function M.render()
 		-- pad = PAD,
 		sep = SEP,
 		diag = diagnostics_widget(buf),
-		-- ai_copilot = ai_copilot_info_widget(buf),
-		-- ai_cli = ai_cli_info_widget(buf),
 		fileinfo = fileinfo_widget(buf),
 		-- scrollbar = scrollbar_widget(win, buf),
 	}
