@@ -4,8 +4,9 @@ import type {
   ToolCallEvent,
 } from "@earendil-works/pi-coding-agent";
 import { generateUnifiedPatch } from "@earendil-works/pi-coding-agent";
-import assert from "assert";
-import { readFileSync } from "fs";
+import assert from "node:assert";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { notificationsEnabled, sendAlerterNotification } from "./shared/notifications";
 
 type AccessMode = "readonly" | "write";
@@ -13,39 +14,89 @@ type PermissionDecision = "allow" | "ask";
 
 const ACCESS_MODES: AccessMode[] = ["readonly", "write"];
 const WRITE_TOOLS = new Set(["edit", "write"]);
-// this is for things we allow during readonly mode
-const READONLY_BASH_ALLOWLIST = [
-  "pwd",
-  "uv *",
-  "ls",
-  "ls *",
-  "rg *",
-  "grep *",
-  "cat *",
-  "basename",
-  "basename *",
-  "sed *",
-  "head",
-  "head *",
-  "nl",
-  "nl *",
-  "tail",
-  "tail *",
-  "wc",
-  "wc *",
-  "sort",
-  "sort *",
-  "uniq",
-  "uniq *",
-  "stat *",
-  "readlink",
-  "readlink *",
-  "test *",
-  "[ * ]",
-  "[[ * ]]",
-  "true",
-  "false",
-  "file *",
+const MUTATING_FILE_COMMANDS =
+  "rm|rmdir|mv|cp|mkdir|touch|chmod|chown|chgrp|ln|tee|truncate|dd|shred";
+const COMMAND_START = String.raw`(?:^|[;&|]\s*)(?:\w+=\S+\s+)*`;
+
+const READONLY_BASH_DENYLIST: Array<{ pattern: RegExp; reason: string }> = [
+  {
+    pattern: commandPattern(MUTATING_FILE_COMMANDS),
+    reason: "file mutation command",
+  },
+  {
+    pattern: commandPattern("vim?|nvim|nano|emacs|code|subl"),
+    reason: "interactive editor can modify files",
+  },
+  {
+    pattern: /\bfind\b[^;&|]*\s-delete\b/i,
+    reason: "find -delete mutates files",
+  },
+  {
+    pattern: new RegExp(
+      String.raw`\bfind\b[^;&|]*\s-exec(?:dir)?\s+(?:${MUTATING_FILE_COMMANDS}|bash|sh|zsh|fish|osascript|python|python3|node|ruby|perl)\b`,
+      "i",
+    ),
+    reason: "find -exec mutation command",
+  },
+  {
+    pattern: new RegExp(
+      String.raw`\bxargs\b(?:\s+(?:-[A-Za-z0-9{}]+|--[A-Za-z0-9-]+(?:=\S+)?))*\s+(?:${MUTATING_FILE_COMMANDS}|bash|sh|zsh|fish|osascript|python|python3|node|ruby|perl)\b`,
+      "i",
+    ),
+    reason: "xargs mutation command",
+  },
+  { pattern: /\bsed\b[^;&|]*\s-i(?:\s|$)/i, reason: "in-place sed edit" },
+  { pattern: /\bperl\b[^;&|]*\s-p?i(?:\s|$)/i, reason: "in-place perl edit" },
+  {
+    pattern: new RegExp(
+      String.raw`${COMMAND_START}git\s+(?:-C\s+(?:"[^"]+"|'[^']+'|\S+)\s+|--no-pager\s+)*(?:add|am|apply|bisect|branch|checkout|cherry-pick|clean|clone|commit|fetch|format-patch|init|merge|mv|pull|push|rebase|reset|restore|revert|rm|stash|submodule|switch|tag|worktree)\b`,
+      "i",
+    ),
+    reason: "mutating git command",
+  },
+  {
+    pattern: /\bgit\b[^;&|]*\s--(?:output|ext-diff|external-diff)(?:=|\s|$)/i,
+    reason: "git option can write files or run external commands",
+  },
+  {
+    pattern:
+      /(?:^|[;&|]\s*)(?:npm|yarn|pnpm|bun)\s+(?:install|uninstall|update|add|remove|ci|link|publish|version|upgrade)\b/i,
+    reason: "package manager mutation",
+  },
+  {
+    pattern: /(?:^|[;&|]\s*)(?:pip|pipx|uv(?:\s+pip)?)\s+(?:install|uninstall|sync|add|remove|lock)\b/i,
+    reason: "Python environment mutation",
+  },
+  {
+    pattern:
+      /(?:^|[;&|]\s*)(?:brew|apt|apt-get|dnf|yum|pacman)\s+(?:install|uninstall|remove|purge|update|upgrade|add)\b/i,
+    reason: "system package mutation",
+  },
+  {
+    pattern: /(?:^|[;&|]\s*)(?:curl|wget)\b[^;&|]*(?:\s-o\s|\s-O(?:\s|$)|--output(?:=|\s)|--output-document(?:=|\s))/i,
+    reason: "download command writes to a file",
+  },
+  {
+    pattern: /(?:^|[;&|]\s*)tar\b[^;&|]*\s-(?:[^\s-]*x|-[^;&|]*(?:extract|get))/i,
+    reason: "archive extraction writes files",
+  },
+  {
+    pattern: commandPattern("unzip|gunzip"),
+    reason: "archive extraction writes files",
+  },
+  {
+    pattern: commandPattern("sudo|su|kill|pkill|killall|reboot|shutdown"),
+    reason: "privileged or process-control command",
+  },
+  {
+    pattern:
+      /(?:^|[;&|]\s*)(?:systemctl|service|launchctl)\s+(?:start|stop|restart|enable|disable|load|unload|kickstart|bootout)\b/i,
+    reason: "service mutation",
+  },
+  {
+    pattern: /(?:^|[;&|]\s*)(?:bash|sh|zsh|fish|osascript|python|python3|node|ruby|perl)\s+(?:-c|-e)\b/i,
+    reason: "inline interpreter can hide side effects",
+  },
 ];
 
 function parseAccessMode(input: string | undefined): AccessMode | undefined {
@@ -59,6 +110,10 @@ function parseAccessMode(input: string | undefined): AccessMode | undefined {
 let accessMode: AccessMode =
   parseAccessMode(process.env.PI_DEFER_ACCESS_MODE) ?? "readonly";
 const isDeferredAgent = process.env.PI_DEFER_AGENT === "1";
+
+function commandPattern(commands: string): RegExp {
+  return new RegExp(`${COMMAND_START}(?:${commands})\\b`, "i");
+}
 
 function notifyPermissionRequest(pi: ExtensionAPI, ctx: ExtensionContext): void {
   if (!notificationsEnabled()) {
@@ -79,12 +134,9 @@ function modeDescription(): string {
   if (accessMode === "readonly") {
     return [
       "Read-only work is allowed.",
-      "Bash commands matching the readonly allowlist, safe find commands, web search, and custom tools may run.",
-      "Other bash commands plus file edit and write tools require user approval.",
-      "Prefer simple commands and pipelines that can be statically checked.",
-      "Avoid shell loops, command substitution `$()`, backticks, background jobs, and ad-hoc shell scripting because they require approval.",
-      "Rewrite inspection commands as pipelines using allowlisted tools such as find, xargs, rg, grep, ls, head, tail, sort, uniq, wc, stat, and git diff/log/status/ls-files.",
-      "Example: prefer `find path -print0 | xargs -0 ls -t | head -5 | xargs head -5` over `for f in $(find ...); do ...; done`.",
+      "Bash commands may run unless they look mutating or hard to inspect, such as file writes/redirections, mutating git or package-manager commands, background jobs, command substitution, or inline interpreter execution.",
+      "File edit and write tools require user approval.",
+      "Prefer straightforward inspection commands such as find, xargs, rg, grep, ls, head, tail, wc, git status/log/diff/show/ls-files, and simple read-only pipelines.",
     ].join(" ");
   }
   return "All available tools may run without an access-mode prompt.";
@@ -94,74 +146,7 @@ function normalizeCommand(command: string): string {
   return command.trim().replace(/\s+/g, " ");
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[\\^$+?.()|[\]{}]/g, "\\$&");
-}
-
-function globToRegExp(pattern: string): RegExp {
-  const parts = pattern.split("*").map(escapeRegExp);
-  return new RegExp(`^${parts.join(".*")}$`);
-}
-
-function shellWords(command: string): string[] | undefined {
-  const words: string[] = [];
-  let current = "";
-  let quote: "'" | '"' | undefined;
-  let inWord = false;
-
-  for (let index = 0; index < command.length; index++) {
-    const char = command[index];
-    if (quote) {
-      if (char === quote) {
-        quote = undefined;
-      } else if (quote === '"' && char === "\\") {
-        index++;
-        if (index < command.length) {
-          current += command[index];
-        }
-      } else {
-        current += char;
-      }
-      inWord = true;
-      continue;
-    }
-
-    if (char === "'" || char === '"') {
-      quote = char;
-      inWord = true;
-      continue;
-    }
-    if (/\s/.test(char)) {
-      if (inWord) {
-        words.push(current);
-        current = "";
-        inWord = false;
-      }
-      continue;
-    }
-    if (char === "\\") {
-      index++;
-      if (index >= command.length) {
-        return undefined;
-      }
-      current += command[index];
-      inWord = true;
-      continue;
-    }
-    current += char;
-    inWord = true;
-  }
-
-  if (quote) {
-    return undefined;
-  }
-  if (inWord) {
-    words.push(current);
-  }
-  return words;
-}
-
-function hasUnquotedRedirection(command: string): boolean {
+function hasUnquotedShellWriteSyntax(command: string): boolean {
   let quote: "'" | '"' | undefined;
   for (let index = 0; index < command.length; index++) {
     const char = command[index];
@@ -184,441 +169,31 @@ function hasUnquotedRedirection(command: string): boolean {
     if (char === "<" || char === ">") {
       return true;
     }
-  }
-  return false;
-}
-
-function stripSafeReadonlyRedirections(command: string): string | undefined {
-  // Sending stderr to /dev/null is common for read-only probes (find/grep/etc.)
-  // and does not mutate project files. Keep all other redirection ask-gated.
-  const stripped = command.replace(/(^|\s)2>\s*\/dev\/null(?=\s|$)/g, " ");
-  if (hasUnquotedRedirection(stripped)) {
-    return undefined;
-  }
-  return stripped;
-}
-
-function commandHasUnsafeShellSyntax(command: string): boolean {
-  // Command substitution and background jobs can hide side effects, so keep
-  // asking for those. Shell separators are handled structurally below.
-  if (/[`]/.test(command) || command.includes("$(")) {
-    return true;
-  }
-  // Allow &&, but not a bare & background operator.
-  return /(^|[^&])&($|[^&])/.test(command);
-}
-
-function splitShellOperator(
-  command: string,
-  operator: "&&" | "||" | "|" | ";",
-): string[] {
-  const parts: string[] = [];
-  let start = 0;
-  let quote: "'" | '"' | undefined;
-
-  for (let index = 0; index < command.length; index++) {
-    const char = command[index];
-    if (quote) {
-      if (char === quote) {
-        quote = undefined;
-      } else if (quote === '"' && char === "\\") {
-        index++;
-      }
-      continue;
-    }
-    if (char === "'" || char === '"') {
-      quote = char;
-      continue;
-    }
-    if (char === "\\") {
-      index++;
-      continue;
-    }
-    if (command.startsWith(operator, index)) {
-      parts.push(command.slice(start, index).trim());
-      index += operator.length - 1;
-      start = index + 1;
-    }
-  }
-
-  parts.push(command.slice(start).trim());
-  return parts;
-}
-
-function findExecIsReadonly(
-  words: string[],
-  startIndex: number,
-): number | undefined {
-  // Allow find -exec only when the invoked command itself is on the
-  // read-only allowlist, e.g.:
-  //   find ... -exec wc -l {} \;
-  //   find ... -exec grep -n "pattern" {} \;
-  // shellWords unescapes \; to ;.
-  const terminatorIndex = words.indexOf(";", startIndex + 1);
-  if (terminatorIndex === -1) {
-    return undefined;
-  }
-
-  const invokedCommand = words.slice(startIndex + 1, terminatorIndex);
-  const readonlyExecCommands = new Set([
-    "basename",
-    "cat",
-    "grep",
-    "head",
-    "ls",
-    "readlink",
-    "rg",
-    "stat",
-    "tail",
-    "wc",
-  ]);
-  if (
-    invokedCommand.length === 0 ||
-    !readonlyExecCommands.has(invokedCommand[0]) ||
-    !commandWordsAllowedByReadonlyAllowlist(invokedCommand)
-  ) {
-    return undefined;
-  }
-  return terminatorIndex;
-}
-
-function findReadonlyCommandAllowed(command: string): boolean {
-  const words = shellWords(command);
-  if (!words || words[0] !== "find") {
-    return false;
-  }
-
-  // GNU/BSD find is read-only by default, but these actions can mutate files or
-  // run arbitrary commands, and f*print/f*ls variants can write output files.
-  const unsafeFindPrimaries = new Set([
-    "-delete",
-    "-ok",
-    "-okdir",
-    "-fprint",
-    "-fprint0",
-    "-fprintf",
-    "-fls",
-  ]);
-
-  for (let index = 1; index < words.length; index++) {
-    const word = words[index];
-    if (unsafeFindPrimaries.has(word)) {
-      return false;
-    }
-    if (word === "-exec" || word === "-execdir") {
-      const execEndIndex = findExecIsReadonly(words, index);
-      if (execEndIndex === undefined) {
-        return false;
-      }
-      index = execEndIndex;
-    }
-  }
-  return true;
-}
-
-function commandWordsAllowedByReadonlyAllowlist(words: string[]): boolean {
-  const command = words.join(" ");
-  for (const pattern of READONLY_BASH_ALLOWLIST) {
-    if (globToRegExp(pattern).test(command)) {
+    if (char === "&" && command[index - 1] !== "&" && command[index + 1] !== "&") {
       return true;
     }
   }
   return false;
 }
 
-function xargsCommandStartIndex(words: string[]): number | undefined {
-  if (words[0] !== "xargs") {
-    return undefined;
+function readonlyBashBlockReason(command: string): string | undefined {
+  const normalized = normalizeCommand(command);
+  if (!normalized) {
+    return "empty command";
   }
 
-  // Covers common GNU/BSD xargs forms. Be conservative: if we do not
-  // understand an option well enough to know whether it consumes the next token,
-  // ask for approval instead of guessing where the invoked command starts.
-  const shortOptionsWithRequiredArgument = [
-    "-a",
-    "-d",
-    "-E",
-    "-I",
-    "-J",
-    "-L",
-    "-n",
-    "-P",
-    "-s",
-  ];
-  const longOptionsWithRequiredArgument = [
-    "--arg-file",
-    "--delimiter",
-    "--eof",
-    "--replace",
-    "--max-lines",
-    "--max-args",
-    "--max-procs",
-    "--max-chars",
-    "--process-slot-var",
-  ];
-  const exactOptionsWithoutArgument = new Set([
-    "-0",
-    "-p",
-    "-r",
-    "-t",
-    "-x",
-    "--null",
-    "--open-tty",
-    "--interactive",
-    "--no-run-if-empty",
-    "--verbose",
-    "--exit",
-  ]);
-
-  for (let index = 1; index < words.length; index++) {
-    const word = words[index];
-    if (word === "--") {
-      return index + 1;
-    }
-    if (!word.startsWith("-") || word === "-") {
-      return index;
-    }
-
-    const consumesRequiredArgument = longOptionsWithRequiredArgument.some(
-      (option) => word === option,
-    );
-    if (consumesRequiredArgument) {
-      index++;
-      continue;
-    }
-    if (
-      longOptionsWithRequiredArgument.some((option) =>
-        word.startsWith(`${option}=`),
-      )
-    ) {
-      continue;
-    }
-    if (shortOptionsWithRequiredArgument.some((option) => word === option)) {
-      index++;
-      continue;
-    }
-    if (
-      shortOptionsWithRequiredArgument.some(
-        (option) => word.startsWith(option) && word !== option,
-      )
-    ) {
-      continue;
-    }
-    if (exactOptionsWithoutArgument.has(word)) {
-      continue;
-    }
-
-    return undefined;
+  // Sending stderr to /dev/null is common for read-only probes and does not
+  // mutate project files. Keep other redirections/background jobs ask-gated.
+  const withoutBenignStderr = normalized.replace(/(^|\s)2>\s*\/dev\/null(?=\s|$)/g, " ");
+  if (hasUnquotedShellWriteSyntax(withoutBenignStderr)) {
+    return "shell redirection or background execution";
+  }
+  if (/[`]/.test(normalized) || normalized.includes("$(")) {
+    return "command substitution can hide side effects";
   }
 
-  return words.length;
-}
-
-function xargsReadonlyCommandAllowed(command: string): boolean {
-  const words = shellWords(command);
-  if (!words || words[0] !== "xargs") {
-    return false;
-  }
-
-  const commandStartIndex = xargsCommandStartIndex(words);
-  if (commandStartIndex === undefined) {
-    return false;
-  }
-
-  const invokedCommand = words.slice(commandStartIndex);
-  if (invokedCommand.length === 0) {
-    // xargs defaults to echo, which only writes to stdout.
-    return true;
-  }
-  if (invokedCommand[0] === "xargs") {
-    return false;
-  }
-  return commandWordsAllowedByReadonlyAllowlist(invokedCommand);
-}
-
-function awkReadonlyCommandAllowed(command: string): boolean {
-  const words = shellWords(command);
-  if (!words || words[0] !== "awk") {
-    return false;
-  }
-
-  let programIndex: number | undefined;
-  for (let index = 1; index < words.length; index++) {
-    const word = words[index];
-    if (word === "--") {
-      programIndex = index + 1;
-      break;
-    }
-    if (word === "-F" || word === "-v") {
-      index++;
-      if (index >= words.length) {
-        return false;
-      }
-      continue;
-    }
-    if (word.startsWith("-F") && word !== "-F") {
-      continue;
-    }
-    if (word.startsWith("-")) {
-      // This intentionally ask-gates -f/--file and extension/loading options:
-      // the external awk program could contain writes or system calls.
-      return false;
-    }
-    programIndex = index;
-    break;
-  }
-
-  if (programIndex === undefined || programIndex >= words.length) {
-    return false;
-  }
-
-  const program = words[programIndex];
-  if (/\bsystem\s*\(/.test(program)) {
-    return false;
-  }
-  // Awk can run shell commands with pipe redirections, e.g. print | "cmd".
-  if (/(^|[^|])\|($|[^|])/.test(program)) {
-    return false;
-  }
-  // Ask-gate output redirections in print/printf statements, while still
-  // allowing comparison operators such as NR>=1285 in the user's range probes.
-  if (/\bprint(?:f)?\b.*(^|[^<>!])>{1,2}($|[^=])/.test(program)) {
-    return false;
-  }
-
-  return true;
-}
-
-function gitSubcommandStartIndex(words: string[]): number | undefined {
-  if (words[0] !== "git") {
-    return undefined;
-  }
-
-  // Parse the small set of global git options we want to support in readonly
-  // mode. In particular, this allows common probes such as:
-  //   git -C /path/to/repo log -1 --oneline
-  // Unknown global options ask for approval instead of guessing where the
-  // subcommand starts.
-  const globalOptionsWithRequiredArgument = new Set(["-C"]);
-  const globalOptionsWithoutArgument = new Set(["--no-pager"]);
-
-  for (let index = 1; index < words.length; index++) {
-    const word = words[index];
-    if (word === "--") {
-      return undefined;
-    }
-    if (!word.startsWith("-") || word === "-") {
-      return index;
-    }
-    if (globalOptionsWithRequiredArgument.has(word)) {
-      index++;
-      if (index >= words.length) {
-        return undefined;
-      }
-      continue;
-    }
-    if (globalOptionsWithoutArgument.has(word)) {
-      continue;
-    }
-    return undefined;
-  }
-
-  return undefined;
-}
-
-function gitReadonlyCommandAllowed(command: string): boolean {
-  const words = shellWords(command);
-  if (!words || words[0] !== "git") {
-    return false;
-  }
-
-  const commandStartIndex = gitSubcommandStartIndex(words);
-  if (commandStartIndex === undefined) {
-    return false;
-  }
-
-  const subcommand = words[commandStartIndex];
-  const readonlySubcommands = new Set(["diff", "log", "ls-files", "status"]);
-  if (!readonlySubcommands.has(subcommand)) {
-    return false;
-  }
-
-  // Keep command-level output/execution escape hatches ask-gated. Shell-level
-  // redirection is handled separately by stripSafeReadonlyRedirections().
-  const unsafeOptions = new Set(["--ext-diff", "--external-diff", "--output"]);
-  for (const word of words.slice(commandStartIndex + 1)) {
-    if (unsafeOptions.has(word) || word.startsWith("--output=")) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-function simpleReadonlyCommandAllowed(command: string): boolean {
-  if (command === "cd" || command.startsWith("cd ")) {
-    return true;
-  }
-  if (findReadonlyCommandAllowed(command)) {
-    return true;
-  }
-  if (xargsReadonlyCommandAllowed(command)) {
-    return true;
-  }
-  if (awkReadonlyCommandAllowed(command)) {
-    return true;
-  }
-  if (gitReadonlyCommandAllowed(command)) {
-    return true;
-  }
-  if (commandWordsAllowedByReadonlyAllowlist([command])) {
-    return true;
-  }
-  return false;
-}
-
-function readonlyCommandAllowed(command: string): boolean {
-  if (command === "") {
-    return false;
-  }
-  const strippedCommand = stripSafeReadonlyRedirections(command);
-  if (strippedCommand === undefined) {
-    return false;
-  }
-  command = strippedCommand.trim();
-
-  if (commandHasUnsafeShellSyntax(command)) {
-    return false;
-  }
-
-  const sequenceParts = splitShellOperator(command, ";");
-  if (sequenceParts.length > 1) {
-    return sequenceParts.every(readonlyCommandAllowed);
-  }
-
-  const andParts = splitShellOperator(command, "&&");
-  if (andParts.length > 1) {
-    return andParts.every(readonlyCommandAllowed);
-  }
-
-  const orParts = splitShellOperator(command, "||");
-  if (orParts.length > 1) {
-    // Common read-only pattern: grep/rg/find may exit non-zero when there are
-    // no matches. Handle this after && splitting so commands like
-    // `find ... || true && rg ...` are checked as separate read-only clauses.
-    return (
-      orParts.length === 2 &&
-      orParts[1] === "true" &&
-      readonlyCommandAllowed(orParts[0])
-    );
-  }
-
-  const pipeParts = splitShellOperator(command, "|");
-  if (pipeParts.length > 1) {
-    return pipeParts.every(readonlyCommandAllowed);
-  }
-
-  return simpleReadonlyCommandAllowed(command);
+  const blocked = READONLY_BASH_DENYLIST.find(({ pattern }) => pattern.test(normalized));
+  return blocked?.reason;
 }
 
 function bashPermission(input: Record<string, unknown>): PermissionDecision {
@@ -626,8 +201,7 @@ function bashPermission(input: Record<string, unknown>): PermissionDecision {
     return "ask";
   }
 
-  const command = normalizeCommand(input.command);
-  return readonlyCommandAllowed(command) ? "allow" : "ask";
+  return readonlyBashBlockReason(input.command) ? "ask" : "allow";
 }
 
 function setStatus(ctx: ExtensionContext): void {
@@ -795,14 +369,14 @@ export default function accessModeExtension(pi: ExtensionAPI) {
     if (isDeferredAgent) {
       return {
         block: true,
-        reason: `Tool "${event.toolName}" requires approval, but this deferred agent is running in readonly mode.`,
+        reason: `Tool "${event.toolName}" requires approval${event.toolName === "bash" && typeof input.command === "string" ? ` (${readonlyBashBlockReason(input.command) ?? "not read-only"})` : ""}, but this deferred agent is running in readonly mode.`,
       };
     }
 
     if (!ctx.hasUI) {
       return {
         block: true,
-        reason: `Tool "${event.toolName}" requires approval, but no UI is available.`,
+        reason: `Tool "${event.toolName}" requires approval${event.toolName === "bash" && typeof input.command === "string" ? ` (${readonlyBashBlockReason(input.command) ?? "not read-only"})` : ""}, but no UI is available.`,
       };
     }
 
