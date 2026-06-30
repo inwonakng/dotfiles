@@ -28,7 +28,8 @@ end
 
 function M.apply_window_padding(_, win)
 	vim.api.nvim_set_option_value("winbar", " ", { win = win })
-	vim.api.nvim_set_option_value("statusline", "%#PiPaneBorder#%{repeat('─',winwidth(0))}%*", { win = win })
+	vim.api.nvim_set_option_value("fillchars", "stl:─,stlnc:─", { win = win })
+	vim.api.nvim_set_option_value("statusline", "%#PiPaneBorder#%=", { win = win })
 	vim.api.nvim_set_option_value("signcolumn", "yes:1", { win = win })
 	vim.api.nvim_set_option_value("scrolloff", 1, { win = win })
 	vim.api.nvim_set_option_value("sidescrolloff", 2, { win = win })
@@ -36,7 +37,7 @@ end
 
 function M.apply_input_window_options(ctx, win)
 	M.apply_window_padding(ctx, win)
-	vim.api.nvim_set_option_value("statusline", "%#PiInputTitle# Pi input %#PiPaneBorder#%{repeat('─',max([0,winwidth(0)-10]))}%*", { win = win })
+	vim.api.nvim_set_option_value("statusline", "%#PiInputTitle# Pi input %#PiPaneBorder#%=", { win = win })
 end
 
 function M.apply_transcript_window_options(ctx, win)

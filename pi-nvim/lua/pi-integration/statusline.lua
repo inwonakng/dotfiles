@@ -191,9 +191,7 @@ function M.render(ctx)
 			.. "%#PiUsageStats#"
 	end
 	local right_label = show_stats and ("%#PiUsageStats#" .. statusline_escape(stats_label)) or ""
-	local right_width = show_stats and stats_width or 0
-	local fill_width = math.max(0, width - left_width - right_width)
-	return left_label .. "%#PiPaneBorder#" .. string.rep("─", fill_width) .. right_label .. "%*"
+	return left_label .. "%#PiPaneBorder#%=" .. right_label .. "%*"
 end
 
 function M.setup(ctx)
