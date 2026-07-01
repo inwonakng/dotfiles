@@ -35,6 +35,7 @@ if ok_blink then
 		sources = {
 			default = {
 				"pi_commands",
+				"pi_files",
 				"lsp",
 				"path",
 				"snippets",
@@ -45,6 +46,16 @@ if ok_blink then
 					name = "Pi",
 					module = "pi-integration.completion",
 					score_offset = 100,
+				},
+				pi_files = {
+					name = "Pi files",
+					module = "pi-integration.file-completion",
+					score_offset = 90,
+					opts = {
+						get_cwd = function(_)
+							return vim.fn.getcwd()
+						end,
+					},
 				},
 				path = {
 					opts = {
