@@ -31,6 +31,16 @@ local fzf_winopts = {
 	},
 }
 
+local function select_label(prompt)
+	local label = vim.trim(prompt or "Select")
+	label = vim.trim(label:gsub("%s*[>:]%s*$", ""))
+	return label ~= "" and label or "Select"
+end
+
+local function select_prompt(prompt)
+	return select_label(prompt) .. " > "
+end
+
 local ok, fzf = pcall(require, "fzf-lua")
 if ok then
 	fzf.register_ui_select(function(select_opts)
@@ -46,9 +56,10 @@ if ok then
 		else
 			winopts.height = 0.4
 		end
-		winopts.title = " " .. vim.trim((select_opts.prompt or "Select"):gsub("%s*:%s*$", "")) .. " "
+		winopts.title = " " .. select_label(select_opts.prompt) .. " "
 		winopts.title_pos = "left"
 		return {
+			prompt = select_prompt(select_opts.prompt),
 			winopts = winopts,
 			fzf_opts = fzf_opts.default,
 			keymap = fzf_keymap,
