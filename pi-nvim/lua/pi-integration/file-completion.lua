@@ -4,7 +4,20 @@ local CACHE_TTL_MS = 5000
 local DEFAULT_MAX_FILES = 5000
 local DEFAULT_IGNORED_DIRS = {
 	[".git"] = true,
+	[".venv"] = true,
+	["venv"] = true,
 	["node_modules"] = true,
+	["__pycache__"] = true,
+	[".mypy_cache"] = true,
+	[".pytest_cache"] = true,
+	[".ruff_cache"] = true,
+	[".tox"] = true,
+	["dist"] = true,
+	["build"] = true,
+	["target"] = true,
+	[".next"] = true,
+	[".turbo"] = true,
+	[".cache"] = true,
 }
 
 local function now_ms()

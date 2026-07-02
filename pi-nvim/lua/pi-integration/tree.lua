@@ -203,8 +203,12 @@ local function read_session_tree(ctx, path)
 		end
 	end
 
-	local leaf_id = nearest_visible_id(ctx.state.tree_leaf_id, visible_by_id, by_id)
-		or nearest_visible_id(last_id, visible_by_id, by_id)
+	local leaf_id
+	if ctx.state.tree_leaf_id ~= nil then
+		leaf_id = nearest_visible_id(ctx.state.tree_leaf_id, visible_by_id, by_id)
+	else
+		leaf_id = nearest_visible_id(last_id, visible_by_id, by_id)
+	end
 	return roots, leaf_id
 end
 
@@ -341,22 +345,33 @@ local function jump_to_node(ctx, summarize)
 		return
 	end
 	local entry_id = node.record.id
-	ctx.state.tree_leaf_id = entry_id
+	local path = ctx.state.session_file or ctx.state.pending_session_file
 	close_tree_window(ctx)
-	local message = "/pi-tree-jump " .. entry_id .. (summarize and " --summary" or "")
+
 	if not (ctx.state.job and ctx.state.job > 0) then
-		ctx.notify("Start Pi before navigating the session tree.", vim.log.levels.WARN)
-		return
+		if not path or path == "" then
+			ctx.notify("No Pi session selected yet.", vim.log.levels.WARN)
+			return
+		end
+		-- ctx.send() starts Pi RPC lazily. Preserve the selected session as a
+		-- pending session so rpc.argv() attaches to it with --session on startup.
+		ctx.state.pending_session_file = path
+		ctx.state.session_file = ctx.state.session_file or path
 	end
+
+	local message = "/pi-tree-jump " .. entry_id .. (summarize and " --summary" or "")
 	ctx.send({ type = "prompt", message = message }, function(event)
 		if not event.success then
 			ctx.notify(event.error or "Could not navigate session tree", vim.log.levels.ERROR)
 			return
 		end
-		vim.defer_fn(function()
+		ctx.send({ type = "get_state" }, function(state_event)
+			if state_event.success and state_event.data then
+				ctx.apply_session_state(state_event.data)
+			end
 			ctx.actions.refresh_messages()
 			focus_input_window(ctx)
-		end, 100)
+		end)
 	end)
 end
 
