@@ -141,6 +141,19 @@ local function truncate_text(text, max_len)
 	return text:sub(1, math.max(1, max_len - 1)) .. "…"
 end
 
+local function markdown_code_span(text)
+	text = tostring(text or "")
+	local longest = 0
+	for run in text:gmatch("`+") do
+		longest = math.max(longest, #run)
+	end
+	local ticks = string.rep("`", longest + 1)
+	if text:sub(1, 1) == "`" or text:sub(-1) == "`" then
+		return ticks .. " " .. text .. " " .. ticks
+	end
+	return ticks .. text .. ticks
+end
+
 local function command_preview(command)
 	local compact = compact_text(command)
 	local words = {}
@@ -163,7 +176,7 @@ local function display_for_call(name, args)
 			command = args.command,
 		}
 	end
-	if (name == "edit" or name == "write") and type(args) == "table" then
+	if (name == "read" or name == "edit" or name == "write") and type(args) == "table" then
 		local path = path_from_args(args)
 		if type(path) == "string" and path ~= "" then
 			return {
@@ -555,9 +568,11 @@ function M.summary_lines(state, output_id)
 		end
 		return { table.concat(parts, " · ") }
 	elseif output.display and output.display.kind == "bash" and output.display.command then
-		label = "Bash: " .. command_preview(output.display.command)
+		label = "Bash: " .. markdown_code_span(command_preview(output.display.command))
+	elseif output.display and output.display.kind == "file" and output.display.path then
+		label = label .. ": " .. markdown_code_span(output.display.path)
 	elseif (output.name == "edit" or output.name == "write") and output_path(output) then
-		label = label .. ": " .. output_path(output)
+		label = label .. ": " .. markdown_code_span(output_path(output))
 	end
 	local artifact_label = output.defer and " · artifacts" or ""
 	return {
