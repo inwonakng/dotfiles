@@ -7,7 +7,7 @@ description: Use when reviewing a plan, diff, implementation, branch, or complet
 
 Use this skill to review work with fresh, evidence-based judgment.
 
-Adapted from Superpowers' requesting-code-review workflow, with Pi's `defer_task` as the preferred fresh-context reviewer when useful.
+Use Pi's `defer_task` as the preferred fresh-context reviewer when useful.
 
 ## When to Review
 

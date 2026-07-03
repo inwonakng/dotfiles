@@ -271,14 +271,51 @@ local function render_error_message(title, message)
 	return pi_transcript.render_error_message(transcript_ctx(), title, message)
 end
 
+local function assistant_error_text(message)
+	if type(message) ~= "table" or message.role ~= "assistant" then
+		return nil
+	end
+	if message.stopReason ~= "error" and message.stopReason ~= "aborted" then
+		return nil
+	end
+	if type(message.errorMessage) == "string" and message.errorMessage ~= "" then
+		return message.errorMessage
+	end
+	return "Request " .. tostring(message.stopReason)
+end
+
 local function event_error_text(event)
 	if type(event) ~= "table" then
 		return nil
 	end
 
-	for _, key in ipairs({ "error", "message", "reason" }) do
+	local assistant_error = assistant_error_text(event)
+	if assistant_error then
+		return assistant_error
+	end
+
+	for _, key in ipairs({ "errorMessage", "error", "message", "reason" }) do
 		if type(event[key]) == "string" and event[key] ~= "" then
 			return event[key]
+		end
+	end
+
+	for _, key in ipairs({ "error", "assistantMessageEvent", "message" }) do
+		local nested = event[key]
+		if type(nested) == "table" then
+			local nested_error = event_error_text(nested)
+			if nested_error then
+				return nested_error
+			end
+		end
+	end
+
+	if type(event.messages) == "table" then
+		for index = #event.messages, 1, -1 do
+			local nested_error = event_error_text(event.messages[index])
+			if nested_error then
+				return nested_error
+			end
 		end
 	end
 
