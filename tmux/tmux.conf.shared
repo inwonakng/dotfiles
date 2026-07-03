@@ -61,8 +61,8 @@ bind N new-session
 bind p display-panes
 set -g display-panes-time 4000
 # keep ctrl to move window
-bind . swap-window -s "#{window_id}" -t +1\; select-window -t +1
-bind , swap-window -s "#{window_id}" -t -1\; select-window -t -1
+bind . run-shell -C 'swap-window -s "#{window_id}" -t +1; select-window -t +1'
+bind , run-shell -C 'swap-window -s "#{window_id}" -t -1; select-window -t -1'
 # rename window with no placeholder
 bind R command-prompt "rename-window '%%'"
 
