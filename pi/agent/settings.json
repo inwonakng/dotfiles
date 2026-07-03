@@ -1,10 +1,8 @@
 {
-  "lastChangelogVersion": "0.80.2",
+  "lastChangelogVersion": "0.80.3",
   "theme": "dark",
-  "packages": [
-    "npm:pi-provider-litellm"
-  ],
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.5",
+  "packages": [],
+  "defaultProvider": "litellm",
+  "defaultModel": "azure/gpt-5.5",
   "defaultThinkingLevel": "high"
 }

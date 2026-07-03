@@ -33,3 +33,4 @@ claude/file-history
 /plans
 /.pi
 /pi-nvim-notes.md
+/pi/agent/litellm-provider-models.json
