@@ -354,7 +354,12 @@ function M.handle_event(ctx, event)
 		state.active_thinking_output_id = nil
 		state.active_thinking_line = nil
 		local message = ctx.event_error_text(event)
-		if message and not state.error_rendered_for_active_run then
+		if event.willRetry then
+			ctx.clear_assistant_placeholder()
+			state.abort_requested = false
+			ctx.actions.refresh_session_stats()
+			return
+		elseif message and not state.error_rendered_for_active_run then
 			ctx.render_error_message("Agent Error", message)
 		elseif ctx.assistant_placeholder_active() and state.abort_requested then
 			ctx.clear_assistant_placeholder()
@@ -369,6 +374,18 @@ function M.handle_event(ctx, event)
 		state.abort_requested = false
 		ctx.actions.refresh_session_stats()
 		ctx.notify("Pi finished")
+	elseif event.type == "auto_retry_start" then
+		ctx.notify(
+			"Pi retrying after transient error ("
+				.. tostring(event.attempt or "?")
+				.. "/"
+				.. tostring(event.maxAttempts or "?")
+				.. ")"
+		)
+	elseif event.type == "auto_retry_end" then
+		if event.success == false then
+			ctx.render_error_message("Agent Error", event.finalError or "Retry failed")
+		end
 	elseif event.type == "message_update" then
 		M.handle_message_update(ctx, event)
 	elseif event.type == "message_end" then

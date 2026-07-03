@@ -13,6 +13,7 @@ const DEFAULT_BASE_URL = "https://litellm.example.com";
 const DEFAULT_DISCOVERY_TIMEOUT_MS = 5_000;
 const LOGIN_DISCOVERY_TIMEOUT_MS = 10_000;
 const RESPONSE_PROBE_TIMEOUT_MS = 8_000;
+const RESPONSE_PROBE_VERSION = 2;
 const CACHE_STALE_MS = 24 * 60 * 60 * 1000;
 const RESPONSE_PROBE_CONCURRENCY = 3;
 const PERMANENT_EXPIRES_AT = Number.MAX_SAFE_INTEGER;
@@ -45,6 +46,7 @@ type DiscoverySource = "model_info" | "models_list";
 type ResponseProbeResult = {
 	supported: boolean;
 	probedAt: number;
+	probeVersion?: number;
 	status?: number;
 	error?: string;
 };
@@ -53,6 +55,7 @@ type Cache = {
 	baseUrl: string;
 	apiKeyFingerprint?: string;
 	fetchedAt: number;
+	probeVersion?: number;
 	source: DiscoverySource;
 	models: ProviderModelConfig[];
 	responseProbes: Record<string, ResponseProbeResult>;
@@ -182,7 +185,7 @@ function isListModelsMode(): boolean {
 }
 
 function cacheIsFresh(cache: Cache | undefined): cache is Cache {
-	return Boolean(cache && Date.now() - cache.fetchedAt <= CACHE_STALE_MS);
+	return Boolean(cache && cache.probeVersion === RESPONSE_PROBE_VERSION && Date.now() - cache.fetchedAt <= CACHE_STALE_MS);
 }
 
 function withTimeout(timeoutMs: number, signal?: AbortSignal): { signal: AbortSignal; cancel: () => void } {
@@ -349,32 +352,137 @@ async function discoverModels(baseUrl: string, apiKey: string, options: { timeou
 	};
 }
 
-async function probeResponsesModel(baseUrl: string, apiKey: string, modelId: string, signal?: AbortSignal): Promise<ResponseProbeResult> {
+function valueContainsFunctionCall(value: unknown): boolean {
+	if (!value || typeof value !== "object") return false;
+	const record = value as Record<string, unknown>;
+	if (record.type === "function_call" || record.type === "tool_call") return true;
+	for (const nested of Object.values(record)) {
+		if (Array.isArray(nested)) {
+			if (nested.some(valueContainsFunctionCall)) return true;
+		} else if (valueContainsFunctionCall(nested)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function parseSseData(line: string): unknown | undefined {
+	if (!line.startsWith("data:")) return undefined;
+	const data = line.slice(5).trim();
+	if (!data || data === "[DONE]") return undefined;
 	try {
-		const response = await postJson(
-			`${normalizeBaseUrl(baseUrl)}/v1/responses`,
-			apiKey,
-			{
-				model: modelId,
-				input: "Reply with exactly: ok",
-				reasoning: { effort: "low", summary: "auto" },
-				max_output_tokens: 16,
-			},
-			{ timeoutMs: RESPONSE_PROBE_TIMEOUT_MS, signal },
-		);
-		const hasError = Boolean(response.data && typeof response.data === "object" && "error" in response.data);
-		return { supported: response.ok && !hasError, probedAt: Date.now(), status: response.status };
+		return JSON.parse(data);
+	} catch {
+		return undefined;
+	}
+}
+
+async function probeResponsesModel(baseUrl: string, apiKey: string, modelId: string, signal?: AbortSignal): Promise<ResponseProbeResult> {
+	const probedAt = Date.now();
+	try {
+		const { signal: timeoutSignal, cancel } = withTimeout(RESPONSE_PROBE_TIMEOUT_MS, signal);
+		try {
+			const response = await fetch(`${normalizeBaseUrl(baseUrl)}/v1/responses`, {
+				method: "POST",
+				headers: {
+					Authorization: `Bearer ${apiKey}`,
+					Accept: "text/event-stream, application/json",
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					model: modelId,
+					input: [
+						{
+							role: "user",
+							content: [
+								{
+									type: "input_text",
+									text: "Call the probe_responses_capability function now with ok=true. Do not answer in text.",
+								},
+							],
+						},
+					],
+					tools: [
+						{
+							type: "function",
+							name: "probe_responses_capability",
+							description: "Report that Responses streaming function calls work.",
+							strict: false,
+							parameters: {
+								type: "object",
+								properties: { ok: { type: "boolean" } },
+								required: ["ok"],
+								additionalProperties: false,
+							},
+						},
+					],
+					tool_choice: { type: "function", name: "probe_responses_capability" },
+					stream: true,
+					store: false,
+					max_output_tokens: 64,
+				}),
+				signal: timeoutSignal,
+			});
+
+			if (!response.ok) {
+				const text = await response.text().catch(() => "");
+				return {
+					supported: false,
+					probedAt,
+					probeVersion: RESPONSE_PROBE_VERSION,
+					status: response.status,
+					error: text.slice(0, 300),
+				};
+			}
+			if (!response.body) {
+				return { supported: false, probedAt, probeVersion: RESPONSE_PROBE_VERSION, status: response.status, error: "streaming response had no body" };
+			}
+
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+			let buffer = "";
+			let sawFunctionCall = false;
+			let sawCompleted = false;
+			while (!sawCompleted) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split(/\r?\n/);
+				buffer = lines.pop() ?? "";
+				for (const line of lines) {
+					const event = parseSseData(line);
+					if (!event) continue;
+					if (valueContainsFunctionCall(event)) sawFunctionCall = true;
+					const type = (event as { type?: unknown }).type;
+					if (type === "response.completed" || type === "response.done") sawCompleted = true;
+					if (type === "response.failed" || type === "error") {
+						return { supported: false, probedAt, probeVersion: RESPONSE_PROBE_VERSION, status: response.status, error: JSON.stringify(event).slice(0, 300) };
+					}
+				}
+			}
+
+			return {
+				supported: sawFunctionCall && sawCompleted,
+				probedAt,
+				probeVersion: RESPONSE_PROBE_VERSION,
+				status: response.status,
+				error: sawFunctionCall ? undefined : "streaming Responses probe did not produce a function call",
+			};
+		} finally {
+			cancel();
+		}
 	} catch (error) {
 		return {
 			supported: false,
-			probedAt: Date.now(),
+			probedAt,
+			probeVersion: RESPONSE_PROBE_VERSION,
 			error: error instanceof Error ? error.message : String(error),
 		};
 	}
 }
 
 function cachedProbeIsFresh(probe: ResponseProbeResult | undefined): probe is ResponseProbeResult {
-	return Boolean(probe && Date.now() - probe.probedAt <= CACHE_STALE_MS);
+	return Boolean(probe && probe.probeVersion === RESPONSE_PROBE_VERSION && Date.now() - probe.probedAt <= CACHE_STALE_MS);
 }
 
 async function mapWithConcurrency<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
@@ -435,6 +543,7 @@ async function discoverAndCache(
 		baseUrl,
 		apiKeyFingerprint: fingerprint(apiKey),
 		fetchedAt: Date.now(),
+		probeVersion: RESPONSE_PROBE_VERSION,
 		source: discovered.source,
 		models: routed.models,
 		responseProbes: routed.responseProbes,
