@@ -344,6 +344,11 @@ local function jump_to_node(ctx, summarize)
 	if not node then
 		return
 	end
+	if ctx.is_agent_active and ctx.is_agent_active() then
+		local prefix = ctx.state.is_retrying and "Pi is retrying" or "Pi is still running"
+		ctx.notify(prefix .. "; wait or abort before changing history.", vim.log.levels.WARN)
+		return
+	end
 	local entry_id = node.record.id
 	local path = ctx.state.session_file or ctx.state.pending_session_file
 	close_tree_window(ctx)

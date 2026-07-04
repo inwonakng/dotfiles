@@ -94,8 +94,11 @@ local function refresh_transcript_ui()
 end
 
 local function apply_session_state(data)
-	if data.sessionFile ~= state.session_file then
+	local session_changed = data.sessionFile ~= state.session_file
+	if session_changed then
 		state.tree_leaf_id = nil
+		state.is_retrying = false
+		state.pending_retry_error = nil
 	end
 	state.session_file = data.sessionFile
 	state.session_name = data.sessionName
@@ -104,6 +107,10 @@ local function apply_session_state(data)
 	state.thinking_level = data.thinkingLevel or data.thinking_level or state.thinking_level
 	set_model_metadata(data.provider or data.providerId or data.providerName, data.model or data.modelId)
 	refresh_transcript_ui()
+end
+
+local function is_agent_active()
+	return state.is_streaming or state.is_retrying
 end
 
 local function transcript_line_count()
@@ -464,6 +471,7 @@ integration_ctx = function()
 		register_transcript_item = register_transcript_item,
 		set_transcript_line = set_transcript_line,
 		apply_session_state = apply_session_state,
+		is_agent_active = is_agent_active,
 		load_session_messages_from_file = load_session_messages_from_file,
 		render_messages = render_messages,
 		open_transcript_item_under_cursor = open_transcript_item_under_cursor,

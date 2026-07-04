@@ -14,6 +14,16 @@ function setStatus(ctx: ExtensionContext): void {
 	ctx.ui.setStatus("pi-notifications", notificationsEnabled() ? "notify on" : "notify off");
 }
 
+function lastAssistantMessage(messages: unknown[]): { stopReason?: string } | undefined {
+	for (let index = messages.length - 1; index >= 0; index--) {
+		const message = messages[index];
+		if (typeof message === "object" && message !== null && "role" in message && message.role === "assistant") {
+			return message as { stopReason?: string };
+		}
+	}
+	return undefined;
+}
+
 function notifyPiFinished(pi: ExtensionAPI, ctx: ExtensionContext, force = false): boolean {
 	if (!notificationsEnabled() && !force) {
 		return false;
@@ -42,7 +52,11 @@ export default function notificationsExtension(pi: ExtensionAPI) {
 		setStatus(ctx);
 	});
 
-	pi.on("agent_end", (_event, ctx) => {
+	pi.on("agent_end", (event, ctx) => {
+		const assistant = lastAssistantMessage(event.messages || []);
+		if (assistant?.stopReason === "error") {
+			return;
+		}
 		notifyPiFinished(pi, ctx);
 	});
 

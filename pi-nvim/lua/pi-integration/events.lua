@@ -331,7 +331,10 @@ function M.handle_message_update(ctx, event)
 	elseif update.type == "toolcall_end" then
 		return
 	elseif update.type == "error" then
-		ctx.render_error_message("Agent Error", ctx.event_error_text(update) or "unknown")
+		-- Provider/transport errors may be followed by an automatic retry. The
+		-- retry decision is only known at agent_end, so keep the error pending
+		-- instead of rendering a scary final error immediately.
+		state.pending_retry_error = ctx.event_error_text(update) or "unknown"
 	end
 end
 
@@ -341,6 +344,8 @@ function M.handle_event(ctx, event)
 		ctx.handle_response(event)
 	elseif event.type == "agent_start" then
 		state.is_streaming = true
+		state.is_retrying = false
+		state.pending_retry_error = nil
 		state.current_message_started = false
 		state.current_thinking_rendered = false
 		state.active_thinking_output_id = nil
@@ -355,11 +360,15 @@ function M.handle_event(ctx, event)
 		state.active_thinking_line = nil
 		local message = ctx.event_error_text(event)
 		if event.willRetry then
+			state.is_retrying = true
 			ctx.clear_assistant_placeholder()
 			state.abort_requested = false
 			ctx.actions.refresh_session_stats()
 			return
-		elseif message and not state.error_rendered_for_active_run then
+		end
+		state.is_retrying = false
+		state.pending_retry_error = nil
+		if message and not state.error_rendered_for_active_run then
 			ctx.render_error_message("Agent Error", message)
 		elseif ctx.assistant_placeholder_active() and state.abort_requested then
 			ctx.clear_assistant_placeholder()
@@ -375,6 +384,8 @@ function M.handle_event(ctx, event)
 		ctx.actions.refresh_session_stats()
 		ctx.notify("Pi finished")
 	elseif event.type == "auto_retry_start" then
+		state.is_retrying = true
+		state.pending_retry_error = event.errorMessage or state.pending_retry_error
 		ctx.notify(
 			"Pi retrying after transient error ("
 				.. tostring(event.attempt or "?")
@@ -383,7 +394,9 @@ function M.handle_event(ctx, event)
 				.. ")"
 		)
 	elseif event.type == "auto_retry_end" then
-		if event.success == false then
+		state.is_retrying = false
+		state.pending_retry_error = nil
+		if event.success == false and not state.error_rendered_for_active_run then
 			ctx.render_error_message("Agent Error", event.finalError or "Retry failed")
 		end
 	elseif event.type == "message_update" then

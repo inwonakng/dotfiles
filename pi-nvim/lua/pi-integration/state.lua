@@ -24,6 +24,8 @@ function M.new()
 		tree_leaf_id = nil,
 		tree_filter_mode = "default",
 		is_streaming = false,
+		is_retrying = false,
+		pending_retry_error = nil,
 		access_mode = "readonly",
 		pending_access_mode = nil,
 		current_message_started = false,

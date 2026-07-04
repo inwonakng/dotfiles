@@ -1,5 +1,21 @@
 local M = {}
 
+local function confirm_abort_active_run(ctx, action, proceed)
+	if not (ctx.is_agent_active and ctx.is_agent_active()) then
+		proceed()
+		return
+	end
+	local prompt = (ctx.state.is_retrying and "Pi is retrying" or "Pi is still running")
+		.. ". "
+		.. action
+		.. " will abort the current run. Continue?"
+	vim.ui.select({ "Continue", "Cancel" }, { prompt = prompt }, function(choice)
+		if choice == "Continue" then
+			proceed()
+		end
+	end)
+end
+
 local function dirname(path)
 	if not path or path == "" then
 		return nil
@@ -171,31 +187,37 @@ function M.pick(ctx)
 		if not choice then
 			return
 		end
-		if not (state.job and state.job > 0) then
-			state.pending_session_file = choice.path
-			state.session_file = choice.path
-			state.session_name = choice.title
-			state.tree_leaf_id = nil
-			ctx.render_messages(ctx.load_session_messages_from_file(choice.path))
-			ctx.notify("Selected session. Pi will attach to it when you send a message.")
-			return
-		end
-		ctx.send({ type = "switch_session", sessionPath = choice.path }, function(event)
-			if event.success and not (event.data and event.data.cancelled) then
+		local function proceed()
+			if not (state.job and state.job > 0) then
+				state.pending_session_file = choice.path
 				state.session_file = choice.path
+				state.session_name = choice.title
 				state.tree_leaf_id = nil
-				ctx.send({ type = "get_state" }, function(state_event)
-					if state_event.success and state_event.data then
-						ctx.apply_session_state(state_event.data)
-						ctx.actions.refresh_session_stats()
-					end
-				end)
-				ctx.actions.refresh_messages()
-				ctx.notify("Switched session")
-			else
-				ctx.notify("Session switch cancelled or failed", vim.log.levels.ERROR)
+				ctx.render_messages(ctx.load_session_messages_from_file(choice.path))
+				ctx.notify("Selected session. Pi will attach to it when you send a message.")
+				return
 			end
-		end)
+			ctx.send({ type = "switch_session", sessionPath = choice.path }, function(event)
+				if event.success and not (event.data and event.data.cancelled) then
+					state.is_retrying = false
+					state.pending_retry_error = nil
+					state.session_file = choice.path
+					state.tree_leaf_id = nil
+					ctx.send({ type = "get_state" }, function(state_event)
+						if state_event.success and state_event.data then
+							ctx.apply_session_state(state_event.data)
+							ctx.actions.refresh_session_stats()
+						end
+					end)
+					ctx.actions.refresh_messages()
+					ctx.notify("Switched session")
+				else
+					ctx.notify("Session switch cancelled or failed", vim.log.levels.ERROR)
+				end
+			end)
+		end
+
+		confirm_abort_active_run(ctx, "Switching sessions", proceed)
 	end)
 end
 

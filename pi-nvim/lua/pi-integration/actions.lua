@@ -1,5 +1,35 @@
 local M = {}
 
+local function active_run_message(ctx, action)
+	local state = ctx.state
+	local prefix = state.is_retrying and "Pi is retrying" or "Pi is still running"
+	return prefix .. "; wait or abort before " .. action .. "."
+end
+
+local function guard_active_run(ctx, action)
+	if ctx.is_agent_active and ctx.is_agent_active() then
+		ctx.notify(active_run_message(ctx, action), vim.log.levels.WARN)
+		return false
+	end
+	return true
+end
+
+local function confirm_abort_active_run(ctx, action, proceed)
+	if not (ctx.is_agent_active and ctx.is_agent_active()) then
+		proceed()
+		return
+	end
+	local prompt = (ctx.state.is_retrying and "Pi is retrying" or "Pi is still running")
+		.. ". "
+		.. action
+		.. " will abort the current run. Continue?"
+	vim.ui.select({ "Continue", "Cancel" }, { prompt = prompt }, function(choice)
+		if choice == "Continue" then
+			proceed()
+		end
+	end)
+end
+
 local function apply_session_cache_footprint(stats, messages)
 	if type(stats) ~= "table" or type(stats.tokens) ~= "table" or type(messages) ~= "table" then
 		return
@@ -57,6 +87,10 @@ function M.submit_prompt(ctx)
 	if text == "" then
 		return
 	end
+	if state.is_retrying then
+		ctx.notify("Pi is retrying; wait or abort before sending another prompt.", vim.log.levels.WARN)
+		return
+	end
 	state.abort_requested = false
 	state.error_rendered_for_active_run = false
 	clear_input(ctx)
@@ -82,6 +116,9 @@ function M.abort(ctx)
 end
 
 function M.history(ctx)
+	if not guard_active_run(ctx, "changing history") then
+		return
+	end
 	ctx.send({ type = "prompt", message = "/pi-history" }, function(event)
 		if not event.success then
 			ctx.notify(event.error or "Could not open history", vim.log.levels.ERROR)
@@ -116,30 +153,38 @@ local function reset_session_transcript_state(ctx, notice)
 	state.session_stats = nil
 	state.todo_status = nil
 	state.tree_leaf_id = nil
+	state.is_retrying = false
+	state.pending_retry_error = nil
 	ctx.refresh_transcript_ui()
 	ctx.append_status(notice)
 end
 
 function M.new_session(ctx)
 	local state = ctx.state
-	if not (state.job and state.job > 0) then
-		state.pending_session_file = nil
-		state.session_file = nil
-		reset_session_transcript_state(ctx, ctx.pending_new_session_notice)
-		return
+	local function proceed()
+		if not (state.job and state.job > 0) then
+			state.pending_session_file = nil
+			state.session_file = nil
+			reset_session_transcript_state(ctx, ctx.pending_new_session_notice)
+			return
+		end
+
+		ctx.send({ type = "new_session" }, function(event)
+			if event.success then
+				state.is_retrying = false
+				state.pending_retry_error = nil
+				reset_session_transcript_state(ctx, ctx.new_session_notice)
+				ctx.send({ type = "get_state" }, function(state_event)
+					if state_event.success and state_event.data then
+						ctx.apply_session_state(state_event.data)
+						ctx.actions.refresh_session_stats()
+					end
+				end)
+			end
+		end)
 	end
 
-	ctx.send({ type = "new_session" }, function(event)
-		if event.success then
-			reset_session_transcript_state(ctx, ctx.new_session_notice)
-			ctx.send({ type = "get_state" }, function(state_event)
-				if state_event.success and state_event.data then
-					ctx.apply_session_state(state_event.data)
-					ctx.actions.refresh_session_stats()
-				end
-			end)
-		end
-	end)
+	confirm_abort_active_run(ctx, "Starting a new session", proceed)
 end
 
 return M

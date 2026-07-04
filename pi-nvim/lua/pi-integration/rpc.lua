@@ -99,6 +99,8 @@ function M.start(ctx)
 	end
 	state.last_stderr_lines = {}
 	state.error_rendered_for_active_run = false
+	state.is_retrying = false
+	state.pending_retry_error = nil
 
 	state.job = vim.fn.jobstart(M.argv(ctx), {
 		stdin = "pipe",
@@ -140,6 +142,8 @@ function M.start(ctx)
 				end
 				state.job = nil
 				state.is_streaming = false
+				state.is_retrying = false
+				state.pending_retry_error = nil
 				state.abort_requested = false
 			end)
 		end,
