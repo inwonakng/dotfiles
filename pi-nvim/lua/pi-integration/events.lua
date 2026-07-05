@@ -170,6 +170,16 @@ local function update_access_mode_from_status(ctx, text)
 	end
 end
 
+local function update_spawn_runs_from_status(ctx, text)
+	local payload = type(text) == "string" and json.decode_object(text) or nil
+	if type(payload) ~= "table" then
+		return
+	end
+	ctx.state.spawn_running_count = tonumber(payload.running) or 0
+	ctx.state.spawn_runs = type(payload.runs) == "table" and payload.runs or {}
+	ctx.refresh_transcript_ui()
+end
+
 function M.handle_extension_ui_request(ctx, event)
 	local state = ctx.state
 	if event.method == "set_editor_text" and type(event.text) == "string" and ctx.valid_buf(state.input_buf) then
@@ -192,6 +202,8 @@ function M.handle_extension_ui_request(ctx, event)
 		elseif event.statusKey == "pi-notifications" then
 			state.notification_status = event.statusText
 			ctx.refresh_transcript_ui()
+		elseif event.statusKey == "pi-spawn-runs" then
+			update_spawn_runs_from_status(ctx, event.statusText)
 		end
 	elseif event.method == "setTitle" and type(event.title) == "string" then
 		vim.opt.titlestring = event.title

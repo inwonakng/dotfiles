@@ -37,6 +37,8 @@ function M.new()
 		provider = nil,
 		model_id = nil,
 		thinking_level = nil,
+		spawn_runs = {},
+		spawn_running_count = 0,
 		last_updated = nil,
 		transcript_refresh_scheduled = false,
 		pending_user_message = nil,

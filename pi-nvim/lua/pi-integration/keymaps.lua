@@ -11,6 +11,7 @@ M.specs = {
 		{ lhs = "<leader>pi", action = "show_input", desc = "Show Pi input" },
 		{ lhs = "<leader>pr", action = "reload", desc = "Reload Pi resources" },
 		{ lhs = "<leader>pt", action = "show_transcript", desc = "Show Pi transcript" },
+		{ lhs = "<leader>ps", action = "pick_spawn", desc = "Show subagents" },
 		{ lhs = "<leader>a", action = "pick_access_mode", desc = "Pick access mode" },
 		{ lhs = "<leader>m", action = "pick_model", desc = "Pick model" },
 		{ lhs = "<leader>t", action = "pick_thinking", desc = "Pick thinking level" },

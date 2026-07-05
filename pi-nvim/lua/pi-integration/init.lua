@@ -98,6 +98,8 @@ local function apply_session_state(data)
 	local session_changed = data.sessionFile ~= state.session_file
 	if session_changed then
 		state.tree_leaf_id = nil
+		state.spawn_runs = {}
+		state.spawn_running_count = 0
 		state.is_retrying = false
 		state.pending_retry_error = nil
 	end
@@ -380,6 +382,7 @@ local pi_help = require("pi-integration.help")
 local pi_statusline = require("pi-integration.statusline")
 local pi_tree = require("pi-integration.tree")
 local pi_sessions = require("pi-integration.sessions")
+local pi_spawn = require("pi-integration.spawn")
 local pi_messages = require("pi-integration.messages")
 pi_transcript = require("pi-integration.transcript")
 pi_rpc = require("pi-integration.rpc")
@@ -636,6 +639,10 @@ end
 
 function M.pick_session()
 	pi_sessions.pick(integration_ctx())
+end
+
+function M.pick_spawn()
+	pi_spawn.pick(integration_ctx())
 end
 vim.api.nvim_create_autocmd("VimLeavePre", {
 	callback = function()

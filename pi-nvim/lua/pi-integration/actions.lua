@@ -125,6 +125,8 @@ local function reset_session_transcript_state(ctx, notice)
 	state.session_stats = nil
 	state.todo_status = nil
 	state.tree_leaf_id = nil
+	state.spawn_runs = {}
+	state.spawn_running_count = 0
 	state.is_retrying = false
 	state.pending_retry_error = nil
 	ctx.refresh_transcript_ui()

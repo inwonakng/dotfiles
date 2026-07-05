@@ -99,6 +99,14 @@ local function current_thinking_level_label(state)
 	return level
 end
 
+local function spawn_statusline_label(state)
+	local count = tonumber(state.spawn_running_count) or 0
+	if count <= 0 then
+		return ""
+	end
+	return " 󰇥" .. tostring(count)
+end
+
 local function thinking_statusline_highlight(level)
 	if level == "off" then
 		return "%#PiThinkingOff#"
@@ -137,6 +145,7 @@ function M.render(ctx)
 	local model_label = status_delimiter .. current_model_statusline_label(ctx)
 	local thinking_level = current_thinking_level_label(state)
 	local thinking_label = thinking_level and (" [" .. thinking_level .. "]") or ""
+	local spawn_label = spawn_statusline_label(state)
 	local stats_label = " " .. format_session_stats(state) .. " "
 	local statusline_win = tonumber(vim.g.statusline_winid) or ctx.state.transcript_win or 0
 	local width = vim.api.nvim_win_get_width(statusline_win)
@@ -145,7 +154,8 @@ function M.render(ctx)
 	local notification_width = vim.fn.strdisplaywidth(notification_label)
 	local model_width = vim.fn.strdisplaywidth(model_label)
 	local thinking_width = vim.fn.strdisplaywidth(thinking_label)
-	local left_width = mode_width + todo_width + notification_width + model_width + thinking_width
+	local spawn_width = vim.fn.strdisplaywidth(spawn_label)
+	local left_width = mode_width + todo_width + notification_width + model_width + thinking_width + spawn_width
 	local stats_width = vim.fn.strdisplaywidth(stats_label)
 	local show_stats = width >= (left_width + stats_width + 3)
 	local mode_highlight = mode_statusline_highlight(mode)
@@ -172,7 +182,7 @@ function M.render(ctx)
 	if width <= left_width then
 		return left_label
 			.. "%#PiUsageStats#"
-			.. statusline_escape(truncate_plain_to_width(todo_label .. notification_label .. model_label .. thinking_label, width - mode_width))
+			.. statusline_escape(truncate_plain_to_width(todo_label .. notification_label .. model_label .. thinking_label .. spawn_label, width - mode_width))
 			.. "%*"
 	end
 
@@ -189,6 +199,9 @@ function M.render(ctx)
 			.. thinking_statusline_highlight(thinking_level)
 			.. statusline_escape(thinking_label)
 			.. "%#PiUsageStats#"
+	end
+	if spawn_label ~= "" then
+		left_label = left_label .. "%#PiUsageStats#" .. statusline_escape(spawn_label)
 	end
 	local right_label = show_stats and ("%#PiUsageStats#" .. statusline_escape(stats_label)) or ""
 	return left_label .. "%#PiPaneBorder#%=" .. right_label .. "%*"
