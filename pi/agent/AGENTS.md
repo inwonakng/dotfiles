@@ -14,11 +14,11 @@ Use skills as the source of truth for reusable workflows. In particular:
 - Use `debug` for bugs, failing tests, build errors, or unexpected behavior before fixing.
 - Use `review` for plan/diff/implementation review.
 - Use `verify` before claiming work is done, fixed, passing, or ready.
-- Use `defer` before coordinating subagents with `defer_task`.
+- Use `defer` before coordinating subagents with `spawn` / `spawn_control`.
 
 ## Subagents
 
-Treat "subagents" as the user-facing concept and `defer_task` as the underlying mechanism.
+Treat "subagents" as the user-facing concept and `spawn` / `spawn_control` as the underlying mechanism.
 
 When the user says "use subagents", operate in subagent mode: the main agent remains the controller, writes precise dynamic briefs, and delegates bounded work to named subagent profiles when useful (`researcher`, `planner`, `implementer`, `reviewer`, `verifier`). Default to inline work otherwise.
 
@@ -39,6 +39,8 @@ Be concise and focused. Avoid repeating prior statements, just point to it. Focu
 If the user says "why X? why not Y?", this does not mean you should do Y. The user is asking a question. Answer the question.
 
 Similarly, if the user says "why did you do X?", it does not mean X is wrong. The user is asking for the reasoning behind that choice.
+
+If there is a question mixed with a request for action, always answer the question first. Then ask for confirmation before acting.
 
 ## Discussion and Planning
 

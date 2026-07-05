@@ -7,7 +7,7 @@ description: Use when reviewing a plan, diff, implementation, branch, or complet
 
 Use this skill to review work with fresh, evidence-based judgment.
 
-Use Pi's `defer_task` as the preferred fresh-context reviewer when useful.
+Use Pi's `spawn` / `spawn_control` as the preferred fresh-context reviewer when useful.
 
 ## When to Review
 
@@ -17,7 +17,7 @@ Review is especially useful:
 - before claiming a feature is complete
 - before merging or handing work back
 - when a plan or implementation feels risky
-- when a deferred implementer changed files
+- when a spawned implementer changed files
 
 ## Review Modes
 
@@ -30,9 +30,9 @@ Use this when the diff is small or the answer is conceptual.
 3. Identify findings by severity.
 4. Recommend fixes or approval.
 
-### Deferred review
+### Spawned review
 
-Use `defer_task` with `accessMode: "readonly"` and role `reviewer` when fresh context would help.
+Use `spawn` with `accessMode: "readonly"` and role `reviewer` when fresh context would help. Join the spawned reviewer before relying on its findings.
 
 Give the reviewer a bounded brief:
 

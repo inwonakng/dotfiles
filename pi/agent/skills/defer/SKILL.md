@@ -1,13 +1,13 @@
 ---
 name: defer
-description: Use when a task may benefit from an isolated Pi subagent for research, planning, implementation, review, or verification. Teaches when and how to call the defer_task tool safely.
+description: Use when a task may benefit from an isolated Pi subagent for research, planning, implementation, review, or verification. Teaches when and how to call spawn/spawn_control safely.
 ---
 
 # Defer
 
-Use this skill to coordinate isolated Pi subagents through the `defer_task` tool.
+Use this skill to coordinate isolated Pi subagents through the `spawn` and `spawn_control` tools.
 
-"Subagents" is the user-facing concept. `defer_task` is the underlying mechanism and artifact runner.
+"Subagents" is the user-facing concept. `spawn` starts a subagent job and `spawn_control` inspects, joins, or stops it.
 
 ## Relationship to Other Skills
 
@@ -30,8 +30,15 @@ Bad uses:
 - tiny tasks the main agent can do directly
 - avoiding your own reasoning
 - broad ambiguous work with no crisp deliverable
-- parallel write work in the same worktree without isolation
+- parallel write work without worktree isolation
 - asking a subagent to make product/design decisions the user has not approved
+
+## Execution Model
+
+- `spawn` defaults to `mode: "background"` and returns a run id immediately.
+- If the parent answer depends on child output, call `spawn_control` with `action: "join"` or `"join_all"` before answering.
+- Background completion is recorded as a notification/context message for the next parent turn, but it does not automatically trigger a parent turn.
+- Parent abort stops children spawned in that active turn. Session shutdown stops all live children.
 
 ## Access Modes
 
@@ -53,9 +60,11 @@ Use write only when:
 
 - the user explicitly approved implementation, and
 - the delegated task is bounded, and
-- write conflicts are unlikely or isolated.
+- worktree isolation is appropriate.
 
-Do not run multiple write subagents against the same worktree unless each has its own isolated worktree or the tasks are provably non-overlapping and the user accepted the risk.
+Write-capable spawned subagents use isolated worktrees. On `join`, clean changes may be applied automatically; conflicts or overlapping parent changes are returned for the parent to handle manually.
+
+Do not run multiple write subagents against overlapping files unless each has isolated worktree scope and the user accepted the risk.
 
 ## Main Agent Responsibilities
 
@@ -63,7 +72,9 @@ The main agent remains responsible for:
 
 - choosing whether delegation is appropriate
 - writing a precise brief
-- integrating the result
+- deciding whether to wait or continue
+- joining before relying on subagent results
+- integrating any conflicted/unsafe worktree changes
 - resolving conflicts or inconsistencies
 - verifying final behavior
 - reporting what was and was not done
@@ -72,7 +83,7 @@ Never treat a subagent's success report as proof. Use the `verify` skill before 
 
 ## Brief Template
 
-Use a complete bounded task. Prefer references to files/artifacts over pasting huge context.
+Use a complete bounded prompt. Prefer references to files/artifacts over pasting huge context.
 
 ```text
 Goal: [one sentence]
@@ -111,10 +122,27 @@ Common profiles / roles:
 - `reviewer`: inspect diff/plan for correctness, risks, tests, and requirement coverage.
 - `verifier`: gather verification evidence and identify unverified claims, no edits.
 
-## After Defer Returns
+## Tool Use Pattern
 
-1. Read the result carefully.
-2. If status is `NEEDS_CONTEXT`, provide missing context and re-dispatch only if still worthwhile.
-3. If status is `BLOCKED`, decide whether to unblock, do the work inline, or ask the user.
-4. If status is `DONE`, verify the important claims before relying on them.
-5. Integrate only the useful parts into the main workflow.
+For fanout/fanin:
+
+```text
+spawn({ agent: "researcher", prompt: "..." })
+spawn({ agent: "reviewer", prompt: "..." })
+spawn_control({ action: "join_all" })
+```
+
+For a result needed immediately:
+
+```text
+spawn({ agent: "researcher", prompt: "...", mode: "foreground" })
+```
+
+## After Spawn Returns
+
+1. If the spawn was foreground, read the result carefully.
+2. If the spawn was background and the result matters, call `spawn_control join` or `join_all`.
+3. If status is `NEEDS_CONTEXT`, provide missing context and re-dispatch only if still worthwhile.
+4. If status is `BLOCKED`, decide whether to unblock, do the work inline, or ask the user.
+5. If status is `DONE`, verify the important claims before relying on them.
+6. If join reports `integration=needs_parent`, inspect/apply the returned patch only if appropriate.

@@ -32,7 +32,7 @@ Do not patch symptoms because a fix seems obvious. First prove what is happening
 - List meaningful differences. Do not dismiss differences without evidence.
 - do not speculate about the cause. Only form hypotheses after evidence is gathered.
 
-Use `defer_task` with `accessMode: "readonly"` for bounded independent investigation when a fresh context would help.
+Use `spawn` with `accessMode: "readonly"` for bounded independent investigation when a fresh context would help. If the spawn runs in background and you need its result, use `spawn_control join` before proceeding.
 
 ## Phase 3: Form and Test One Hypothesis
 

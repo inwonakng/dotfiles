@@ -36,7 +36,7 @@ end
 local function metadata_lines(path)
 	return {
 		"---",
-		"title: \"Defer transcript\"",
+		"title: \"Spawn transcript\"",
 		"source: \"" .. tostring(path):gsub("\\", "\\\\"):gsub('"', '\\"') .. "\"",
 		"last_updated: \"" .. os.date("%Y-%m-%d %H:%M:%S %z") .. "\"",
 		"---",
@@ -159,7 +159,7 @@ function M.open(ctx, path, title)
 	}
 
 	local buf = buffer_utils.create_scratch({
-		name = "pi://defer/transcript/" .. vim.fn.fnamemodify(path, ":h:t"),
+		name = "pi://spawn/transcript/" .. vim.fn.fnamemodify(path, ":h:t"),
 		filetype = "markdown",
 		treesitter = "markdown",
 	})
@@ -187,7 +187,7 @@ function M.open(ctx, path, title)
 		col = col,
 		style = "minimal",
 		border = "rounded",
-		title = " " .. (title or "Defer transcript") .. " ",
+		title = " " .. (title or "Spawn transcript") .. " ",
 		title_pos = "left",
 	})
 	state.transcript_win = win
@@ -201,15 +201,15 @@ function M.open(ctx, path, title)
 		floats.close_window(win)
 	end
 	floats.close_on_win_leave(buf, close_win, { win = win, parent = ctx.parent_win })
-	vim.keymap.set("n", "q", close_win, { buffer = buf, silent = true, desc = "Close defer transcript" })
-	vim.keymap.set("n", "<Esc>", close_win, { buffer = buf, silent = true, desc = "Close defer transcript" })
+	vim.keymap.set("n", "q", close_win, { buffer = buf, silent = true, desc = "Close spawn transcript" })
+	vim.keymap.set("n", "<Esc>", close_win, { buffer = buf, silent = true, desc = "Close spawn transcript" })
 	vim.keymap.set("n", "r", function()
 		refresh()
-		ctx.notify("Refreshed defer transcript")
-	end, { buffer = buf, silent = true, desc = "Refresh defer transcript" })
+		ctx.notify("Refreshed spawn transcript")
+	end, { buffer = buf, silent = true, desc = "Refresh spawn transcript" })
 	vim.keymap.set("n", "<CR>", function()
 		open_item(ctx, state, win)
-	end, { buffer = buf, silent = true, desc = "Open nested defer item" })
+	end, { buffer = buf, silent = true, desc = "Open nested spawn item" })
 end
 
 return M

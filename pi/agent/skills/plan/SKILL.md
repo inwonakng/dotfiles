@@ -27,7 +27,7 @@ The main agent owns implementation planning because it has the user conversation
 2. **Inspect targeted context**
    - Read only the files/docs needed to make the plan reliable.
    - Follow existing project patterns before proposing new structure.
-   - Use `defer_task` with `agent: "researcher"` or `agent: "planner"` and `accessMode: "readonly"` for bounded independent research or plan critique when isolated context would help.
+   - Use `spawn` with `agent: "researcher"` or `agent: "planner"` and `accessMode: "readonly"` for bounded independent research or plan critique when isolated context would help. Join background spawns before relying on their results.
 
 3. **Explore approaches**
    - Present 2-3 plausible approaches when there is a meaningful design choice.

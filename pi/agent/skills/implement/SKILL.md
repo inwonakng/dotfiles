@@ -77,7 +77,7 @@ For complex tasks without a plan file, prefer this stricter loop:
 
 1. Implement one slice.
 2. Run local verification for that slice.
-3. Use `defer_task` in readonly mode with `agent: "reviewer"` for a focused review.
+3. Use `spawn` in readonly mode with `agent: "reviewer"` for a focused review, then `spawn_control join` before relying on the review.
 4. Fix Critical/Important findings before moving on.
 
 If the complex task becomes plan-shaped, stop and either write/confirm a plan or route to `subagent-driven-implementation`.

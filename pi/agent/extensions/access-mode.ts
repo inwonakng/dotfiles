@@ -7,12 +7,10 @@ import { generateUnifiedPatch } from "@earendil-works/pi-coding-agent";
 import assert from "node:assert";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { getAccessMode, parseAccessMode, setAccessMode, type AccessMode } from "./shared/access-state";
 import { notificationsEnabled, sendAlerterNotification } from "./shared/notifications";
 
-type AccessMode = "readonly" | "write";
 type PermissionDecision = "allow" | "ask";
-
-const ACCESS_MODES: AccessMode[] = ["readonly", "write"];
 const WRITE_TOOLS = new Set(["edit", "write"]);
 const MUTATING_FILE_COMMANDS =
   "rm|rmdir|mv|cp|mkdir|touch|chmod|chown|chgrp|ln|tee|truncate|dd|shred";
@@ -99,17 +97,7 @@ const READONLY_BASH_DENYLIST: Array<{ pattern: RegExp; reason: string }> = [
   },
 ];
 
-function parseAccessMode(input: string | undefined): AccessMode | undefined {
-  if (!input) {
-    return undefined;
-  }
-  const value = input.trim().toLowerCase();
-  return ACCESS_MODES.find((mode) => mode === value);
-}
-
-let accessMode: AccessMode =
-  parseAccessMode(process.env.PI_DEFER_ACCESS_MODE) ?? "readonly";
-const isDeferredAgent = process.env.PI_DEFER_AGENT === "1";
+const isSpawnedAgent = process.env.PI_SPAWN_AGENT === "1";
 
 function commandPattern(commands: string): RegExp {
   return new RegExp(`${COMMAND_START}(?:${commands})\\b`, "i");
@@ -131,6 +119,7 @@ function notifyPermissionRequest(pi: ExtensionAPI, ctx: ExtensionContext): void 
 }
 
 function modeDescription(): string {
+  const accessMode = getAccessMode();
   if (accessMode === "readonly") {
     return [
       "Read-only work is allowed.",
@@ -205,7 +194,7 @@ function bashPermission(input: Record<string, unknown>): PermissionDecision {
 }
 
 function setStatus(ctx: ExtensionContext): void {
-  ctx.ui.setStatus("pi-access-mode", `Mode: ${accessMode}`);
+  ctx.ui.setStatus("pi-access-mode", `Mode: ${getAccessMode()}`);
 }
 
 function toolSummary(event: ToolCallEvent): string {
@@ -310,7 +299,7 @@ function previewForTool(
   if (event.toolName === "bash") {
     return {
       filetype: "sh",
-      text: `# cwd: ${ctx.cwd}\n# mode: ${accessMode}\n\n${typeof input.command === "string" ? input.command : jsonPreview(input)}`,
+      text: `# cwd: ${ctx.cwd}\n# mode: ${getAccessMode()}\n\n${typeof input.command === "string" ? input.command : jsonPreview(input)}`,
     };
   }
   if (event.toolName === "edit") {
@@ -327,7 +316,7 @@ function approvalPayload(event: ToolCallEvent, ctx: ExtensionContext): string {
   return JSON.stringify({
     kind: "pi_approval_preview",
     tool: event.toolName,
-    mode: accessMode,
+    mode: getAccessMode(),
     summary: toolSummary(event),
     preview_filetype: preview.filetype,
     preview: preview.text,
@@ -341,23 +330,31 @@ export default function accessModeExtension(pi: ExtensionAPI) {
   });
 
   pi.on("before_agent_start", (event) => {
-    const deferredNote =
-      isDeferredAgent && accessMode === "readonly"
-        ? " This is a deferred subagent: actions requiring approval are blocked instead of asking the user. If blocked, stop and report BLOCKED with the exact action that required write access."
+    const accessMode = getAccessMode();
+    const spawnedNote =
+      isSpawnedAgent && accessMode === "readonly"
+        ? " This is a spawned subagent: actions requiring approval are blocked instead of asking the user. If blocked, stop and report BLOCKED with the exact action that required write access."
         : "";
     return {
-      systemPrompt: `${event.systemPrompt}\n\nAccess mode: ${accessMode}. ${modeDescription()}${deferredNote}`,
+      systemPrompt: `${event.systemPrompt}\n\nAccess mode: ${accessMode}. ${modeDescription()}${spawnedNote}`,
     };
   });
 
   pi.on("tool_call", async (event, ctx) => {
     setStatus(ctx);
 
+    const accessMode = getAccessMode();
     if (accessMode === "write") {
       return undefined;
     }
 
     const input = event.input as Record<string, unknown>;
+    if (event.toolName === "spawn" && (input.accessMode === "write" || input.isolation === "worktree")) {
+      return {
+        block: true,
+        reason: "Spawning write-capable subagents requires parent access mode write. Run /pi-mode write before delegating write work.",
+      };
+    }
     if (event.toolName === "bash") {
       if (bashPermission(input) === "allow") {
         return undefined;
@@ -366,10 +363,10 @@ export default function accessModeExtension(pi: ExtensionAPI) {
       return undefined;
     }
 
-    if (isDeferredAgent) {
+    if (isSpawnedAgent) {
       return {
         block: true,
-        reason: `Tool "${event.toolName}" requires approval${event.toolName === "bash" && typeof input.command === "string" ? ` (${readonlyBashBlockReason(input.command) ?? "not read-only"})` : ""}, but this deferred agent is running in readonly mode.`,
+        reason: `Tool "${event.toolName}" requires approval${event.toolName === "bash" && typeof input.command === "string" ? ` (${readonlyBashBlockReason(input.command) ?? "not read-only"})` : ""}, but this spawned subagent is running in readonly mode.`,
       };
     }
 
@@ -406,9 +403,9 @@ export default function accessModeExtension(pi: ExtensionAPI) {
         return;
       }
 
-      accessMode = requestedMode;
+      setAccessMode(requestedMode);
       setStatus(ctx);
-      ctx.ui.notify(`Access mode: ${accessMode}`, "info");
+      ctx.ui.notify(`Access mode: ${getAccessMode()}`, "info");
     },
   });
 }

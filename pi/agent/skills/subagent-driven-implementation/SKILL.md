@@ -7,7 +7,7 @@ description: Use when executing an approved implementation plan file, multiple p
 
 Use this skill to execute approved implementation plans through a main-agent controller and bounded Pi subagents.
 
-This is the high-level implementation workflow. The `defer` skill is the low-level policy for using `defer_task` safely. Load and follow `defer` before the first `defer_task` call in this workflow.
+This is the high-level implementation workflow. The `defer` skill is the low-level policy for using `spawn` / `spawn_control` safely. Load and follow `defer` before the first spawned subagent in this workflow.
 
 ## When to Stop and Ask First
 
@@ -98,7 +98,7 @@ Keep exactly one todo in progress.
 
 ### 3. Run subagent plan preflight
 
-Before editing a plan-file implementation, use `defer_task` in readonly mode with `agent: "planner"` or `agent: "reviewer"` to inspect the plan for:
+Before editing a plan-file implementation, use `spawn` in readonly mode with `agent: "planner"` or `agent: "reviewer"` to inspect the plan, then `spawn_control join` before relying on its result. Ask it to check for:
 
 - blocking ambiguities
 - missing context

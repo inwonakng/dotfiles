@@ -411,21 +411,21 @@ function M.handle_event(ctx, event)
 		if event.toolName == "edit" or event.toolName == "write" or event.toolName == "bash" then
 			ctx.record_tool_execution_call(event.toolName, event.toolCallId, event.args)
 		end
-		if event.toolName == "defer_task" then
+		if event.toolName == "spawn" or event.toolName == "spawn_control" then
 			render_or_update_live_tool(ctx, event, "Subagent starting…", { status = "running" })
 		end
-		-- Non-defer tool output is rendered from the final toolResult message. Rendering
+		-- Non-spawn tool output is rendered from the final toolResult message. Rendering
 		-- every tool_execution_* stream creates empty/duplicate tool blocks for tools
 		-- that only publish their output at completion.
 		return
 	elseif event.type == "tool_execution_update" then
-		if event.toolName == "defer_task" then
+		if event.toolName == "spawn" or event.toolName == "spawn_control" then
 			local partial = type(event.partialResult) == "table" and event.partialResult or {}
 			render_or_update_live_tool(ctx, event, partial_result_text(partial), partial.details or { status = "running" })
 		end
 		return
 	elseif event.type == "tool_execution_end" then
-		if event.toolName == "defer_task" then
+		if event.toolName == "spawn" or event.toolName == "spawn_control" then
 			local result = type(event.result) == "table" and event.result or {}
 			render_or_update_live_tool(ctx, event, message_utils.extract_content_text(result.content), result.details or {})
 		end
