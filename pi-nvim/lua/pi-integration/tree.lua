@@ -356,6 +356,21 @@ local function update_preview(ctx)
 	ctx.set_buffer_lines(ctx.state.tree_preview_buf, preview_lines(ctx, current_node(ctx)), false)
 end
 
+local function ensure_session_for_tree_command(ctx)
+	local path = ctx.state.session_file or ctx.state.pending_session_file
+	if not (ctx.state.job and ctx.state.job > 0) then
+		if not path or path == "" then
+			ctx.notify("No Pi session selected yet.", vim.log.levels.WARN)
+			return nil
+		end
+		-- ctx.send() starts Pi RPC lazily. Preserve the selected session as a
+		-- pending session so rpc.argv() attaches to it with --session on startup.
+		ctx.state.pending_session_file = path
+		ctx.state.session_file = ctx.state.session_file or path
+	end
+	return path
+end
+
 local function jump_to_node(ctx, summarize)
 	local node = current_node(ctx)
 	if not node then
@@ -365,24 +380,45 @@ local function jump_to_node(ctx, summarize)
 		return
 	end
 	local entry_id = node.record.id
-	local path = ctx.state.session_file or ctx.state.pending_session_file
-	close_tree_window(ctx)
-
-	if not (ctx.state.job and ctx.state.job > 0) then
-		if not path or path == "" then
-			ctx.notify("No Pi session selected yet.", vim.log.levels.WARN)
-			return
-		end
-		-- ctx.send() starts Pi RPC lazily. Preserve the selected session as a
-		-- pending session so rpc.argv() attaches to it with --session on startup.
-		ctx.state.pending_session_file = path
-		ctx.state.session_file = ctx.state.session_file or path
+	if not ensure_session_for_tree_command(ctx) then
+		return
 	end
+	close_tree_window(ctx)
 
 	local message = "/pi-tree-jump " .. entry_id .. (summarize and " --summary" or "")
 	ctx.send({ type = "prompt", message = message }, function(event)
 		if not event.success then
 			ctx.notify(event.error or "Could not navigate session tree", vim.log.levels.ERROR)
+			return
+		end
+		ctx.send({ type = "get_state" }, function(state_event)
+			if state_event.success and state_event.data then
+				ctx.apply_session_state(state_event.data)
+			end
+			ctx.actions.refresh_messages()
+			focus_input_window(ctx)
+		end)
+	end)
+end
+
+local function delete_node(ctx)
+	local node = current_node(ctx)
+	if not node then
+		return
+	end
+	if not guard.if_not_active(ctx, "deleting history") then
+		return
+	end
+	if not ensure_session_for_tree_command(ctx) then
+		return
+	end
+
+	local entry_id = node.record.id
+	close_tree_window(ctx)
+
+	ctx.send({ type = "prompt", message = "/pi-tree-delete " .. entry_id .. " --yes" }, function(event)
+		if not event.success then
+			ctx.notify(event.error or "Could not delete session tree entry", vim.log.levels.ERROR)
 			return
 		end
 		ctx.send({ type = "get_state" }, function(state_event)
@@ -419,7 +455,7 @@ function M.show(ctx)
 	local lines = {
 		"Pi session tree",
 		"Filter: " .. (state.tree_filter_mode or "default") .. "    Layout: compressed",
-		"<CR> jump   S jump with summary   o cycle filter   r refresh   q close",
+		"<CR> jump   S jump with summary   d delete subtree   o cycle filter   r refresh   q close",
 		"",
 	}
 	state.tree_nodes_by_line = {}
@@ -479,6 +515,9 @@ function M.show(ctx)
 	vim.keymap.set("n", "S", function()
 		jump_to_node(ctx, true)
 	end, { buffer = state.tree_buf, desc = "Jump to tree entry with summary" })
+	vim.keymap.set("n", "d", function()
+		delete_node(ctx)
+	end, { buffer = state.tree_buf, desc = "Delete Pi tree entry subtree" })
 	vim.keymap.set("n", "o", function()
 		cycle_filter_mode(ctx)
 		M.show(ctx)

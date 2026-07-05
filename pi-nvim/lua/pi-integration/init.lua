@@ -550,16 +550,23 @@ render_messages = function(messages)
 		return
 	end
 
+	local ctx = transcript_ctx()
+	local preserve_view = pi_transcript.is_focused(ctx)
+
 	state.last_updated = os.date("%Y-%m-%d %H:%M:%S %z")
 	reset_transcript_outputs()
 	local lines, items = collect_message_lines(messages)
-	set_buffer_lines(state.transcript_buf, lines, false)
+	pi_transcript.preserve_focused_view(ctx, function()
+		set_buffer_lines(state.transcript_buf, lines, false)
+	end)
 	apply_collected_transcript_items(items)
 	update_transcript_bottom_padding()
 	update_transcript_statusline()
 	render_transcript()
-	scroll_transcript_to_bottom()
-	vim.schedule(scroll_transcript_to_bottom)
+	if not preserve_view then
+		scroll_transcript_to_bottom()
+		vim.schedule(scroll_transcript_to_bottom)
+	end
 end
 
 function M.refresh_messages()
