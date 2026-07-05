@@ -1,18 +1,10 @@
 local M = {}
 
+local json = require("pi-integration.utils.json")
 local pi_skills = require("pi-integration.skills")
 
 function M.decode_session_record(line)
-	local ok, decoded
-	if vim.json and vim.json.decode then
-		ok, decoded = pcall(vim.json.decode, line)
-	else
-		ok, decoded = pcall(vim.fn.json_decode, line)
-	end
-	if ok and type(decoded) == "table" then
-		return decoded
-	end
-	return nil
+	return json.decode_object(line)
 end
 
 local function apply_session_record_metadata(ctx, records)

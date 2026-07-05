@@ -1,30 +1,14 @@
 local M = {}
 
+local json = require("pi-integration.utils.json")
+local message_utils = require("pi-integration.utils.message")
 local pi_skills = require("pi-integration.skills")
-
-local function extract_text_from_content(content)
-	if type(content) == "string" then
-		return content
-	end
-	if type(content) ~= "table" then
-		return ""
-	end
-	local chunks = {}
-	for _, item in ipairs(content) do
-		if type(item) == "string" then
-			table.insert(chunks, item)
-		elseif type(item) == "table" then
-			table.insert(chunks, item.text or item.content or item.delta or "")
-		end
-	end
-	return table.concat(chunks, "")
-end
 
 local function partial_result_text(partial_result)
 	if type(partial_result) ~= "table" then
 		return ""
 	end
-	return extract_text_from_content(partial_result.content)
+	return message_utils.extract_content_text(partial_result.content)
 end
 
 local function render_or_update_live_tool(ctx, event, text, details)
@@ -91,7 +75,7 @@ function M.render_message(ctx, message)
 	end
 	if role == "toolResult" then
 		local name = message.toolName or "tool"
-		local tool_call_id = message.toolCallId or message.tool_call_id or message.id
+		local tool_call_id = message_utils.tool_call_id(message)
 		local live_output_id = ctx.live_tool_output_id(tool_call_id)
 		if live_output_id then
 			ctx.store_or_update_live_tool_output(name, tool_call_id, text, nil, message.details, ctx.store_tool_display and ctx.store_tool_display(message) or nil)
@@ -128,13 +112,8 @@ local function decode_approval_payload(message)
 	if type(message) ~= "string" or message == "" then
 		return nil
 	end
-	local ok, decoded
-	if vim.json and vim.json.decode then
-		ok, decoded = pcall(vim.json.decode, message)
-	else
-		ok, decoded = pcall(vim.fn.json_decode, message)
-	end
-	if not ok or type(decoded) ~= "table" or decoded.kind ~= "pi_approval_preview" then
+	local decoded = json.decode_object(message)
+	if not decoded or decoded.kind ~= "pi_approval_preview" then
 		return nil
 	end
 	return decoded
@@ -448,7 +427,7 @@ function M.handle_event(ctx, event)
 	elseif event.type == "tool_execution_end" then
 		if event.toolName == "defer_task" then
 			local result = type(event.result) == "table" and event.result or {}
-			render_or_update_live_tool(ctx, event, extract_text_from_content(result.content), result.details or {})
+			render_or_update_live_tool(ctx, event, message_utils.extract_content_text(result.content), result.details or {})
 		end
 		return
 	elseif event.type == "queue_update" then

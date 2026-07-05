@@ -1,6 +1,13 @@
 local floats = require("pi-integration.floats")
+local json = require("pi-integration.utils.json")
+local message_utils = require("pi-integration.utils.message")
 
 local M = {}
+
+local path_from_args = message_utils.path_from_args
+local tool_call_id = message_utils.tool_call_id
+local tool_call_name = message_utils.tool_call_name
+local tool_call_arguments = message_utils.tool_call_arguments
 
 local function line_count_text(text)
 	if type(text) ~= "string" or text == "" then
@@ -21,8 +28,7 @@ local function looks_like_json(text)
 	if not (trimmed:sub(1, 1) == "{" or trimmed:sub(1, 1) == "[") then
 		return false
 	end
-	local ok = pcall(vim.json.decode, trimmed)
-	return ok
+	return json.decode(trimmed) ~= nil
 end
 
 local function infer_filetype(tool_name, text)
@@ -33,13 +39,6 @@ local function infer_filetype(tool_name, text)
 		return "diff"
 	end
 	return "text"
-end
-
-local function path_from_args(args)
-	if type(args) ~= "table" then
-		return nil
-	end
-	return args.path or args.file_path
 end
 
 local function output_path(output)
@@ -96,33 +95,6 @@ local function edit_args_to_before_after(args)
 		table.insert(after_parts, edit.newText)
 	end
 	return table.concat(before_parts, "\n"), table.concat(after_parts, "\n"), nil
-end
-
-local function tool_call_id(item)
-	return item.id or item.toolCallId or item.tool_call_id or item.callId
-end
-
-local function tool_call_name(item)
-	return item.name or item.toolName or item.tool_name
-end
-
-local function decode_json_object(text)
-	if type(text) ~= "string" or text == "" then
-		return nil
-	end
-	local ok, decoded = pcall(vim.json.decode, text)
-	if ok and type(decoded) == "table" then
-		return decoded
-	end
-	return nil
-end
-
-local function tool_call_arguments(item)
-	local args = item.arguments or item.args or item.input
-	if type(args) == "table" then
-		return args
-	end
-	return decode_json_object(args)
 end
 
 local function compact_text(text)

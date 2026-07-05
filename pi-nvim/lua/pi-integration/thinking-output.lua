@@ -1,4 +1,5 @@
 local floats = require("pi-integration.floats")
+local buffer_utils = require("pi-integration.utils.buffer")
 
 local M = {}
 
@@ -75,14 +76,11 @@ function M.open_float(ctx, output_id)
 	local row = math.floor((vim.o.lines - height) / 2)
 	local col = math.floor((vim.o.columns - width) / 2)
 
-	local buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_name(buf, "pi://thinking/" .. output_id)
-	vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
-	vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
-	vim.api.nvim_set_option_value("swapfile", false, { buf = buf })
-	vim.api.nvim_set_option_value("filetype", output.filetype or "markdown", { buf = buf })
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(output.text or "", "\n", { plain = true }))
-	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+	local buf = buffer_utils.create_scratch({
+		name = "pi://thinking/" .. output_id,
+		filetype = output.filetype or "markdown",
+		lines = vim.split(output.text or "", "\n", { plain = true }),
+	})
 
 	local win = vim.api.nvim_open_win(buf, true, {
 		relative = "editor",

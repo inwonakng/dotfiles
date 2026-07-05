@@ -1,34 +1,6 @@
+local guard = require("pi-integration.utils.guard")
+
 local M = {}
-
-local function active_run_message(ctx, action)
-	local state = ctx.state
-	local prefix = state.is_retrying and "Pi is retrying" or "Pi is still running"
-	return prefix .. "; wait or abort before " .. action .. "."
-end
-
-local function guard_active_run(ctx, action)
-	if ctx.is_agent_active and ctx.is_agent_active() then
-		ctx.notify(active_run_message(ctx, action), vim.log.levels.WARN)
-		return false
-	end
-	return true
-end
-
-local function confirm_abort_active_run(ctx, action, proceed)
-	if not (ctx.is_agent_active and ctx.is_agent_active()) then
-		proceed()
-		return
-	end
-	local prompt = (ctx.state.is_retrying and "Pi is retrying" or "Pi is still running")
-		.. ". "
-		.. action
-		.. " will abort the current run. Continue?"
-	vim.ui.select({ "Continue", "Cancel" }, { prompt = prompt }, function(choice)
-		if choice == "Continue" then
-			proceed()
-		end
-	end)
-end
 
 local function apply_session_cache_footprint(stats, messages)
 	if type(stats) ~= "table" or type(stats.tokens) ~= "table" or type(messages) ~= "table" then
@@ -116,7 +88,7 @@ function M.abort(ctx)
 end
 
 function M.history(ctx)
-	if not guard_active_run(ctx, "changing history") then
+	if not guard.if_not_active(ctx, "changing history") then
 		return
 	end
 	ctx.send({ type = "prompt", message = "/pi-history" }, function(event)
@@ -184,7 +156,7 @@ function M.new_session(ctx)
 		end)
 	end
 
-	confirm_abort_active_run(ctx, "Starting a new session", proceed)
+	guard.confirm_abort_active_run(ctx, "Starting a new session", proceed)
 end
 
 return M

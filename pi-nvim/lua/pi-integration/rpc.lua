@@ -1,20 +1,10 @@
+local json = require("pi-integration.utils.json")
+
 local M = {}
 
-local function encode_json(obj)
-	if vim.json and vim.json.encode then
-		return vim.json.encode(obj)
-	end
-	return vim.fn.json_encode(obj)
-end
-
 local function decode_json(ctx, line)
-	local ok, decoded
-	if vim.json and vim.json.decode then
-		ok, decoded = pcall(vim.json.decode, line)
-	else
-		ok, decoded = pcall(vim.fn.json_decode, line)
-	end
-	if ok then
+	local decoded = json.decode(line)
+	if decoded ~= nil then
 		return decoded
 	end
 	ctx.render_error_message("Pi Error", "Bad JSON from pi: " .. line)
@@ -187,7 +177,7 @@ function M.send(ctx, cmd, callback)
 		state.callbacks[cmd.id] = callback
 	end
 
-	local line = encode_json(cmd) .. "\n"
+	local line = json.encode(cmd) .. "\n"
 	local sent = vim.fn.chansend(state.job, line)
 	if sent == 0 then
 		if cmd.id then

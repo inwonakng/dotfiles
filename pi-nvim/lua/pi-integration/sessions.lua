@@ -1,20 +1,8 @@
-local M = {}
+local guard = require("pi-integration.utils.guard")
+local json = require("pi-integration.utils.json")
+local message_utils = require("pi-integration.utils.message")
 
-local function confirm_abort_active_run(ctx, action, proceed)
-	if not (ctx.is_agent_active and ctx.is_agent_active()) then
-		proceed()
-		return
-	end
-	local prompt = (ctx.state.is_retrying and "Pi is retrying" or "Pi is still running")
-		.. ". "
-		.. action
-		.. " will abort the current run. Continue?"
-	vim.ui.select({ "Continue", "Cancel" }, { prompt = prompt }, function(choice)
-		if choice == "Continue" then
-			proceed()
-		end
-	end)
-end
+local M = {}
 
 local function dirname(path)
 	if not path or path == "" then
@@ -24,37 +12,11 @@ local function dirname(path)
 end
 
 local function decode_record(line)
-	local ok, decoded
-	if vim.json and vim.json.decode then
-		ok, decoded = pcall(vim.json.decode, line)
-	else
-		ok, decoded = pcall(vim.fn.json_decode, line)
-	end
-	if ok and type(decoded) == "table" then
-		return decoded
-	end
-	return nil
+	return json.decode_object(line)
 end
 
 local function record_message_text(message)
-	if type(message) ~= "table" then
-		return nil
-	end
-	if type(message.content) == "string" then
-		return message.content
-	end
-	if type(message.content) == "table" then
-		local chunks = {}
-		for _, item in ipairs(message.content) do
-			if type(item) == "string" then
-				table.insert(chunks, item)
-			elseif type(item) == "table" and item.type == "text" and type(item.text) == "string" then
-				table.insert(chunks, item.text)
-			end
-		end
-		return table.concat(chunks, "")
-	end
-	return nil
+	return message_utils.extract_text(message)
 end
 
 local function fallback_title(text)
@@ -217,7 +179,7 @@ function M.pick(ctx)
 			end)
 		end
 
-		confirm_abort_active_run(ctx, "Switching sessions", proceed)
+		guard.confirm_abort_active_run(ctx, "Switching sessions", proceed)
 	end)
 end
 

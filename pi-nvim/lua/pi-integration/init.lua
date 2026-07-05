@@ -4,6 +4,7 @@ local INITIAL_SESSION_NOTICE = "No Pi session started yet. Send a message or pic
 local NEW_SESSION_NOTICE = "New session."
 local PENDING_NEW_SESSION_NOTICE = "New session will be created when you send a message."
 
+local message_utils = require("pi-integration.utils.message")
 local state = require("pi-integration.state").new()
 
 M.config = {
@@ -174,7 +175,7 @@ local function record_tool_execution_call(tool_name, tool_call_id, args)
 end
 
 local function store_tool_output(tool_name, text, filetype, details, message)
-	local tool_call_id = message and (message.toolCallId or message.tool_call_id or message.id)
+	local tool_call_id = message_utils.tool_call_id(message)
 	return pi_tool_output.store(state, tool_name, text, filetype, details, pi_tool_output.display_for_result(state, message), tool_call_id)
 end
 
@@ -352,30 +353,7 @@ local function set_input_text(text)
 end
 
 extract_text = function(message)
-	if type(message) ~= "table" then
-		return nil
-	end
-	if type(message.text) == "string" then
-		return message.text
-	end
-	if type(message.message) == "string" then
-		return message.message
-	end
-	if type(message.content) == "string" then
-		return message.content
-	end
-	if type(message.content) == "table" then
-		local chunks = {}
-		for _, item in ipairs(message.content) do
-			if type(item) == "string" then
-				table.insert(chunks, item)
-			elseif type(item) == "table" then
-				table.insert(chunks, item.text or item.content or item.delta or "")
-			end
-		end
-		return table.concat(chunks, "")
-	end
-	return nil
+	return message_utils.extract_text(message)
 end
 
 local function handle_response(event)

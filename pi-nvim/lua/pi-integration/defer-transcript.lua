@@ -1,4 +1,7 @@
 local floats = require("pi-integration.floats")
+local buffer_utils = require("pi-integration.utils.buffer")
+local json = require("pi-integration.utils.json")
+local message_utils = require("pi-integration.utils.message")
 local pi_messages = require("pi-integration.messages")
 local pi_tool_output = require("pi-integration.tool-output")
 local pi_thinking_output = require("pi-integration.thinking-output")
@@ -8,43 +11,11 @@ local pi_transcript = require("pi-integration.transcript")
 local M = {}
 
 local function decode_json(line)
-	local ok, decoded
-	if vim.json and vim.json.decode then
-		ok, decoded = pcall(vim.json.decode, line)
-	else
-		ok, decoded = pcall(vim.fn.json_decode, line)
-	end
-	if ok and type(decoded) == "table" then
-		return decoded
-	end
-	return nil
+	return json.decode_object(line)
 end
 
 local function extract_text(message)
-	if type(message) ~= "table" then
-		return nil
-	end
-	if type(message.text) == "string" then
-		return message.text
-	end
-	if type(message.message) == "string" then
-		return message.message
-	end
-	if type(message.content) == "string" then
-		return message.content
-	end
-	if type(message.content) == "table" then
-		local chunks = {}
-		for _, item in ipairs(message.content) do
-			if type(item) == "string" then
-				table.insert(chunks, item)
-			elseif type(item) == "table" then
-				table.insert(chunks, item.text or item.content or item.delta or "")
-			end
-		end
-		return table.concat(chunks, "")
-	end
-	return nil
+	return message_utils.extract_text(message)
 end
 
 local function read_messages(path)
@@ -60,16 +31,6 @@ local function read_messages(path)
 		end
 	end
 	return messages
-end
-
-local function valid_buf(buf)
-	return buf and vim.api.nvim_buf_is_valid(buf)
-end
-
-local function set_modifiable(buf, value)
-	if valid_buf(buf) then
-		vim.api.nvim_set_option_value("modifiable", value, { buf = buf })
-	end
 end
 
 local function metadata_lines(path)
@@ -96,7 +57,7 @@ local function make_render_ctx(state, path)
 			return pi_tool_output.record_execution_call(state, tool_name, tool_call_id, args)
 		end,
 		store_tool_output = function(tool_name, text, filetype, details, message)
-			local tool_call_id = message and (message.toolCallId or message.tool_call_id or message.id)
+			local tool_call_id = message_utils.tool_call_id(message)
 			return pi_tool_output.store(state, tool_name, text, filetype, details, pi_tool_output.display_for_result(state, message), tool_call_id)
 		end,
 		tool_output_summary_lines = function(output_id)
@@ -133,8 +94,8 @@ end
 local function transcript_ctx(state)
 	return {
 		state = state,
-		valid_buf = valid_buf,
-		set_modifiable = set_modifiable,
+		valid_buf = buffer_utils.valid,
+		set_modifiable = buffer_utils.set_modifiable,
 		update_transcript_statusline = function() end,
 	}
 end
@@ -197,21 +158,17 @@ function M.open(ctx, path, title)
 		transcript_win = nil,
 	}
 
-	local buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_name(buf, "pi://defer/transcript/" .. vim.fn.fnamemodify(path, ":h:t"))
-	vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
-	vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
-	vim.api.nvim_set_option_value("swapfile", false, { buf = buf })
-	vim.api.nvim_set_option_value("filetype", "markdown", { buf = buf })
-	pcall(vim.treesitter.start, buf, "markdown")
+	local buf = buffer_utils.create_scratch({
+		name = "pi://defer/transcript/" .. vim.fn.fnamemodify(path, ":h:t"),
+		filetype = "markdown",
+		treesitter = "markdown",
+	})
 
 	state.transcript_buf = buf
 
 	local function refresh()
 		local lines = render_lines(path, state)
-		set_modifiable(buf, true)
-		vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-		set_modifiable(buf, false)
+		buffer_utils.set_lines(buf, lines, false)
 		if state.transcript_win then
 			render_transcript_ui(state)
 		end

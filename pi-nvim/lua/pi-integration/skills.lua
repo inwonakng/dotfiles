@@ -1,4 +1,6 @@
 local floats = require("pi-integration.floats")
+local buffer_utils = require("pi-integration.utils.buffer")
+local message_utils = require("pi-integration.utils.message")
 
 local M = {}
 
@@ -42,17 +44,8 @@ function M.skill_name_from_read_path(path)
 	return nil
 end
 
-local function tool_call_id(item)
-	return item.id or item.toolCallId or item.tool_call_id or item.callId
-end
-
-local function tool_call_arguments(item)
-	local args = item.arguments or item.args or item.input
-	if type(args) == "table" then
-		return args
-	end
-	return nil
-end
+local tool_call_id = message_utils.tool_call_id
+local tool_call_arguments = message_utils.tool_call_arguments
 
 local function skill_load_from_content_item(item)
 	if type(item) ~= "table" then
@@ -128,7 +121,7 @@ local function tool_result_skill_load(state, message)
 	if type(message) ~= "table" then
 		return nil
 	end
-	local id = message.toolCallId or message.tool_call_id or message.id
+	local id = message_utils.tool_call_id(message)
 	if not id then
 		return nil
 	end
@@ -190,15 +183,12 @@ function M.open_float(ctx, output_id)
 	local row = math.floor((vim.o.lines - height) / 2)
 	local col = math.floor((vim.o.columns - width) / 2)
 
-	local buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_name(buf, "pi://skill/" .. output_id .. "/" .. sanitize_buf_name_part(output.name))
-	vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
-	vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
-	vim.api.nvim_set_option_value("swapfile", false, { buf = buf })
-	vim.api.nvim_set_option_value("filetype", output.filetype or "markdown", { buf = buf })
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(text, "\n", { plain = true }))
-	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
-	pcall(vim.treesitter.start, buf, "markdown")
+	local buf = buffer_utils.create_scratch({
+		name = "pi://skill/" .. output_id .. "/" .. sanitize_buf_name_part(output.name),
+		filetype = output.filetype or "markdown",
+		lines = vim.split(text, "\n", { plain = true }),
+		treesitter = "markdown",
+	})
 
 	local win = vim.api.nvim_open_win(buf, true, {
 		relative = "editor",

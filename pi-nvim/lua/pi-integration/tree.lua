@@ -1,4 +1,6 @@
 local floats = require("pi-integration.floats")
+local guard = require("pi-integration.utils.guard")
+local json = require("pi-integration.utils.json")
 
 local M = {}
 
@@ -6,16 +8,7 @@ local tree_preview_augroup = vim.api.nvim_create_augroup("PiNvimTreePreview", { 
 local tree_sender_ns = vim.api.nvim_create_namespace("pi-nvim-tree-senders")
 
 local function decode_record(line)
-	local ok, decoded
-	if vim.json and vim.json.decode then
-		ok, decoded = pcall(vim.json.decode, line)
-	else
-		ok, decoded = pcall(vim.fn.json_decode, line)
-	end
-	if ok and type(decoded) == "table" then
-		return decoded
-	end
-	return nil
+	return json.decode_object(line)
 end
 
 local function record_text(ctx, record)
@@ -231,28 +224,52 @@ local function record_title_highlight(record)
 	return "PiTreeMeta"
 end
 
-local function render_nodes(ctx, nodes, leaf_id, lines, line_nodes, sender_highlights, prefix)
-	for index, node in ipairs(nodes) do
-		local is_last = index == #nodes
-		local connector = prefix == "" and "" or (is_last and "└─ " or "├─ ")
-		local child_prefix = prefix .. (is_last and "   " or "│  ")
-		local record = node.record
-		local current = record.id == leaf_id
-		local marker = current and "●" or "○"
-		local title = record_title(record)
-		local label_prefix = string.format("%s%s %s %s  ", prefix, connector, marker, record.id)
-		local label = label_prefix .. title .. ": " .. compact_text(record_text(ctx, record))
-		if current then
-			label = label .. "  ← current"
-		end
-		table.insert(lines, label)
-		line_nodes[#lines] = node
-		sender_highlights[#lines] = {
-			start_col = #label_prefix,
-			end_col = #label_prefix + #title,
-			hl_group = record_title_highlight(record),
-		}
-		render_nodes(ctx, node.children, leaf_id, lines, line_nodes, sender_highlights, child_prefix)
+local function render_node_line(ctx, node, leaf_id, lines, line_nodes, sender_highlights, line_prefix)
+	local record = node.record
+	local current = record.id == leaf_id
+	local marker = current and "●" or "○"
+	local title = record_title(record)
+	local label_prefix = string.format("%s%s %s  ", line_prefix, marker, record.id)
+	local label = label_prefix .. title .. ": " .. compact_text(record_text(ctx, record))
+	if current then
+		label = label .. "  ← current"
+	end
+	table.insert(lines, label)
+	line_nodes[#lines] = node
+	sender_highlights[#lines] = {
+		start_col = #label_prefix,
+		end_col = #label_prefix + #title,
+		hl_group = record_title_highlight(record),
+	}
+end
+
+local function render_node(ctx, node, leaf_id, lines, line_nodes, sender_highlights, line_prefix, child_prefix)
+	render_node_line(ctx, node, leaf_id, lines, line_nodes, sender_highlights, line_prefix)
+
+	local child_count = #node.children
+	if child_count == 0 then
+		return
+	end
+
+	if child_count == 1 then
+		-- Most session history is a single parent→child chain. Keep that
+		-- continuation visually flat so long conversations do not drift right.
+		render_node(ctx, node.children[1], leaf_id, lines, line_nodes, sender_highlights, child_prefix, child_prefix)
+		return
+	end
+
+	-- Only spend horizontal space when there is an actual branch.
+	for index, child in ipairs(node.children) do
+		local is_last = index == child_count
+		local connector = is_last and "└─ " or "├─ "
+		local next_child_prefix = child_prefix .. (is_last and "   " or "│  ")
+		render_node(ctx, child, leaf_id, lines, line_nodes, sender_highlights, child_prefix .. connector, next_child_prefix)
+	end
+end
+
+local function render_nodes(ctx, nodes, leaf_id, lines, line_nodes, sender_highlights)
+	for _, node in ipairs(nodes) do
+		render_node(ctx, node, leaf_id, lines, line_nodes, sender_highlights, "", "")
 	end
 end
 
@@ -344,9 +361,7 @@ local function jump_to_node(ctx, summarize)
 	if not node then
 		return
 	end
-	if ctx.is_agent_active and ctx.is_agent_active() then
-		local prefix = ctx.state.is_retrying and "Pi is retrying" or "Pi is still running"
-		ctx.notify(prefix .. "; wait or abort before changing history.", vim.log.levels.WARN)
+	if not guard.if_not_active(ctx, "changing history") then
 		return
 	end
 	local entry_id = node.record.id
@@ -403,13 +418,13 @@ function M.show(ctx)
 
 	local lines = {
 		"Pi session tree",
-		"Filter: " .. (state.tree_filter_mode or "default"),
+		"Filter: " .. (state.tree_filter_mode or "default") .. "    Layout: compressed",
 		"<CR> jump   S jump with summary   o cycle filter   r refresh   q close",
 		"",
 	}
 	state.tree_nodes_by_line = {}
 	state.tree_sender_highlights_by_line = {}
-	render_nodes(ctx, roots, leaf_id, lines, state.tree_nodes_by_line, state.tree_sender_highlights_by_line, "")
+	render_nodes(ctx, roots, leaf_id, lines, state.tree_nodes_by_line, state.tree_sender_highlights_by_line)
 	ctx.set_buffer_lines(state.tree_buf, lines, false)
 	apply_sender_highlights(ctx)
 
