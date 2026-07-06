@@ -250,6 +250,10 @@ local function open_spawn_text(ctx, title, path, filetype)
 	end, { buffer = state.spawn_buf, silent = true, desc = "Yank spawn output" })
 end
 
+local function is_todo_tool_name(name)
+	return name == "todowrite" or name == "todo_write"
+end
+
 local function open_spawn_artifacts(ctx, output)
 	if not output.spawn then
 		return false
@@ -293,6 +297,8 @@ function M.reset(state)
 	state.tool_calls = {}
 	state.live_tool_output_by_call = {}
 	state.live_tool_lines = {}
+	state.todo_tool_output_id = nil
+	state.todo_tool_line = nil
 end
 
 function M.record_calls(state, message)
@@ -549,6 +555,9 @@ function M.summary_lines(state, output_id)
 			table.insert(parts, "artifacts")
 		end
 		return { table.concat(parts, " · ") }
+	elseif is_todo_tool_name(output.name) then
+		local status = type(state.todo_status) == "string" and state.todo_status ~= "" and state.todo_status or nil
+		return { "> 󰇥 Todo: " .. (status or line_label) }
 	elseif output.display and output.display.kind == "bash" and output.display.command then
 		label = "Bash: " .. markdown_code_span(command_preview(output.display.command))
 	elseif output.display and output.display.kind == "file" and output.display.path then

@@ -65,6 +65,8 @@ function M.new()
 		pending_transcript_item_separator = false,
 		session_stats = nil,
 		todo_status = nil,
+		todo_tool_output_id = nil,
+		todo_tool_line = nil,
 		notification_status = nil,
 	}
 end

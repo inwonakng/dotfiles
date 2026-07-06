@@ -79,6 +79,15 @@ local function mode_statusline_highlight(mode)
 	return "%#PiModeUnknown#"
 end
 
+local function mode_statusline_label(mode)
+	if mode == "readonly" then
+		return " "
+	elseif mode == "write" then
+		return " "
+	end
+	return tostring(mode or "--")
+end
+
 local function current_model_statusline_label(ctx)
 	local model = ctx.state.model_id or ctx.config.model
 	local provider = ctx.state.provider or ctx.config.provider
@@ -124,6 +133,15 @@ local function thinking_statusline_highlight(level)
 	return "%#PiUsageStats#"
 end
 
+local function notification_statusline_label(status)
+	if status == "notify on" then
+		return " "
+	elseif status == "notify off" then
+		return " "
+	end
+	return tostring(status or "")
+end
+
 local function notification_statusline_highlight(status)
 	if status == "notify on" then
 		return "%#PiNotifyOn#"
@@ -136,12 +154,12 @@ end
 function M.render(ctx)
 	local state = ctx.state
 	local mode = state.access_mode or "--"
+	local mode_text = mode_statusline_label(mode)
 	local mode_prefix = " "
 	local mode_suffix = ""
-	local mode_label = mode_prefix .. mode .. mode_suffix
+	local mode_label = mode_prefix .. mode_text .. mode_suffix
 	local status_delimiter = "·"
-	local todo_label = state.todo_status and (status_delimiter .. state.todo_status) or ""
-	local notification_label = state.notification_status and (status_delimiter .. state.notification_status) or ""
+	local notification_label = state.notification_status and (status_delimiter .. notification_statusline_label(state.notification_status)) or ""
 	local model_label = status_delimiter .. current_model_statusline_label(ctx)
 	local thinking_level = current_thinking_level_label(state)
 	local thinking_label = thinking_level and (" [" .. thinking_level .. "]") or ""
@@ -150,12 +168,11 @@ function M.render(ctx)
 	local statusline_win = tonumber(vim.g.statusline_winid) or ctx.state.transcript_win or 0
 	local width = vim.api.nvim_win_get_width(statusline_win)
 	local mode_width = vim.fn.strdisplaywidth(mode_label)
-	local todo_width = vim.fn.strdisplaywidth(todo_label)
 	local notification_width = vim.fn.strdisplaywidth(notification_label)
 	local model_width = vim.fn.strdisplaywidth(model_label)
 	local thinking_width = vim.fn.strdisplaywidth(thinking_label)
 	local spawn_width = vim.fn.strdisplaywidth(spawn_label)
-	local left_width = mode_width + todo_width + notification_width + model_width + thinking_width + spawn_width
+	local left_width = mode_width + notification_width + model_width + thinking_width + spawn_width
 	local stats_width = vim.fn.strdisplaywidth(stats_label)
 	local show_stats = width >= (left_width + stats_width + 3)
 	local mode_highlight = mode_statusline_highlight(mode)
@@ -168,25 +185,24 @@ function M.render(ctx)
 		return "%#PiUsageStats#"
 			.. statusline_escape(mode_prefix)
 			.. mode_highlight
-			.. statusline_escape(truncate_plain_to_width(mode .. mode_suffix, width - prefix_width))
+			.. statusline_escape(truncate_plain_to_width(mode_text .. mode_suffix, width - prefix_width))
 			.. "%*"
 	end
 
 	local left_label = "%#PiUsageStats#"
 		.. statusline_escape(mode_prefix)
 		.. mode_highlight
-		.. statusline_escape(mode)
+		.. statusline_escape(mode_text)
 		.. "%#PiUsageStats#"
 		.. statusline_escape(mode_suffix)
 
 	if width <= left_width then
 		return left_label
 			.. "%#PiUsageStats#"
-			.. statusline_escape(truncate_plain_to_width(todo_label .. notification_label .. model_label .. thinking_label .. spawn_label, width - mode_width))
+			.. statusline_escape(truncate_plain_to_width(notification_label .. model_label .. thinking_label .. spawn_label, width - mode_width))
 			.. "%*"
 	end
 
-	left_label = left_label .. "%#PiUsageStats#" .. statusline_escape(todo_label)
 	if notification_label ~= "" then
 		left_label = left_label
 			.. notification_statusline_highlight(state.notification_status)

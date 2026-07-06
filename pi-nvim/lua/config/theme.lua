@@ -29,6 +29,7 @@ require("catppuccin").setup({
 			PiTreeCustom = { fg = colors.teal, bg = M.ui_bg, bold = true },
 			PiTreeMeta = { fg = colors.subtext1, bg = M.ui_bg, bold = true },
 			PiToolQuote = { fg = colors.overlay1, bg = M.ui_bg },
+			PiTodoQuote = { fg = colors.subtext0, bg = "#141414", bold = true },
 			PiToolEditQuote = { fg = colors.peach, bg = M.ui_bg, bold = true },
 			PiSubagentQuote = { fg = colors.lavender, bg = "#18182d", bold = true },
 			PiThinkingQuote = { fg = colors.sky, bg = M.ui_bg, bold = true },

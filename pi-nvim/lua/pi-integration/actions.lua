@@ -70,6 +70,7 @@ function M.submit_prompt(ctx)
 	ctx.remove_status(ctx.new_session_notice)
 	ctx.remove_status(ctx.pending_new_session_notice)
 	state.pending_user_message = text
+	ctx.touch_transcript()
 	ctx.append_message_header("You")
 	ctx.append_text(text)
 
@@ -124,11 +125,14 @@ local function reset_session_transcript_state(ctx, notice)
 	state.message_count = 0
 	state.session_stats = nil
 	state.todo_status = nil
+	state.todo_tool_output_id = nil
+	state.todo_tool_line = nil
 	state.tree_leaf_id = nil
 	state.spawn_runs = {}
 	state.spawn_running_count = 0
 	state.is_retrying = false
 	state.pending_retry_error = nil
+	ctx.touch_transcript()
 	ctx.refresh_transcript_ui()
 	ctx.append_status(notice)
 end

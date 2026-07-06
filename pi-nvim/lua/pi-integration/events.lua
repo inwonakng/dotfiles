@@ -63,6 +63,7 @@ local function render_spawn_custom_tool(ctx, message)
 	if not name then
 		return false
 	end
+	ctx.touch_transcript()
 	local text = name == "spawn" and "" or (ctx.extract_text(message) or "")
 	local output_id = ctx.store_tool_output(name, text, nil, message.details, message)
 	ctx.begin_trace_item()
@@ -76,6 +77,29 @@ local function render_spawn_custom_tool(ctx, message)
 	})
 	ctx.end_trace_item()
 	return true
+end
+
+local function is_todo_tool_name(name)
+	return name == "todowrite" or name == "todo_write"
+end
+
+local function remember_todo_tool_line(ctx, output_id, line)
+	local state = ctx.state
+	local output = state.tool_outputs and state.tool_outputs[output_id]
+	if output and is_todo_tool_name(output.name) then
+		state.todo_tool_output_id = output_id
+		state.todo_tool_line = line
+	end
+end
+
+local function refresh_todo_tool_line(ctx)
+	local state = ctx.state
+	local output_id = state.todo_tool_output_id
+	local line = state.todo_tool_line
+	if output_id and line and state.tool_outputs and state.tool_outputs[output_id] then
+		ctx.touch_transcript()
+		ctx.set_transcript_line(line, ctx.tool_output_summary_lines(output_id)[1])
+	end
 end
 
 local function render_skill_loads(ctx, message)
@@ -111,6 +135,7 @@ function M.render_message(ctx, message)
 	if not text or text == "" then
 		return
 	end
+	ctx.touch_transcript()
 	if role == "toolResult" then
 		local name = message.toolName or "tool"
 		local tool_call_id = message_utils.tool_call_id(message)
@@ -133,6 +158,7 @@ function M.render_message(ctx, message)
 			end_line = line,
 			output_id = output_id,
 		})
+		remember_todo_tool_line(ctx, output_id, line)
 		ctx.end_trace_item()
 		return
 	end
@@ -236,7 +262,7 @@ function M.handle_extension_ui_request(ctx, event)
 			state.tree_leaf_id = event.statusText
 		elseif event.statusKey == "pi-todos" then
 			state.todo_status = event.statusText
-			ctx.refresh_transcript_ui()
+			refresh_todo_tool_line(ctx)
 		elseif event.statusKey == "pi-notifications" then
 			state.notification_status = event.statusText
 			ctx.refresh_transcript_ui()
@@ -410,6 +436,8 @@ function M.handle_event(ctx, event)
 			ctx.clear_assistant_placeholder()
 		end
 		state.abort_requested = false
+		ctx.touch_transcript()
+		ctx.refresh_transcript_ui()
 		ctx.actions.refresh_session_stats()
 		ctx.notify("Pi finished")
 	elseif event.type == "auto_retry_start" then
@@ -427,6 +455,8 @@ function M.handle_event(ctx, event)
 		state.pending_retry_error = nil
 		if event.success == false and not state.error_rendered_for_active_run then
 			ctx.render_error_message("Agent Error", event.finalError or "Retry failed")
+			ctx.touch_transcript()
+			ctx.refresh_transcript_ui()
 		end
 	elseif event.type == "message_update" then
 		M.handle_message_update(ctx, event)

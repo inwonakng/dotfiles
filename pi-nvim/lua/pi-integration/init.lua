@@ -94,6 +94,10 @@ local function refresh_transcript_ui()
 	return pi_transcript.refresh_ui(transcript_ctx())
 end
 
+local function touch_transcript()
+	return pi_transcript.touch(transcript_ctx())
+end
+
 local function apply_session_state(data)
 	local session_changed = data.sessionFile ~= state.session_file
 	if session_changed then
@@ -410,6 +414,7 @@ integration_ctx = function()
 		transcript_win_valid = transcript_win_valid,
 		metadata_lines = metadata_lines,
 		refresh_transcript_ui = refresh_transcript_ui,
+		touch_transcript = touch_transcript,
 		update_transcript_statusline = update_transcript_statusline,
 		append_status = append_status,
 		append_lines = append_lines,
@@ -556,7 +561,7 @@ render_messages = function(messages)
 	local ctx = transcript_ctx()
 	local preserve_view = pi_transcript.is_focused(ctx)
 
-	state.last_updated = os.date("%Y-%m-%d %H:%M:%S %z")
+	touch_transcript()
 	reset_transcript_outputs()
 	local lines, items = collect_message_lines(messages)
 	pi_transcript.preserve_focused_view(ctx, function()

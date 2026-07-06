@@ -85,15 +85,33 @@ function M.preserve_focused_view(ctx, callback)
 	vim.fn.winrestview(view)
 end
 
+local function lines_equal(left, right)
+	if #left ~= #right then
+		return false
+	end
+	for index, line in ipairs(left) do
+		if line ~= right[index] then
+			return false
+		end
+	end
+	return true
+end
+
 function M.update_metadata(ctx)
 	local state = ctx.state
 	if not ctx.valid_buf(state.transcript_buf) then
 		return
 	end
+	local end_line = M.metadata_end(ctx)
+	local lines = M.metadata_lines(ctx)
+	if end_line then
+		local current = vim.api.nvim_buf_get_lines(state.transcript_buf, 0, end_line, false)
+		if lines_equal(current, lines) then
+			return
+		end
+	end
 	M.preserve_focused_view(ctx, function()
 		ctx.set_modifiable(state.transcript_buf, true)
-		local end_line = M.metadata_end(ctx)
-		local lines = M.metadata_lines(ctx)
 		if end_line then
 			vim.api.nvim_buf_set_lines(state.transcript_buf, 0, end_line, false, lines)
 		else
@@ -119,6 +137,9 @@ function M.has_body(ctx)
 end
 
 local function tool_quote_highlight(line)
+	if line:find("> 󰇥 Todo:", 1, true) == 1 then
+		return "PiTodoQuote"
+	end
 	if line:find("> 󰇥 Tool: edit", 1, true) == 1 or line:find("> 󰇥 Tool: write", 1, true) == 1 then
 		return "PiToolEditQuote"
 	end
@@ -204,8 +225,11 @@ function M.update_bottom_padding(ctx)
 	})
 end
 
-function M.refresh_ui(ctx)
+function M.touch(ctx)
 	ctx.state.last_updated = os.date("%Y-%m-%d %H:%M:%S %z")
+end
+
+function M.refresh_ui(ctx)
 	M.update_metadata(ctx)
 	M.update_bottom_padding(ctx)
 	ctx.update_transcript_statusline()
