@@ -135,9 +135,9 @@ end
 
 local function notification_statusline_label(status)
 	if status == "notify on" then
-		return " "
-	elseif status == "notify off" then
 		return " "
+	elseif status == "notify off" then
+		return " "
 	end
 	return tostring(status or "")
 end
