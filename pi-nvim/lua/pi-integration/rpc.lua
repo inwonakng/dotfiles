@@ -7,7 +7,7 @@ local function decode_json(ctx, line)
 	if decoded ~= nil then
 		return decoded
 	end
-	ctx.render_error_message("Pi Error", "Bad JSON from pi: " .. line)
+	ctx.transcript.render_error_message("Pi Error", "Bad JSON from pi: " .. line)
 	return nil
 end
 
@@ -26,7 +26,7 @@ function M.handle_response(ctx, event)
 	end
 
 	if event.success == false then
-		ctx.render_error_message("Pi Error", ctx.event_error_text(event) or vim.inspect(event))
+		ctx.transcript.render_error_message("Pi Error", ctx.rpc.event_error_text(event) or vim.inspect(event))
 	end
 end
 
@@ -46,7 +46,7 @@ function M.handle_jsonl_data(ctx, data, pending_key)
 			if chunk ~= "" then
 				local event = decode_json(ctx, chunk)
 				if event then
-					ctx.handle_event(event)
+					ctx.rpc.handle_event(event)
 				end
 			end
 			state[pending_key] = ""
@@ -112,7 +112,7 @@ function M.start(ctx)
 						end
 					end
 					if ctx.config.show_stderr and line ~= "" then
-						ctx.append_status("pi stderr: " .. line)
+						ctx.transcript.append_status("pi stderr: " .. line)
 					end
 				end
 			end)
@@ -122,13 +122,13 @@ function M.start(ctx)
 				if state.session_file and state.session_file ~= "" then
 					state.pending_session_file = state.session_file
 				end
-				if ctx.assistant_placeholder_active() and not state.error_rendered_for_active_run then
-					ctx.render_error_message(
+				if ctx.transcript.assistant_placeholder_active() and not state.error_rendered_for_active_run then
+					ctx.transcript.render_error_message(
 						"Pi Error",
-						ctx.recent_stderr_text() or ("pi exited with code " .. tostring(code) .. " before returning a message")
+						ctx.rpc.recent_stderr_text() or ("pi exited with code " .. tostring(code) .. " before returning a message")
 					)
 				else
-					ctx.append_status("pi exited with code " .. tostring(code))
+					ctx.transcript.append_status("pi exited with code " .. tostring(code))
 				end
 				state.job = nil
 				state.is_streaming = false
@@ -140,7 +140,7 @@ function M.start(ctx)
 	})
 
 	if state.job <= 0 then
-		ctx.notify("Failed to start pi. Is `pi` on PATH?", vim.log.levels.ERROR)
+		ctx.ui.notify("Failed to start pi. Is `pi` on PATH?", vim.log.levels.ERROR)
 		state.job = nil
 		return
 	end
@@ -148,7 +148,7 @@ function M.start(ctx)
 	M.send(ctx, { type = "get_state" }, function(event)
 		if event.success and event.data then
 			state.pending_session_file = nil
-			ctx.apply_session_state(event.data)
+			ctx.session.apply_state(event.data)
 			ctx.actions.refresh_session_stats()
 		end
 	end)
@@ -158,7 +158,7 @@ function M.start(ctx)
 			if event.success then
 				state.pending_access_mode = nil
 			else
-				ctx.notify(event.error or "Could not set access mode", vim.log.levels.ERROR)
+				ctx.ui.notify(event.error or "Could not set access mode", vim.log.levels.ERROR)
 			end
 		end)
 	end
@@ -168,7 +168,7 @@ function M.send(ctx, cmd, callback)
 	local state = ctx.state
 	M.start(ctx)
 	if not state.job or state.job <= 0 then
-		ctx.render_error_message("Pi Error", "Could not start pi. Is `pi` on PATH?")
+		ctx.transcript.render_error_message("Pi Error", "Could not start pi. Is `pi` on PATH?")
 		return
 	end
 
@@ -183,7 +183,7 @@ function M.send(ctx, cmd, callback)
 		if cmd.id then
 			state.callbacks[cmd.id] = nil
 		end
-		ctx.render_error_message("Pi Error", "Could not send request to pi; the RPC channel is closed.")
+		ctx.transcript.render_error_message("Pi Error", "Could not send request to pi; the RPC channel is closed.")
 	end
 end
 

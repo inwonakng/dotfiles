@@ -40,15 +40,15 @@ end
 function M.set_access_mode(ctx, mode)
 	assert(M.is_access_mode(ctx, mode), "invalid access mode: " .. tostring(mode))
 	ctx.state.access_mode = mode
-	ctx.refresh_transcript_ui()
+	ctx.transcript.refresh_ui()
 	if not (ctx.state.job and ctx.state.job > 0) then
 		ctx.state.pending_access_mode = mode
-		ctx.notify("Access mode will be applied when Pi starts: " .. mode)
+		ctx.ui.notify("Access mode will be applied when Pi starts: " .. mode)
 		return
 	end
-	ctx.send({ type = "prompt", message = "/pi-mode " .. mode }, function(event)
+	ctx.rpc.send({ type = "prompt", message = "/pi-mode " .. mode }, function(event)
 		if not event.success then
-			ctx.notify(event.error or "Could not set access mode", vim.log.levels.ERROR)
+			ctx.ui.notify(event.error or "Could not set access mode", vim.log.levels.ERROR)
 		end
 	end)
 end
@@ -89,23 +89,23 @@ function M.pick_thinking(ctx)
 		if not choice then
 			return
 		end
-		ctx.send({ type = "set_thinking_level", level = choice }, function(event)
+		ctx.rpc.send({ type = "set_thinking_level", level = choice }, function(event)
 			if event.success then
 				ctx.state.thinking_level = choice
-				ctx.refresh_transcript_ui()
-				ctx.notify("Thinking: " .. choice)
+				ctx.transcript.refresh_ui()
+				ctx.ui.notify("Thinking: " .. choice)
 			else
-				ctx.notify("Could not set thinking level", vim.log.levels.ERROR)
+				ctx.ui.notify("Could not set thinking level", vim.log.levels.ERROR)
 			end
 		end)
 	end)
 end
 
 function M.pick_model(ctx)
-	ctx.send({ type = "get_available_models" }, function(event)
+	ctx.rpc.send({ type = "get_available_models" }, function(event)
 		local models = event.data and event.data.models or {}
 		if #models == 0 then
-			ctx.notify("No models returned by Pi", vim.log.levels.WARN)
+			ctx.ui.notify("No models returned by Pi", vim.log.levels.WARN)
 			return
 		end
 
@@ -118,18 +118,18 @@ function M.pick_model(ctx)
 			end
 			local provider, model_id = model_parts(choice)
 			if not provider or not model_id then
-				ctx.notify("Could not infer provider/modelId from selected model", vim.log.levels.ERROR)
+				ctx.ui.notify("Could not infer provider/modelId from selected model", vim.log.levels.ERROR)
 				return
 			end
-			ctx.send({ type = "set_model", provider = provider, modelId = model_id }, function(set_event)
+			ctx.rpc.send({ type = "set_model", provider = provider, modelId = model_id }, function(set_event)
 				if set_event.success then
 					ctx.config.provider = provider
 					ctx.config.model = model_id
-					ctx.set_model_metadata(provider, model_id)
-					ctx.refresh_transcript_ui()
-					ctx.notify("Model: " .. model_label(choice))
+					ctx.session.set_model_metadata(provider, model_id)
+					ctx.transcript.refresh_ui()
+					ctx.ui.notify("Model: " .. model_label(choice))
 				else
-					ctx.notify("Could not set model", vim.log.levels.ERROR)
+					ctx.ui.notify("Could not set model", vim.log.levels.ERROR)
 				end
 			end)
 		end)
@@ -144,10 +144,10 @@ local function command_label(command)
 end
 
 function M.pick_command(ctx)
-	ctx.send({ type = "get_commands" }, function(event)
+	ctx.rpc.send({ type = "get_commands" }, function(event)
 		local commands = event.data and event.data.commands or {}
 		if #commands == 0 then
-			ctx.notify("No Pi commands returned", vim.log.levels.WARN)
+			ctx.ui.notify("No Pi commands returned", vim.log.levels.WARN)
 			return
 		end
 		table.sort(commands, function(a, b)
@@ -160,17 +160,17 @@ function M.pick_command(ctx)
 			if not choice or not choice.name then
 				return
 			end
-			ctx.set_input_text("/" .. tostring(choice.name) .. " ")
+			ctx.session.set_input_text("/" .. tostring(choice.name) .. " ")
 		end)
 	end)
 end
 
 function M.reload(ctx)
-	ctx.send({ type = "prompt", message = "/reload" }, function(event)
+	ctx.rpc.send({ type = "prompt", message = "/reload" }, function(event)
 		if event.success then
-			ctx.notify("Pi reload requested")
+			ctx.ui.notify("Pi reload requested")
 		else
-			ctx.notify(event.error or "Could not reload Pi", vim.log.levels.ERROR)
+			ctx.ui.notify(event.error or "Could not reload Pi", vim.log.levels.ERROR)
 		end
 	end)
 end

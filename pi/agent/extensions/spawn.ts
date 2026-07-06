@@ -75,6 +75,7 @@ type SpawnRun = {
   completedAt?: string;
   error?: string;
   resultText?: string;
+  progress?: string;
   runDir: string;
   briefPath: string;
   transcriptPath: string;
@@ -526,6 +527,8 @@ function artifactDetails(run: SpawnRun): Record<string, unknown> {
     agentSource: run.profile?.source ?? null,
     agentProfilePath: run.profile?.filePath ?? null,
     status: run.status,
+    progress: run.progress ?? null,
+    joined: run.joined,
     integration: run.worktree?.integration,
     integrationReason: run.worktree?.integrationReason,
     changedFiles: run.worktree?.changedFiles,
@@ -546,6 +549,8 @@ function statusJson(run: SpawnRun): Record<string, unknown> {
     startedAt: run.startedAt,
     completedAt: run.completedAt ?? null,
     error: run.error ?? null,
+    progress: run.progress ?? null,
+    joined: run.joined,
     briefPath: run.briefPath,
     resultPath: run.resultPath,
     transcriptPath: run.transcriptPath,
@@ -977,6 +982,29 @@ export default function spawnExtension(pi: ExtensionAPI) {
 
     const label = runLabel(run);
     let assistantPreview = "";
+    let progressPublishTimer: NodeJS.Timeout | undefined;
+    let lastProgressPublishAt = 0;
+    const publishProgress = (immediate = false) => {
+      if (immediate) {
+        if (progressPublishTimer) {
+          clearTimeout(progressPublishTimer);
+          progressPublishTimer = undefined;
+        }
+        lastProgressPublishAt = Date.now();
+        publishSpawnStatus(ctx);
+        return;
+      }
+      if (progressPublishTimer) {
+        return;
+      }
+      const now = Date.now();
+      const delay = Math.max(0, 250 - (now - lastProgressPublishAt));
+      progressPublishTimer = setTimeout(() => {
+        progressPublishTimer = undefined;
+        lastProgressPublishAt = Date.now();
+        publishSpawnStatus(ctx);
+      }, delay);
+    };
     const transcript = (event: RpcEvent) => {
       appendFileSync(run.transcriptPath, `${JSON.stringify({ timestamp: new Date().toISOString(), event })}\n`, "utf8");
     };
@@ -1030,9 +1058,10 @@ export default function spawnExtension(pi: ExtensionAPI) {
       onEvent: (event) => {
         transcript(event);
         const progress = summarizeChildEvent(event);
-        if (progress) {
-          run.resultText = run.status === "running" ? progress : run.resultText;
+        if (progress && progress !== run.progress) {
+          run.progress = progress;
           writeStatus(run);
+          publishProgress();
         }
       },
     });
@@ -1061,6 +1090,7 @@ export default function spawnExtension(pi: ExtensionAPI) {
         assertSuccess(lastAssistant, "get subagent result");
         run.resultText = textFromLastAssistantResponse(lastAssistant) ?? "";
         run.status = "completed";
+        run.progress = compactOneLine(run.resultText, 160) || "completed";
         writeFileSync(run.resultPath, run.resultText, "utf8");
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -1072,6 +1102,7 @@ export default function spawnExtension(pi: ExtensionAPI) {
           run.error = message;
         }
         run.resultText = run.error;
+        run.progress = compactOneLine(run.error, 160) || run.status;
         writeFileSync(run.resultPath, `${run.error}\n`, "utf8");
       } finally {
         run.completedAt = new Date().toISOString();
@@ -1094,8 +1125,12 @@ export default function spawnExtension(pi: ExtensionAPI) {
           run.worktree.integration = "needs_parent";
           run.worktree.integrationReason = `subagent status is ${run.status}`;
         }
+        if (progressPublishTimer) {
+          clearTimeout(progressPublishTimer);
+          progressPublishTimer = undefined;
+        }
         writeStatus(run);
-        publishSpawnStatus(ctx);
+        publishProgress(true);
         child.dispose();
         if (run.mode === "background") {
           enqueueCompletionNotification(run, ctx);
@@ -1127,8 +1162,8 @@ export default function spawnExtension(pi: ExtensionAPI) {
           const run = getRunById(id);
           await waitForRun(run, ctx.signal, true);
           applyWorktreeChanges(run);
-          publishSpawnStatus(ctx);
           run.joined = true;
+          publishSpawnStatus(ctx);
           emitCommandResult(resultSummary(run), artifactDetails(run));
           return;
         }
@@ -1233,8 +1268,8 @@ export default function spawnExtension(pi: ExtensionAPI) {
       onUpdate?.({ content: [{ type: "text", text: `${runLabel(run)} ${run.id} running in foreground (${accessMode}).` }], details: artifactDetails(run) });
       await run.finished;
       applyWorktreeChanges(run);
-      publishSpawnStatus(ctx);
       run.joined = true;
+      publishSpawnStatus(ctx);
       return {
         content: [{ type: "text", text: resultSummary(run) }],
         isError: run.status !== "completed",
@@ -1305,8 +1340,8 @@ export default function spawnExtension(pi: ExtensionAPI) {
           await waitForRun(run, signal, true);
         }
         applyWorktreeChanges(run);
-        publishSpawnStatus(ctx);
         run.joined = true;
+        publishSpawnStatus(ctx);
         return {
           content: [{ type: "text", text: resultSummary(run) }],
           isError: run.status !== "completed" || run.worktree?.integration === "failed",

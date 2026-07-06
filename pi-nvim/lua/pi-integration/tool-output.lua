@@ -113,6 +113,13 @@ local function truncate_text(text, max_len)
 	return text:sub(1, math.max(1, max_len - 1)) .. "…"
 end
 
+local function short_run_id(id)
+	if type(id) ~= "string" or id == "" then
+		return nil
+	end
+	return id:match("([^-]+)$") or id
+end
+
 local function markdown_code_span(text)
 	text = tostring(text or "")
 	local longest = 0
@@ -176,13 +183,14 @@ local function spawn_artifacts(tool_name, text, details)
 		return nil
 	end
 	details = type(details) == "table" and details or {}
+	local worktree = type(details.worktree) == "table" and details.worktree or nil
 	local artifacts = {
 		brief = artifact_path_value(details.briefPath) or path_from_artifact_line(text, "Brief"),
 		result = artifact_path_value(details.resultPath) or path_from_artifact_line(text, "Result"),
 		transcript = artifact_path_value(details.transcriptPath) or path_from_artifact_line(text, "Transcript"),
 		status = artifact_path_value(details.statusPath) or path_from_artifact_line(text, "Status"),
 		agent_prompt = artifact_path_value(details.agentPromptPath) or path_from_artifact_line(text, "Subagent prompt"),
-		patch = artifact_path_value(details.patchPath) or path_from_artifact_line(text, "Patch"),
+		patch = artifact_path_value(details.patchPath) or artifact_path_value(worktree and worktree.patchPath) or path_from_artifact_line(text, "Patch"),
 	}
 	if artifacts.brief or artifacts.result or artifacts.transcript or artifacts.status or artifacts.agent_prompt or artifacts.patch then
 		return artifacts
@@ -205,7 +213,7 @@ local function open_spawn_text(ctx, title, path, filetype)
 	local state = ctx.state
 	local text = read_file_text(path)
 	if not text then
-		ctx.notify("Could not read " .. tostring(path), vim.log.levels.WARN)
+		ctx.ui.notify("Could not read " .. tostring(path), vim.log.levels.WARN)
 		return
 	end
 	floats.close_window(state.spawn_win)
@@ -241,12 +249,12 @@ local function open_spawn_text(ctx, title, path, filetype)
 		floats.close_window(state.spawn_win)
 		state.spawn_win = nil
 	end
-	floats.close_on_win_leave(state.spawn_buf, close_spawn_win, { win = state.spawn_win, parent = ctx.parent_win })
+	floats.close_on_win_leave(state.spawn_buf, close_spawn_win, { win = state.spawn_win, parent = ctx.window.parent })
 	vim.keymap.set("n", "q", close_spawn_win, { buffer = state.spawn_buf, silent = true, desc = "Close spawn output" })
 	vim.keymap.set("n", "<Esc>", close_spawn_win, { buffer = state.spawn_buf, silent = true, desc = "Close spawn output" })
 	vim.keymap.set("n", "y", function()
 		vim.fn.setreg("+", text)
-		ctx.notify("Yanked spawn output")
+		ctx.ui.notify("Yanked spawn output")
 	end, { buffer = state.spawn_buf, silent = true, desc = "Yank spawn output" })
 end
 
@@ -271,7 +279,7 @@ local function open_spawn_artifacts(ctx, output)
 	add("subagent prompt", output.spawn.agent_prompt, "markdown")
 	add("patch", output.spawn.patch, "diff")
 	if #choices == 0 then
-		ctx.notify("No spawn artifacts found for this tool call", vim.log.levels.WARN)
+		ctx.ui.notify("No spawn artifacts found for this tool call", vim.log.levels.WARN)
 		return true
 	end
 	vim.ui.select(choices, {
@@ -297,6 +305,9 @@ function M.reset(state)
 	state.tool_calls = {}
 	state.live_tool_output_by_call = {}
 	state.live_tool_lines = {}
+	state.spawn_run_output_by_id = {}
+	state.spawn_run_lines = {}
+	state.coalesced_spawn_control_tool_calls = {}
 	state.todo_tool_output_id = nil
 	state.todo_tool_line = nil
 end
@@ -464,7 +475,7 @@ local function open_edit_diff_float(ctx, output)
 			end
 		end
 	end
-	floats.close_on_win_leave(left_buf, close_diff, { win = left_win, parent = ctx.parent_win })
+	floats.close_on_win_leave(left_buf, close_diff, { win = left_win, parent = ctx.window.parent })
 	floats.close_on_win_leave(right_buf, close_diff, { win = right_win, parent = left_win })
 	for _, buf in ipairs({ left_buf, right_buf }) do
 		vim.keymap.set("n", "q", close_diff, { buffer = buf, silent = true, desc = "Close edit diff" })
@@ -472,7 +483,7 @@ local function open_edit_diff_float(ctx, output)
 		vim.keymap.set("n", "y", function()
 			local rendered_text = rendered_output(output)
 			vim.fn.setreg("+", rendered_text or "")
-			ctx.notify("Yanked edit patch")
+			ctx.ui.notify("Yanked edit patch")
 		end, { buffer = buf, silent = true, desc = "Yank edit patch" })
 	end
 	return true
@@ -515,6 +526,32 @@ function M.store_or_update_live(state, tool_name, tool_call_id, text, filetype, 
 	return M.store(state, tool_name, text, filetype, details, display, tool_call_id), false
 end
 
+function M.store_or_update_spawn_run(state, run, text)
+	if type(run) ~= "table" then
+		return nil, false
+	end
+	local run_id = run.runId or run.id
+	if type(run_id) ~= "string" or run_id == "" then
+		return nil, false
+	end
+	state.spawn_run_output_by_id = state.spawn_run_output_by_id or {}
+	local output_id = state.spawn_run_output_by_id[run_id]
+	local output_text = text or run.progress or ""
+	if output_id and state.tool_outputs[output_id] then
+		local output = state.tool_outputs[output_id]
+		output.name = "spawn_control"
+		output.text = output_text
+		output.filetype = infer_filetype("spawn_control", output_text)
+		output.details = run
+		output.display = nil
+		output.spawn = spawn_artifacts(output.name, output.text, output.details)
+		return output_id, true
+	end
+	output_id = M.store(state, "spawn_control", output_text, nil, run, nil, nil)
+	state.spawn_run_output_by_id[run_id] = output_id
+	return output_id, false
+end
+
 function M.live_output_id(state, tool_call_id)
 	return tool_call_id and state.live_tool_output_by_call and state.live_tool_output_by_call[tool_call_id] or nil
 end
@@ -537,9 +574,17 @@ function M.summary_lines(state, output_id)
 			label = label .. ": " .. details.role
 		end
 		local status = type(details.status) == "string" and details.status or nil
+		local run_id = details.runId or details.id
+		local is_spawn_ack = output.name == "spawn"
+			and type(run_id) == "string"
+			and type(output.text) == "string"
+			and output.text:find("Spawned subagent", 1, true) ~= nil
 		local progress_source = type(details.progress) == "string" and details.progress or output.text or ""
-		local progress = truncate_text(progress_source, 120)
-		if status and progress == status then
+		local progress = truncate_text(progress_source, is_spawn_ack and 80 or 120)
+		if is_spawn_ack then
+			status = "spawned"
+			progress = short_run_id(run_id) and ("id: " .. short_run_id(run_id)) or ""
+		elseif status and progress == status then
 			progress = ""
 		end
 		local parts = { "> 󰇥 " .. label }
@@ -575,7 +620,7 @@ function M.open_float(ctx, output_id)
 	local state = ctx.state
 	local output = state.tool_outputs[output_id]
 	if not output then
-		ctx.notify("Tool output unavailable", vim.log.levels.WARN)
+		ctx.ui.notify("Tool output unavailable", vim.log.levels.WARN)
 		return true
 	end
 	if output.spawn and open_spawn_artifacts(ctx, output) then
@@ -642,12 +687,12 @@ function M.open_float(ctx, output_id)
 	local close_tool_win = function()
 		floats.close_window(win)
 	end
-	floats.close_on_win_leave(buf, close_tool_win, { win = win, parent = ctx.parent_win })
+	floats.close_on_win_leave(buf, close_tool_win, { win = win, parent = ctx.window.parent })
 	vim.keymap.set("n", "q", close_tool_win, { buffer = buf, silent = true, desc = "Close tool output" })
 	vim.keymap.set("n", "<Esc>", close_tool_win, { buffer = buf, silent = true, desc = "Close tool output" })
 	vim.keymap.set("n", "y", function()
 		vim.fn.setreg("+", rendered_text or "")
-		ctx.notify("Yanked tool output")
+		ctx.ui.notify("Yanked tool output")
 	end, { buffer = buf, silent = true, desc = "Yank tool output" })
 
 	return true

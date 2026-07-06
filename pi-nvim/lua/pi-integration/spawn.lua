@@ -12,7 +12,7 @@ end
 local function open_text(ctx, title, path, filetype)
 	local text = read_file_text(path)
 	if not text then
-		ctx.notify("Could not read " .. tostring(path), vim.log.levels.WARN)
+		ctx.ui.notify("Could not read " .. tostring(path), vim.log.levels.WARN)
 		return
 	end
 	local buf = vim.api.nvim_create_buf(false, true)
@@ -50,7 +50,7 @@ local function open_text(ctx, title, path, filetype)
 	vim.keymap.set("n", "<Esc>", close_win, { buffer = buf, silent = true, desc = "Close spawn artifact" })
 	vim.keymap.set("n", "y", function()
 		vim.fn.setreg("+", text)
-		ctx.notify("Yanked spawn artifact")
+		ctx.ui.notify("Yanked spawn artifact")
 	end, { buffer = buf, silent = true, desc = "Yank spawn artifact" })
 end
 
@@ -89,18 +89,18 @@ end
 local function send_spawn_action(ctx, run, action)
 	local id = run.runId
 	if not id or id == "" then
-		ctx.notify("Spawn run has no id", vim.log.levels.ERROR)
+		ctx.ui.notify("Spawn run has no id", vim.log.levels.ERROR)
 		return
 	end
-	ctx.send({ type = "prompt", message = "/spawn-control " .. action .. " " .. id }, function(event)
+	ctx.rpc.send({ type = "prompt", message = "/spawn-control " .. action .. " " .. id }, function(event)
 		if not event.success then
-			ctx.notify(event.error or ("Could not send spawn action: " .. action), vim.log.levels.ERROR)
+			ctx.ui.notify(event.error or ("Could not send spawn action: " .. action), vim.log.levels.ERROR)
 		elseif action == "join" then
-			ctx.notify("Joining subagent " .. id)
+			ctx.ui.notify("Joining subagent " .. id)
 		elseif action == "stop" then
-			ctx.notify("Stopping subagent " .. id)
+			ctx.ui.notify("Stopping subagent " .. id)
 		else
-			ctx.notify("Requested subagent " .. action .. ": " .. id)
+			ctx.ui.notify("Requested subagent " .. action .. ": " .. id)
 		end
 	end)
 end
@@ -152,7 +152,7 @@ end
 function M.pick(ctx)
 	local runs = ctx.state.spawn_runs or {}
 	if #runs == 0 then
-		ctx.notify("No spawned subagents in this session", vim.log.levels.WARN)
+		ctx.ui.notify("No spawned subagents in this session", vim.log.levels.WARN)
 		return
 	end
 	vim.ui.select(runs, {

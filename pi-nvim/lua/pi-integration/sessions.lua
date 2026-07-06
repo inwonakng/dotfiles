@@ -138,7 +138,7 @@ function M.pick(ctx)
 	local state = ctx.state
 	local session_candidates = candidates(ctx)
 	if #session_candidates == 0 then
-		ctx.notify("No session files found. Set PI_SESSION_DIR if your Pi sessions live elsewhere.", vim.log.levels.WARN)
+		ctx.ui.notify("No session files found. Set PI_SESSION_DIR if your Pi sessions live elsewhere.", vim.log.levels.WARN)
 		return
 	end
 
@@ -155,26 +155,26 @@ function M.pick(ctx)
 				state.session_file = choice.path
 				state.session_name = choice.title
 				state.tree_leaf_id = nil
-				ctx.render_messages(ctx.load_session_messages_from_file(choice.path))
-				ctx.notify("Selected session. Pi will attach to it when you send a message.")
+				ctx.session.render_messages(ctx.session.load_messages_from_file(choice.path))
+				ctx.ui.notify("Selected session. Pi will attach to it when you send a message.")
 				return
 			end
-			ctx.send({ type = "switch_session", sessionPath = choice.path }, function(event)
+			ctx.rpc.send({ type = "switch_session", sessionPath = choice.path }, function(event)
 				if event.success and not (event.data and event.data.cancelled) then
 					state.is_retrying = false
 					state.pending_retry_error = nil
 					state.session_file = choice.path
 					state.tree_leaf_id = nil
-					ctx.send({ type = "get_state" }, function(state_event)
+					ctx.rpc.send({ type = "get_state" }, function(state_event)
 						if state_event.success and state_event.data then
-							ctx.apply_session_state(state_event.data)
+							ctx.session.apply_state(state_event.data)
 							ctx.actions.refresh_session_stats()
 						end
 					end)
 					ctx.actions.refresh_messages()
-					ctx.notify("Switched session")
+					ctx.ui.notify("Switched session")
 				else
-					ctx.notify("Session switch cancelled or failed", vim.log.levels.ERROR)
+					ctx.ui.notify("Session switch cancelled or failed", vim.log.levels.ERROR)
 				end
 			end)
 		end

@@ -6,12 +6,12 @@ function M.active_run_message(ctx, action)
 end
 
 function M.is_agent_active(ctx)
-	return ctx.is_agent_active and ctx.is_agent_active()
+	return ctx.session.is_agent_active and ctx.session.is_agent_active()
 end
 
 function M.if_not_active(ctx, action)
 	if M.is_agent_active(ctx) then
-		ctx.notify(M.active_run_message(ctx, action), vim.log.levels.WARN)
+		ctx.ui.notify(M.active_run_message(ctx, action), vim.log.levels.WARN)
 		return false
 	end
 	return true

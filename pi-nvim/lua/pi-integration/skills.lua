@@ -163,7 +163,7 @@ function M.open_float(ctx, output_id)
 	local state = ctx.state
 	local output = state.skill_outputs and state.skill_outputs[output_id]
 	if not output then
-		ctx.notify("Skill prompt unavailable", vim.log.levels.WARN)
+		ctx.ui.notify("Skill prompt unavailable", vim.log.levels.WARN)
 		return true
 	end
 
@@ -172,7 +172,7 @@ function M.open_float(ctx, output_id)
 		text = read_file(output.path)
 	end
 	if not text or text == "" then
-		ctx.notify("Skill prompt unavailable", vim.log.levels.WARN)
+		ctx.ui.notify("Skill prompt unavailable", vim.log.levels.WARN)
 		return true
 	end
 
@@ -210,12 +210,12 @@ function M.open_float(ctx, output_id)
 	local close_skill_win = function()
 		floats.close_window(win)
 	end
-	floats.close_on_win_leave(buf, close_skill_win, { win = win, parent = ctx.parent_win })
+	floats.close_on_win_leave(buf, close_skill_win, { win = win, parent = ctx.window.parent })
 	vim.keymap.set("n", "q", close_skill_win, { buffer = buf, silent = true, desc = "Close skill prompt" })
 	vim.keymap.set("n", "<Esc>", close_skill_win, { buffer = buf, silent = true, desc = "Close skill prompt" })
 	vim.keymap.set("n", "y", function()
 		vim.fn.setreg("+", text)
-		ctx.notify("Yanked skill prompt")
+		ctx.ui.notify("Yanked skill prompt")
 	end, { buffer = buf, silent = true, desc = "Yank skill prompt" })
 
 	return true

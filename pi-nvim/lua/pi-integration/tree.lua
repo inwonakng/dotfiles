@@ -16,7 +16,7 @@ local function record_text(ctx, record)
 		if record.message.role == "bashExecution" then
 			return record.message.command or record.message.output or "bash execution"
 		end
-		return ctx.extract_text(record.message) or ""
+		return ctx.messages.extract_text(record.message) or ""
 	elseif record.type == "branch_summary" then
 		return record.summary or "branch summary"
 	elseif record.type == "compaction" then
@@ -24,7 +24,7 @@ local function record_text(ctx, record)
 	elseif record.type == "bashExecution" then
 		return record.command or record.output or "bash execution"
 	elseif record.type == "custom_message" then
-		return ctx.extract_text(record) or record.content or "custom message"
+		return ctx.messages.extract_text(record) or record.content or "custom message"
 	elseif record.type == "model_change" then
 		return table.concat(vim.tbl_filter(function(part)
 			return part and part ~= ""
@@ -65,7 +65,7 @@ local function record_title(record)
 end
 
 local function message_has_visible_text(ctx, message)
-	return vim.trim(ctx.extract_text(message) or "") ~= ""
+	return vim.trim(ctx.messages.extract_text(message) or "") ~= ""
 end
 
 local function is_tool_record(ctx, record)
@@ -275,7 +275,7 @@ end
 
 local function apply_sender_highlights(ctx)
 	local state = ctx.state
-	if not ctx.valid_buf(state.tree_buf) then
+	if not ctx.buffer.valid(state.tree_buf) then
 		return
 	end
 
@@ -350,20 +350,20 @@ local function preview_lines(ctx, node)
 end
 
 local function update_preview(ctx)
-	if not ctx.valid_buf(ctx.state.tree_preview_buf) then
+	if not ctx.buffer.valid(ctx.state.tree_preview_buf) then
 		return
 	end
-	ctx.set_buffer_lines(ctx.state.tree_preview_buf, preview_lines(ctx, current_node(ctx)), false)
+	ctx.buffer.set_lines(ctx.state.tree_preview_buf, preview_lines(ctx, current_node(ctx)), false)
 end
 
 local function ensure_session_for_tree_command(ctx)
 	local path = ctx.state.session_file or ctx.state.pending_session_file
 	if not (ctx.state.job and ctx.state.job > 0) then
 		if not path or path == "" then
-			ctx.notify("No Pi session selected yet.", vim.log.levels.WARN)
+			ctx.ui.notify("No Pi session selected yet.", vim.log.levels.WARN)
 			return nil
 		end
-		-- ctx.send() starts Pi RPC lazily. Preserve the selected session as a
+		-- ctx.rpc.send() starts Pi RPC lazily. Preserve the selected session as a
 		-- pending session so rpc.argv() attaches to it with --session on startup.
 		ctx.state.pending_session_file = path
 		ctx.state.session_file = ctx.state.session_file or path
@@ -386,14 +386,14 @@ local function jump_to_node(ctx, summarize)
 	close_tree_window(ctx)
 
 	local message = "/pi-tree-jump " .. entry_id .. (summarize and " --summary" or "")
-	ctx.send({ type = "prompt", message = message }, function(event)
+	ctx.rpc.send({ type = "prompt", message = message }, function(event)
 		if not event.success then
-			ctx.notify(event.error or "Could not navigate session tree", vim.log.levels.ERROR)
+			ctx.ui.notify(event.error or "Could not navigate session tree", vim.log.levels.ERROR)
 			return
 		end
-		ctx.send({ type = "get_state" }, function(state_event)
+		ctx.rpc.send({ type = "get_state" }, function(state_event)
 			if state_event.success and state_event.data then
-				ctx.apply_session_state(state_event.data)
+				ctx.session.apply_state(state_event.data)
 			end
 			ctx.actions.refresh_messages()
 			focus_input_window(ctx)
@@ -416,14 +416,14 @@ local function delete_node(ctx)
 	local entry_id = node.record.id
 	close_tree_window(ctx)
 
-	ctx.send({ type = "prompt", message = "/pi-tree-delete " .. entry_id .. " --yes" }, function(event)
+	ctx.rpc.send({ type = "prompt", message = "/pi-tree-delete " .. entry_id .. " --yes" }, function(event)
 		if not event.success then
-			ctx.notify(event.error or "Could not delete session tree entry", vim.log.levels.ERROR)
+			ctx.ui.notify(event.error or "Could not delete session tree entry", vim.log.levels.ERROR)
 			return
 		end
-		ctx.send({ type = "get_state" }, function(state_event)
+		ctx.rpc.send({ type = "get_state" }, function(state_event)
 			if state_event.success and state_event.data then
-				ctx.apply_session_state(state_event.data)
+				ctx.session.apply_state(state_event.data)
 			end
 			ctx.actions.refresh_messages()
 			focus_input_window(ctx)
@@ -435,21 +435,21 @@ function M.show(ctx)
 	local state = ctx.state
 	local path = state.session_file or state.pending_session_file
 	if not path or path == "" then
-		ctx.notify("No Pi session selected yet.", vim.log.levels.WARN)
+		ctx.ui.notify("No Pi session selected yet.", vim.log.levels.WARN)
 		return
 	end
 
 	local roots, leaf_id = read_session_tree(ctx, path)
 	if #roots == 0 then
-		ctx.notify("No tree entries found in this session.", vim.log.levels.WARN)
+		ctx.ui.notify("No tree entries found in this session.", vim.log.levels.WARN)
 		return
 	end
 
-	if not ctx.valid_buf(state.tree_buf) then
-		state.tree_buf = ctx.create_buffer("pi://tree", "text", false)
+	if not ctx.buffer.valid(state.tree_buf) then
+		state.tree_buf = ctx.buffer.create("pi://tree", "text", false)
 	end
-	if not ctx.valid_buf(state.tree_preview_buf) then
-		state.tree_preview_buf = ctx.create_buffer("pi://tree-preview", "markdown", false)
+	if not ctx.buffer.valid(state.tree_preview_buf) then
+		state.tree_preview_buf = ctx.buffer.create("pi://tree-preview", "markdown", false)
 	end
 
 	local lines = {
@@ -461,7 +461,7 @@ function M.show(ctx)
 	state.tree_nodes_by_line = {}
 	state.tree_sender_highlights_by_line = {}
 	render_nodes(ctx, roots, leaf_id, lines, state.tree_nodes_by_line, state.tree_sender_highlights_by_line)
-	ctx.set_buffer_lines(state.tree_buf, lines, false)
+	ctx.buffer.set_lines(state.tree_buf, lines, false)
 	apply_sender_highlights(ctx)
 
 	local width = math.min(math.max(72, math.floor(vim.o.columns * 0.72)), vim.o.columns - 4)

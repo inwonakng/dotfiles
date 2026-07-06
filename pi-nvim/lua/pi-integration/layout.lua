@@ -12,7 +12,7 @@ function M.create_buffer(_, name, filetype, modifiable)
 end
 
 function M.start_markdown_treesitter(ctx, buf)
-	if not ctx.valid_buf(buf) then
+	if not ctx.buffer.valid(buf) then
 		return
 	end
 	-- pi:// buffers are synthetic nofile buffers, so do not rely on the
@@ -21,9 +21,9 @@ function M.start_markdown_treesitter(ctx, buf)
 end
 
 function M.set_buffer_lines(ctx, buf, lines, modifiable)
-	ctx.set_modifiable(buf, true)
+	ctx.buffer.set_modifiable(buf, true)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-	ctx.set_modifiable(buf, modifiable)
+	ctx.buffer.set_modifiable(buf, modifiable)
 end
 
 function M.apply_window_padding(_, win)
@@ -46,7 +46,7 @@ end
 
 function M.ensure_transcript_buffer(ctx)
 	local state = ctx.state
-	if ctx.valid_buf(state.transcript_buf) then
+	if ctx.buffer.valid(state.transcript_buf) then
 		return false
 	end
 
@@ -57,7 +57,7 @@ end
 
 function M.ensure_input_buffer(ctx)
 	local state = ctx.state
-	if ctx.valid_buf(state.input_buf) then
+	if ctx.buffer.valid(state.input_buf) then
 		return false
 	end
 
@@ -77,8 +77,8 @@ function M.show_transcript(ctx)
 		state.input_win = nil
 	end
 	M.apply_transcript_window_options(ctx, win)
-	ctx.setup_keymaps()
-	ctx.refresh_transcript_ui()
+	ctx.session.setup_keymaps()
+	ctx.transcript.refresh_ui()
 	return recreated
 end
 
@@ -93,13 +93,13 @@ function M.show_input(ctx)
 		state.transcript_win = nil
 	end
 	M.apply_input_window_options(ctx, win)
-	ctx.setup_keymaps()
+	ctx.session.setup_keymaps()
 	return recreated
 end
 
 function M.open(ctx)
 	local state = ctx.state
-	if ctx.valid_buf(state.transcript_buf) and ctx.valid_buf(state.input_buf) then
+	if ctx.buffer.valid(state.transcript_buf) and ctx.buffer.valid(state.input_buf) then
 		return false
 	end
 
@@ -114,9 +114,9 @@ function M.open(ctx)
 	state.input_win = vim.api.nvim_get_current_win()
 	M.apply_input_window_options(ctx, state.input_win)
 
-	ctx.refresh_transcript_ui()
-	ctx.append_status(ctx.initial_session_notice)
-	ctx.setup_keymaps()
+	ctx.transcript.refresh_ui()
+	ctx.transcript.append_status(ctx.notices.initial_session)
+	ctx.session.setup_keymaps()
 	return true
 end
 

@@ -23,7 +23,7 @@ local function apply_session_record_metadata(ctx, records)
 		if record.type == "session_info" and type(record.name) == "string" then
 			ctx.state.session_name = record.name
 		elseif record.type == "model_change" then
-			ctx.set_model_metadata(record.provider or record.providerId or record.providerName, record.modelId or record.model or record.id)
+			ctx.session.set_model_metadata(record.provider or record.providerId or record.providerName, record.modelId or record.model or record.id)
 		elseif record.type == "thinking_level_change" and type(record.thinkingLevel) == "string" then
 			ctx.state.thinking_level = record.thinkingLevel
 		end
@@ -135,12 +135,12 @@ end
 
 local function append_tool_summary(ctx, lines, items, message)
 	local name = message.toolName or "tool"
-	local text = ctx.extract_text(message)
+	local text = ctx.messages.extract_text(message)
 	if not text or text == "" then
 		return false
 	end
-	local output_id = ctx.store_tool_output(name, text, nil, message.details, message)
-	vim.list_extend(lines, ctx.tool_output_summary_lines(output_id))
+	local output_id = ctx.tools.store_output(name, text, nil, message.details, message)
+	vim.list_extend(lines, ctx.tools.summary_lines(output_id))
 	local line = #lines
 	table.insert(lines, "")
 	table.insert(items, {
@@ -169,9 +169,9 @@ local function append_spawn_custom_summary(ctx, lines, items, message)
 	if not name then
 		return false
 	end
-	local text = name == "spawn" and "" or (ctx.extract_text(message) or "")
-	local output_id = ctx.store_tool_output(name, text, nil, message.details, message)
-	vim.list_extend(lines, ctx.tool_output_summary_lines(output_id))
+	local text = name == "spawn" and "" or (ctx.messages.extract_text(message) or "")
+	local output_id = ctx.tools.store_output(name, text, nil, message.details, message)
+	vim.list_extend(lines, ctx.tools.summary_lines(output_id))
 	local line = #lines
 	table.insert(lines, "")
 	table.insert(items, {
@@ -187,8 +187,8 @@ local function append_thinking_summary(ctx, lines, items, text)
 	if type(text) ~= "string" or text == "" then
 		return false
 	end
-	local output_id = ctx.store_thinking_output(text)
-	vim.list_extend(lines, ctx.thinking_output_summary_lines(output_id, false))
+	local output_id = ctx.thinking.store_output(text)
+	vim.list_extend(lines, ctx.thinking.summary_lines(output_id, false))
 	local line = #lines
 	table.insert(lines, "")
 	table.insert(items, {
@@ -210,8 +210,8 @@ local function append_skill_load_summaries(ctx, lines, items, loads, has_body, p
 		add_message_separator(lines, has_body)
 	end
 	for _, load in ipairs(loads) do
-		local output_id = ctx.store_skill_prompt(load)
-		vim.list_extend(lines, ctx.skill_summary_lines(output_id))
+		local output_id = ctx.skills.store_prompt(load)
+		vim.list_extend(lines, ctx.skills.summary_lines(output_id))
 		local line = #lines
 		table.insert(items, {
 			kind = "skill",
@@ -236,7 +236,7 @@ local function append_assistant_blocks(ctx, lines, items, message, has_body, opt
 	options = options or {}
 	local content = message.content
 	if type(content) ~= "table" then
-		local text = ctx.extract_text(message)
+		local text = ctx.messages.extract_text(message)
 		if text and text ~= "" then
 			append_text_message(lines, message, text, has_body)
 			return true, "message"
@@ -312,7 +312,7 @@ local function append_assistant_blocks(ctx, lines, items, message, has_body, opt
 end
 
 function M.collect_message_lines(ctx, messages)
-	local lines = ctx.metadata_lines()
+	local lines = ctx.transcript.metadata_lines()
 	local items = {}
 	local has_body = false
 	local last_rendered_kind = nil
@@ -323,7 +323,7 @@ function M.collect_message_lines(ctx, messages)
 		local rendered_kind = nil
 		if role == "toolResult" then
 			if pi_skills.tool_result_skill_name(ctx.state, message) then
-				ctx.apply_skill_tool_result(message)
+				ctx.skills.apply_tool_result(message)
 				appended = false
 			elseif has_body and is_trace_like(last_rendered_kind) then
 				remove_trailing_blank(lines)
@@ -335,7 +335,7 @@ function M.collect_message_lines(ctx, messages)
 				rendered_kind = appended and "tool" or nil
 			end
 		elseif role == "assistant" then
-			ctx.record_tool_calls(message)
+			ctx.tools.record_calls(message)
 			local skill_loads = pi_skills.collect_loads(ctx.state, message)
 			local thinking = assistant_trace_only_thinking(message)
 			appended, rendered_kind = append_assistant_blocks(ctx, lines, items, message, has_body, {
@@ -362,7 +362,7 @@ function M.collect_message_lines(ctx, messages)
 				appended = append_spawn_custom_summary(ctx, lines, items, message)
 				rendered_kind = appended and "tool" or nil
 			else
-				local text = ctx.extract_text(message)
+				local text = ctx.messages.extract_text(message)
 				if text and text ~= "" then
 					append_text_message(lines, message, text, has_body)
 					appended = true
@@ -370,7 +370,7 @@ function M.collect_message_lines(ctx, messages)
 				end
 			end
 		else
-			local text = ctx.extract_text(message)
+			local text = ctx.messages.extract_text(message)
 			if text and text ~= "" then
 				append_text_message(lines, message, text, has_body)
 				appended = true

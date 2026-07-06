@@ -13,7 +13,7 @@ end
 
 local function render_or_update_live_tool(ctx, event, text, details)
 	local state = ctx.state
-	local output_id, updated = ctx.store_or_update_live_tool_output(
+	local output_id, updated = ctx.tools.store_or_update_live_output(
 		event.toolName or "tool",
 		event.toolCallId,
 		text or "",
@@ -24,26 +24,166 @@ local function render_or_update_live_tool(ctx, event, text, details)
 	if updated then
 		local line = state.live_tool_lines and event.toolCallId and state.live_tool_lines[event.toolCallId]
 		if line then
-			ctx.set_transcript_line(line, ctx.tool_output_summary_lines(output_id)[1])
+			ctx.transcript.set_line(line, ctx.tools.summary_lines(output_id)[1])
 		end
 		return output_id
 	end
 
-	ctx.begin_trace_item()
-	ctx.append_lines(ctx.tool_output_summary_lines(output_id))
-	local line = ctx.transcript_line_count()
+	ctx.transcript.begin_trace_item()
+	ctx.transcript.append_lines(ctx.tools.summary_lines(output_id))
+	local line = ctx.transcript.line_count()
 	state.live_tool_lines = state.live_tool_lines or {}
 	if event.toolCallId then
 		state.live_tool_lines[event.toolCallId] = line
 	end
-	ctx.register_transcript_item({
+	ctx.transcript.register_item({
 		kind = "tool",
 		start_line = line,
 		end_line = line,
 		output_id = output_id,
 	})
-	ctx.end_trace_item()
+	ctx.transcript.end_trace_item()
 	return output_id
+end
+
+local function run_id(run)
+	if type(run) ~= "table" then
+		return nil
+	end
+	return run.runId or run.id
+end
+
+local function shallow_copy(table_value)
+	local copy = {}
+	for key, value in pairs(table_value or {}) do
+		copy[key] = value
+	end
+	return copy
+end
+
+local function find_spawn_run(ctx, id)
+	if type(id) ~= "string" or id == "" then
+		return nil
+	end
+	for _, run in ipairs(ctx.state.spawn_runs or {}) do
+		if run_id(run) == id then
+			return run
+		end
+	end
+	return nil
+end
+
+local function render_or_update_spawn_run(ctx, run, progress)
+	local id = run_id(run)
+	if type(id) ~= "string" or id == "" then
+		return false
+	end
+	if type(progress) == "string" and progress ~= "" then
+		run = shallow_copy(run)
+		run.progress = progress
+	end
+	ctx.transcript.touch()
+	local output_id = ctx.tools.store_or_update_spawn_run_output(run, progress)
+	if not output_id then
+		return false
+	end
+	local state = ctx.state
+	state.spawn_run_lines = state.spawn_run_lines or {}
+	local line = state.spawn_run_lines[id]
+	if line then
+		ctx.transcript.set_line(line, ctx.tools.summary_lines(output_id)[1])
+		return true
+	end
+
+	ctx.transcript.begin_trace_item()
+	ctx.transcript.append_lines(ctx.tools.summary_lines(output_id))
+	line = ctx.transcript.line_count()
+	state.spawn_run_lines[id] = line
+	ctx.transcript.register_item({
+		kind = "tool",
+		start_line = line,
+		end_line = line,
+		output_id = output_id,
+	})
+	ctx.transcript.end_trace_item()
+	return true
+end
+
+local function render_spawn_runs(ctx, runs)
+	if type(runs) ~= "table" then
+		return false
+	end
+	local rendered = false
+	for _, run in ipairs(runs) do
+		rendered = render_or_update_spawn_run(ctx, run) or rendered
+	end
+	return rendered
+end
+
+local function spawn_control_action(args)
+	return type(args) == "table" and type(args.action) == "string" and args.action or nil
+end
+
+local function is_coalesced_spawn_control_action(action)
+	return action == "join" or action == "join_all" or action == "stop"
+end
+
+local function fallback_run(id, status)
+	return {
+		runId = id,
+		status = status or "running",
+	}
+end
+
+local function coalesce_spawn_control_start(ctx, event)
+	local action = spawn_control_action(event.args)
+	if not is_coalesced_spawn_control_action(action) then
+		return false
+	end
+	ctx.state.coalesced_spawn_control_tool_calls = ctx.state.coalesced_spawn_control_tool_calls or {}
+	if event.toolCallId then
+		ctx.state.coalesced_spawn_control_tool_calls[event.toolCallId] = true
+	end
+	local args = event.args or {}
+	if action == "join_all" then
+		local selected = {}
+		if type(args.ids) == "table" and #args.ids > 0 then
+			for _, id in ipairs(args.ids) do
+				table.insert(selected, find_spawn_run(ctx, id) or fallback_run(id))
+			end
+		else
+			for _, run in ipairs(ctx.state.spawn_runs or {}) do
+				if run.status == "running" or not run.joined then
+					table.insert(selected, run)
+				end
+			end
+		end
+		for _, run in ipairs(selected) do
+			render_or_update_spawn_run(ctx, run, "Waiting for subagent…")
+		end
+		return true
+	end
+	local id = args.id or (type(args.ids) == "table" and args.ids[1] or nil)
+	if type(id) == "string" and id ~= "" then
+		local progress = action == "stop" and "Stopping subagent…" or "Waiting for subagent…"
+		render_or_update_spawn_run(ctx, find_spawn_run(ctx, id) or fallback_run(id), progress)
+	end
+	return true
+end
+
+local function coalesce_spawn_control_result(ctx, tool_call_id, text, details)
+	local state = ctx.state
+	local coalesced = tool_call_id and state.coalesced_spawn_control_tool_calls and state.coalesced_spawn_control_tool_calls[tool_call_id]
+	if type(details) == "table" and type(details.runId) == "string" then
+		render_or_update_spawn_run(ctx, details, text)
+		return coalesced or true
+	elseif type(details) == "table" and type(details.runs) == "table" and #details.runs > 0 then
+		for _, run in ipairs(details.runs) do
+			render_or_update_spawn_run(ctx, run)
+		end
+		return coalesced or true
+	end
+	return coalesced or false
 end
 
 local function spawn_custom_tool_name(message)
@@ -63,19 +203,25 @@ local function render_spawn_custom_tool(ctx, message)
 	if not name then
 		return false
 	end
-	ctx.touch_transcript()
-	local text = name == "spawn" and "" or (ctx.extract_text(message) or "")
-	local output_id = ctx.store_tool_output(name, text, nil, message.details, message)
-	ctx.begin_trace_item()
-	ctx.append_lines(ctx.tool_output_summary_lines(output_id))
-	local line = ctx.transcript_line_count()
-	ctx.register_transcript_item({
+	local text = ctx.messages.extract_text(message) or ""
+	if name == "spawn" and type(message.details) == "table" and type(message.details.runId) == "string" then
+		render_or_update_spawn_run(ctx, message.details, text)
+		return true
+	elseif name == "spawn_control" and coalesce_spawn_control_result(ctx, nil, text, message.details) then
+		return true
+	end
+	ctx.transcript.touch()
+	local output_id = ctx.tools.store_output(name, text, nil, message.details, message)
+	ctx.transcript.begin_trace_item()
+	ctx.transcript.append_lines(ctx.tools.summary_lines(output_id))
+	local line = ctx.transcript.line_count()
+	ctx.transcript.register_item({
 		kind = "tool",
 		start_line = line,
 		end_line = line,
 		output_id = output_id,
 	})
-	ctx.end_trace_item()
+	ctx.transcript.end_trace_item()
 	return true
 end
 
@@ -97,8 +243,8 @@ local function refresh_todo_tool_line(ctx)
 	local output_id = state.todo_tool_output_id
 	local line = state.todo_tool_line
 	if output_id and line and state.tool_outputs and state.tool_outputs[output_id] then
-		ctx.touch_transcript()
-		ctx.set_transcript_line(line, ctx.tool_output_summary_lines(output_id)[1])
+		ctx.transcript.touch()
+		ctx.transcript.set_line(line, ctx.tools.summary_lines(output_id)[1])
 	end
 end
 
@@ -107,19 +253,19 @@ local function render_skill_loads(ctx, message)
 	if #loads == 0 then
 		return false
 	end
-	ctx.begin_trace_item()
+	ctx.transcript.begin_trace_item()
 	for _, load in ipairs(loads) do
-		local output_id = ctx.store_skill_prompt(load)
-		ctx.append_lines(ctx.skill_summary_lines(output_id))
-		local line = ctx.transcript_line_count()
-		ctx.register_transcript_item({
+		local output_id = ctx.skills.store_prompt(load)
+		ctx.transcript.append_lines(ctx.skills.summary_lines(output_id))
+		local line = ctx.transcript.line_count()
+		ctx.transcript.register_item({
 			kind = "skill",
 			start_line = line,
 			end_line = line,
 			output_id = output_id,
 		})
 	end
-	ctx.end_trace_item()
+	ctx.transcript.end_trace_item()
 	return true
 end
 
@@ -131,45 +277,48 @@ function M.render_message(ctx, message)
 	if render_spawn_custom_tool(ctx, message) then
 		return
 	end
-	local text = ctx.extract_text(message)
+	local text = ctx.messages.extract_text(message)
 	if not text or text == "" then
 		return
 	end
-	ctx.touch_transcript()
+	ctx.transcript.touch()
 	if role == "toolResult" then
 		local name = message.toolName or "tool"
 		local tool_call_id = message_utils.tool_call_id(message)
-		local live_output_id = ctx.live_tool_output_id(tool_call_id)
+		if name == "spawn_control" and coalesce_spawn_control_result(ctx, tool_call_id, ctx.messages.extract_text(message) or "", message.details) then
+			return
+		end
+		local live_output_id = ctx.tools.live_output_id(tool_call_id)
 		if live_output_id then
-			ctx.store_or_update_live_tool_output(name, tool_call_id, text, nil, message.details, ctx.store_tool_display and ctx.store_tool_display(message) or nil)
+			ctx.tools.store_or_update_live_output(name, tool_call_id, text, nil, message.details, ctx.tools.store_display and ctx.tools.store_display(message) or nil)
 			local line = ctx.state.live_tool_lines and ctx.state.live_tool_lines[tool_call_id]
 			if line then
-				ctx.set_transcript_line(line, ctx.tool_output_summary_lines(live_output_id)[1])
+				ctx.transcript.set_line(line, ctx.tools.summary_lines(live_output_id)[1])
 			end
 			return
 		end
-		local output_id = ctx.store_tool_output(name, text, nil, message.details, message)
-		ctx.begin_trace_item()
-		ctx.append_lines(ctx.tool_output_summary_lines(output_id))
-		local line = ctx.transcript_line_count()
-		ctx.register_transcript_item({
+		local output_id = ctx.tools.store_output(name, text, nil, message.details, message)
+		ctx.transcript.begin_trace_item()
+		ctx.transcript.append_lines(ctx.tools.summary_lines(output_id))
+		local line = ctx.transcript.line_count()
+		ctx.transcript.register_item({
 			kind = "tool",
 			start_line = line,
 			end_line = line,
 			output_id = output_id,
 		})
 		remember_todo_tool_line(ctx, output_id, line)
-		ctx.end_trace_item()
+		ctx.transcript.end_trace_item()
 		return
 	end
-	ctx.append_message_header(role:gsub("^%l", string.upper))
-	ctx.append_text(text)
+	ctx.transcript.append_message_header(role:gsub("^%l", string.upper))
+	ctx.transcript.append_text(text)
 end
 
 local function send_extension_ui_response(ctx, id, response)
 	response.type = "extension_ui_response"
 	response.id = id
-	ctx.send(response)
+	ctx.rpc.send(response)
 end
 
 local function decode_approval_payload(message)
@@ -228,9 +377,9 @@ local function update_access_mode_from_status(ctx, text)
 		return
 	end
 	local mode = text:match("Mode:%s*(%w+)")
-	if mode and ctx.is_access_mode(mode) then
+	if mode and ctx.access.is_mode(mode) then
 		ctx.state.access_mode = mode
-		ctx.refresh_transcript_ui()
+		ctx.transcript.refresh_ui()
 	end
 end
 
@@ -241,15 +390,16 @@ local function update_spawn_runs_from_status(ctx, text)
 	end
 	ctx.state.spawn_running_count = tonumber(payload.running) or 0
 	ctx.state.spawn_runs = type(payload.runs) == "table" and payload.runs or {}
-	ctx.refresh_transcript_ui()
+	render_spawn_runs(ctx, ctx.state.spawn_runs)
+	ctx.transcript.refresh_ui()
 end
 
 function M.handle_extension_ui_request(ctx, event)
 	local state = ctx.state
-	if event.method == "set_editor_text" and type(event.text) == "string" and ctx.valid_buf(state.input_buf) then
+	if event.method == "set_editor_text" and type(event.text) == "string" and ctx.buffer.valid(state.input_buf) then
 		vim.api.nvim_buf_set_lines(state.input_buf, 0, -1, false, vim.split(event.text, "\n", { plain = true }))
 	elseif event.method == "notify" then
-		ctx.notify(event.message or vim.inspect(event))
+		ctx.ui.notify(event.message or vim.inspect(event))
 	elseif event.method == "setStatus" then
 		if event.statusKey == "pi-access-mode" then
 			update_access_mode_from_status(ctx, event.statusText)
@@ -257,7 +407,7 @@ function M.handle_extension_ui_request(ctx, event)
 			ctx.actions.refresh_messages()
 		elseif event.statusKey == "pi-session-title" then
 			state.session_name = event.statusText
-			ctx.refresh_transcript_ui()
+			ctx.transcript.refresh_ui()
 		elseif event.statusKey == "pi-tree-leaf" then
 			state.tree_leaf_id = event.statusText
 		elseif event.statusKey == "pi-todos" then
@@ -265,7 +415,7 @@ function M.handle_extension_ui_request(ctx, event)
 			refresh_todo_tool_line(ctx)
 		elseif event.statusKey == "pi-notifications" then
 			state.notification_status = event.statusText
-			ctx.refresh_transcript_ui()
+			ctx.transcript.refresh_ui()
 		elseif event.statusKey == "pi-spawn-runs" then
 			update_spawn_runs_from_status(ctx, event.statusText)
 		end
@@ -300,7 +450,7 @@ function M.handle_extension_ui_request(ctx, event)
 			end
 		end)
 	elseif event.method == "editor" then
-		ctx.notify("Pi requested an editor UI, which pi-nvim does not support yet", vim.log.levels.WARN)
+		ctx.ui.notify("Pi requested an editor UI, which pi-nvim does not support yet", vim.log.levels.WARN)
 		send_extension_ui_response(ctx, event.id, { cancelled = true })
 	end
 end
@@ -314,67 +464,67 @@ function M.handle_message_update(ctx, event)
 		if not output_id or state.active_thinking_line then
 			return
 		end
-		local text = ctx.thinking_output_text(output_id) or ""
+		local text = ctx.thinking.text(output_id) or ""
 		if vim.trim(text) == "" then
 			return
 		end
 		if not state.current_message_started then
-			ctx.clear_assistant_placeholder()
-			ctx.append_message_header("Assistant")
+			ctx.transcript.clear_assistant_placeholder()
+			ctx.transcript.append_message_header("Assistant")
 			state.current_message_started = true
 		end
 		state.current_thinking_rendered = true
-		ctx.begin_trace_item()
-		ctx.append_lines(ctx.thinking_output_summary_lines(output_id, streaming))
-		local line = ctx.transcript_line_count()
+		ctx.transcript.begin_trace_item()
+		ctx.transcript.append_lines(ctx.thinking.summary_lines(output_id, streaming))
+		local line = ctx.transcript.line_count()
 		state.active_thinking_line = line
-		ctx.register_transcript_item({
+		ctx.transcript.register_item({
 			kind = "thinking",
 			start_line = line,
 			end_line = line,
 			output_id = output_id,
 		})
-		ctx.end_trace_item()
+		ctx.transcript.end_trace_item()
 	end
 
 	if update.type == "text_start" then
 		if not state.current_message_started then
-			ctx.clear_assistant_placeholder()
-			ctx.append_message_header("Assistant")
+			ctx.transcript.clear_assistant_placeholder()
+			ctx.transcript.append_message_header("Assistant")
 		end
 		state.current_message_started = true
 	elseif update.type == "text_delta" then
 		if not state.current_message_started then
-			ctx.clear_assistant_placeholder()
+			ctx.transcript.clear_assistant_placeholder()
 			state.current_message_started = true
-			ctx.append_message_header("Assistant")
+			ctx.transcript.append_message_header("Assistant")
 		end
-		ctx.append_text(update.delta or "")
+		ctx.transcript.append_text(update.delta or "")
 	elseif update.type == "thinking_start" and ctx.config.show_thinking then
-		state.active_thinking_output_id = ctx.store_thinking_output("")
+		state.active_thinking_output_id = ctx.thinking.store_output("")
 		state.active_thinking_line = nil
 	elseif update.type == "thinking_delta" and ctx.config.show_thinking then
 		if state.active_thinking_output_id then
-			ctx.append_thinking_output(state.active_thinking_output_id, update.delta or "")
+			ctx.thinking.append_output(state.active_thinking_output_id, update.delta or "")
 			render_active_thinking_if_visible(true)
 		end
 	elseif update.type == "thinking_end" and ctx.config.show_thinking then
 		if state.active_thinking_output_id then
-			local text = ctx.thinking_output_text(state.active_thinking_output_id) or ""
+			local text = ctx.thinking.text(state.active_thinking_output_id) or ""
 			local final_content = update.content or ""
 			if vim.trim(text) == "" and vim.trim(final_content) ~= "" then
-				ctx.append_thinking_output(state.active_thinking_output_id, final_content)
+				ctx.thinking.append_output(state.active_thinking_output_id, final_content)
 			end
 			render_active_thinking_if_visible(false)
 			if state.active_thinking_line then
-				local summary = ctx.thinking_output_summary_lines(state.active_thinking_output_id, false)[1]
-				ctx.set_transcript_line(state.active_thinking_line, summary)
+				local summary = ctx.thinking.summary_lines(state.active_thinking_output_id, false)[1]
+				ctx.transcript.set_line(state.active_thinking_line, summary)
 			end
 		end
 		state.active_thinking_output_id = nil
 		state.active_thinking_line = nil
 	elseif update.type == "toolcall_start" then
-		ctx.clear_assistant_placeholder_spinner()
+		ctx.transcript.clear_assistant_placeholder_spinner()
 		state.current_message_started = true
 	elseif update.type == "toolcall_delta" then
 		-- Tool-call deltas are usually raw JSON arguments. For multiline edits this
@@ -389,14 +539,14 @@ function M.handle_message_update(ctx, event)
 		-- Provider/transport errors may be followed by an automatic retry. The
 		-- retry decision is only known at agent_end, so keep the error pending
 		-- instead of rendering a scary final error immediately.
-		state.pending_retry_error = ctx.event_error_text(update) or "unknown"
+		state.pending_retry_error = ctx.rpc.event_error_text(update) or "unknown"
 	end
 end
 
 function M.handle_event(ctx, event)
 	local state = ctx.state
 	if event.type == "response" then
-		ctx.handle_response(event)
+		ctx.rpc.handle_response(event)
 	elseif event.type == "agent_start" then
 		state.is_streaming = true
 		state.is_retrying = false
@@ -406,17 +556,17 @@ function M.handle_event(ctx, event)
 		state.active_thinking_output_id = nil
 		state.active_thinking_line = nil
 		state.error_rendered_for_active_run = false
-		ctx.notify("Pi is working")
+		ctx.ui.notify("Pi is working")
 	elseif event.type == "agent_end" then
 		state.is_streaming = false
 		state.current_message_started = false
 		state.current_thinking_rendered = false
 		state.active_thinking_output_id = nil
 		state.active_thinking_line = nil
-		local message = ctx.event_error_text(event)
+		local message = ctx.rpc.event_error_text(event)
 		if event.willRetry then
 			state.is_retrying = true
-			ctx.clear_assistant_placeholder()
+			ctx.transcript.clear_assistant_placeholder()
 			state.abort_requested = false
 			ctx.actions.refresh_session_stats()
 			return
@@ -424,26 +574,26 @@ function M.handle_event(ctx, event)
 		state.is_retrying = false
 		state.pending_retry_error = nil
 		if message and not state.error_rendered_for_active_run then
-			ctx.render_error_message("Agent Error", message)
-		elseif ctx.assistant_placeholder_active() and state.abort_requested then
-			ctx.clear_assistant_placeholder()
-		elseif ctx.assistant_placeholder_active() and not state.error_rendered_for_active_run then
-			ctx.render_error_message(
+			ctx.transcript.render_error_message("Agent Error", message)
+		elseif ctx.transcript.assistant_placeholder_active() and state.abort_requested then
+			ctx.transcript.clear_assistant_placeholder()
+		elseif ctx.transcript.assistant_placeholder_active() and not state.error_rendered_for_active_run then
+			ctx.transcript.render_error_message(
 				"Agent Error",
-				ctx.recent_stderr_text() or "Agent stopped before returning a message. No error details were provided."
+				ctx.rpc.recent_stderr_text() or "Agent stopped before returning a message. No error details were provided."
 			)
 		else
-			ctx.clear_assistant_placeholder()
+			ctx.transcript.clear_assistant_placeholder()
 		end
 		state.abort_requested = false
-		ctx.touch_transcript()
-		ctx.refresh_transcript_ui()
+		ctx.transcript.touch()
+		ctx.transcript.refresh_ui()
 		ctx.actions.refresh_session_stats()
-		ctx.notify("Pi finished")
+		ctx.ui.notify("Pi finished")
 	elseif event.type == "auto_retry_start" then
 		state.is_retrying = true
 		state.pending_retry_error = event.errorMessage or state.pending_retry_error
-		ctx.notify(
+		ctx.ui.notify(
 			"Pi retrying after transient error ("
 				.. tostring(event.attempt or "?")
 				.. "/"
@@ -454,9 +604,9 @@ function M.handle_event(ctx, event)
 		state.is_retrying = false
 		state.pending_retry_error = nil
 		if event.success == false and not state.error_rendered_for_active_run then
-			ctx.render_error_message("Agent Error", event.finalError or "Retry failed")
-			ctx.touch_transcript()
-			ctx.refresh_transcript_ui()
+			ctx.transcript.render_error_message("Agent Error", event.finalError or "Retry failed")
+			ctx.transcript.touch()
+			ctx.transcript.refresh_ui()
 		end
 	elseif event.type == "message_update" then
 		M.handle_message_update(ctx, event)
@@ -465,19 +615,19 @@ function M.handle_event(ctx, event)
 			event.message
 			and event.message.role == "user"
 			and state.pending_user_message
-			and vim.trim(ctx.extract_text(event.message) or "") == state.pending_user_message
+			and vim.trim(ctx.messages.extract_text(event.message) or "") == state.pending_user_message
 		then
 			state.pending_user_message = nil
 			return
 		end
 		if event.message and event.message.role == "toolResult" then
 			if pi_skills.tool_result_skill_name(state, event.message) then
-				ctx.apply_skill_tool_result(event.message)
+				ctx.skills.apply_tool_result(event.message)
 				return
 			end
 			M.render_message(ctx, event.message)
 		elseif event.message and event.message.role == "assistant" then
-			ctx.record_tool_calls(event.message)
+			ctx.tools.record_calls(event.message)
 			if not state.current_message_started and not state.current_thinking_rendered then
 				M.render_message(ctx, event.message)
 			end
@@ -486,38 +636,52 @@ function M.handle_event(ctx, event)
 			M.render_message(ctx, event.message)
 		end
 	elseif event.type == "tool_execution_start" then
-		ctx.clear_assistant_placeholder_spinner()
+		ctx.transcript.clear_assistant_placeholder_spinner()
 		state.current_message_started = true
 		if event.toolName == "edit" or event.toolName == "write" or event.toolName == "bash" then
-			ctx.record_tool_execution_call(event.toolName, event.toolCallId, event.args)
+			ctx.tools.record_execution_call(event.toolName, event.toolCallId, event.args)
 		end
-		if event.toolName == "spawn" or event.toolName == "spawn_control" then
+		if event.toolName == "spawn" then
 			render_or_update_live_tool(ctx, event, "Subagent starting…", { status = "running" })
+		elseif event.toolName == "spawn_control" then
+			if not coalesce_spawn_control_start(ctx, event) then
+				render_or_update_live_tool(ctx, event, "Subagent starting…", { status = "running" })
+			end
 		end
 		-- Non-spawn tool output is rendered from the final toolResult message. Rendering
 		-- every tool_execution_* stream creates empty/duplicate tool blocks for tools
 		-- that only publish their output at completion.
 		return
 	elseif event.type == "tool_execution_update" then
-		if event.toolName == "spawn" or event.toolName == "spawn_control" then
+		if event.toolName == "spawn" then
 			local partial = type(event.partialResult) == "table" and event.partialResult or {}
 			render_or_update_live_tool(ctx, event, partial_result_text(partial), partial.details or { status = "running" })
+		elseif event.toolName == "spawn_control" then
+			local partial = type(event.partialResult) == "table" and event.partialResult or {}
+			if not coalesce_spawn_control_result(ctx, event.toolCallId, partial_result_text(partial), partial.details) then
+				render_or_update_live_tool(ctx, event, partial_result_text(partial), partial.details or { status = "running" })
+			end
 		end
 		return
 	elseif event.type == "tool_execution_end" then
-		if event.toolName == "spawn" or event.toolName == "spawn_control" then
+		if event.toolName == "spawn" then
 			local result = type(event.result) == "table" and event.result or {}
 			render_or_update_live_tool(ctx, event, message_utils.extract_content_text(result.content), result.details or {})
+		elseif event.toolName == "spawn_control" then
+			local result = type(event.result) == "table" and event.result or {}
+			if not coalesce_spawn_control_result(ctx, event.toolCallId, message_utils.extract_content_text(result.content), result.details) then
+				render_or_update_live_tool(ctx, event, message_utils.extract_content_text(result.content), result.details or {})
+			end
 		end
 		return
 	elseif event.type == "queue_update" then
 		local count = event.pendingMessageCount or event.count
 		if count then
-			ctx.notify("Pi queue: " .. tostring(count) .. " pending")
+			ctx.ui.notify("Pi queue: " .. tostring(count) .. " pending")
 		end
 	elseif event.type == "session_info_changed" then
 		state.session_name = event.name
-		ctx.refresh_transcript_ui()
+		ctx.transcript.refresh_ui()
 	elseif event.type == "extension_ui_request" then
 		M.handle_extension_ui_request(ctx, event)
 	end

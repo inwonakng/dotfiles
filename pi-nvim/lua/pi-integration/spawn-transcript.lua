@@ -124,7 +124,7 @@ local function open_item(ctx, state, parent_win)
 	end
 	local child_ctx = {
 		state = state,
-		notify = ctx.notify,
+		notify = ctx.ui.notify,
 		parent_win = parent_win,
 	}
 	if item.kind == "tool" then
@@ -139,7 +139,7 @@ end
 
 function M.open(ctx, path, title)
 	if not path or vim.fn.filereadable(path) ~= 1 then
-		ctx.notify("Could not read " .. tostring(path), vim.log.levels.WARN)
+		ctx.ui.notify("Could not read " .. tostring(path), vim.log.levels.WARN)
 		return
 	end
 
@@ -200,12 +200,12 @@ function M.open(ctx, path, title)
 	local close_win = function()
 		floats.close_window(win)
 	end
-	floats.close_on_win_leave(buf, close_win, { win = win, parent = ctx.parent_win })
+	floats.close_on_win_leave(buf, close_win, { win = win, parent = ctx.window.parent })
 	vim.keymap.set("n", "q", close_win, { buffer = buf, silent = true, desc = "Close spawn transcript" })
 	vim.keymap.set("n", "<Esc>", close_win, { buffer = buf, silent = true, desc = "Close spawn transcript" })
 	vim.keymap.set("n", "r", function()
 		refresh()
-		ctx.notify("Refreshed spawn transcript")
+		ctx.ui.notify("Refreshed spawn transcript")
 	end, { buffer = buf, silent = true, desc = "Refresh spawn transcript" })
 	vim.keymap.set("n", "<CR>", function()
 		open_item(ctx, state, win)

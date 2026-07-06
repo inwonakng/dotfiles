@@ -81,9 +81,9 @@ end
 
 local function mode_statusline_label(mode)
 	if mode == "readonly" then
-		return " "
+		return " "
 	elseif mode == "write" then
-		return " "
+		return "󱇧 "
 	end
 	return tostring(mode or "--")
 end
@@ -135,9 +135,9 @@ end
 
 local function notification_statusline_label(status)
 	if status == "notify on" then
-		return " "
+		return "󰂞 "
 	elseif status == "notify off" then
-		return " "
+		return "󰂛 "
 	end
 	return tostring(status or "")
 end
@@ -159,7 +159,8 @@ function M.render(ctx)
 	local mode_suffix = ""
 	local mode_label = mode_prefix .. mode_text .. mode_suffix
 	local status_delimiter = "·"
-	local notification_label = state.notification_status and (status_delimiter .. notification_statusline_label(state.notification_status)) or ""
+	local notification_label = state.notification_status and notification_statusline_label(state.notification_status) or ""
+	local notification_segment_label = notification_label ~= "" and (status_delimiter .. notification_label) or ""
 	local model_label = status_delimiter .. current_model_statusline_label(ctx)
 	local thinking_level = current_thinking_level_label(state)
 	local thinking_label = thinking_level and (" [" .. thinking_level .. "]") or ""
@@ -168,7 +169,7 @@ function M.render(ctx)
 	local statusline_win = tonumber(vim.g.statusline_winid) or ctx.state.transcript_win or 0
 	local width = vim.api.nvim_win_get_width(statusline_win)
 	local mode_width = vim.fn.strdisplaywidth(mode_label)
-	local notification_width = vim.fn.strdisplaywidth(notification_label)
+	local notification_width = vim.fn.strdisplaywidth(notification_segment_label)
 	local model_width = vim.fn.strdisplaywidth(model_label)
 	local thinking_width = vim.fn.strdisplaywidth(thinking_label)
 	local spawn_width = vim.fn.strdisplaywidth(spawn_label)
@@ -199,12 +200,13 @@ function M.render(ctx)
 	if width <= left_width then
 		return left_label
 			.. "%#PiUsageStats#"
-			.. statusline_escape(truncate_plain_to_width(notification_label .. model_label .. thinking_label .. spawn_label, width - mode_width))
+			.. statusline_escape(truncate_plain_to_width(notification_segment_label .. model_label .. thinking_label .. spawn_label, width - mode_width))
 			.. "%*"
 	end
 
 	if notification_label ~= "" then
 		left_label = left_label
+			.. statusline_escape(status_delimiter)
 			.. notification_statusline_highlight(state.notification_status)
 			.. statusline_escape(notification_label)
 			.. "%#PiUsageStats#"
@@ -230,7 +232,7 @@ function M.setup(ctx)
 end
 
 function M.update(ctx)
-	if not ctx.transcript_win_valid() then
+	if not ctx.transcript.win_valid() then
 		return
 	end
 	vim.api.nvim_set_option_value("statusline", "%!v:lua._pi_nvim_transcript_statusline()", { win = ctx.state.transcript_win })

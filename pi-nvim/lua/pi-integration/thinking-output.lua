@@ -65,7 +65,7 @@ function M.open_float(ctx, output_id)
 	local state = ctx.state
 	local output = state.thinking_outputs[output_id]
 	if not output then
-		ctx.notify("Thinking output unavailable", vim.log.levels.WARN)
+		ctx.ui.notify("Thinking output unavailable", vim.log.levels.WARN)
 		return true
 	end
 
@@ -102,12 +102,12 @@ function M.open_float(ctx, output_id)
 	local close_thinking_win = function()
 		floats.close_window(win)
 	end
-	floats.close_on_win_leave(buf, close_thinking_win, { win = win, parent = ctx.parent_win })
+	floats.close_on_win_leave(buf, close_thinking_win, { win = win, parent = ctx.window.parent })
 	vim.keymap.set("n", "q", close_thinking_win, { buffer = buf, silent = true, desc = "Close thinking output" })
 	vim.keymap.set("n", "<Esc>", close_thinking_win, { buffer = buf, silent = true, desc = "Close thinking output" })
 	vim.keymap.set("n", "y", function()
 		vim.fn.setreg("+", output.text or "")
-		ctx.notify("Yanked thinking output")
+		ctx.ui.notify("Yanked thinking output")
 	end, { buffer = buf, silent = true, desc = "Yank thinking output" })
 
 	return true

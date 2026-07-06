@@ -36,7 +36,7 @@ M.specs = {
 local function action_fn(ctx, action)
 	if action == "open_transcript_item" then
 		return function()
-			ctx.open_transcript_item_under_cursor()
+			ctx.transcript.open_item_under_cursor()
 		end
 	end
 
@@ -45,13 +45,13 @@ local function action_fn(ctx, action)
 		if type(fn) == "function" then
 			fn()
 		else
-			ctx.notify("Missing Pi action: " .. tostring(action), vim.log.levels.ERROR)
+			ctx.ui.notify("Missing Pi action: " .. tostring(action), vim.log.levels.ERROR)
 		end
 	end
 end
 
 local function set_keymaps(ctx, buf, specs)
-	if not ctx.valid_buf(buf) then
+	if not ctx.buffer.valid(buf) then
 		return
 	end
 	for _, spec in ipairs(specs) do
@@ -79,7 +79,7 @@ local function which_key_specs(buf, specs)
 end
 
 local function register_which_key(ctx, buf, specs)
-	if not ctx.valid_buf(buf) then
+	if not ctx.buffer.valid(buf) then
 		return
 	end
 	local ok, which_key = pcall(require, "which-key")

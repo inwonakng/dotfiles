@@ -76,9 +76,13 @@ local function transcript_ctx()
 	return {
 		state = state,
 		config = M.config,
-		valid_buf = valid_buf,
-		set_modifiable = set_modifiable,
-		update_transcript_statusline = update_transcript_statusline,
+		buffer = {
+			valid = valid_buf,
+			set_modifiable = set_modifiable,
+		},
+		transcript = {
+			update_statusline = update_transcript_statusline,
+		},
 	}
 end
 
@@ -104,6 +108,8 @@ local function apply_session_state(data)
 		state.tree_leaf_id = nil
 		state.spawn_runs = {}
 		state.spawn_running_count = 0
+		state.spawn_run_lines = {}
+		state.coalesced_spawn_control_tool_calls = {}
 		state.is_retrying = false
 		state.pending_retry_error = nil
 	end
@@ -161,8 +167,12 @@ local extract_text
 local function tool_output_ctx(parent_win)
 	return {
 		state = state,
-		notify = notify,
-		parent_win = parent_win,
+		ui = {
+			notify = notify,
+		},
+		window = {
+			parent = parent_win,
+		},
 	}
 end
 
@@ -187,6 +197,10 @@ end
 
 local function store_or_update_live_tool_output(tool_name, tool_call_id, text, filetype, details, display)
 	return pi_tool_output.store_or_update_live(state, tool_name, tool_call_id, text, filetype, details, display)
+end
+
+local function store_or_update_spawn_run_output(run, text)
+	return pi_tool_output.store_or_update_spawn_run(state, run, text)
 end
 
 local function store_tool_display(message)
@@ -395,82 +409,99 @@ pi_layout = require("pi-integration.layout")
 pi_actions = require("pi-integration.actions")
 pi_pickers = require("pi-integration.pickers")
 
-integration_ctx = function()
-	return {
-		state = state,
-		config = M.config,
-		actions = M,
+local integration_context = {
+	state = state,
+	ui = {
 		notify = notify,
-
-		-- Generic helpers.
-		valid_buf = valid_buf,
+	},
+	buffer = {
+		valid = valid_buf,
 		set_modifiable = set_modifiable,
-		create_buffer = create_buffer,
-		set_buffer_lines = set_buffer_lines,
+		create = create_buffer,
+		set_lines = set_buffer_lines,
+	},
+	messages = {
 		extract_text = extract_text,
+	},
+	rpc = {
 		send = send,
-
-		-- Transcript helpers.
-		transcript_win_valid = transcript_win_valid,
+		handle_event = handle_event,
+		handle_response = handle_response,
+		event_error_text = event_error_text,
+		recent_stderr_text = recent_stderr_text,
+	},
+	transcript = {
+		win_valid = transcript_win_valid,
 		metadata_lines = metadata_lines,
-		refresh_transcript_ui = refresh_transcript_ui,
-		touch_transcript = touch_transcript,
-		update_transcript_statusline = update_transcript_statusline,
+		refresh_ui = refresh_transcript_ui,
+		touch = touch_transcript,
 		append_status = append_status,
+		remove_status = remove_status,
 		append_lines = append_lines,
 		append_text = append_text,
 		append_message_header = append_message_header,
-		remove_status = remove_status,
-		transcript_line_count = transcript_line_count,
-		clear_transcript_items = clear_transcript_items,
+		line_count = transcript_line_count,
+		clear_items = clear_transcript_items,
 		begin_trace_item = begin_trace_item,
 		end_trace_item = end_trace_item,
+		register_item = register_transcript_item,
+		set_line = set_transcript_line,
+		open_item_under_cursor = open_transcript_item_under_cursor,
 		start_assistant_placeholder = start_assistant_placeholder,
 		assistant_placeholder_active = assistant_placeholder_active,
 		clear_assistant_placeholder = clear_assistant_placeholder,
 		clear_assistant_placeholder_spinner = clear_assistant_placeholder_spinner,
 		render_error_message = render_error_message,
-
-		-- RPC/event helpers.
-		handle_event = handle_event,
-		handle_response = handle_response,
-		event_error_text = event_error_text,
-		recent_stderr_text = recent_stderr_text,
-
-		-- Feature helpers.
+	},
+	tools = {
+		record_calls = record_tool_calls,
+		record_execution_call = record_tool_execution_call,
+		store_output = store_tool_output,
+		store_or_update_live_output = store_or_update_live_tool_output,
+		store_or_update_spawn_run_output = store_or_update_spawn_run_output,
+		store_display = store_tool_display,
+		live_output_id = live_tool_output_id,
+		summary_lines = tool_output_summary_lines,
+	},
+	thinking = {
+		store_output = store_thinking_output,
+		append_output = append_thinking_output,
+		text = thinking_output_text,
+		summary_lines = thinking_output_summary_lines,
+	},
+	skills = {
+		store_prompt = store_skill_prompt,
+		summary_lines = skill_summary_lines,
+		apply_tool_result = apply_skill_tool_result,
+	},
+	session = {
 		set_model_metadata = set_model_metadata,
 		set_input_text = set_input_text,
-		record_tool_calls = record_tool_calls,
-		record_tool_execution_call = record_tool_execution_call,
-		store_tool_output = store_tool_output,
-		store_or_update_live_tool_output = store_or_update_live_tool_output,
-		store_tool_display = store_tool_display,
-		live_tool_output_id = live_tool_output_id,
-		tool_output_summary_lines = tool_output_summary_lines,
-		store_thinking_output = store_thinking_output,
-		append_thinking_output = append_thinking_output,
-		thinking_output_text = thinking_output_text,
-		thinking_output_summary_lines = thinking_output_summary_lines,
-		store_skill_prompt = store_skill_prompt,
-		skill_summary_lines = skill_summary_lines,
-		apply_skill_tool_result = apply_skill_tool_result,
-		register_transcript_item = register_transcript_item,
-		set_transcript_line = set_transcript_line,
-		apply_session_state = apply_session_state,
+		apply_state = apply_session_state,
 		is_agent_active = is_agent_active,
-		load_session_messages_from_file = load_session_messages_from_file,
-		render_messages = render_messages,
-		open_transcript_item_under_cursor = open_transcript_item_under_cursor,
-		setup_keymaps = setup_keymaps,
-		is_access_mode = function(mode)
-			return pi_pickers.is_access_mode({ config = M.config }, mode)
-		end,
+	},
+	access = {},
+	window = {},
+	notices = {
+		initial_session = INITIAL_SESSION_NOTICE,
+		new_session = NEW_SESSION_NOTICE,
+		pending_new_session = PENDING_NEW_SESSION_NOTICE,
+	},
+}
 
-		-- User-facing notices.
-		initial_session_notice = INITIAL_SESSION_NOTICE,
-		new_session_notice = NEW_SESSION_NOTICE,
-		pending_new_session_notice = PENDING_NEW_SESSION_NOTICE,
-	}
+integration_context.access.is_mode = function(mode)
+	return pi_pickers.is_access_mode({ config = M.config }, mode)
+end
+
+integration_ctx = function()
+	integration_context.config = M.config
+	integration_context.actions = M
+	integration_context.window.parent = state.transcript_win
+	integration_context.transcript.update_statusline = update_transcript_statusline
+	integration_context.session.load_messages_from_file = load_session_messages_from_file
+	integration_context.session.render_messages = render_messages
+	integration_context.session.setup_keymaps = setup_keymaps
+	return integration_context
 end
 
 setup_keymaps = function()

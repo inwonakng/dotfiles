@@ -11,8 +11,8 @@ function M.toggle(ctx)
 		return
 	end
 
-	if not ctx.valid_buf(state.help_buf) then
-		state.help_buf = ctx.create_buffer("pi://help", "markdown", false)
+	if not ctx.buffer.valid(state.help_buf) then
+		state.help_buf = ctx.buffer.create("pi://help", "markdown", false)
 	end
 
 	local lines = {
@@ -33,7 +33,7 @@ function M.toggle(ctx)
 		"",
 		"When a run is already streaming, submitting another prompt is sent as PI steering for the active run.",
 	})
-	ctx.set_buffer_lines(state.help_buf, lines, false)
+	ctx.buffer.set_lines(state.help_buf, lines, false)
 
 	local width = math.min(72, math.max(48, math.floor(vim.o.columns * 0.55)))
 	local height = math.min(#lines + 2, math.max(14, math.floor(vim.o.lines * 0.65)))
