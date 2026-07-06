@@ -81,7 +81,7 @@ end
 
 local function mode_statusline_label(mode)
 	if mode == "readonly" then
-		return " "
+		return " "
 	elseif mode == "write" then
 		return " "
 	end
