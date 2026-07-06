@@ -1,5 +1,5 @@
 import type { ExtensionAPI, ExtensionCommandContext, SessionEntry } from "@earendil-works/pi-coding-agent";
-import { getAgentDir, withFileMutationQueue } from "@earendil-works/pi-coding-agent";
+import { CONFIG_DIR_NAME, getAgentDir, withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 import { spawnSync } from "child_process";
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
 import { appendFile } from "fs/promises";
@@ -78,6 +78,12 @@ function hashSessionFile(sessionFile: string | undefined) {
 function historyFile(sessionFile: string | undefined) {
 	mkdirSync(HISTORY_DIR, { recursive: true });
 	return join(HISTORY_DIR, `${hashSessionFile(sessionFile)}.jsonl`);
+}
+
+function isHistoryIgnoredPath(path: string) {
+	const normalized = path.replace(/\\/g, "/");
+	const spawnRoot = `${CONFIG_DIR_NAME}/spawn`;
+	return normalized === spawnRoot || normalized.startsWith(`${spawnRoot}/`);
 }
 
 function pathInside(parent: string, child: string) {
@@ -182,6 +188,9 @@ function sameState(left: SnapshotState, right: SnapshotState) {
 function snapshotBefore(path: string) {
 	assertOk(turn, "No active turn");
 	const normalizedPath = normalizePath(turn.cwd, path);
+	if (isHistoryIgnoredPath(normalizedPath)) {
+		return;
+	}
 	if (!turn.files.has(normalizedPath)) {
 		turn.files.set(normalizedPath, {
 			before: snapshotCurrentFile(turn.cwd, normalizedPath),
@@ -192,6 +201,9 @@ function snapshotBefore(path: string) {
 function snapshotAfter(path: string) {
 	assertOk(turn, "No active turn");
 	const normalizedPath = normalizePath(turn.cwd, path);
+	if (isHistoryIgnoredPath(normalizedPath)) {
+		return;
+	}
 	const current = turn.files.get(normalizedPath) || {
 		before: snapshotCurrentFile(turn.cwd, normalizedPath),
 	};
@@ -206,7 +218,7 @@ function recordGitChanges() {
 	const dirtyNow = gitStatusPaths(turn.gitRoot);
 	for (const path of dirtyNow) {
 		const normalizedPath = normalizeGitPath(turn.cwd, turn.gitRoot, path);
-		if (!normalizedPath) {
+		if (!normalizedPath || isHistoryIgnoredPath(normalizedPath)) {
 			continue;
 		}
 		if (!turn.files.has(normalizedPath)) {
@@ -289,6 +301,9 @@ function restorePlan(records: TurnRecord[]) {
 	const planned = new Map<string, FileRecord>();
 	for (const record of records) {
 		for (const file of record.files) {
+			if (isHistoryIgnoredPath(file.path)) {
+				continue;
+			}
 			const existing = planned.get(file.path);
 			planned.set(file.path, {
 				path: file.path,
@@ -326,10 +341,6 @@ async function revertAfter(ctx: ExtensionCommandContext, targetId: string | null
 	const conflicts = validateCurrentState(ctx.cwd, files);
 	if (conflicts.length > 0) {
 		ctx.ui.notify(`Rollback blocked; files changed since the agent turn:\n${conflicts.join("\n")}`, "error");
-		return false;
-	}
-	const confirmed = await ctx.ui.confirm("Revert recorded file changes?", `${files.length} file(s) will be restored.`);
-	if (!confirmed) {
 		return false;
 	}
 	for (const file of files) {
@@ -371,7 +382,7 @@ export default function historyExtension(pi: ExtensionAPI) {
 		};
 		for (const path of turn.dirtyAtStart) {
 			const normalizedPath = normalizeGitPath(ctx.cwd, gitRoot, path);
-			if (!normalizedPath) {
+			if (!normalizedPath || isHistoryIgnoredPath(normalizedPath)) {
 				continue;
 			}
 			snapshotBefore(normalizedPath);
@@ -405,6 +416,9 @@ export default function historyExtension(pi: ExtensionAPI) {
 		recordGitChanges();
 		const files: FileRecord[] = [];
 		for (const [path, state] of turn.files) {
+			if (isHistoryIgnoredPath(path)) {
+				continue;
+			}
 			const after = state.after || snapshotCurrentFile(turn.cwd, path);
 			if (!sameState(state.before, after)) {
 				files.push({ path, before: state.before, after });
@@ -423,13 +437,13 @@ export default function historyExtension(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("pi-history", {
-		description: "Pick an earlier user message and fork or revert to it",
+		description: "Pick an earlier user message and fork or revert to it; revert undoes related file changes",
 		handler: async (_args, ctx) => {
 			const entry = await pickUserMessage(ctx);
 			if (!entry) {
 				return;
 			}
-			const action = await ctx.ui.select("History action", ["Revert", "Fork"]);
+			const action = await ctx.ui.select("History action", ["Revert (undoes related file changes)", "Fork"]);
 			if (action === "Fork") {
 				const text = messageText(entry);
 				await ctx.fork(entry.id, {
@@ -439,7 +453,7 @@ export default function historyExtension(pi: ExtensionAPI) {
 						markHistoryChanged(newCtx);
 					},
 				});
-			} else if (action === "Revert") {
+			} else if (action === "Revert (undoes related file changes)") {
 				const reverted = await revertAfter(ctx, entry.parentId);
 				if (!reverted) {
 					return;

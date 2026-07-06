@@ -14,7 +14,7 @@ Use skills as the source of truth for reusable workflows. In particular:
 - Use `debug` for bugs, failing tests, build errors, or unexpected behavior before fixing.
 - Use `review` for plan/diff/implementation review.
 - Use `verify` before claiming work is done, fixed, passing, or ready.
-- Use `defer` before coordinating subagents with `spawn` / `spawn_control`.
+- Use `subagent-delegation` before coordinating subagents with `spawn` / `spawn_control`.
 
 ## Subagents
 

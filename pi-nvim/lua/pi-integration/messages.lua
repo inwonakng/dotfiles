@@ -7,6 +7,17 @@ function M.decode_session_record(line)
 	return json.decode_object(line)
 end
 
+local function custom_message_from_record(record)
+	return {
+		role = "custom",
+		customType = record.customType,
+		content = record.content,
+		display = record.display,
+		details = record.details,
+		timestamp = record.timestamp,
+	}
+end
+
 local function apply_session_record_metadata(ctx, records)
 	for _, record in ipairs(records or {}) do
 		if record.type == "session_info" and type(record.name) == "string" then
@@ -38,6 +49,8 @@ function M.load_session_messages_from_file(ctx, path)
 		end
 		if record and record.type == "message" and record.message then
 			table.insert(fallback_messages, record.message)
+		elseif record and record.type == "custom_message" and record.display ~= false then
+			table.insert(fallback_messages, custom_message_from_record(record))
 		end
 	end
 
@@ -57,6 +70,8 @@ function M.load_session_messages_from_file(ctx, path)
 	for _, record in ipairs(branch) do
 		if record.type == "message" and record.message then
 			table.insert(messages, record.message)
+		elseif record.type == "custom_message" and record.display ~= false then
+			table.insert(messages, custom_message_from_record(record))
 		end
 	end
 	return #messages > 0 and messages or fallback_messages
@@ -124,6 +139,37 @@ local function append_tool_summary(ctx, lines, items, message)
 	if not text or text == "" then
 		return false
 	end
+	local output_id = ctx.store_tool_output(name, text, nil, message.details, message)
+	vim.list_extend(lines, ctx.tool_output_summary_lines(output_id))
+	local line = #lines
+	table.insert(lines, "")
+	table.insert(items, {
+		kind = "tool",
+		start_line = line,
+		end_line = line,
+		output_id = output_id,
+	})
+	return true
+end
+
+local function spawn_custom_tool_name(message)
+	if type(message) ~= "table" or message.role ~= "custom" then
+		return nil
+	end
+	if message.customType == "spawn_completion" then
+		return "spawn"
+	elseif message.customType == "spawn_control_result" then
+		return "spawn_control"
+	end
+	return nil
+end
+
+local function append_spawn_custom_summary(ctx, lines, items, message)
+	local name = spawn_custom_tool_name(message)
+	if not name then
+		return false
+	end
+	local text = name == "spawn" and "" or (ctx.extract_text(message) or "")
 	local output_id = ctx.store_tool_output(name, text, nil, message.details, message)
 	vim.list_extend(lines, ctx.tool_output_summary_lines(output_id))
 	local line = #lines
@@ -303,6 +349,25 @@ function M.collect_message_lines(ctx, messages)
 			if append_skill_load_summaries(ctx, lines, items, skill_loads, has_body, last_rendered_kind) then
 				appended = true
 				rendered_kind = "skill"
+			end
+		elseif role == "custom" then
+			if message.display == false then
+				appended = false
+			elseif spawn_custom_tool_name(message) then
+				if has_body and is_trace_like(last_rendered_kind) then
+					remove_trailing_blank(lines)
+				else
+					add_message_separator(lines, has_body)
+				end
+				appended = append_spawn_custom_summary(ctx, lines, items, message)
+				rendered_kind = appended and "tool" or nil
+			else
+				local text = ctx.extract_text(message)
+				if text and text ~= "" then
+					append_text_message(lines, message, text, has_body)
+					appended = true
+					rendered_kind = "message"
+				end
 			end
 		else
 			local text = ctx.extract_text(message)

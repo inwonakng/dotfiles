@@ -167,18 +167,22 @@ local function path_from_artifact_line(text, label)
 	return text:match("%- " .. label .. ": ([^\n]+)")
 end
 
+local function artifact_path_value(value)
+	return type(value) == "string" and value ~= "" and value or nil
+end
+
 local function spawn_artifacts(tool_name, text, details)
 	if tool_name ~= "spawn" and tool_name ~= "spawn_control" then
 		return nil
 	end
 	details = type(details) == "table" and details or {}
 	local artifacts = {
-		brief = details.briefPath or path_from_artifact_line(text, "Brief"),
-		result = details.resultPath or path_from_artifact_line(text, "Result"),
-		transcript = details.transcriptPath or path_from_artifact_line(text, "Transcript"),
-		status = details.statusPath or path_from_artifact_line(text, "Status"),
-		agent_prompt = details.agentPromptPath or path_from_artifact_line(text, "Subagent prompt"),
-		patch = details.patchPath or path_from_artifact_line(text, "Patch"),
+		brief = artifact_path_value(details.briefPath) or path_from_artifact_line(text, "Brief"),
+		result = artifact_path_value(details.resultPath) or path_from_artifact_line(text, "Result"),
+		transcript = artifact_path_value(details.transcriptPath) or path_from_artifact_line(text, "Transcript"),
+		status = artifact_path_value(details.statusPath) or path_from_artifact_line(text, "Status"),
+		agent_prompt = artifact_path_value(details.agentPromptPath) or path_from_artifact_line(text, "Subagent prompt"),
+		patch = artifact_path_value(details.patchPath) or path_from_artifact_line(text, "Patch"),
 	}
 	if artifacts.brief or artifacts.result or artifacts.transcript or artifacts.status or artifacts.agent_prompt or artifacts.patch then
 		return artifacts
@@ -252,7 +256,7 @@ local function open_spawn_artifacts(ctx, output)
 	end
 	local choices = {}
 	local function add(label, path, filetype)
-		if path and path ~= "" then
+		if type(path) == "string" and path ~= "" then
 			table.insert(choices, { label = label, path = path, filetype = filetype })
 		end
 	end
@@ -521,20 +525,24 @@ function M.summary_lines(state, output_id)
 	if output.name == "spawn" or output.name == "spawn_control" then
 		label = "Subagent"
 		local details = type(output.details) == "table" and output.details or {}
-		if details.agent and details.agent ~= "" then
-			label = label .. ": " .. tostring(details.agent)
-		elseif details.role and details.role ~= "" then
-			label = label .. ": " .. tostring(details.role)
+		if type(details.agent) == "string" and details.agent ~= "" then
+			label = label .. ": " .. details.agent
+		elseif type(details.role) == "string" and details.role ~= "" then
+			label = label .. ": " .. details.role
 		end
-		local progress = truncate_text(details.progress or output.text or "", 120)
-		local status = details.status and tostring(details.status) or nil
+		local status = type(details.status) == "string" and details.status or nil
+		local progress_source = type(details.progress) == "string" and details.progress or output.text or ""
+		local progress = truncate_text(progress_source, 120)
+		if status and progress == status then
+			progress = ""
+		end
 		local parts = { "> 󰇥 " .. label }
 		if status and status ~= "" then
 			table.insert(parts, status)
 		end
 		if progress ~= "" then
 			table.insert(parts, progress)
-		else
+		elseif not output.spawn then
 			table.insert(parts, line_label)
 		end
 		if output.spawn then

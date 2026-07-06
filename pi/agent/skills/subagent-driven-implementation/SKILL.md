@@ -7,7 +7,7 @@ description: Use when executing an approved implementation plan file, multiple p
 
 Use this skill to execute approved implementation plans through a main-agent controller and bounded Pi subagents.
 
-This is the high-level implementation workflow. The `defer` skill is the low-level policy for using `spawn` / `spawn_control` safely. Load and follow `defer` before the first spawned subagent in this workflow.
+This is the high-level implementation workflow. The `subagent-delegation` skill is the low-level policy for using `spawn` / `spawn_control` safely. Load and follow `subagent-delegation` before the first spawned subagent in this workflow.
 
 ## When to Stop and Ask First
 

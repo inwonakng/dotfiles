@@ -1,11 +1,11 @@
 ---
-name: defer
-description: Use when a task may benefit from an isolated Pi subagent for research, planning, implementation, review, or verification. Teaches when and how to call spawn/spawn_control safely.
+name: subagent-delegation
+description: Use when a task may benefit from delegating bounded work to an isolated Pi subagent for research, planning, implementation, review, or verification. Teaches when and how to call spawn/spawn_control safely.
 ---
 
-# Defer
+# Subagent Delegation
 
-Use this skill to coordinate isolated Pi subagents through the `spawn` and `spawn_control` tools.
+Use this skill to coordinate bounded delegation to isolated Pi subagents through the `spawn` and `spawn_control` tools.
 
 "Subagents" is the user-facing concept. `spawn` starts a subagent job and `spawn_control` inspects, joins, or stops it.
 
@@ -15,7 +15,7 @@ Use this skill to coordinate isolated Pi subagents through the `spawn` and `spaw
 - Use `subagent-driven-implementation` when executing an approved implementation plan file, multiple plan files, or a complex approved implementation plan. That skill is the high-level workflow; this skill is the low-level delegation policy.
 - Use this skill directly for bounded research, critique, review, verification advice, or isolated implementation slices that do not require the full plan-file workflow.
 
-## When to Defer
+## When to Delegate
 
 Good uses:
 

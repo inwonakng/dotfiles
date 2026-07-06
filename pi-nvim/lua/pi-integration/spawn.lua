@@ -54,11 +54,16 @@ local function open_text(ctx, title, path, filetype)
 	end, { buffer = buf, silent = true, desc = "Yank spawn artifact" })
 end
 
+local function worktree_info(run)
+	return type(run.worktree) == "table" and run.worktree or nil
+end
+
 local function run_label(run)
 	local agent = run.agent or "generic"
 	local status = run.status or "unknown"
 	local id = run.runId or "unknown"
-	local integration = run.worktree and run.worktree.integration
+	local worktree = worktree_info(run)
+	local integration = worktree and worktree.integration
 	local suffix = integration and integration ~= vim.NIL and (" · " .. tostring(integration)) or ""
 	return string.format("%s · %s · %s%s", status, agent, id, suffix)
 end
@@ -75,7 +80,8 @@ local function artifact_path(run, kind)
 	elseif kind == "subagent prompt" then
 		return run.agentPromptPath
 	elseif kind == "patch" then
-		return run.worktree and run.worktree.patchPath
+		local worktree = worktree_info(run)
+		return worktree and worktree.patchPath
 	end
 	return nil
 end

@@ -55,7 +55,7 @@ Do not silently downgrade a plan-file implementation to inline work.
 
 ## Subagent Work
 
-For non-plan-file work, use the `defer` skill when subagent delegation would materially help or the user says "use subagents". Typical uses:
+For non-plan-file work, use the `subagent-delegation` skill when subagent delegation would materially help or the user says "use subagents". Typical uses:
 
 - readonly research into an unfamiliar subsystem
 - independent review of a plan or diff

@@ -46,6 +46,38 @@ local function render_or_update_live_tool(ctx, event, text, details)
 	return output_id
 end
 
+local function spawn_custom_tool_name(message)
+	if type(message) ~= "table" or message.role ~= "custom" then
+		return nil
+	end
+	if message.customType == "spawn_completion" then
+		return "spawn"
+	elseif message.customType == "spawn_control_result" then
+		return "spawn_control"
+	end
+	return nil
+end
+
+local function render_spawn_custom_tool(ctx, message)
+	local name = spawn_custom_tool_name(message)
+	if not name then
+		return false
+	end
+	local text = name == "spawn" and "" or (ctx.extract_text(message) or "")
+	local output_id = ctx.store_tool_output(name, text, nil, message.details, message)
+	ctx.begin_trace_item()
+	ctx.append_lines(ctx.tool_output_summary_lines(output_id))
+	local line = ctx.transcript_line_count()
+	ctx.register_transcript_item({
+		kind = "tool",
+		start_line = line,
+		end_line = line,
+		output_id = output_id,
+	})
+	ctx.end_trace_item()
+	return true
+end
+
 local function render_skill_loads(ctx, message)
 	local loads = pi_skills.collect_loads(ctx.state, message)
 	if #loads == 0 then
@@ -69,6 +101,12 @@ end
 
 function M.render_message(ctx, message)
 	local role = message.role or message.type or "message"
+	if role == "custom" and message.display == false then
+		return
+	end
+	if render_spawn_custom_tool(ctx, message) then
+		return
+	end
 	local text = ctx.extract_text(message)
 	if not text or text == "" then
 		return
