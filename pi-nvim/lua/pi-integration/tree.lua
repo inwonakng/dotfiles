@@ -289,8 +289,12 @@ local function apply_sender_highlights(ctx)
 	end
 end
 
+local function win_valid(win)
+	return win and vim.api.nvim_win_is_valid(win)
+end
+
 local function focus_input_window(ctx)
-	if ctx.state.input_win and vim.api.nvim_win_is_valid(ctx.state.input_win) then
+	if win_valid(ctx.state.input_win) then
 		vim.api.nvim_set_current_win(ctx.state.input_win)
 	end
 end
@@ -304,7 +308,11 @@ local function close_tree_window(ctx)
 end
 
 local function current_node(ctx)
-	local cursor = vim.api.nvim_win_get_cursor(0)
+	local win = vim.api.nvim_get_current_win()
+	if ctx.buffer.valid(ctx.state.tree_buf) and vim.api.nvim_win_get_buf(win) ~= ctx.state.tree_buf and win_valid(ctx.state.tree_win) then
+		win = ctx.state.tree_win
+	end
+	local cursor = vim.api.nvim_win_get_cursor(win)
 	return ctx.state.tree_nodes_by_line[cursor[1]]
 end
 
@@ -354,6 +362,117 @@ local function update_preview(ctx)
 		return
 	end
 	ctx.buffer.set_lines(ctx.state.tree_preview_buf, preview_lines(ctx, current_node(ctx)), false)
+end
+
+local function selected_tree_position(ctx)
+	local state = ctx.state
+	local win = win_valid(state.tree_win) and state.tree_win or vim.api.nvim_get_current_win()
+	local ok, cursor = pcall(vim.api.nvim_win_get_cursor, win)
+	local row = ok and cursor[1] or 1
+	local node = (state.tree_nodes_by_line or {})[row]
+	return {
+		row = row,
+		entry_id = node and node.record and node.record.id or nil,
+		parent_id = node and node.record and node.record.parentId or nil,
+	}
+end
+
+local function save_tree_view(ctx)
+	if not win_valid(ctx.state.tree_win) then
+		return nil
+	end
+	local ok, view = pcall(vim.api.nvim_win_call, ctx.state.tree_win, function()
+		return vim.fn.winsaveview()
+	end)
+	return ok and view or nil
+end
+
+local function find_tree_line_by_id(ctx, entry_id)
+	if not entry_id then
+		return nil
+	end
+	for line, node in pairs(ctx.state.tree_nodes_by_line or {}) do
+		if node and node.record and node.record.id == entry_id then
+			return line
+		end
+	end
+	return nil
+end
+
+local function render_tree_buffer(ctx, opts)
+	opts = opts or {}
+	local state = ctx.state
+	local path = state.session_file or state.pending_session_file
+	if not path or path == "" then
+		ctx.ui.notify("No Pi session selected yet.", vim.log.levels.WARN)
+		return false
+	end
+
+	local roots, leaf_id = read_session_tree(ctx, path)
+	if #roots == 0 and not opts.allow_empty then
+		ctx.ui.notify("No tree entries found in this session.", vim.log.levels.WARN)
+		return false
+	end
+
+	if not ctx.buffer.valid(state.tree_buf) then
+		state.tree_buf = ctx.buffer.create("pi://tree", "text", false)
+	end
+	if not ctx.buffer.valid(state.tree_preview_buf) then
+		state.tree_preview_buf = ctx.buffer.create("pi://tree-preview", "markdown", false)
+	end
+
+	local lines = {
+		"Pi session tree",
+		"Filter: " .. (state.tree_filter_mode or "default") .. "    Layout: compressed",
+		"<CR> jump   S jump with summary   d delete subtree   o cycle filter   r refresh   q close",
+		"",
+	}
+	state.tree_nodes_by_line = {}
+	state.tree_sender_highlights_by_line = {}
+	if #roots == 0 then
+		table.insert(lines, "No tree entries found in this session.")
+	else
+		render_nodes(ctx, roots, leaf_id, lines, state.tree_nodes_by_line, state.tree_sender_highlights_by_line)
+	end
+	ctx.buffer.set_lines(state.tree_buf, lines, false)
+	apply_sender_highlights(ctx)
+	return true
+end
+
+local function restore_tree_view(ctx, opts)
+	opts = opts or {}
+	local state = ctx.state
+	if not win_valid(state.tree_win) or not ctx.buffer.valid(state.tree_buf) then
+		return
+	end
+
+	local line = find_tree_line_by_id(ctx, opts.entry_id) or find_tree_line_by_id(ctx, opts.parent_id) or opts.row or 1
+	local max_line = math.max(1, vim.api.nvim_buf_line_count(state.tree_buf))
+	line = math.min(math.max(line, 1), max_line)
+
+	pcall(vim.api.nvim_win_call, state.tree_win, function()
+		if opts.view then
+			local view = {}
+			for key, value in pairs(opts.view) do
+				view[key] = value
+			end
+			view.lnum = line
+			view.col = 0
+			view.curswant = 0
+			vim.fn.winrestview(view)
+		else
+			vim.api.nvim_win_set_cursor(state.tree_win, { line, 0 })
+		end
+	end)
+end
+
+local function refresh_tree_in_place(ctx, opts)
+	if not render_tree_buffer(ctx, { allow_empty = true }) then
+		return false
+	end
+	restore_tree_view(ctx, opts)
+	update_preview(ctx)
+	return true
 end
 
 local function ensure_session_for_tree_command(ctx)
@@ -413,8 +532,9 @@ local function delete_node(ctx)
 		return
 	end
 
+	local position = selected_tree_position(ctx)
+	position.view = save_tree_view(ctx)
 	local entry_id = node.record.id
-	close_tree_window(ctx)
 
 	ctx.rpc.send({ type = "prompt", message = "/pi-tree-delete " .. entry_id .. " --yes" }, function(event)
 		if not event.success then
@@ -426,43 +546,29 @@ local function delete_node(ctx)
 				ctx.session.apply_state(state_event.data)
 			end
 			ctx.actions.refresh_messages()
-			focus_input_window(ctx)
+			if win_valid(ctx.state.tree_win) then
+				refresh_tree_in_place(ctx, position)
+				vim.api.nvim_set_current_win(ctx.state.tree_win)
+			else
+				focus_input_window(ctx)
+			end
 		end)
 	end)
 end
 
 function M.show(ctx)
 	local state = ctx.state
-	local path = state.session_file or state.pending_session_file
-	if not path or path == "" then
-		ctx.ui.notify("No Pi session selected yet.", vim.log.levels.WARN)
+	if win_valid(state.tree_win) then
+		local position = selected_tree_position(ctx)
+		position.view = save_tree_view(ctx)
+		refresh_tree_in_place(ctx, position)
+		vim.api.nvim_set_current_win(state.tree_win)
 		return
 	end
 
-	local roots, leaf_id = read_session_tree(ctx, path)
-	if #roots == 0 then
-		ctx.ui.notify("No tree entries found in this session.", vim.log.levels.WARN)
+	if not render_tree_buffer(ctx) then
 		return
 	end
-
-	if not ctx.buffer.valid(state.tree_buf) then
-		state.tree_buf = ctx.buffer.create("pi://tree", "text", false)
-	end
-	if not ctx.buffer.valid(state.tree_preview_buf) then
-		state.tree_preview_buf = ctx.buffer.create("pi://tree-preview", "markdown", false)
-	end
-
-	local lines = {
-		"Pi session tree",
-		"Filter: " .. (state.tree_filter_mode or "default") .. "    Layout: compressed",
-		"<CR> jump   S jump with summary   d delete subtree   o cycle filter   r refresh   q close",
-		"",
-	}
-	state.tree_nodes_by_line = {}
-	state.tree_sender_highlights_by_line = {}
-	render_nodes(ctx, roots, leaf_id, lines, state.tree_nodes_by_line, state.tree_sender_highlights_by_line)
-	ctx.buffer.set_lines(state.tree_buf, lines, false)
-	apply_sender_highlights(ctx)
 
 	local width = math.min(math.max(72, math.floor(vim.o.columns * 0.72)), vim.o.columns - 4)
 	local outer_height = math.min(math.max(22, math.floor(vim.o.lines * 0.78)), vim.o.lines - 4)
@@ -519,11 +625,15 @@ function M.show(ctx)
 		delete_node(ctx)
 	end, { buffer = state.tree_buf, desc = "Delete Pi tree entry subtree" })
 	vim.keymap.set("n", "o", function()
+		local position = selected_tree_position(ctx)
+		position.view = save_tree_view(ctx)
 		cycle_filter_mode(ctx)
-		M.show(ctx)
+		refresh_tree_in_place(ctx, position)
 	end, { buffer = state.tree_buf, desc = "Cycle Pi tree filter" })
 	vim.keymap.set("n", "r", function()
-		M.show(ctx)
+		local position = selected_tree_position(ctx)
+		position.view = save_tree_view(ctx)
+		refresh_tree_in_place(ctx, position)
 	end, { buffer = state.tree_buf, desc = "Refresh Pi tree" })
 	vim.api.nvim_clear_autocmds({ group = tree_preview_augroup, buffer = state.tree_buf })
 	vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
