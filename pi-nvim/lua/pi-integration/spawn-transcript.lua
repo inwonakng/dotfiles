@@ -46,38 +46,48 @@ end
 local function make_render_ctx(state, path)
 	return {
 		state = state,
-		metadata_lines = function()
-			return metadata_lines(path)
-		end,
-		extract_text = extract_text,
-		record_tool_calls = function(message)
-			return pi_tool_output.record_calls(state, message)
-		end,
-		record_tool_execution_call = function(tool_name, tool_call_id, args)
-			return pi_tool_output.record_execution_call(state, tool_name, tool_call_id, args)
-		end,
-		store_tool_output = function(tool_name, text, filetype, details, message)
-			local tool_call_id = message_utils.tool_call_id(message)
-			return pi_tool_output.store(state, tool_name, text, filetype, details, pi_tool_output.display_for_result(state, message), tool_call_id)
-		end,
-		tool_output_summary_lines = function(output_id)
-			return pi_tool_output.summary_lines(state, output_id)
-		end,
-		store_thinking_output = function(text)
-			return pi_thinking_output.store(state, text)
-		end,
-		thinking_output_summary_lines = function(output_id, streaming)
-			return pi_thinking_output.summary_lines(state, output_id, streaming)
-		end,
-		store_skill_prompt = function(load)
-			return pi_skills.store_load(state, load)
-		end,
-		skill_summary_lines = function(output_id)
-			return pi_skills.summary_lines(state, output_id)
-		end,
-		apply_skill_tool_result = function(message)
-			return pi_skills.apply_tool_result(state, message, extract_text(message))
-		end,
+		messages = {
+			extract_text = extract_text,
+		},
+		transcript = {
+			metadata_lines = function()
+				return metadata_lines(path)
+			end,
+		},
+		tools = {
+			record_calls = function(message)
+				return pi_tool_output.record_calls(state, message)
+			end,
+			record_execution_call = function(tool_name, tool_call_id, args)
+				return pi_tool_output.record_execution_call(state, tool_name, tool_call_id, args)
+			end,
+			store_output = function(tool_name, text, filetype, details, message)
+				local tool_call_id = message_utils.tool_call_id(message)
+				return pi_tool_output.store(state, tool_name, text, filetype, details, pi_tool_output.display_for_result(state, message), tool_call_id)
+			end,
+			summary_lines = function(output_id)
+				return pi_tool_output.summary_lines(state, output_id)
+			end,
+		},
+		thinking = {
+			store_output = function(text)
+				return pi_thinking_output.store(state, text)
+			end,
+			summary_lines = function(output_id, streaming)
+				return pi_thinking_output.summary_lines(state, output_id, streaming)
+			end,
+		},
+		skills = {
+			store_prompt = function(load)
+				return pi_skills.store_load(state, load)
+			end,
+			summary_lines = function(output_id)
+				return pi_skills.summary_lines(state, output_id)
+			end,
+			apply_tool_result = function(message)
+				return pi_skills.apply_tool_result(state, message, extract_text(message))
+			end,
+		},
 	}
 end
 
@@ -94,9 +104,14 @@ end
 local function transcript_ctx(state)
 	return {
 		state = state,
-		valid_buf = buffer_utils.valid,
-		set_modifiable = buffer_utils.set_modifiable,
-		update_transcript_statusline = function() end,
+		buffer = {
+			valid = buffer_utils.valid,
+			set_modifiable = buffer_utils.set_modifiable,
+			set_lines = buffer_utils.set_lines,
+		},
+		transcript = {
+			update_statusline = function() end,
+		},
 	}
 end
 
@@ -124,8 +139,12 @@ local function open_item(ctx, state, parent_win)
 	end
 	local child_ctx = {
 		state = state,
-		notify = ctx.ui.notify,
-		parent_win = parent_win,
+		ui = {
+			notify = ctx.ui.notify,
+		},
+		window = {
+			parent = parent_win,
+		},
 	}
 	if item.kind == "tool" then
 		return pi_tool_output.open_float(child_ctx, item.output_id)

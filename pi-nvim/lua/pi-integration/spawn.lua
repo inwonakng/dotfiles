@@ -155,7 +155,13 @@ function M.pick(ctx)
 		ctx.ui.notify("No spawned subagents in this session", vim.log.levels.WARN)
 		return
 	end
-	vim.ui.select(runs, {
+
+	local choices = {}
+	for index = #runs, 1, -1 do
+		table.insert(choices, runs[index])
+	end
+
+	vim.ui.select(choices, {
 		prompt = "Spawned subagents",
 		format_item = run_label,
 	}, function(choice)
