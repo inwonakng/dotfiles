@@ -18,6 +18,17 @@ local function custom_message_from_record(record)
 	}
 end
 
+local function compaction_message_from_record(record)
+	return {
+		role = "compactionSummary",
+		summary = record.summary,
+		tokensBefore = record.tokensBefore,
+		firstKeptEntryId = record.firstKeptEntryId,
+		details = record.details,
+		timestamp = record.timestamp,
+	}
+end
+
 local function apply_session_record_metadata(ctx, records)
 	for _, record in ipairs(records or {}) do
 		if record.type == "session_info" and type(record.name) == "string" then
@@ -30,28 +41,23 @@ local function apply_session_record_metadata(ctx, records)
 	end
 end
 
-function M.load_session_messages_from_file(ctx, path)
-	local fallback_messages = {}
-	local all_records = {}
-	local by_id = {}
-	local leaf_id = nil
-	if not path or vim.fn.filereadable(path) ~= 1 then
-		return fallback_messages
+local function message_from_session_record(record)
+	if record.type == "message" and record.message then
+		return record.message
 	end
-	for _, line in ipairs(vim.fn.readfile(path)) do
-		local record = M.decode_session_record(line)
-		if record then
-			table.insert(all_records, record)
-		end
-		if record and record.id then
-			by_id[record.id] = record
-			leaf_id = record.id
-		end
-		if record and record.type == "message" and record.message then
-			table.insert(fallback_messages, record.message)
-		elseif record and record.type == "custom_message" and record.display ~= false then
-			table.insert(fallback_messages, custom_message_from_record(record))
-		end
+	if record.type == "custom_message" and record.display ~= false then
+		return custom_message_from_record(record)
+	end
+	if record.type == "compaction" then
+		return compaction_message_from_record(record)
+	end
+	return nil
+end
+
+local function branch_from_records(records, by_id, preferred_leaf_id, fallback_leaf_id)
+	local leaf_id = preferred_leaf_id
+	if type(leaf_id) ~= "string" or leaf_id == "" or not by_id[leaf_id] then
+		leaf_id = fallback_leaf_id
 	end
 
 	local branch = {}
@@ -63,18 +69,54 @@ function M.load_session_messages_from_file(ctx, path)
 		table.insert(branch, 1, record)
 		id = record.parentId
 	end
+	return branch
+end
 
+function M.load_session_messages_from_records(ctx, records, leaf_id)
+	local fallback_messages = {}
+	local all_records = {}
+	local by_id = {}
+	local fallback_leaf_id = nil
+
+	for _, record in ipairs(records or {}) do
+		if record then
+			table.insert(all_records, record)
+		end
+		if record and record.id then
+			by_id[record.id] = record
+			fallback_leaf_id = record.id
+		end
+		local message = record and message_from_session_record(record)
+		if message then
+			table.insert(fallback_messages, message)
+		end
+	end
+
+	local branch = branch_from_records(all_records, by_id, leaf_id or ctx.state.tree_leaf_id, fallback_leaf_id)
 	apply_session_record_metadata(ctx, #branch > 0 and branch or all_records)
 
 	local messages = {}
 	for _, record in ipairs(branch) do
-		if record.type == "message" and record.message then
-			table.insert(messages, record.message)
-		elseif record.type == "custom_message" and record.display ~= false then
-			table.insert(messages, custom_message_from_record(record))
+		local message = message_from_session_record(record)
+		if message then
+			table.insert(messages, message)
 		end
 	end
 	return #messages > 0 and messages or fallback_messages
+end
+
+function M.load_session_messages_from_file(ctx, path, leaf_id)
+	if not path or vim.fn.filereadable(path) ~= 1 then
+		return {}
+	end
+	local records = {}
+	for _, line in ipairs(vim.fn.readfile(path)) do
+		local record = M.decode_session_record(line)
+		if record then
+			table.insert(records, record)
+		end
+	end
+	return M.load_session_messages_from_records(ctx, records, leaf_id)
 end
 
 local function message_role_title(message)
@@ -101,6 +143,33 @@ end
 
 local function is_trace_like(kind)
 	return kind == "tool" or kind == "thinking" or kind == "skill"
+end
+
+local function format_integer(value)
+	local number = tonumber(value)
+	if not number then
+		return nil
+	end
+	local text = tostring(math.floor(number))
+	local result = text:reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+	return result
+end
+
+local function append_compaction_summary(lines, message, has_body)
+	add_message_separator(lines, has_body)
+	local parts = { "󰗨 Session compacted here" }
+	local tokens = format_integer(message.tokensBefore)
+	if tokens then
+		table.insert(parts, tokens .. " tokens before")
+	end
+	if type(message.firstKeptEntryId) == "string" and message.firstKeptEntryId ~= "" then
+		table.insert(parts, "kept from " .. message.firstKeptEntryId)
+	end
+	if type(message.timestamp) == "string" and message.timestamp ~= "" then
+		table.insert(parts, message.timestamp)
+	end
+	vim.list_extend(lines, { "> " .. table.concat(parts, " · "), "" })
+	return true, "compaction"
 end
 
 local function assistant_trace_only_thinking(message)
@@ -358,6 +427,8 @@ function M.collect_message_lines(ctx, messages)
 				appended = append_tool_summary(ctx, lines, items, message)
 				rendered_kind = appended and "tool" or nil
 			end
+		elseif role == "compactionSummary" then
+			appended, rendered_kind = append_compaction_summary(lines, message, has_body)
 		elseif role == "assistant" then
 			ctx.tools.record_calls(message)
 			local skill_loads = pi_skills.collect_loads(ctx.state, message)

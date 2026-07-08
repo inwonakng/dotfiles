@@ -164,6 +164,8 @@ function M.apply_quote_highlights(ctx)
 		local highlight = tool_quote_highlight(line)
 		if not highlight and line:find("> 󰔛 Thinking", 1, true) == 1 then
 			highlight = "PiThinkingQuote"
+		elseif not highlight and line:find("> 󰗨 Session compacted here", 1, true) == 1 then
+			highlight = "PiThinkingQuote"
 		elseif not highlight and line:find("> 󰢱 Using skill:", 1, true) == 1 then
 			highlight = "PiSkillQuote"
 		end

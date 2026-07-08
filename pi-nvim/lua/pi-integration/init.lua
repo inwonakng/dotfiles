@@ -574,7 +574,7 @@ function M.new_session()
 end
 
 load_session_messages_from_file = function(path)
-	return pi_messages.load_session_messages_from_file(integration_ctx(), path)
+	return pi_messages.load_session_messages_from_file(integration_ctx(), path, state.tree_leaf_id)
 end
 
 local function collect_message_lines(messages)
@@ -614,16 +614,28 @@ render_messages = function(messages)
 end
 
 function M.refresh_messages()
-	if not (state.job and state.job > 0) then
-		local path = state.pending_session_file or state.session_file
-		if path and path ~= "" then
-			render_messages(load_session_messages_from_file(path))
-		else
-			notify("No Pi session has been started yet.", vim.log.levels.WARN)
+	if is_agent_active() then
+		notify("Pi is active; transcript refresh will run after the current run finishes.", vim.log.levels.WARN)
+		return
+	end
+
+	local path = state.pending_session_file or state.session_file
+	if path and path ~= "" then
+		render_messages(load_session_messages_from_file(path))
+		if state.job and state.job > 0 then
+			M.refresh_session_stats()
 		end
 		return
 	end
 
+	if not (state.job and state.job > 0) then
+		notify("No Pi session has been started yet.", vim.log.levels.WARN)
+		return
+	end
+
+	-- Fallback for in-memory sessions without a session file. File-backed sessions
+	-- intentionally avoid get_messages here because it returns compacted model
+	-- context rather than the full persisted transcript.
 	send({ type = "get_messages" }, function(event)
 		if not event.success or not event.data then
 			notify("Could not get messages", vim.log.levels.ERROR)

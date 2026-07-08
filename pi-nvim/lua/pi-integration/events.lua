@@ -71,6 +71,19 @@ local function shallow_copy(table_value)
 	return copy
 end
 
+local function schedule_session_file_refresh(ctx)
+	local state = ctx.state
+	local path = state.pending_session_file or state.session_file
+	if type(path) ~= "string" or path == "" then
+		return
+	end
+	vim.defer_fn(function()
+		if not state.is_streaming and not state.is_retrying then
+			ctx.actions.refresh_messages()
+		end
+	end, 50)
+end
+
 local function update_spawn_run_line(ctx, run, progress)
 	local id = run_id(run)
 	if type(id) ~= "string" or id == "" then
@@ -472,6 +485,7 @@ function M.handle_event(ctx, event)
 		state.error_rendered_for_active_run = false
 		ctx.ui.notify("Pi is working")
 	elseif event.type == "agent_end" then
+		local abort_requested = state.abort_requested
 		state.is_streaming = false
 		state.current_message_started = false
 		state.current_thinking_rendered = false
@@ -499,10 +513,14 @@ function M.handle_event(ctx, event)
 		else
 			ctx.transcript.clear_assistant_placeholder()
 		end
+		local should_refresh_from_file = not state.error_rendered_for_active_run and not abort_requested
 		state.abort_requested = false
 		ctx.transcript.touch()
 		ctx.transcript.refresh_ui()
 		ctx.actions.refresh_session_stats()
+		if should_refresh_from_file then
+			schedule_session_file_refresh(ctx)
+		end
 		ctx.ui.notify("Pi finished")
 	elseif event.type == "auto_retry_start" then
 		state.is_retrying = true
@@ -521,6 +539,10 @@ function M.handle_event(ctx, event)
 			ctx.transcript.render_error_message("Agent Error", event.finalError or "Retry failed")
 			ctx.transcript.touch()
 			ctx.transcript.refresh_ui()
+		end
+	elseif event.type == "compaction_end" then
+		if not event.aborted and not event.willRetry then
+			schedule_session_file_refresh(ctx)
 		end
 	elseif event.type == "message_update" then
 		M.handle_message_update(ctx, event)
