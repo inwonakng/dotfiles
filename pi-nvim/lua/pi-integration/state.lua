@@ -40,7 +40,6 @@ function M.new()
 		spawn_runs = {},
 		spawn_running_count = 0,
 		spawn_run_lines = {},
-		coalesced_spawn_control_tool_calls = {},
 		last_updated = nil,
 		transcript_refresh_scheduled = false,
 		pending_user_message = nil,

@@ -109,7 +109,7 @@ local function apply_session_state(data)
 		state.spawn_runs = {}
 		state.spawn_running_count = 0
 		state.spawn_run_lines = {}
-		state.coalesced_spawn_control_tool_calls = {}
+		state.spawn_run_output_by_id = {}
 		state.is_retrying = false
 		state.pending_retry_error = nil
 	end
@@ -201,6 +201,10 @@ end
 
 local function store_or_update_spawn_run_output(run, text)
 	return pi_tool_output.store_or_update_spawn_run(state, run, text)
+end
+
+local function bind_spawn_run_output(run, output_id, line)
+	return pi_tool_output.bind_spawn_run(state, run, output_id, line)
 end
 
 local function store_tool_display(message)
@@ -459,6 +463,7 @@ local integration_context = {
 		store_output = store_tool_output,
 		store_or_update_live_output = store_or_update_live_tool_output,
 		store_or_update_spawn_run_output = store_or_update_spawn_run_output,
+		bind_spawn_run = bind_spawn_run_output,
 		store_display = store_tool_display,
 		live_output_id = live_tool_output_id,
 		summary_lines = tool_output_summary_lines,

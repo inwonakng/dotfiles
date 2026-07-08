@@ -65,6 +65,12 @@ local function make_render_ctx(state, path)
 				local tool_call_id = message_utils.tool_call_id(message)
 				return pi_tool_output.store(state, tool_name, text, filetype, details, pi_tool_output.display_for_result(state, message), tool_call_id)
 			end,
+			store_or_update_spawn_run_output = function(run, text)
+				return pi_tool_output.store_or_update_spawn_run(state, run, text)
+			end,
+			bind_spawn_run = function(run, output_id, line)
+				return pi_tool_output.bind_spawn_run(state, run, output_id, line)
+			end,
 			summary_lines = function(output_id)
 				return pi_tool_output.summary_lines(state, output_id)
 			end,
@@ -167,6 +173,8 @@ function M.open(ctx, path, title)
 		next_tool_output_id = 0,
 		tool_calls = {},
 		live_tool_output_by_call = {},
+		spawn_run_output_by_id = {},
+		spawn_run_lines = {},
 		thinking_outputs = {},
 		next_thinking_output_id = 0,
 		skill_tool_calls = {},

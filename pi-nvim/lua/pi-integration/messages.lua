@@ -133,6 +133,42 @@ local function assistant_trace_only_thinking(message)
 	return #thinking > 0 and thinking or nil
 end
 
+local function is_spawn_tool_name(name)
+	return name == "spawn"
+end
+
+local function message_run_id(message)
+	local details = type(message) == "table" and type(message.details) == "table" and message.details or nil
+	if not details then
+		return nil
+	end
+	return details.runId or details.id
+end
+
+local function bind_spawn_line(ctx, message, output_id, line)
+	if ctx.tools.bind_spawn_run then
+		ctx.tools.bind_spawn_run(message.details, output_id, line)
+	end
+end
+
+local function update_existing_spawn_line(ctx, lines, message, text)
+	local id = message_run_id(message)
+	if type(id) ~= "string" or id == "" then
+		return false
+	end
+	local line = ctx.state.spawn_run_lines and ctx.state.spawn_run_lines[id]
+	if not line or not lines[line] or not ctx.tools.store_or_update_spawn_run_output then
+		return false
+	end
+	local output_id = ctx.tools.store_or_update_spawn_run_output(message.details, text)
+	if not output_id then
+		return false
+	end
+	bind_spawn_line(ctx, message, output_id, line)
+	lines[line] = ctx.tools.summary_lines(output_id)[1]
+	return true
+end
+
 local function append_tool_summary(ctx, lines, items, message)
 	local name = message.toolName or "tool"
 	local text = ctx.messages.extract_text(message)
@@ -142,6 +178,9 @@ local function append_tool_summary(ctx, lines, items, message)
 	local output_id = ctx.tools.store_output(name, text, nil, message.details, message)
 	vim.list_extend(lines, ctx.tools.summary_lines(output_id))
 	local line = #lines
+	if is_spawn_tool_name(name) then
+		bind_spawn_line(ctx, message, output_id, line)
+	end
 	table.insert(lines, "")
 	table.insert(items, {
 		kind = "tool",
@@ -162,25 +201,6 @@ local function spawn_custom_tool_name(message)
 		return "spawn_control"
 	end
 	return nil
-end
-
-local function append_spawn_custom_summary(ctx, lines, items, message)
-	local name = spawn_custom_tool_name(message)
-	if not name then
-		return false
-	end
-	local text = name == "spawn" and "" or (ctx.messages.extract_text(message) or "")
-	local output_id = ctx.tools.store_output(name, text, nil, message.details, message)
-	vim.list_extend(lines, ctx.tools.summary_lines(output_id))
-	local line = #lines
-	table.insert(lines, "")
-	table.insert(items, {
-		kind = "tool",
-		start_line = line,
-		end_line = line,
-		output_id = output_id,
-	})
-	return true
 end
 
 local function append_thinking_summary(ctx, lines, items, text)
@@ -322,8 +342,12 @@ function M.collect_message_lines(ctx, messages)
 		local appended = false
 		local rendered_kind = nil
 		if role == "toolResult" then
+			local name = message.toolName or "tool"
+			local text = ctx.messages.extract_text(message) or ""
 			if pi_skills.tool_result_skill_name(ctx.state, message) then
 				ctx.skills.apply_tool_result(message)
+				appended = false
+			elseif is_spawn_tool_name(name) and update_existing_spawn_line(ctx, lines, message, text) then
 				appended = false
 			elseif has_body and is_trace_like(last_rendered_kind) then
 				remove_trailing_blank(lines)
@@ -354,13 +378,17 @@ function M.collect_message_lines(ctx, messages)
 			if message.display == false then
 				appended = false
 			elseif spawn_custom_tool_name(message) then
-				if has_body and is_trace_like(last_rendered_kind) then
-					remove_trailing_blank(lines)
+				local name = spawn_custom_tool_name(message)
+				local text = name == "spawn" and "" or (ctx.messages.extract_text(message) or "")
+				local details = type(message.details) == "table" and message.details or nil
+				if details and type(details.runs) == "table" then
+					for _, run in ipairs(details.runs) do
+						update_existing_spawn_line(ctx, lines, { details = run }, nil)
+					end
 				else
-					add_message_separator(lines, has_body)
+					update_existing_spawn_line(ctx, lines, message, text)
 				end
-				appended = append_spawn_custom_summary(ctx, lines, items, message)
-				rendered_kind = appended and "tool" or nil
+				appended = false
 			else
 				local text = ctx.messages.extract_text(message)
 				if text and text ~= "" then

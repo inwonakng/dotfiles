@@ -120,6 +120,30 @@ local function short_run_id(id)
 	return id:match("([^-]+)$") or id
 end
 
+local function run_id(run)
+	if type(run) ~= "table" then
+		return nil
+	end
+	return run.runId or run.id
+end
+
+local function merge_details(old_details, new_details)
+	if type(old_details) ~= "table" then
+		return new_details
+	end
+	if type(new_details) ~= "table" then
+		return old_details
+	end
+	local merged = {}
+	for key, value in pairs(old_details) do
+		merged[key] = value
+	end
+	for key, value in pairs(new_details) do
+		merged[key] = value
+	end
+	return merged
+end
+
 local function markdown_code_span(text)
 	text = tostring(text or "")
 	local longest = 0
@@ -307,7 +331,6 @@ function M.reset(state)
 	state.live_tool_lines = {}
 	state.spawn_run_output_by_id = {}
 	state.spawn_run_lines = {}
-	state.coalesced_spawn_control_tool_calls = {}
 	state.todo_tool_output_id = nil
 	state.todo_tool_line = nil
 end
@@ -506,6 +529,9 @@ function M.store(state, tool_name, text, filetype, details, display, tool_call_i
 		state.live_tool_output_by_call = state.live_tool_output_by_call or {}
 		state.live_tool_output_by_call[tool_call_id] = id
 	end
+	if tool_name == "spawn" then
+		M.bind_spawn_run(state, details, id)
+	end
 	return id
 end
 
@@ -517,39 +543,57 @@ function M.store_or_update_live(state, tool_name, tool_call_id, text, filetype, 
 		output.name = tool_name or output.name or "tool"
 		output.text = text or output.text or ""
 		output.filetype = filetype or output.filetype or infer_filetype(tool_name, text)
-		output.details = details or output.details
+		output.details = merge_details(output.details, details)
 		output.display = display or output.display
 		output.args = call_args_for_id(state, tool_call_id) or output.args
 		output.spawn = spawn_artifacts(output.name, output.text, output.details)
+		if output.name == "spawn" then
+			M.bind_spawn_run(state, output.details, output_id)
+		end
 		return output_id, true
 	end
 	return M.store(state, tool_name, text, filetype, details, display, tool_call_id), false
+end
+
+function M.bind_spawn_run(state, run, output_id, line)
+	local id = run_id(run)
+	if type(id) ~= "string" or id == "" then
+		return false
+	end
+	if output_id then
+		state.spawn_run_output_by_id = state.spawn_run_output_by_id or {}
+		state.spawn_run_output_by_id[id] = output_id
+	end
+	if line then
+		state.spawn_run_lines = state.spawn_run_lines or {}
+		state.spawn_run_lines[id] = line
+	end
+	return true
 end
 
 function M.store_or_update_spawn_run(state, run, text)
 	if type(run) ~= "table" then
 		return nil, false
 	end
-	local run_id = run.runId or run.id
-	if type(run_id) ~= "string" or run_id == "" then
+	local id = run_id(run)
+	if type(id) ~= "string" or id == "" then
 		return nil, false
 	end
 	state.spawn_run_output_by_id = state.spawn_run_output_by_id or {}
-	local output_id = state.spawn_run_output_by_id[run_id]
+	local output_id = state.spawn_run_output_by_id[id]
 	local output_text = text or run.progress or ""
 	if output_id and state.tool_outputs[output_id] then
 		local output = state.tool_outputs[output_id]
-		output.name = "spawn_control"
+		output.name = output.name == "spawn" and "spawn" or "spawn_control"
 		output.text = output_text
-		output.filetype = infer_filetype("spawn_control", output_text)
-		output.details = run
+		output.filetype = infer_filetype(output.name, output_text)
+		output.details = merge_details(output.details, run)
 		output.display = nil
 		output.spawn = spawn_artifacts(output.name, output.text, output.details)
+		M.bind_spawn_run(state, output.details, output_id)
 		return output_id, true
 	end
-	output_id = M.store(state, "spawn_control", output_text, nil, run, nil, nil)
-	state.spawn_run_output_by_id[run_id] = output_id
-	return output_id, false
+	return nil, false
 end
 
 function M.live_output_id(state, tool_call_id)

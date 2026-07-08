@@ -131,7 +131,7 @@ local function reset_session_transcript_state(ctx, notice)
 	state.spawn_runs = {}
 	state.spawn_running_count = 0
 	state.spawn_run_lines = {}
-	state.coalesced_spawn_control_tool_calls = {}
+	state.spawn_run_output_by_id = {}
 	state.is_retrying = false
 	state.pending_retry_error = nil
 	ctx.transcript.touch()

@@ -11,6 +11,12 @@ local function partial_result_text(partial_result)
 	return message_utils.extract_content_text(partial_result.content)
 end
 
+local function bind_spawn_run_line(ctx, run, output_id, line)
+	if ctx.tools.bind_spawn_run then
+		ctx.tools.bind_spawn_run(run, output_id, line)
+	end
+end
+
 local function render_or_update_live_tool(ctx, event, text, details)
 	local state = ctx.state
 	local output_id, updated = ctx.tools.store_or_update_live_output(
@@ -21,9 +27,12 @@ local function render_or_update_live_tool(ctx, event, text, details)
 		details,
 		nil
 	)
+	local output = state.tool_outputs and state.tool_outputs[output_id]
+	local run_details = output and output.details or details
 	if updated then
 		local line = state.live_tool_lines and event.toolCallId and state.live_tool_lines[event.toolCallId]
 		if line then
+			bind_spawn_run_line(ctx, run_details, output_id, line)
 			ctx.transcript.set_line(line, ctx.tools.summary_lines(output_id)[1])
 		end
 		return output_id
@@ -36,6 +45,7 @@ local function render_or_update_live_tool(ctx, event, text, details)
 	if event.toolCallId then
 		state.live_tool_lines[event.toolCallId] = line
 	end
+	bind_spawn_run_line(ctx, run_details, output_id, line)
 	ctx.transcript.register_item({
 		kind = "tool",
 		start_line = line,
@@ -61,21 +71,15 @@ local function shallow_copy(table_value)
 	return copy
 end
 
-local function find_spawn_run(ctx, id)
-	if type(id) ~= "string" or id == "" then
-		return nil
-	end
-	for _, run in ipairs(ctx.state.spawn_runs or {}) do
-		if run_id(run) == id then
-			return run
-		end
-	end
-	return nil
-end
-
-local function render_or_update_spawn_run(ctx, run, progress)
+local function update_spawn_run_line(ctx, run, progress)
 	local id = run_id(run)
 	if type(id) ~= "string" or id == "" then
+		return false
+	end
+	local state = ctx.state
+	state.spawn_run_lines = state.spawn_run_lines or {}
+	local line = state.spawn_run_lines[id]
+	if not line then
 		return false
 	end
 	if type(progress) == "string" and progress ~= "" then
@@ -87,25 +91,8 @@ local function render_or_update_spawn_run(ctx, run, progress)
 	if not output_id then
 		return false
 	end
-	local state = ctx.state
-	state.spawn_run_lines = state.spawn_run_lines or {}
-	local line = state.spawn_run_lines[id]
-	if line then
-		ctx.transcript.set_line(line, ctx.tools.summary_lines(output_id)[1])
-		return true
-	end
-
-	ctx.transcript.begin_trace_item()
-	ctx.transcript.append_lines(ctx.tools.summary_lines(output_id))
-	line = ctx.transcript.line_count()
-	state.spawn_run_lines[id] = line
-	ctx.transcript.register_item({
-		kind = "tool",
-		start_line = line,
-		end_line = line,
-		output_id = output_id,
-	})
-	ctx.transcript.end_trace_item()
+	bind_spawn_run_line(ctx, run, output_id, line)
+	ctx.transcript.set_line(line, ctx.tools.summary_lines(output_id)[1])
 	return true
 end
 
@@ -115,75 +102,9 @@ local function render_spawn_runs(ctx, runs)
 	end
 	local rendered = false
 	for _, run in ipairs(runs) do
-		rendered = render_or_update_spawn_run(ctx, run) or rendered
+		rendered = update_spawn_run_line(ctx, run) or rendered
 	end
 	return rendered
-end
-
-local function spawn_control_action(args)
-	return type(args) == "table" and type(args.action) == "string" and args.action or nil
-end
-
-local function is_coalesced_spawn_control_action(action)
-	return action == "join" or action == "join_all" or action == "stop"
-end
-
-local function fallback_run(id, status)
-	return {
-		runId = id,
-		status = status or "running",
-	}
-end
-
-local function coalesce_spawn_control_start(ctx, event)
-	local action = spawn_control_action(event.args)
-	if not is_coalesced_spawn_control_action(action) then
-		return false
-	end
-	ctx.state.coalesced_spawn_control_tool_calls = ctx.state.coalesced_spawn_control_tool_calls or {}
-	if event.toolCallId then
-		ctx.state.coalesced_spawn_control_tool_calls[event.toolCallId] = true
-	end
-	local args = event.args or {}
-	if action == "join_all" then
-		local selected = {}
-		if type(args.ids) == "table" and #args.ids > 0 then
-			for _, id in ipairs(args.ids) do
-				table.insert(selected, find_spawn_run(ctx, id) or fallback_run(id))
-			end
-		else
-			for _, run in ipairs(ctx.state.spawn_runs or {}) do
-				if run.status == "running" or not run.joined then
-					table.insert(selected, run)
-				end
-			end
-		end
-		for _, run in ipairs(selected) do
-			render_or_update_spawn_run(ctx, run, "Waiting for subagent…")
-		end
-		return true
-	end
-	local id = args.id or (type(args.ids) == "table" and args.ids[1] or nil)
-	if type(id) == "string" and id ~= "" then
-		local progress = action == "stop" and "Stopping subagent…" or "Waiting for subagent…"
-		render_or_update_spawn_run(ctx, find_spawn_run(ctx, id) or fallback_run(id), progress)
-	end
-	return true
-end
-
-local function coalesce_spawn_control_result(ctx, tool_call_id, text, details)
-	local state = ctx.state
-	local coalesced = tool_call_id and state.coalesced_spawn_control_tool_calls and state.coalesced_spawn_control_tool_calls[tool_call_id]
-	if type(details) == "table" and type(details.runId) == "string" then
-		render_or_update_spawn_run(ctx, details, text)
-		return coalesced or true
-	elseif type(details) == "table" and type(details.runs) == "table" and #details.runs > 0 then
-		for _, run in ipairs(details.runs) do
-			render_or_update_spawn_run(ctx, run)
-		end
-		return coalesced or true
-	end
-	return coalesced or false
 end
 
 local function spawn_custom_tool_name(message)
@@ -203,25 +124,15 @@ local function render_spawn_custom_tool(ctx, message)
 	if not name then
 		return false
 	end
-	local text = ctx.messages.extract_text(message) or ""
-	if name == "spawn" and type(message.details) == "table" and type(message.details.runId) == "string" then
-		render_or_update_spawn_run(ctx, message.details, text)
-		return true
-	elseif name == "spawn_control" and coalesce_spawn_control_result(ctx, nil, text, message.details) then
-		return true
+	local text = name == "spawn" and "" or (ctx.messages.extract_text(message) or "")
+	local details = type(message.details) == "table" and message.details or nil
+	if details and type(details.runId) == "string" then
+		update_spawn_run_line(ctx, details, text)
+	elseif details and type(details.runs) == "table" then
+		for _, run in ipairs(details.runs) do
+			update_spawn_run_line(ctx, run)
+		end
 	end
-	ctx.transcript.touch()
-	local output_id = ctx.tools.store_output(name, text, nil, message.details, message)
-	ctx.transcript.begin_trace_item()
-	ctx.transcript.append_lines(ctx.tools.summary_lines(output_id))
-	local line = ctx.transcript.line_count()
-	ctx.transcript.register_item({
-		kind = "tool",
-		start_line = line,
-		end_line = line,
-		output_id = output_id,
-	})
-	ctx.transcript.end_trace_item()
 	return true
 end
 
@@ -285,14 +196,14 @@ function M.render_message(ctx, message)
 	if role == "toolResult" then
 		local name = message.toolName or "tool"
 		local tool_call_id = message_utils.tool_call_id(message)
-		if name == "spawn_control" and coalesce_spawn_control_result(ctx, tool_call_id, ctx.messages.extract_text(message) or "", message.details) then
-			return
-		end
 		local live_output_id = ctx.tools.live_output_id(tool_call_id)
 		if live_output_id then
 			ctx.tools.store_or_update_live_output(name, tool_call_id, text, nil, message.details, ctx.tools.store_display and ctx.tools.store_display(message) or nil)
 			local line = ctx.state.live_tool_lines and ctx.state.live_tool_lines[tool_call_id]
 			if line then
+				if name == "spawn" then
+					bind_spawn_run_line(ctx, message.details, live_output_id, line)
+				end
 				ctx.transcript.set_line(line, ctx.tools.summary_lines(live_output_id)[1])
 			end
 			return
@@ -301,6 +212,9 @@ function M.render_message(ctx, message)
 		ctx.transcript.begin_trace_item()
 		ctx.transcript.append_lines(ctx.tools.summary_lines(output_id))
 		local line = ctx.transcript.line_count()
+		if name == "spawn" then
+			bind_spawn_run_line(ctx, message.details, output_id, line)
+		end
 		ctx.transcript.register_item({
 			kind = "tool",
 			start_line = line,
@@ -643,10 +557,6 @@ function M.handle_event(ctx, event)
 		end
 		if event.toolName == "spawn" then
 			render_or_update_live_tool(ctx, event, "Subagent starting…", { status = "running" })
-		elseif event.toolName == "spawn_control" then
-			if not coalesce_spawn_control_start(ctx, event) then
-				render_or_update_live_tool(ctx, event, "Subagent starting…", { status = "running" })
-			end
 		end
 		-- Non-spawn tool output is rendered from the final toolResult message. Rendering
 		-- every tool_execution_* stream creates empty/duplicate tool blocks for tools
@@ -656,22 +566,12 @@ function M.handle_event(ctx, event)
 		if event.toolName == "spawn" then
 			local partial = type(event.partialResult) == "table" and event.partialResult or {}
 			render_or_update_live_tool(ctx, event, partial_result_text(partial), partial.details or { status = "running" })
-		elseif event.toolName == "spawn_control" then
-			local partial = type(event.partialResult) == "table" and event.partialResult or {}
-			if not coalesce_spawn_control_result(ctx, event.toolCallId, partial_result_text(partial), partial.details) then
-				render_or_update_live_tool(ctx, event, partial_result_text(partial), partial.details or { status = "running" })
-			end
 		end
 		return
 	elseif event.type == "tool_execution_end" then
 		if event.toolName == "spawn" then
 			local result = type(event.result) == "table" and event.result or {}
 			render_or_update_live_tool(ctx, event, message_utils.extract_content_text(result.content), result.details or {})
-		elseif event.toolName == "spawn_control" then
-			local result = type(event.result) == "table" and event.result or {}
-			if not coalesce_spawn_control_result(ctx, event.toolCallId, message_utils.extract_content_text(result.content), result.details) then
-				render_or_update_live_tool(ctx, event, message_utils.extract_content_text(result.content), result.details or {})
-			end
 		end
 		return
 	elseif event.type == "queue_update" then
