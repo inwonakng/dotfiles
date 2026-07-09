@@ -573,8 +573,22 @@ function M.new_session()
 	pi_actions.new_session(integration_ctx())
 end
 
+local function normalize_leaf_id(value)
+	if value == vim.NIL or value == "" then
+		return false
+	end
+	if type(value) == "string" then
+		return value
+	end
+	return nil
+end
+
 load_session_messages_from_file = function(path)
 	return pi_messages.load_session_messages_from_file(integration_ctx(), path, state.tree_leaf_id)
+end
+
+local function load_session_messages_from_records(records, leaf_id)
+	return pi_messages.load_session_messages_from_records(integration_ctx(), records, leaf_id)
 end
 
 local function collect_message_lines(messages)
@@ -619,32 +633,27 @@ function M.refresh_messages()
 		return
 	end
 
+	if state.job and state.job > 0 then
+		send({ type = "get_entries" }, function(event)
+			if not event.success or not event.data then
+				notify("Could not get session entries", vim.log.levels.ERROR)
+				return
+			end
+
+			state.tree_leaf_id = normalize_leaf_id(event.data.leafId)
+			render_messages(load_session_messages_from_records(event.data.entries or {}, state.tree_leaf_id))
+			M.refresh_session_stats()
+		end)
+		return
+	end
+
 	local path = state.pending_session_file or state.session_file
 	if path and path ~= "" then
 		render_messages(load_session_messages_from_file(path))
-		if state.job and state.job > 0 then
-			M.refresh_session_stats()
-		end
 		return
 	end
 
-	if not (state.job and state.job > 0) then
-		notify("No Pi session has been started yet.", vim.log.levels.WARN)
-		return
-	end
-
-	-- Fallback for in-memory sessions without a session file. File-backed sessions
-	-- intentionally avoid get_messages here because it returns compacted model
-	-- context rather than the full persisted transcript.
-	send({ type = "get_messages" }, function(event)
-		if not event.success or not event.data then
-			notify("Could not get messages", vim.log.levels.ERROR)
-			return
-		end
-
-		render_messages(event.data.messages or {})
-		M.refresh_session_stats()
-	end)
+	notify("No Pi session has been started yet.", vim.log.levels.WARN)
 end
 
 function M.show_tree()

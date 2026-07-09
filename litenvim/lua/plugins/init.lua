@@ -77,10 +77,6 @@ require("outline").setup({
 	},
 })
 
-require("treesitter-context").setup({
-  enable = true,
-})
-
 -- keymaps for the one-line plugins.
 vim.keymap.set("n", "<leader>sr", "<cmd>GrugFar<cr>", { desc = "Find files with grug-far" })
 
@@ -91,3 +87,8 @@ vim.keymap.set("n", "<leader>gh", "<cmd>DiffviewFileHistory %<cr>", { desc = "Gi
 vim.keymap.set("n", "<leader>gv", "<cmd>DiffviewOpen<cr>", { desc = "Open Diffview" })
 
 vim.keymap.set("n", "<leader>cs", "<cmd>Outline<CR>", { desc = "Code Symbols" })
+
+vim.keymap.set("n", "[c", function()
+	require("treesitter-context").go_to_context(vim.v.count1)
+end, { silent = true })
+vim.keymap.set("n", "<leader>uc", "<cmd>TSContext toggle<CR>", { desc = "Toggle Treesitter Context" })

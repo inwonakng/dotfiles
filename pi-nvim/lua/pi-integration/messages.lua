@@ -54,7 +54,15 @@ local function message_from_session_record(record)
 	return nil
 end
 
+local function is_root_leaf(value)
+	return value == false or value == vim.NIL
+end
+
 local function branch_from_records(records, by_id, preferred_leaf_id, fallback_leaf_id)
+	if is_root_leaf(preferred_leaf_id) then
+		return {}
+	end
+
 	local leaf_id = preferred_leaf_id
 	if type(leaf_id) ~= "string" or leaf_id == "" or not by_id[leaf_id] then
 		leaf_id = fallback_leaf_id
@@ -92,7 +100,15 @@ function M.load_session_messages_from_records(ctx, records, leaf_id)
 		end
 	end
 
-	local branch = branch_from_records(all_records, by_id, leaf_id or ctx.state.tree_leaf_id, fallback_leaf_id)
+	local preferred_leaf_id = leaf_id
+	if preferred_leaf_id == nil then
+		preferred_leaf_id = ctx.state.tree_leaf_id
+	end
+	if is_root_leaf(preferred_leaf_id) then
+		apply_session_record_metadata(ctx, all_records)
+		return {}
+	end
+	local branch = branch_from_records(all_records, by_id, preferred_leaf_id, fallback_leaf_id)
 	apply_session_record_metadata(ctx, #branch > 0 and branch or all_records)
 
 	local messages = {}

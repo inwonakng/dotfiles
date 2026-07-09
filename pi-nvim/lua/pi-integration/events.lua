@@ -71,12 +71,18 @@ local function shallow_copy(table_value)
 	return copy
 end
 
-local function schedule_session_file_refresh(ctx)
-	local state = ctx.state
-	local path = state.pending_session_file or state.session_file
-	if type(path) ~= "string" or path == "" then
-		return
+local function normalize_leaf_id(value)
+	if value == vim.NIL or value == "" then
+		return false
 	end
+	if type(value) == "string" then
+		return value
+	end
+	return nil
+end
+
+local function schedule_transcript_refresh(ctx)
+	local state = ctx.state
 	vim.defer_fn(function()
 		if not state.is_streaming and not state.is_retrying then
 			ctx.actions.refresh_messages()
@@ -336,7 +342,7 @@ function M.handle_extension_ui_request(ctx, event)
 			state.session_name = event.statusText
 			ctx.transcript.refresh_ui()
 		elseif event.statusKey == "pi-tree-leaf" then
-			state.tree_leaf_id = event.statusText
+			state.tree_leaf_id = normalize_leaf_id(event.statusText)
 		elseif event.statusKey == "pi-todos" then
 			state.todo_status = event.statusText
 			refresh_todo_tool_line(ctx)
@@ -519,7 +525,7 @@ function M.handle_event(ctx, event)
 		ctx.transcript.refresh_ui()
 		ctx.actions.refresh_session_stats()
 		if should_refresh_from_file then
-			schedule_session_file_refresh(ctx)
+			schedule_transcript_refresh(ctx)
 		end
 		ctx.ui.notify("Pi finished")
 	elseif event.type == "auto_retry_start" then
@@ -542,7 +548,7 @@ function M.handle_event(ctx, event)
 		end
 	elseif event.type == "compaction_end" then
 		if not event.aborted and not event.willRetry then
-			schedule_session_file_refresh(ctx)
+			schedule_transcript_refresh(ctx)
 		end
 	elseif event.type == "message_update" then
 		M.handle_message_update(ctx, event)
