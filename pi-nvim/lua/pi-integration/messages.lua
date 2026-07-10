@@ -60,12 +60,15 @@ end
 
 local function branch_from_records(records, by_id, preferred_leaf_id, fallback_leaf_id)
 	if is_root_leaf(preferred_leaf_id) then
-		return {}
+		return {}, true
 	end
 
 	local leaf_id = preferred_leaf_id
 	if type(leaf_id) ~= "string" or leaf_id == "" or not by_id[leaf_id] then
 		leaf_id = fallback_leaf_id
+	end
+	if type(leaf_id) ~= "string" or leaf_id == "" or not by_id[leaf_id] then
+		return {}, false
 	end
 
 	local branch = {}
@@ -77,7 +80,7 @@ local function branch_from_records(records, by_id, preferred_leaf_id, fallback_l
 		table.insert(branch, 1, record)
 		id = record.parentId
 	end
-	return branch
+	return branch, #branch > 0
 end
 
 function M.load_session_messages_from_records(ctx, records, leaf_id)
@@ -104,12 +107,8 @@ function M.load_session_messages_from_records(ctx, records, leaf_id)
 	if preferred_leaf_id == nil then
 		preferred_leaf_id = ctx.state.tree_leaf_id
 	end
-	if is_root_leaf(preferred_leaf_id) then
-		apply_session_record_metadata(ctx, all_records)
-		return {}
-	end
-	local branch = branch_from_records(all_records, by_id, preferred_leaf_id, fallback_leaf_id)
-	apply_session_record_metadata(ctx, #branch > 0 and branch or all_records)
+	local branch, branch_valid = branch_from_records(all_records, by_id, preferred_leaf_id, fallback_leaf_id)
+	apply_session_record_metadata(ctx, branch_valid and branch or all_records)
 
 	local messages = {}
 	for _, record in ipairs(branch) do
@@ -118,7 +117,10 @@ function M.load_session_messages_from_records(ctx, records, leaf_id)
 			table.insert(messages, message)
 		end
 	end
-	return #messages > 0 and messages or fallback_messages
+	if branch_valid then
+		return messages
+	end
+	return fallback_messages
 end
 
 function M.load_session_messages_from_file(ctx, path, leaf_id)
