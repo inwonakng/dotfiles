@@ -42,6 +42,8 @@ Similarly, if the user says "why did you do X?", it does not mean X is wrong. Th
 
 If there is a question mixed with a request for action, always answer the question first. Then ask for confirmation before acting.
 
+If the user describes some implementation plan but also asks a question, answer the question and stop there. Only implement with explicit confirmation from user.
+
 ## Discussion and Planning
 
 Prioritize the user's actual question. Do not produce a full plan when the user asked for a narrower answer.
