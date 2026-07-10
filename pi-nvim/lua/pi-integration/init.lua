@@ -503,8 +503,6 @@ integration_ctx = function()
 	integration_context.actions = M
 	integration_context.window.parent = state.transcript_win
 	integration_context.transcript.update_statusline = update_transcript_statusline
-	integration_context.session.load_messages_from_file = load_session_messages_from_file
-	integration_context.session.render_messages = render_messages
 	integration_context.session.setup_keymaps = setup_keymaps
 	return integration_context
 end

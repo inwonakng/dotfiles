@@ -149,30 +149,31 @@ function M.pick(ctx)
 		if not choice then
 			return
 		end
+		local function refresh_attached_session(message)
+			state.is_retrying = false
+			state.pending_retry_error = nil
+			state.session_file = choice.path
+			state.session_name = choice.title
+			state.tree_leaf_id = nil
+			ctx.rpc.send({ type = "get_state" }, function(state_event)
+				if state_event.success and state_event.data then
+					ctx.session.apply_state(state_event.data)
+					ctx.actions.refresh_session_stats()
+				end
+				ctx.actions.refresh_messages()
+				ctx.ui.notify(message)
+			end)
+		end
+
 		local function proceed()
 			if not (state.job and state.job > 0) then
 				state.pending_session_file = choice.path
-				state.session_file = choice.path
-				state.session_name = choice.title
-				state.tree_leaf_id = nil
-				ctx.session.render_messages(ctx.session.load_messages_from_file(choice.path))
-				ctx.ui.notify("Selected session. Pi will attach to it when you send a message.")
+				refresh_attached_session("Attached session")
 				return
 			end
 			ctx.rpc.send({ type = "switch_session", sessionPath = choice.path }, function(event)
 				if event.success and not (event.data and event.data.cancelled) then
-					state.is_retrying = false
-					state.pending_retry_error = nil
-					state.session_file = choice.path
-					state.tree_leaf_id = nil
-					ctx.rpc.send({ type = "get_state" }, function(state_event)
-						if state_event.success and state_event.data then
-							ctx.session.apply_state(state_event.data)
-							ctx.actions.refresh_session_stats()
-						end
-					end)
-					ctx.actions.refresh_messages()
-					ctx.ui.notify("Switched session")
+					refresh_attached_session("Switched session")
 				else
 					ctx.ui.notify("Session switch cancelled or failed", vim.log.levels.ERROR)
 				end

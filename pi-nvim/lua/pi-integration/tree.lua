@@ -475,17 +475,11 @@ local function refresh_tree_in_place(ctx, opts)
 	return true
 end
 
-local function ensure_session_for_tree_command(ctx)
+local function selected_session_path(ctx)
 	local path = ctx.state.session_file or ctx.state.pending_session_file
-	if not (ctx.state.job and ctx.state.job > 0) then
-		if not path or path == "" then
-			ctx.ui.notify("No Pi session selected yet.", vim.log.levels.WARN)
-			return nil
-		end
-		-- ctx.rpc.send() starts Pi RPC lazily. Preserve the selected session as a
-		-- pending session so rpc.argv() attaches to it with --session on startup.
-		ctx.state.pending_session_file = path
-		ctx.state.session_file = ctx.state.session_file or path
+	if not path or path == "" then
+		ctx.ui.notify("No Pi session selected yet.", vim.log.levels.WARN)
+		return nil
 	end
 	return path
 end
@@ -499,7 +493,7 @@ local function jump_to_node(ctx, summarize)
 		return
 	end
 	local entry_id = node.record.id
-	if not ensure_session_for_tree_command(ctx) then
+	if not selected_session_path(ctx) then
 		return
 	end
 	close_tree_window(ctx)
@@ -528,7 +522,7 @@ local function delete_node(ctx)
 	if not guard.if_not_active(ctx, "deleting history") then
 		return
 	end
-	if not ensure_session_for_tree_command(ctx) then
+	if not selected_session_path(ctx) then
 		return
 	end
 
