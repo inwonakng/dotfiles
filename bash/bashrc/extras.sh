@@ -15,6 +15,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     FZF_SCRIPT_FILE="$HOME/.fzf.bash"
     SCRATCH_NOTE_FILE="$HOME/.cache/scratch.md"
     export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
+    export NVM_SYMLINK_CURRENT=true
     export NODE_DEFAULT_PATH="$NVM_DIR/current/bin"
 else
     NVM_DIR="$HOME/.nvm"
@@ -54,6 +55,7 @@ else
     fi
 
     export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
+    export NVM_SYMLINK_CURRENT=true
     export NODE_DEFAULT_PATH="$NVM_DIR/current/bin"
 fi
 
