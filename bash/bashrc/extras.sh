@@ -15,7 +15,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     FZF_SCRIPT_FILE="$HOME/.fzf.bash"
     SCRATCH_NOTE_FILE="$HOME/.cache/scratch.md"
     export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
-    export NODE_DEFAULT_PATH="$NVM_DIR/versions/node/v22.16.0/bin"
+    export NODE_DEFAULT_PATH="$NVM_DIR/current/bin"
 else
     NVM_DIR="$HOME/.nvm"
     SCRATCH_NOTE_FILE="$HOME/scratch.md"
@@ -54,7 +54,7 @@ else
     fi
 
     export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
-    export NODE_DEFAULT_PATH="$NVM_DIR/versions/node/v22.15.0/bin"
+    export NODE_DEFAULT_PATH="$NVM_DIR/current/bin"
 fi
 
 # at this point, we have finished setting the paths to the relevant tools we need
