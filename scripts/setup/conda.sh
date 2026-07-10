@@ -6,8 +6,6 @@ set -euo pipefail
 # This matches the CONDA_DIR convention used by bash/bashrc/extras.sh,
 # including architecture-specific prefixes on shared-home cluster hosts.
 
-FORCE_CONDA=0
-
 usage() {
     cat <<'EOF'
 Usage: scripts/setup/conda.sh [options]
@@ -22,8 +20,7 @@ This script intentionally does not modify ~/.bashrc, ~/.bash_profile, or other
 shell startup files.
 
 Options:
-  --force-reinstall  Remove the target Conda prefix before installing
-  -h, --help         Show this help
+  -h, --help  Show this help
 
 Environment overrides:
   CONDA_DIR            Overrides auto-detected Conda install prefix
@@ -46,9 +43,6 @@ fail() {
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-    --force-reinstall)
-        FORCE_CONDA=1
-        ;;
     -h | --help)
         usage
         exit 0
@@ -170,19 +164,14 @@ detect_miniconda_url() {
 conda_dir="$(detect_conda_dir)"
 conda_url="$(detect_miniconda_url)"
 
-if [[ -x "$conda_dir/bin/conda" && "$FORCE_CONDA" -eq 0 ]]; then
+if [[ -x "$conda_dir/bin/conda" ]]; then
     log "Conda already exists at $conda_dir; skipping install"
     "$conda_dir/bin/conda" --version || true
     exit 0
 fi
 
-if [[ -e "$conda_dir" && "$FORCE_CONDA" -eq 0 ]]; then
-    fail "$conda_dir exists but does not contain bin/conda; use --force-reinstall to replace it"
-fi
-
-if [[ -e "$conda_dir" && "$FORCE_CONDA" -eq 1 ]]; then
-    log "Removing existing Conda prefix $conda_dir"
-    rm -rf "$conda_dir"
+if [[ -e "$conda_dir" ]]; then
+    fail "$conda_dir exists but does not contain bin/conda; remove it manually before reinstalling"
 fi
 
 log "Installing Miniconda to $conda_dir"
