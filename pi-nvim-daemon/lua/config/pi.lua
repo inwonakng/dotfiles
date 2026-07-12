@@ -5,7 +5,7 @@ local dotfiles_root = vim.fn.fnamemodify(config_root, ":h")
 require("pi-integration").setup({
 	binary = vim.env.PI_BINARY or "pi",
 	manager_binary = vim.env.PI_NVIM_MANAGER or (dotfiles_root .. "/pi-nvim-manager/bin/pi-nvim-manager.js"),
-	remote_manager_binary = vim.env.PI_NVIM_REMOTE_MANAGER or "pi-nvim-manager",
+	remote_manager_binary = vim.env.PI_NVIM_REMOTE_MANAGER or "~/dotfiles/pi-nvim-manager/bin/pi-nvim-manager.js",
 	ssh_binary = vim.env.PI_NVIM_SSH or "ssh",
 	agent_dir = vim.env.PI_CODING_AGENT_DIR or (dotfiles_root .. "/pi/agent"),
 	provider = vim.env.PI_PROVIDER,

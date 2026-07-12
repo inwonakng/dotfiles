@@ -507,7 +507,9 @@ function M.handle_event(ctx, event)
 		local message = ctx.rpc.event_error_text(event)
 		if event.willRetry then
 			state.is_retrying = true
-			ctx.transcript.clear_assistant_placeholder()
+			-- Retry is a continuation of the same logical assistant turn. Keep
+			-- the placeholder/spinner visible until retry output replaces it or
+			-- final failure renders an error.
 			state.abort_requested = false
 			ctx.actions.refresh_session_stats()
 			return
