@@ -53,7 +53,7 @@ Use this shape unless the task calls for something shorter:
 ```markdown
 # [Name] Implementation Plan
 
-> **Agent handoff:** When asked to implement this plan, use the `subagent-driven-implementation` skill. Start with a readonly planner or reviewer subagent plan review to identify blocking questions before editing. Execute tasks in order unless this plan explicitly marks tasks independent.
+> <**Agent Handoff Marker**>
 
 **Status:** Draft | Approved
 **Source of truth:** [conversation summary, issue, spec, or design doc]
@@ -76,7 +76,7 @@ Use this shape unless the task calls for something shorter:
 When writing a durable implementation plan file, include this marker verbatim near the top:
 
 ```markdown
-> **Agent handoff:** When asked to implement this plan, use the `subagent-driven-implementation` skill. Start with a readonly planner or reviewer subagent plan review to identify blocking questions before editing. Execute tasks in order unless this plan explicitly marks tasks independent.
+> **Agent handoff:** When asked to implement this plan, use the `subagent-driven-implementation` skill. Start with a readonly planner or reviewer subagent to identify blocking questions before editing. Use subagents for implementation if the scope is clear. Execute tasks in order unless this plan explicitly marks tasks independent.
 ```
 
 If the plan is not approved yet, mark `**Status:** Draft`. Do not imply approval. If the user approves the plan, update or state the approved status clearly before implementation.
