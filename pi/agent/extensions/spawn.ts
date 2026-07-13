@@ -91,6 +91,7 @@ type SpawnRun = {
   stopReason?: string;
   notified: boolean;
   joined: boolean;
+  joinRequested?: boolean;
   finished: Promise<SpawnRun>;
   resolveFinished: (run: SpawnRun) => void;
 };
@@ -529,6 +530,7 @@ function artifactDetails(run: SpawnRun): Record<string, unknown> {
     status: run.status,
     progress: run.progress ?? null,
     joined: run.joined,
+    joinRequested: run.joinRequested ?? false,
     integration: run.worktree?.integration,
     integrationReason: run.worktree?.integrationReason,
     changedFiles: run.worktree?.changedFiles,
@@ -551,6 +553,7 @@ function statusJson(run: SpawnRun): Record<string, unknown> {
     error: run.error ?? null,
     progress: run.progress ?? null,
     joined: run.joined,
+    joinRequested: run.joinRequested ?? false,
     briefPath: run.briefPath,
     resultPath: run.resultPath,
     transcriptPath: run.transcriptPath,
@@ -801,14 +804,14 @@ export default function spawnExtension(pi: ExtensionAPI) {
       lastContext = ctx;
     }
     ctx?.ui?.notify(`Subagent ${run.id} ${run.status}${run.profile?.name ? ` (${run.profile.name})` : ""}.`, run.status === "completed" ? "info" : run.status === "aborted" ? "warning" : "error");
-    if (run.notified || run.joined) {
+    if (run.notified || run.joined || run.joinRequested) {
       return;
     }
     run.notified = true;
     pi.sendMessage({
       customType: "spawn_completion",
       content: completionContext(run),
-      display: true,
+      display: false,
       details: artifactDetails(run),
     }, { deliverAs: "nextTurn", triggerTurn: false });
   };
@@ -939,6 +942,7 @@ export default function spawnExtension(pi: ExtensionAPI) {
       childCwd: input.cwd,
       notified: false,
       joined: false,
+      joinRequested: false,
       finished,
       resolveFinished,
     };
@@ -1160,6 +1164,8 @@ export default function spawnExtension(pi: ExtensionAPI) {
         }
         if (action === "join") {
           const run = getRunById(id);
+          run.joinRequested = true;
+          publishSpawnStatus(ctx);
           await waitForRun(run, ctx.signal, true);
           applyWorktreeChanges(run);
           run.joined = true;
@@ -1335,6 +1341,8 @@ export default function spawnExtension(pi: ExtensionAPI) {
 
       if (params.action === "join") {
         const run = getRun(params.id);
+        run.joinRequested = true;
+        publishSpawnStatus(ctx);
         if (run.status === "running") {
           onUpdate?.({ content: [{ type: "text", text: `Waiting for subagent ${run.id}…` }], details: artifactDetails(run) });
           await waitForRun(run, signal, true);
@@ -1356,6 +1364,10 @@ export default function spawnExtension(pi: ExtensionAPI) {
         if (selected.length === 0) {
           return { content: [{ type: "text", text: "No spawned subagents to join." }], details: { runs: [] } };
         }
+        for (const run of selected) {
+          run.joinRequested = true;
+        }
+        publishSpawnStatus(ctx);
         onUpdate?.({ content: [{ type: "text", text: `Waiting for ${selected.length} subagent(s)…` }], details: { runs: selected.map(statusJson) } });
         await waitForRuns(selected, signal, true);
         for (const run of selected) {

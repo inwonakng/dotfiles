@@ -7,6 +7,10 @@ function M.decode_session_record(line)
 	return json.decode_object(line)
 end
 
+local function is_spawn_custom_type(custom_type)
+	return custom_type == "spawn_completion" or custom_type == "spawn_control_result"
+end
+
 local function custom_message_from_record(record)
 	return {
 		role = "custom",
@@ -45,7 +49,7 @@ local function message_from_session_record(record)
 	if record.type == "message" and record.message then
 		return record.message
 	end
-	if record.type == "custom_message" and record.display ~= false then
+	if record.type == "custom_message" and (record.display ~= false or is_spawn_custom_type(record.customType)) then
 		return custom_message_from_record(record)
 	end
 	if record.type == "compaction" then
@@ -221,7 +225,7 @@ local function assistant_trace_only_thinking(message)
 end
 
 local function is_spawn_tool_name(name)
-	return name == "spawn"
+	return name == "spawn" or name == "spawn_control"
 end
 
 local function message_run_id(message)
@@ -238,11 +242,50 @@ local function bind_spawn_line(ctx, message, output_id, line)
 	end
 end
 
+local function upsert_spawn_run(ctx, run)
+	local id = type(run) == "table" and (run.runId or run.id) or nil
+	if type(id) ~= "string" or id == "" then
+		return run
+	end
+	local state = ctx.state
+	state.spawn_runs = state.spawn_runs or {}
+	for index, existing in ipairs(state.spawn_runs) do
+		if type(existing) == "table" and (existing.runId or existing.id) == id then
+			local merged = {}
+			for key, value in pairs(existing) do
+				merged[key] = value
+			end
+			for key, value in pairs(run) do
+				merged[key] = value
+			end
+			state.spawn_runs[index] = merged
+			return merged
+		end
+	end
+	table.insert(state.spawn_runs, run)
+	return run
+end
+
+local function upsert_spawn_details(ctx, details)
+	if type(details) == "table" and type(details.runs) == "table" then
+		for _, run in ipairs(details.runs) do
+			upsert_spawn_run(ctx, run)
+		end
+		return details
+	end
+	return upsert_spawn_run(ctx, details)
+end
+
 local function update_existing_spawn_line(ctx, lines, message, text)
+	if type(message.details) == "table" and type(message.details.runs) == "table" then
+		upsert_spawn_details(ctx, message.details)
+		return false
+	end
 	local id = message_run_id(message)
 	if type(id) ~= "string" or id == "" then
 		return false
 	end
+	message.details = upsert_spawn_details(ctx, message.details)
 	local line = ctx.state.spawn_run_lines and ctx.state.spawn_run_lines[id]
 	if not line or not lines[line] or not ctx.tools.store_or_update_spawn_run_output then
 		return false
@@ -261,6 +304,9 @@ local function append_tool_summary(ctx, lines, items, message)
 	local text = ctx.messages.extract_text(message)
 	if not text or text == "" then
 		return false
+	end
+	if is_spawn_tool_name(name) then
+		message.details = upsert_spawn_details(ctx, message.details)
 	end
 	local output_id = ctx.tools.store_output(name, text, nil, message.details, message)
 	vim.list_extend(lines, ctx.tools.summary_lines(output_id))
@@ -464,10 +510,8 @@ function M.collect_message_lines(ctx, messages)
 				rendered_kind = "skill"
 			end
 		elseif role == "custom" then
-			if message.display == false then
-				appended = false
-			elseif spawn_custom_tool_name(message) then
-				local name = spawn_custom_tool_name(message)
+			local name = spawn_custom_tool_name(message)
+			if name then
 				local text = name == "spawn" and "" or (ctx.messages.extract_text(message) or "")
 				local details = type(message.details) == "table" and message.details or nil
 				if details and type(details.runs) == "table" then
@@ -477,6 +521,8 @@ function M.collect_message_lines(ctx, messages)
 				else
 					update_existing_spawn_line(ctx, lines, message, text)
 				end
+				appended = false
+			elseif message.display == false then
 				appended = false
 			else
 				local text = ctx.messages.extract_text(message)

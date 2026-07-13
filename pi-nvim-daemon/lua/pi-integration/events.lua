@@ -71,6 +71,27 @@ local function shallow_copy(table_value)
 	return copy
 end
 
+local function upsert_spawn_run(ctx, run)
+	local id = run_id(run)
+	if type(id) ~= "string" or id == "" then
+		return run
+	end
+	local state = ctx.state
+	state.spawn_runs = state.spawn_runs or {}
+	for index, existing in ipairs(state.spawn_runs) do
+		if run_id(existing) == id then
+			local merged = shallow_copy(existing)
+			for key, value in pairs(run) do
+				merged[key] = value
+			end
+			state.spawn_runs[index] = merged
+			return merged
+		end
+	end
+	table.insert(state.spawn_runs, run)
+	return run
+end
+
 local function normalize_leaf_id(value)
 	if value == vim.NIL or value == "" then
 		return false
@@ -95,15 +116,16 @@ local function update_spawn_run_line(ctx, run, progress)
 	if type(id) ~= "string" or id == "" then
 		return false
 	end
+	if type(progress) == "string" and progress ~= "" then
+		run = shallow_copy(run)
+		run.progress = progress
+	end
+	run = upsert_spawn_run(ctx, run)
 	local state = ctx.state
 	state.spawn_run_lines = state.spawn_run_lines or {}
 	local line = state.spawn_run_lines[id]
 	if not line then
 		return false
-	end
-	if type(progress) == "string" and progress ~= "" then
-		run = shallow_copy(run)
-		run.progress = progress
 	end
 	ctx.transcript.touch()
 	local output_id = ctx.tools.store_or_update_spawn_run_output(run, progress)
@@ -138,20 +160,32 @@ local function spawn_custom_tool_name(message)
 	return nil
 end
 
+local function update_spawn_details(ctx, name, details, text)
+	if name ~= "spawn" and name ~= "spawn_control" then
+		return false
+	end
+	if type(details) ~= "table" then
+		return false
+	end
+	if type(details.runId) == "string" or type(details.id) == "string" then
+		return update_spawn_run_line(ctx, details, text)
+	elseif type(details.runs) == "table" then
+		local updated = false
+		for _, run in ipairs(details.runs) do
+			updated = update_spawn_run_line(ctx, run) or updated
+		end
+		return updated
+	end
+	return false
+end
+
 local function render_spawn_custom_tool(ctx, message)
 	local name = spawn_custom_tool_name(message)
 	if not name then
 		return false
 	end
 	local text = name == "spawn" and "" or (ctx.messages.extract_text(message) or "")
-	local details = type(message.details) == "table" and message.details or nil
-	if details and type(details.runId) == "string" then
-		update_spawn_run_line(ctx, details, text)
-	elseif details and type(details.runs) == "table" then
-		for _, run in ipairs(details.runs) do
-			update_spawn_run_line(ctx, run)
-		end
-	end
+	update_spawn_details(ctx, name, message.details, text)
 	return true
 end
 
@@ -201,10 +235,10 @@ end
 
 function M.render_message(ctx, message)
 	local role = message.role or message.type or "message"
-	if role == "custom" and message.display == false then
+	if render_spawn_custom_tool(ctx, message) then
 		return
 	end
-	if render_spawn_custom_tool(ctx, message) then
+	if role == "custom" and message.display == false then
 		return
 	end
 	local text = ctx.messages.extract_text(message)
@@ -220,18 +254,21 @@ function M.render_message(ctx, message)
 			ctx.tools.store_or_update_live_output(name, tool_call_id, text, nil, message.details, ctx.tools.store_display and ctx.tools.store_display(message) or nil)
 			local line = ctx.state.live_tool_lines and ctx.state.live_tool_lines[tool_call_id]
 			if line then
-				if name == "spawn" then
+				if name == "spawn" or name == "spawn_control" then
 					bind_spawn_run_line(ctx, message.details, live_output_id, line)
 				end
 				ctx.transcript.set_line(line, ctx.tools.summary_lines(live_output_id)[1])
 			end
 			return
 		end
+		if update_spawn_details(ctx, name, message.details, text) then
+			return
+		end
 		local output_id = ctx.tools.store_output(name, text, nil, message.details, message)
 		ctx.transcript.begin_trace_item()
 		ctx.transcript.append_lines(ctx.tools.summary_lines(output_id))
 		local line = ctx.transcript.line_count()
-		if name == "spawn" then
+		if name == "spawn" or name == "spawn_control" then
 			bind_spawn_run_line(ctx, message.details, output_id, line)
 		end
 		ctx.transcript.register_item({
@@ -603,12 +640,18 @@ function M.handle_event(ctx, event)
 		if event.toolName == "spawn" then
 			local partial = type(event.partialResult) == "table" and event.partialResult or {}
 			render_or_update_live_tool(ctx, event, partial_result_text(partial), partial.details or { status = "running" })
+		elseif event.toolName == "spawn_control" then
+			local partial = type(event.partialResult) == "table" and event.partialResult or {}
+			update_spawn_details(ctx, event.toolName, partial.details, partial_result_text(partial))
 		end
 		return
 	elseif event.type == "tool_execution_end" then
 		if event.toolName == "spawn" then
 			local result = type(event.result) == "table" and event.result or {}
 			render_or_update_live_tool(ctx, event, message_utils.extract_content_text(result.content), result.details or {})
+		elseif event.toolName == "spawn_control" then
+			local result = type(event.result) == "table" and event.result or {}
+			update_spawn_details(ctx, event.toolName, result.details, message_utils.extract_content_text(result.content))
 		end
 		return
 	elseif event.type == "queue_update" then

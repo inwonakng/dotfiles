@@ -127,6 +127,10 @@ local function run_id(run)
 	return run.runId or run.id
 end
 
+local function is_spawn_output_name(name)
+	return name == "spawn" or name == "spawn_control"
+end
+
 local function merge_details(old_details, new_details)
 	if type(old_details) ~= "table" then
 		return new_details
@@ -529,7 +533,7 @@ function M.store(state, tool_name, text, filetype, details, display, tool_call_i
 		state.live_tool_output_by_call = state.live_tool_output_by_call or {}
 		state.live_tool_output_by_call[tool_call_id] = id
 	end
-	if tool_name == "spawn" then
+	if is_spawn_output_name(tool_name) then
 		M.bind_spawn_run(state, details, id)
 	end
 	return id
@@ -547,7 +551,7 @@ function M.store_or_update_live(state, tool_name, tool_call_id, text, filetype, 
 		output.display = display or output.display
 		output.args = call_args_for_id(state, tool_call_id) or output.args
 		output.spawn = spawn_artifacts(output.name, output.text, output.details)
-		if output.name == "spawn" then
+		if is_spawn_output_name(output.name) then
 			M.bind_spawn_run(state, output.details, output_id)
 		end
 		return output_id, true
