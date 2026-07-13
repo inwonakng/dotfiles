@@ -338,6 +338,7 @@ async function revertAfter(ctx: ExtensionCommandContext, targetId: string | null
 		ctx.ui.notify("No recorded file changes to revert.", "info");
 		return true;
 	}
+	ctx.ui.notify(`Reverting ${files.length} file(s)…`, "info");
 	const conflicts = validateCurrentState(ctx.cwd, files);
 	if (conflicts.length > 0) {
 		ctx.ui.notify(`Rollback blocked; files changed since the agent turn:\n${conflicts.join("\n")}`, "error");
