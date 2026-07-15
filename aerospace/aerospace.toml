@@ -109,6 +109,10 @@ run = ["layout floating", "move-node-to-workspace G"]
 if.app-id = "com.microsoft.Powerpoint"
 run = ["move-node-to-workspace P"]
 
+[[on-window-detected]]
+if.app-id = "com.apple.iCal"
+run = ["move-node-to-workspace C"]
+
 # Possiele values: (qwerty|dvorak)
 # See https://nikitabobko.github.io/AeroSpace/guide#key-mapping
 [key-mapping]
