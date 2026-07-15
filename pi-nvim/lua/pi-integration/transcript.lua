@@ -152,6 +152,40 @@ local function tool_quote_highlight(line)
 	return nil
 end
 
+local function apply_edit_stat_highlights(buf, line_index, line)
+	if line:find("> 󰇥 Tool: edit", 1, true) ~= 1 then
+		return
+	end
+	local stats_start, _, add_count, remove_count = line:find("%+(%d+)/%-(%d+) · [^·]+$")
+	if not stats_start then
+		return
+	end
+	local add_start = stats_start
+	local add_end = add_start + #add_count
+	local remove_start = add_end + 2
+	local remove_end = remove_start + #remove_count
+	local _, block_separator_end = line:find(" · ", remove_end + 1, true)
+	if not block_separator_end then
+		return
+	end
+	local block_start = block_separator_end + 1
+	vim.api.nvim_buf_set_extmark(buf, quote_ns, line_index - 1, add_start - 1, {
+		end_col = add_end,
+		hl_group = "PiEditAdd",
+		priority = 325,
+	})
+	vim.api.nvim_buf_set_extmark(buf, quote_ns, line_index - 1, remove_start - 1, {
+		end_col = remove_end,
+		hl_group = "PiEditDelete",
+		priority = 325,
+	})
+	vim.api.nvim_buf_set_extmark(buf, quote_ns, line_index - 1, block_start - 1, {
+		end_col = #line,
+		hl_group = "PiEditBlockCount",
+		priority = 325,
+	})
+end
+
 function M.apply_quote_highlights(ctx)
 	local state = ctx.state
 	if not ctx.buffer.valid(state.transcript_buf) then
@@ -180,6 +214,7 @@ function M.apply_quote_highlights(ctx)
 				virt_text_pos = "overlay",
 				priority = 300,
 			})
+			apply_edit_stat_highlights(state.transcript_buf, index, line)
 		end
 	end
 end

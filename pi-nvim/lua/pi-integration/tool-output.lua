@@ -20,6 +20,56 @@ local function line_count_text(text)
 	return count + 1
 end
 
+local function diff_text_for_line_stats(text)
+	if type(text) ~= "string" or text == "" or text:sub(-1) == "\n" then
+		return text or ""
+	end
+	return text .. "\n"
+end
+
+local function edit_change_stats(args)
+	if type(args) ~= "table" or type(args.edits) ~= "table" then
+		return nil
+	end
+	local stats = {
+		additions = 0,
+		removals = 0,
+		blocks = 0,
+	}
+	for _, edit in ipairs(args.edits) do
+		if type(edit) ~= "table" or type(edit.oldText) ~= "string" or type(edit.newText) ~= "string" then
+			return nil
+		end
+		stats.blocks = stats.blocks + 1
+		if edit.oldText ~= edit.newText then
+			local ok, hunks = pcall(vim.diff, diff_text_for_line_stats(edit.oldText), diff_text_for_line_stats(edit.newText), {
+				result_type = "indices",
+			})
+			if ok and type(hunks) == "table" then
+				for _, hunk in ipairs(hunks) do
+					if type(hunk) == "table" then
+						stats.removals = stats.removals + (tonumber(hunk[2]) or 0)
+						stats.additions = stats.additions + (tonumber(hunk[4]) or 0)
+					end
+				end
+			else
+				stats.removals = stats.removals + line_count_text(edit.oldText)
+				stats.additions = stats.additions + line_count_text(edit.newText)
+			end
+		end
+	end
+	return stats
+end
+
+local function edit_change_label(args)
+	local stats = edit_change_stats(args)
+	if not stats then
+		return nil
+	end
+	local block_label = stats.blocks == 1 and "1 block" or (tostring(stats.blocks) .. " blocks")
+	return "+" .. tostring(stats.additions) .. "/-" .. tostring(stats.removals) .. " · " .. block_label
+end
+
 local function looks_like_json(text)
 	if type(text) ~= "string" then
 		return false
@@ -659,8 +709,9 @@ function M.summary_lines(state, output_id)
 		label = label .. ": " .. markdown_code_span(output_path(output))
 	end
 	local artifact_label = output.spawn and " · artifacts" or ""
+	local edit_label = output.name == "edit" and edit_change_label(output.args) or nil
 	return {
-		"> 󰇥 " .. label .. " · " .. line_label .. artifact_label,
+		"> 󰇥 " .. label .. " · " .. (edit_label or line_label) .. artifact_label,
 	}
 end
 
