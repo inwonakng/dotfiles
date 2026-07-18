@@ -1,4 +1,4 @@
-import { AuthStorage, getAgentDir, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { getAgentDir, readStoredCredential, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { join } from "node:path";
 
 const DEFAULT_TITLE_PROVIDER = "opencode";
@@ -7,15 +7,16 @@ const DEFAULT_TITLE_PROVIDER = "opencode";
 // keep this extension self-contained by using an anonymously available OpenCode free model.
 const DEFAULT_TITLE_MODEL = "opencode/nemotron-3-ultra-free";
 const DEFAULT_TITLE_ENDPOINT = "https://opencode.ai/zen/v1/chat/completions";
-const TITLE_LIMIT = 64;
-const MODEL_TITLE_LIMIT = 50;
+const TITLE_LIMIT = 80;
+const MODEL_TITLE_LIMIT = 80;
+const MODEL_TITLE_WORD_LIMIT = 12;
 const DEFAULT_TITLE_MAX_TOKENS = 800;
 const TITLE_SYSTEM_PROMPT = [
 	"You are a title generator. You output ONLY a thread title. Nothing else.",
 	"Generate a brief title that would help the user find this conversation later.",
 	"Your output must be:",
 	"- A single line",
-	"- ≤50 characters",
+	"- ≤80 characters",
 	"- No explanations",
 	"- you MUST use the same language as the user message you are summarizing",
 	"- Title must be grammatically correct and read naturally",
@@ -46,25 +47,45 @@ const TITLE_SYSTEM_PROMPT = [
 	"\"@App.tsx add dark mode toggle\" → Dark mode toggle in App",
 ].join("\n");
 
-let authStorage: ReturnType<typeof AuthStorage.create> | undefined;
-
 function titleProvider() {
 	return process.env.PI_TITLE_PROVIDER || DEFAULT_TITLE_PROVIDER;
 }
 
-function getAuthStorage() {
-	if (!authStorage) {
-		authStorage = AuthStorage.create(join(getAgentDir(), "auth.json"));
+function resolveStoredApiKeyValue(key: string, env?: Record<string, string>) {
+	const trimmed = key.trim();
+	if (!trimmed || trimmed.startsWith("!")) {
+		return undefined;
 	}
-	return authStorage;
+
+	const envMatch = trimmed.match(/^\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))$/);
+	if (envMatch) {
+		const name = envMatch[1] || envMatch[2];
+		return env?.[name] || process.env[name];
+	}
+
+	return key;
 }
 
-async function titleApiKey() {
+async function titleApiKey(ctx?: ExtensionContext) {
 	const envKey = process.env.PI_TITLE_API_KEY || process.env.OPENCODE_ZEN_API_KEY || process.env.OPENCODE_API_KEY;
 	if (envKey) {
 		return envKey;
 	}
-	return getAuthStorage().getApiKey(titleProvider());
+
+	try {
+		const registryKey = await ctx?.modelRegistry.getApiKeyForProvider(titleProvider());
+		if (registryKey) {
+			return registryKey;
+		}
+	} catch {
+		// Fall through to a best-effort direct auth.json read.
+	}
+
+	const credential = readStoredCredential(titleProvider(), join(getAgentDir(), "auth.json"));
+	if (credential?.type === "api_key" && typeof credential.key === "string") {
+		return resolveStoredApiKeyValue(credential.key, credential.env);
+	}
+	return undefined;
 }
 
 function titleModel() {
@@ -119,7 +140,7 @@ function cleanTitle(text: string, limit = TITLE_LIMIT) {
 }
 
 function isUsefulModelTitle(title: string) {
-	if (!title || title.length > MODEL_TITLE_LIMIT || title.split(/\s+/).length > 8) {
+	if (!title || title.length > MODEL_TITLE_LIMIT || title.split(/\s+/).length > MODEL_TITLE_WORD_LIMIT) {
 		return false;
 	}
 	if (/[`{}<>]|<tool_call>|```/i.test(title)) {
@@ -200,8 +221,8 @@ function branchUserMessagesWithEvent(ctx: ExtensionContext, message: unknown) {
 	return messages;
 }
 
-async function modelTitle(prompt: string) {
-	const apiKey = await titleApiKey();
+async function modelTitle(prompt: string, ctx?: ExtensionContext) {
+	const apiKey = await titleApiKey(ctx);
 	const headers: Record<string, string> = {
 		"content-type": "application/json",
 	};
@@ -292,7 +313,7 @@ export default function autoTitleExtension(pi: ExtensionAPI) {
 		const prompt = userMessages[0];
 		ctx.ui.setStatus("pi-session-title", "Generating title…");
 
-		void modelTitle(prompt)
+		void modelTitle(prompt, ctx)
 			.then((title) => {
 				if (currentSessionKey() !== sessionKey || pi.getSessionName()) {
 					return;
@@ -337,7 +358,7 @@ export default function autoTitleExtension(pi: ExtensionAPI) {
 			}
 
 			const fallback = deterministicTitle(prompt);
-			const title = (await modelTitle(prompt)) || fallback;
+			const title = (await modelTitle(prompt, ctx)) || fallback;
 			setTitle(pi, ctx, title);
 		},
 	});

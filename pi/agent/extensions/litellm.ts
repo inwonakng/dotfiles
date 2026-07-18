@@ -660,7 +660,7 @@ export default async function (pi: ExtensionAPI) {
 			}
 			try {
 				const cache = await runRefresh(true);
-				ctx.modelRegistry.refresh();
+				await ctx.modelRegistry.refresh();
 				ctx.ui.notify(
 					`LiteLLM: ${cache.models.length} models refreshed; ${cache.models.filter((m) => m.api === "openai-responses").length} use Responses.`,
 					"info",

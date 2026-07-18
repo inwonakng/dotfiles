@@ -46,11 +46,28 @@ local function get_input(ctx)
 	return vim.trim(table.concat(lines, "\n"))
 end
 
-local function clear_input(ctx)
-	local state = ctx.state
-	if ctx.buffer.valid(state.input_buf) then
-		vim.api.nvim_buf_set_lines(state.input_buf, 0, -1, false, { "" })
+local function buffer_loaded(ctx, buf)
+	return ctx.buffer.valid(buf) and vim.api.nvim_buf_is_loaded(buf)
+end
+
+local function reset_buffer_window_cursors(buf)
+	for _, win in ipairs(vim.api.nvim_list_wins()) do
+		if vim.api.nvim_win_is_valid(win) and vim.api.nvim_win_get_buf(win) == buf then
+			pcall(vim.api.nvim_win_set_cursor, win, { 1, 0 })
+		end
 	end
+end
+
+local function replace_all_lines(ctx, buf, lines)
+	if not buffer_loaded(ctx, buf) then
+		return
+	end
+	reset_buffer_window_cursors(buf)
+	vim.api.nvim_buf_set_lines(buf, 0, vim.api.nvim_buf_line_count(buf), false, lines or {})
+end
+
+local function clear_input(ctx)
+	replace_all_lines(ctx, ctx.state.input_buf, { "" })
 end
 
 function M.submit_prompt(ctx)
@@ -118,7 +135,7 @@ end
 local function reset_session_transcript_state(ctx, notice)
 	local state = ctx.state
 	ctx.buffer.set_modifiable(state.transcript_buf, true)
-	vim.api.nvim_buf_set_lines(state.transcript_buf, 0, -1, false, {})
+	replace_all_lines(ctx, state.transcript_buf, {})
 	ctx.buffer.set_modifiable(state.transcript_buf, false)
 	ctx.transcript.clear_items()
 	state.session_name = nil
