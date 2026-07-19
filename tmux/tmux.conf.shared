@@ -159,9 +159,9 @@ set -g status-left ""
 set -g status-right-length 80
 set -g status-right "#(bash status.sh)"
 
-# allow extended keys in csi for pi
-set -g extended-keys on
-set -g extended-keys-format csi-u
+# allow extended keys for pi
+if -F '#{extended-keys}' 'set -g extended-keys on'
+if -F '#{extended-keys-format}' 'set -g extended-keys-format csi-u'
 
 ###=============================###
 ### Plugin configurations start ###
