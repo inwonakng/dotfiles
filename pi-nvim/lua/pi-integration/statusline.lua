@@ -1,5 +1,16 @@
 local M = {}
 
+local activity_spinner_frames = {
+	"⠋",
+	"⠙",
+	"⠩",
+	"⠸",
+	"⠼",
+	"⠴",
+	"⠦",
+	"⠧",
+}
+
 local function non_null(value)
 	return value ~= nil and value ~= vim.NIL
 end
@@ -108,6 +119,16 @@ local function current_thinking_level_label(state)
 	return level
 end
 
+local function activity_statusline_label(state)
+	if not state.is_streaming and not state.is_retrying then
+		return ""
+	end
+	local tick = tonumber(state.activity_spinner_tick) or 1
+	local frame = activity_spinner_frames[((tick - 1) % #activity_spinner_frames) + 1]
+	local label = state.is_retrying and "retry" or state.activity_label or "work"
+	return " " .. frame .. " " .. label
+end
+
 local function spawn_statusline_label(state)
 	local count = tonumber(state.spawn_running_count) or 0
 	if count <= 0 then
@@ -164,6 +185,7 @@ function M.render(ctx)
 	local model_label = status_delimiter .. current_model_statusline_label(ctx)
 	local thinking_level = current_thinking_level_label(state)
 	local thinking_label = thinking_level and (" [" .. thinking_level .. "]") or ""
+	local activity_label = activity_statusline_label(state)
 	local spawn_label = spawn_statusline_label(state)
 	local stats_label = " " .. format_session_stats(state) .. " "
 	local statusline_win = tonumber(vim.g.statusline_winid) or ctx.state.transcript_win or 0
@@ -172,8 +194,9 @@ function M.render(ctx)
 	local notification_width = vim.fn.strdisplaywidth(notification_segment_label)
 	local model_width = vim.fn.strdisplaywidth(model_label)
 	local thinking_width = vim.fn.strdisplaywidth(thinking_label)
+	local activity_width = vim.fn.strdisplaywidth(activity_label)
 	local spawn_width = vim.fn.strdisplaywidth(spawn_label)
-	local left_width = mode_width + notification_width + model_width + thinking_width + spawn_width
+	local left_width = mode_width + notification_width + model_width + thinking_width + activity_width + spawn_width
 	local stats_width = vim.fn.strdisplaywidth(stats_label)
 	local show_stats = width >= (left_width + stats_width + 3)
 	local mode_highlight = mode_statusline_highlight(mode)
@@ -200,7 +223,7 @@ function M.render(ctx)
 	if width <= left_width then
 		return left_label
 			.. "%#PiUsageStats#"
-			.. statusline_escape(truncate_plain_to_width(notification_segment_label .. model_label .. thinking_label .. spawn_label, width - mode_width))
+			.. statusline_escape(truncate_plain_to_width(notification_segment_label .. model_label .. thinking_label .. activity_label .. spawn_label, width - mode_width))
 			.. "%*"
 	end
 
@@ -217,6 +240,9 @@ function M.render(ctx)
 			.. thinking_statusline_highlight(thinking_level)
 			.. statusline_escape(thinking_label)
 			.. "%#PiUsageStats#"
+	end
+	if activity_label ~= "" then
+		left_label = left_label .. "%#PiActivity#" .. statusline_escape(activity_label) .. "%#PiUsageStats#"
 	end
 	if spawn_label ~= "" then
 		left_label = left_label .. "%#PiUsageStats#" .. statusline_escape(spawn_label)

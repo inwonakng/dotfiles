@@ -111,6 +111,45 @@ local function schedule_transcript_refresh(ctx)
 	end, 50)
 end
 
+local stop_activity
+
+local function start_activity(ctx, label, tool_call_id)
+	local state = ctx.state
+	state.activity_label = label or state.activity_label or "work"
+	state.activity_tool_call_id = tool_call_id or state.activity_tool_call_id
+	if state.activity_timer then
+		ctx.transcript.update_statusline()
+		return
+	end
+	state.activity_spinner_tick = 1
+	local timer = vim.uv.new_timer()
+	state.activity_timer = timer
+	timer:start(0, 250, vim.schedule_wrap(function()
+		if state.activity_timer ~= timer then
+			return
+		end
+		if not state.is_streaming and not state.is_retrying then
+			stop_activity(ctx)
+			return
+		end
+		state.activity_spinner_tick = (state.activity_spinner_tick % 8) + 1
+		ctx.transcript.update_statusline()
+	end))
+end
+
+stop_activity = function(ctx)
+	local state = ctx.state
+	if state.activity_timer then
+		state.activity_timer:stop()
+		state.activity_timer:close()
+		state.activity_timer = nil
+	end
+	state.activity_label = nil
+	state.activity_tool_call_id = nil
+	state.activity_spinner_tick = 1
+	ctx.transcript.update_statusline()
+end
+
 local function update_spawn_run_line(ctx, run, progress)
 	local id = run_id(run)
 	if type(id) ~= "string" or id == "" then
@@ -245,6 +284,7 @@ function M.render_message(ctx, message)
 	if not text or text == "" then
 		return
 	end
+	ctx.state.awaiting_agent_output = false
 	ctx.transcript.touch()
 	if role == "toolResult" then
 		local name = message.toolName or "tool"
@@ -458,12 +498,14 @@ function M.handle_message_update(ctx, event)
 	end
 
 	if update.type == "text_start" then
+		state.awaiting_agent_output = false
 		if not state.current_message_started then
 			ctx.transcript.clear_assistant_placeholder()
 			ctx.transcript.append_message_header("Assistant")
 		end
 		state.current_message_started = true
 	elseif update.type == "text_delta" then
+		state.awaiting_agent_output = false
 		if not state.current_message_started then
 			ctx.transcript.clear_assistant_placeholder()
 			state.current_message_started = true
@@ -471,6 +513,7 @@ function M.handle_message_update(ctx, event)
 		end
 		ctx.transcript.append_text(update.delta or "")
 	elseif update.type == "thinking_start" and ctx.config.show_thinking then
+		state.awaiting_agent_output = false
 		state.active_thinking_output_id = ctx.thinking.store_output("")
 		state.active_thinking_line = nil
 	elseif update.type == "thinking_delta" and ctx.config.show_thinking then
@@ -494,6 +537,7 @@ function M.handle_message_update(ctx, event)
 		state.active_thinking_output_id = nil
 		state.active_thinking_line = nil
 	elseif update.type == "toolcall_start" then
+		state.awaiting_agent_output = false
 		ctx.transcript.clear_assistant_placeholder_spinner()
 		state.current_message_started = true
 	elseif update.type == "toolcall_delta" then
@@ -519,6 +563,8 @@ function M.handle_event(ctx, event)
 		state.target_attached = false
 		state.target_run_id = nil
 		state.is_streaming = false
+		state.awaiting_agent_output = false
+		stop_activity(ctx)
 		ctx.transcript.append_status("pi run exited with code " .. tostring(event.code))
 		ctx.transcript.refresh_ui()
 		return
@@ -528,6 +574,8 @@ function M.handle_event(ctx, event)
 		state.is_streaming = true
 		state.is_retrying = false
 		state.pending_retry_error = nil
+		state.awaiting_agent_output = true
+		start_activity(ctx, "work")
 		state.current_message_started = false
 		state.current_thinking_rendered = false
 		state.active_thinking_output_id = nil
@@ -544,6 +592,7 @@ function M.handle_event(ctx, event)
 		local message = ctx.rpc.event_error_text(event)
 		if event.willRetry then
 			state.is_retrying = true
+			start_activity(ctx, "retry")
 			-- Retry is a continuation of the same logical assistant turn. Keep
 			-- the placeholder/spinner visible until retry output replaces it or
 			-- final failure renders an error.
@@ -553,11 +602,14 @@ function M.handle_event(ctx, event)
 		end
 		state.is_retrying = false
 		state.pending_retry_error = nil
+		local awaiting_output = state.awaiting_agent_output
+		state.awaiting_agent_output = false
+		stop_activity(ctx)
 		if message and not state.error_rendered_for_active_run then
 			ctx.transcript.render_error_message("Agent Error", message)
-		elseif ctx.transcript.assistant_placeholder_active() and state.abort_requested then
+		elseif (ctx.transcript.assistant_placeholder_active() or awaiting_output) and state.abort_requested then
 			ctx.transcript.clear_assistant_placeholder()
-		elseif ctx.transcript.assistant_placeholder_active() and not state.error_rendered_for_active_run then
+		elseif (ctx.transcript.assistant_placeholder_active() or awaiting_output) and not state.error_rendered_for_active_run then
 			ctx.transcript.render_error_message(
 				"Agent Error",
 				ctx.rpc.recent_stderr_text() or "Agent stopped before returning a message. No error details were provided."
@@ -577,6 +629,7 @@ function M.handle_event(ctx, event)
 	elseif event.type == "auto_retry_start" then
 		state.is_retrying = true
 		state.pending_retry_error = event.errorMessage or state.pending_retry_error
+		start_activity(ctx, "retry")
 		ctx.ui.notify(
 			"Pi retrying after transient error ("
 				.. tostring(event.attempt or "?")
@@ -587,6 +640,11 @@ function M.handle_event(ctx, event)
 	elseif event.type == "auto_retry_end" then
 		state.is_retrying = false
 		state.pending_retry_error = nil
+		if state.is_streaming then
+			start_activity(ctx, "work")
+		else
+			stop_activity(ctx)
+		end
 		if event.success == false and not state.error_rendered_for_active_run then
 			ctx.transcript.render_error_message("Agent Error", event.finalError or "Retry failed")
 			ctx.transcript.touch()
@@ -624,20 +682,27 @@ function M.handle_event(ctx, event)
 			M.render_message(ctx, event.message)
 		end
 	elseif event.type == "tool_execution_start" then
+		state.awaiting_agent_output = false
 		ctx.transcript.clear_assistant_placeholder_spinner()
 		state.current_message_started = true
 		if event.toolName == "edit" or event.toolName == "write" or event.toolName == "bash" then
 			ctx.tools.record_execution_call(event.toolName, event.toolCallId, event.args)
 		end
+		start_activity(ctx, event.toolName or "tool", event.toolCallId)
 		if event.toolName == "spawn" then
 			render_or_update_live_tool(ctx, event, "Subagent starting…", { status = "running" })
+		elseif event.toolName == "bash" then
+			render_or_update_live_tool(ctx, event, "", { status = "running" })
 		end
-		-- Non-spawn tool output is rendered from the final toolResult message. Rendering
+		-- Non-spawn/non-bash tool output is rendered from the final toolResult message. Rendering
 		-- every tool_execution_* stream creates empty/duplicate tool blocks for tools
 		-- that only publish their output at completion.
 		return
 	elseif event.type == "tool_execution_update" then
 		if event.toolName == "spawn" then
+			local partial = type(event.partialResult) == "table" and event.partialResult or {}
+			render_or_update_live_tool(ctx, event, partial_result_text(partial), partial.details or { status = "running" })
+		elseif event.toolName == "bash" then
 			local partial = type(event.partialResult) == "table" and event.partialResult or {}
 			render_or_update_live_tool(ctx, event, partial_result_text(partial), partial.details or { status = "running" })
 		elseif event.toolName == "spawn_control" then
@@ -649,9 +714,18 @@ function M.handle_event(ctx, event)
 		if event.toolName == "spawn" then
 			local result = type(event.result) == "table" and event.result or {}
 			render_or_update_live_tool(ctx, event, message_utils.extract_content_text(result.content), result.details or {})
+		elseif event.toolName == "bash" then
+			local result = type(event.result) == "table" and event.result or {}
+			local details = type(result.details) == "table" and shallow_copy(result.details) or {}
+			details.status = details.status or "completed"
+			render_or_update_live_tool(ctx, event, message_utils.extract_content_text(result.content), details)
 		elseif event.toolName == "spawn_control" then
 			local result = type(event.result) == "table" and event.result or {}
 			update_spawn_details(ctx, event.toolName, result.details, message_utils.extract_content_text(result.content))
+		end
+		if state.activity_tool_call_id == event.toolCallId then
+			state.activity_tool_call_id = nil
+			start_activity(ctx, "work")
 		end
 		return
 	elseif event.type == "queue_update" then

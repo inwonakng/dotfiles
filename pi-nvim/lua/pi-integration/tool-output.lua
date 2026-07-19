@@ -569,15 +569,16 @@ end
 function M.store(state, tool_name, text, filetype, details, display, tool_call_id)
 	state.next_tool_output_id = state.next_tool_output_id + 1
 	local id = state.next_tool_output_id
+	local call = tool_call_id and state.tool_calls and state.tool_calls[tool_call_id]
 	state.tool_outputs[id] = {
 		name = tool_name or "tool",
 		text = text or "",
 		filetype = filetype or infer_filetype(tool_name, text),
 		details = details,
-		display = display,
+		display = display or (call and call.display),
 		spawn = spawn_artifacts(tool_name, text, details),
 		tool_call_id = tool_call_id,
-		args = call_args_for_id(state, tool_call_id),
+		args = call and call.args or nil,
 	}
 	if tool_call_id then
 		state.live_tool_output_by_call = state.live_tool_output_by_call or {}
@@ -703,6 +704,11 @@ function M.summary_lines(state, output_id)
 		return { "> 󰇥 Todo: " .. (status or line_label) }
 	elseif output.display and output.display.kind == "bash" and output.display.command then
 		label = "Bash: " .. markdown_code_span(command_preview(output.display.command))
+		local details = type(output.details) == "table" and output.details or {}
+		if details.status == "running" then
+			local running_label = lines > 0 and ("running · " .. line_label) or "running"
+			return { "> 󰇥 " .. label .. " · " .. running_label }
+		end
 	elseif output.display and output.display.kind == "file" and output.display.path then
 		label = label .. ": " .. markdown_code_span(output.display.path)
 	elseif (output.name == "edit" or output.name == "write") and output_path(output) then

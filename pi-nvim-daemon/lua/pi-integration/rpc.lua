@@ -132,6 +132,18 @@ function M.start(ctx, host)
 				state.job = nil
 				state.manager_connected = false
 				state.target_attached = false
+				state.is_streaming = false
+				state.is_retrying = false
+				state.awaiting_agent_output = false
+				state.pending_retry_error = nil
+				if state.activity_timer then
+					state.activity_timer:stop()
+					state.activity_timer:close()
+					state.activity_timer = nil
+				end
+				state.activity_label = nil
+				state.activity_tool_call_id = nil
+				state.activity_spinner_tick = 1
 				close_heartbeat(state)
 				if ctx.transcript.assistant_placeholder_active() and not state.error_rendered_for_active_run then
 					ctx.transcript.render_error_message(
@@ -139,6 +151,7 @@ function M.start(ctx, host)
 						ctx.rpc.recent_stderr_text() or ("pi manager exited with code " .. tostring(code))
 					)
 				end
+				ctx.transcript.refresh_ui()
 			end)
 		end,
 	})

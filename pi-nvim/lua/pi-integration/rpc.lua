@@ -122,7 +122,8 @@ function M.start(ctx)
 				if state.session_file and state.session_file ~= "" then
 					state.pending_session_file = state.session_file
 				end
-				if ctx.transcript.assistant_placeholder_active() and not state.error_rendered_for_active_run then
+				local awaiting_output = state.awaiting_agent_output
+				if (ctx.transcript.assistant_placeholder_active() or awaiting_output) and not state.error_rendered_for_active_run then
 					ctx.transcript.render_error_message(
 						"Pi Error",
 						ctx.rpc.recent_stderr_text() or ("pi exited with code " .. tostring(code) .. " before returning a message")
@@ -133,7 +134,17 @@ function M.start(ctx)
 				state.job = nil
 				state.is_streaming = false
 				state.is_retrying = false
+				state.awaiting_agent_output = false
 				state.pending_retry_error = nil
+				if state.activity_timer then
+					state.activity_timer:stop()
+					state.activity_timer:close()
+					state.activity_timer = nil
+				end
+				state.activity_label = nil
+				state.activity_tool_call_id = nil
+				state.activity_spinner_tick = 1
+				ctx.transcript.refresh_ui()
 				state.abort_requested = false
 			end)
 		end,

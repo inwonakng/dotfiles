@@ -48,6 +48,7 @@ require("catppuccin").setup({
 			PiThinkingMedium = { fg = colors.yellow, bg = M.ui_bg, bold = true },
 			PiThinkingHigh = { fg = colors.peach, bg = M.ui_bg, bold = true },
 			PiThinkingXhigh = { fg = colors.red, bg = M.ui_bg, bold = true },
+			PiActivity = { fg = colors.mauve, bg = M.ui_bg, bold = true },
 			StatusLine = { fg = M.pane_border, bg = M.ui_bg },
 			StatusLineNC = { fg = M.pane_border, bg = M.ui_bg },
 			WinBar = { bg = M.ui_bg },

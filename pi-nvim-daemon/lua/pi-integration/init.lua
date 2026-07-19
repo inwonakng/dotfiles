@@ -455,6 +455,7 @@ local integration_context = {
 	transcript = {
 		win_valid = transcript_win_valid,
 		metadata_lines = metadata_lines,
+		update_statusline = update_transcript_statusline,
 		refresh_ui = refresh_transcript_ui,
 		touch = touch_transcript,
 		append_status = append_status,

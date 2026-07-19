@@ -95,7 +95,7 @@ function M.submit_prompt(ctx)
 	if state.is_streaming then
 		cmd.streamingBehavior = "steer"
 	elseif not text:match("^%s*/") then
-		ctx.transcript.start_assistant_placeholder()
+		state.awaiting_agent_output = true
 	end
 	ctx.rpc.send(cmd)
 end
