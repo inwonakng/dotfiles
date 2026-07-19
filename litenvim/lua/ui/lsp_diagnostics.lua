@@ -26,8 +26,18 @@ end
 vim.diagnostic.config({
 	underline = true,
 	severity_sort = true,
-	virtual_text = false,
-	-- virtual_text = false,
+	virtual_text = {
+		spacing = 2,
+		format = function()
+			return ""
+		end,
+		prefix = function(_, i, total)
+			if i == total then
+				return total > 1 and (" ● " .. total) or " ●"
+			end
+			return ""
+		end,
+	},
 	-- virtual_lines = {
 	-- 	current_line = false,
 	-- 	format = format_diag,
