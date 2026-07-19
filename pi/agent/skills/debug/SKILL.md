@@ -29,10 +29,10 @@ Do not patch symptoms because a fix seems obvious. First prove what is happening
   - config/environment passed across the boundary
   - state changes at each layer
 - Find a similar working example in the codebase and compare behavior.
-- List meaningful differences. Do not dismiss differences without evidence.
-- do not speculate about the cause. Only form hypotheses after evidence is gathered.
+- List each observed difference. Do not dismiss a difference without evidence that it cannot affect the failure.
+- Do not speculate about the cause. Form hypotheses only after evidence is gathered.
 
-Use `spawn` with `accessMode: "readonly"` for bounded independent investigation when a fresh context would help. If the spawn runs in background and you need its result, use `spawn_control join` before proceeding.
+Use `spawn` with `accessMode: "readonly"` when a named component or code path needs independent investigation. State the evidence the subagent must return. If the spawn runs in background and you need its result, use `spawn_control join` before proceeding.
 
 ## Phase 3: Form and Test One Hypothesis
 
@@ -52,12 +52,12 @@ If three fix attempts fail or each fix reveals a new architectural problem, stop
 
 Only after the root cause is identified:
 
-1. Add or identify a failing test/reproduction when practical and meaningful.
-2. Implement one focused fix at the source of the problem.
+1. Add or identify a test or reproduction that fails for the observed symptom and would detect its return.
+2. Implement one fix at the source of the problem.
 3. Verify the original symptom is fixed.
-4. Verify relevant regressions did not appear.
+4. Run checks for callers or contracts affected by the fix.
 
-If a test would be trivial or impossible in the current project, state the manual or command-based verification instead.
+If the project has no suitable test location or automation cannot reproduce the symptom, state the manual or command-based verification instead.
 
 ## Red Flags
 

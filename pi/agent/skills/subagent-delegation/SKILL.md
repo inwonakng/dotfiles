@@ -1,11 +1,11 @@
 ---
 name: subagent-delegation
-description: Use when a task may benefit from delegating bounded work to an isolated Pi subagent for research, planning, implementation, review, or verification. Teaches when and how to call spawn/spawn_control safely.
+description: Use before delegating a clearly scoped research, planning, implementation, review, or verification task to a Pi subagent. Defines access modes, brief requirements, join behavior, and controller responsibilities.
 ---
 
 # Subagent Delegation
 
-Use this skill to coordinate bounded delegation to isolated Pi subagents through the `spawn` and `spawn_control` tools.
+Use this skill to coordinate clearly scoped delegation to isolated Pi subagents through the `spawn` and `spawn_control` tools.
 
 "Subagents" is the user-facing concept. `spawn` starts a subagent job and `spawn_control` inspects, joins, or stops it.
 
@@ -13,25 +13,27 @@ Use this skill to coordinate bounded delegation to isolated Pi subagents through
 
 - Use `plan` when the work needs main-agent implementation planning or user approval before edits. Planner subagents can help, but they do not own the source-of-truth plan.
 - Use `subagent-driven-implementation` when executing an approved implementation plan file, multiple plan files, or a complex approved implementation plan. That skill is the high-level workflow; this skill is the low-level delegation policy.
-- Use this skill directly for bounded research, critique, review, verification advice, or isolated implementation slices that do not require the full plan-file workflow.
+- Use this skill directly for research into a named subsystem, independent critique or review, verification advice, or implementation with exact file scope that does not require the full plan-file workflow.
 
 ## When to Delegate
 
+A subagent task is scoped when the brief names its goal, files or systems to inspect, permitted actions, required evidence, and return conditions.
+
 Good uses:
 
-- bounded research into an unfamiliar subsystem
+- research into a named unfamiliar subsystem
 - independent plan critique
 - fresh-context code review
-- focused bug investigation
-- a clearly scoped implementation slice after the user has approved implementation
+- investigation of a specific failure or code path
+- approved implementation with exact, non-overlapping file scope
 
 Bad uses:
 
 - tiny tasks the main agent can do directly
 - avoiding your own reasoning
-- broad ambiguous work with no crisp deliverable
-- parallel write work without worktree isolation
-- asking a subagent to make product/design decisions the user has not approved
+- work with no named deliverable or stop condition
+- parallel write work against overlapping files
+- asking a subagent to make product or design decisions the user has not approved
 
 ## Execution Model
 
@@ -58,20 +60,21 @@ Readonly subagents must not modify files. If blocked by missing write access, th
 
 Use write only when:
 
-- the user explicitly approved implementation, and
-- the delegated task is bounded, and
+- the user explicitly approved implementation,
+- the brief names the exact files or directory the subagent may change,
+- the required behavior and verification are stated, and
 - worktree isolation is appropriate.
 
 Write-capable spawned subagents use isolated worktrees. On `join`, clean changes may be applied automatically; conflicts or overlapping parent changes are returned for the parent to handle manually.
 
-Do not run multiple write subagents against overlapping files unless each has isolated worktree scope and the user accepted the risk.
+Do not run multiple write subagents against overlapping files. If overlap becomes necessary, run the work sequentially or keep one writer and use readonly reviewers.
 
 ## Main Agent Responsibilities
 
 The main agent remains responsible for:
 
 - choosing whether delegation is appropriate
-- writing a precise brief
+- writing a brief with a named goal, scope, evidence, and return conditions
 - deciding whether to wait or continue
 - joining before relying on subagent results
 - integrating any conflicted/unsafe worktree changes
@@ -83,30 +86,33 @@ Never treat a subagent's success report as proof. Use the `verify` skill before 
 
 ## Brief Template
 
-Use a complete bounded prompt. Prefer references to files/artifacts over pasting huge context.
+Use a complete scoped prompt. Prefer references to files or artifacts over pasting large content.
 
 ```text
 Goal: [one sentence]
 
 Context:
 - cwd/repo context
-- relevant plan/spec path if any
-- relevant files or commands to inspect
+- plan or specification path, if any
+- exact files, systems, or commands to inspect
 
 Task:
 1. ...
 2. ...
 
 Constraints:
-- access mode expectations
-- do not modify files / or exact files allowed
-- stay within this scope
+- access mode
+- exact files allowed for write tasks
+- decisions the subagent must not make
+- stop conditions
 
 Return:
 - Status: DONE | BLOCKED | NEEDS_CONTEXT
 - Evidence inspected
 - Commands run
-- Findings / changes made
+- Findings
+- Changes made, if any
+- Uncertainty or unverified claims
 - Artifact paths, if any
 ```
 
@@ -118,7 +124,7 @@ Common profiles / roles:
 
 - `researcher`: inspect and summarize evidence, no edits.
 - `planner`: critique or refine a plan, no edits unless asked to write a plan file.
-- `implementer`: make the bounded approved change and run local verification.
+- `implementer`: make an approved change within exact file scope and run the stated verification.
 - `reviewer`: inspect diff/plan for correctness, risks, tests, and requirement coverage.
 - `verifier`: gather verification evidence and identify unverified claims, no edits.
 
