@@ -552,8 +552,9 @@ local function open_edit_diff_float(ctx, output)
 			end
 		end
 	end
-	floats.close_on_win_leave(left_buf, close_diff, { win = left_win, parent = ctx.window.parent })
-	floats.close_on_win_leave(right_buf, close_diff, { win = right_win, parent = left_win })
+	local diff_group = floats.new_group()
+	floats.close_on_win_leave(left_buf, close_diff, { win = left_win, parent = ctx.window.parent, group = diff_group })
+	floats.close_on_win_leave(right_buf, close_diff, { win = right_win, parent = ctx.window.parent, group = diff_group })
 	for _, buf in ipairs({ left_buf, right_buf }) do
 		vim.keymap.set("n", "q", close_diff, { buffer = buf, silent = true, desc = "Close edit diff" })
 		vim.keymap.set("n", "<Esc>", close_diff, { buffer = buf, silent = true, desc = "Close edit diff" })

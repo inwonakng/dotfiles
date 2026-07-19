@@ -23,6 +23,7 @@ local function normalize_options(buf, close_fn, opts)
 		win = win,
 		buf = buf,
 		parent = opts.parent,
+		group = opts.group,
 		close = close_fn,
 	}
 end
@@ -58,6 +59,11 @@ end
 
 local function same_stack(a, b)
 	return a and b and tracked[a] and tracked[b] and root_of(a) == root_of(b)
+end
+
+local function same_group(a, b)
+	local a_group = a and tracked[a] and tracked[a].group
+	return a_group ~= nil and b and tracked[b] and tracked[b].group == a_group
 end
 
 local function focus_window(win)
@@ -139,9 +145,14 @@ function M.track_window(win, opts)
 	opts = opts or {}
 	tracked[win] = {
 		parent = opts.parent,
+		group = opts.group,
 		close = opts.close,
 	}
 	return win
+end
+
+function M.new_group()
+	return {}
 end
 
 function M.close_on_win_leave(buf, close_fn, opts)
@@ -153,7 +164,7 @@ function M.close_on_win_leave(buf, close_fn, opts)
 		return
 	end
 
-	M.track_window(info.win, { parent = info.parent, close = close_fn })
+	M.track_window(info.win, { parent = info.parent, group = info.group, close = close_fn })
 	pcall(vim.api.nvim_clear_autocmds, { group = close_on_leave_augroup, buffer = buf })
 
 	vim.api.nvim_create_autocmd("WinLeave", {
@@ -170,6 +181,9 @@ function M.close_on_win_leave(buf, close_fn, opts)
 					return
 				end
 				if is_descendant(current, leaving_win) then
+					return
+				end
+				if same_group(current, leaving_win) then
 					return
 				end
 				if same_stack(current, leaving_win) then
