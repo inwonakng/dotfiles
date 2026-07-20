@@ -552,9 +552,47 @@ local function open_edit_diff_float(ctx, output)
 			end
 		end
 	end
+	local function focus_or_close(win)
+		if win and vim.api.nvim_win_is_valid(win) then
+			vim.api.nvim_set_current_win(win)
+		else
+			close_diff()
+		end
+	end
+
+	local function map_diff_navigation(buf, left_target, right_target)
+		local mappings = {
+			{ "<C-h>", left_target },
+			{ "<C-w>h", left_target },
+			{ "<C-w><C-h>", left_target },
+			{ "<C-l>", right_target },
+			{ "<C-w>l", right_target },
+			{ "<C-w><C-l>", right_target },
+			{ "<C-j>" },
+			{ "<C-w>j" },
+			{ "<C-w><C-j>" },
+			{ "<C-k>" },
+			{ "<C-w>k" },
+			{ "<C-w><C-k>" },
+		}
+		for _, mapping in ipairs(mappings) do
+			local lhs = mapping[1]
+			local target = mapping[2]
+			vim.keymap.set("n", lhs, function()
+				if target then
+					focus_or_close(target)
+				else
+					close_diff()
+				end
+			end, { buffer = buf, silent = true, desc = "Navigate edit diff" })
+		end
+	end
+
 	local diff_group = floats.new_group()
 	floats.close_on_win_leave(left_buf, close_diff, { win = left_win, parent = ctx.window.parent, group = diff_group })
 	floats.close_on_win_leave(right_buf, close_diff, { win = right_win, parent = ctx.window.parent, group = diff_group })
+	map_diff_navigation(left_buf, nil, right_win)
+	map_diff_navigation(right_buf, left_win, nil)
 	for _, buf in ipairs({ left_buf, right_buf }) do
 		vim.keymap.set("n", "q", close_diff, { buffer = buf, silent = true, desc = "Close edit diff" })
 		vim.keymap.set("n", "<Esc>", close_diff, { buffer = buf, silent = true, desc = "Close edit diff" })
