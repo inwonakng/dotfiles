@@ -140,7 +140,6 @@ setw -g pane-base-index 1
 set -s escape-time 0
 set -g focus-events on
 set-option -g renumber-windows on
-set -g focus-events off
 
 # UI stuff
 set -g detach-on-destroy off

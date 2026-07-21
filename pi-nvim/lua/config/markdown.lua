@@ -12,6 +12,9 @@ require("render_latex").setup({
 		cell_width_px = 40,
 		cell_height_px = 90,
 	},
+	tmux = {
+		install_cleanup_hooks = true,
+	},
 })
 
 require("render-markdown").setup({
