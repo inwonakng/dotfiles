@@ -102,15 +102,18 @@ local function scan_files(cwd, opts)
 				return
 			end
 
-			local relative = prefix == "" and entry.name or (prefix .. "/" .. entry.name)
-			local absolute = join_path(dir, entry.name)
+			if not (prefix == "" and entry.name:sub(1, 1) == ".") then
+				local relative = prefix == "" and entry.name or (prefix .. "/" .. entry.name)
+				local absolute = join_path(dir, entry.name)
 
-			if entry.kind == "directory" then
-				if not ignored_dirs[entry.name] then
-					walk(absolute, relative)
+				if entry.kind == "directory" then
+					if not ignored_dirs[entry.name] then
+						table.insert(results, { path = relative, kind = "directory" })
+						walk(absolute, relative)
+					end
+				elseif entry.kind == "file" or entry.kind == "link" then
+					table.insert(results, { path = relative, kind = "file" })
 				end
-			elseif entry.kind == "file" or entry.kind == "link" then
-				table.insert(results, relative)
 			end
 		end
 	end
@@ -119,13 +122,29 @@ local function scan_files(cwd, opts)
 	return results
 end
 
-local function file_item(relative_path, range)
+local function path_depth(relative_path)
+	local depth = 0
+	for _ in relative_path:gmatch("/") do
+		depth = depth + 1
+	end
+	return depth
+end
+
+local function path_sort_text(relative_path)
+	return ("%03d:%04d:%s"):format(path_depth(relative_path), #relative_path, relative_path)
+end
+
+local function path_item(entry, range)
+	local completion_kind = require("blink.cmp.types").CompletionItemKind
+	local relative_path = entry.path
+	local is_directory = entry.kind == "directory"
+
 	return {
 		label = "@" .. relative_path,
-		kind = require("blink.cmp.types").CompletionItemKind.File,
-		detail = "file",
+		kind = is_directory and completion_kind.Folder or completion_kind.File,
+		detail = is_directory and "directory" or "file",
 		filterText = "@" .. relative_path .. " " .. relative_path,
-		sortText = relative_path,
+		sortText = path_sort_text(relative_path),
 		textEdit = {
 			newText = "@" .. relative_path,
 			range = range,
@@ -175,8 +194,8 @@ function source:get_completions(ctx, callback)
 	end
 
 	local items = {}
-	for _, relative_path in ipairs(self.cache.files) do
-		table.insert(items, file_item(relative_path, reference.range))
+	for _, entry in ipairs(self.cache.files) do
+		table.insert(items, path_item(entry, reference.range))
 	end
 
 	callback({
