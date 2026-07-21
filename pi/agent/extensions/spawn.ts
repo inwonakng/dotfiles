@@ -239,7 +239,7 @@ class PiRpcChild {
       return;
     }
 
-    if (event.type === "agent_end") {
+    if (event.type === "agent_end" && event.willRetry !== true) {
       this.agentEndResolver?.(event);
       this.agentEndResolver = undefined;
       this.agentEndRejecter = undefined;
@@ -269,9 +269,37 @@ class PiRpcChild {
   }
 }
 
+class SubagentTerminalError extends Error {
+  readonly status: Extract<RunStatus, "error" | "aborted">;
+
+  constructor(status: Extract<RunStatus, "error" | "aborted">, message: string) {
+    super(message);
+    this.name = "SubagentTerminalError";
+    this.status = status;
+  }
+}
+
 function textFromLastAssistantResponse(event: RpcEvent): string | undefined {
   const data = event.data as { text?: unknown } | undefined;
   return typeof data?.text === "string" ? data.text : undefined;
+}
+
+function terminalAssistantError(event: RpcEvent): SubagentTerminalError | undefined {
+  const messages = Array.isArray(event.messages) ? event.messages : [];
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index] as { role?: unknown; stopReason?: unknown; errorMessage?: unknown } | undefined;
+    if (message?.role !== "assistant") {
+      continue;
+    }
+    if (message.stopReason !== "error" && message.stopReason !== "aborted") {
+      return undefined;
+    }
+    const detail = typeof message.errorMessage === "string" && message.errorMessage.trim()
+      ? message.errorMessage.trim()
+      : `Subagent assistant stopped with ${String(message.stopReason)}.`;
+    return new SubagentTerminalError(message.stopReason === "aborted" ? "aborted" : "error", detail);
+  }
+  return undefined;
 }
 
 function assertSuccess(event: RpcEvent, action: string): void {
@@ -1062,7 +1090,7 @@ export default function spawnExtension(pi: ExtensionAPI) {
       onEvent: (event) => {
         transcript(event);
         const progress = summarizeChildEvent(event);
-        if (progress && progress !== run.progress) {
+        if (run.status === "running" && progress && progress !== run.progress) {
           run.progress = progress;
           writeStatus(run);
           publishProgress();
@@ -1089,7 +1117,11 @@ export default function spawnExtension(pi: ExtensionAPI) {
           }),
         });
         assertSuccess(promptResponse, "subagent prompt");
-        await agentEnd;
+        const terminalEnd = await agentEnd;
+        const terminalError = terminalAssistantError(terminalEnd);
+        if (terminalError) {
+          throw terminalError;
+        }
         const lastAssistant = await child.send({ type: "get_last_assistant_text" });
         assertSuccess(lastAssistant, "get subagent result");
         run.resultText = textFromLastAssistantResponse(lastAssistant) ?? "";
@@ -1101,6 +1133,9 @@ export default function spawnExtension(pi: ExtensionAPI) {
         if (run.stopReason) {
           run.status = "aborted";
           run.error = run.stopReason === "timeout" ? "Subagent timed out." : `Subagent aborted: ${run.stopReason}.`;
+        } else if (error instanceof SubagentTerminalError) {
+          run.status = error.status;
+          run.error = message;
         } else {
           run.status = "error";
           run.error = message;
