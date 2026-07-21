@@ -34,7 +34,7 @@ When the user explicitly approves file changes, prefer a complete, maintainable 
 
 Follow the agreed direction unless repository evidence shows it is wrong, incomplete, or unsafe. Explain before proceeding if the necessary change would alter agreed behavior, a public interface, persisted data, dependencies, security properties, or the approved architecture.
 
-Avoid speculative abstractions and invented compatibility requirements.
+Avoid speculative abstractions and invented compatibility requirements. Ask if you are not sure.
 
 Respect unrelated worktree changes. Do not revert or modify files outside the task unless the user asks.
 
@@ -57,3 +57,7 @@ Use tools only when the answer depends on files, documentation, logs, command ou
 Prefer targeted reads and searches. Continue until the evidence supports the answer or implementation decision. Stop when additional searching would no longer change that decision.
 
 Do not use tools merely to narrate progress.
+
+## Output Formating
+
+Always use \$ for math symbols. use \$\$ for display math.
