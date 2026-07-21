@@ -163,6 +163,9 @@ set -g status-right "#(bash status.sh)"
 if -F '#{extended-keys}' 'set -g extended-keys on'
 if -F '#{extended-keys-format}' 'set -g extended-keys-format csi-u'
 
+# for image rendering (render-latex)
+set -g allow-passthrough on
+
 ###=============================###
 ### Plugin configurations start ###
 ###=============================###

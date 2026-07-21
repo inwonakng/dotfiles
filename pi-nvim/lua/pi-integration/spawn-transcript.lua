@@ -2,6 +2,7 @@ local floats = require("pi-integration.floats")
 local buffer_utils = require("pi-integration.utils.buffer")
 local json = require("pi-integration.utils.json")
 local message_utils = require("pi-integration.utils.message")
+local markdown_render = require("pi-integration.markdown-render")
 local pi_messages = require("pi-integration.messages")
 local pi_tool_output = require("pi-integration.tool-output")
 local pi_thinking_output = require("pi-integration.thinking-output")
@@ -188,8 +189,8 @@ function M.open(ctx, path, title)
 	local buf = buffer_utils.create_scratch({
 		name = "pi://spawn/transcript/" .. vim.fn.fnamemodify(path, ":h:t"),
 		filetype = "markdown",
-		treesitter = "markdown",
 	})
+	markdown_render.prepare_buffer(buf, { latex = true })
 
 	state.transcript_buf = buf
 

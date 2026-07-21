@@ -1,3 +1,19 @@
+require("render_latex").setup({
+	render = {
+		preset = "match_text",
+		match_text_size = false,
+		font_size = 17,
+		scale = 5.0,
+		padding = 40,
+		background = "transparent",
+	},
+	image = {
+		backend = "kitty",
+		cell_width_px = 40,
+		cell_height_px = 90,
+	},
+})
+
 require("render-markdown").setup({
 	debounce = 0,
 	ignore = function(buf)
@@ -12,6 +28,7 @@ require("render-markdown").setup({
 	},
 	heading = {
 		sign = false,
+		setext = false,
 		custom = {
 			pi_user_you = {
 				pattern = "You%s*$",
@@ -33,5 +50,5 @@ require("render-markdown").setup({
 			},
 		},
 	},
-	latex = { enabled = true },
+	latex = { enabled = false },
 })

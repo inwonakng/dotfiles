@@ -1,3 +1,5 @@
+local markdown_render = require("pi-integration.markdown-render")
+
 local M = {}
 
 local padding_ns = vim.api.nvim_create_namespace("pi-nvim-transcript-padding")
@@ -228,15 +230,9 @@ function M.render(ctx)
 		return
 	end
 
-	local render_markdown = package.loaded["render-markdown"]
-	if not (type(render_markdown) == "table" and type(render_markdown.render) == "function") then
-		M.apply_quote_highlights(ctx)
-		return
-	end
-
 	vim.schedule(function()
 		if ctx.buffer.valid(state.transcript_buf) and M.win_valid(ctx) then
-			render_markdown.render({ buf = state.transcript_buf, win = state.transcript_win, event = "PiNvim" })
+			markdown_render.render(state.transcript_buf, state.transcript_win, { latex = true, event = "PiNvim" })
 			M.apply_quote_highlights(ctx)
 		end
 	end)

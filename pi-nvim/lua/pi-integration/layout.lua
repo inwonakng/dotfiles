@@ -1,3 +1,5 @@
+local markdown_render = require("pi-integration.markdown-render")
+
 local M = {}
 
 function M.create_buffer(_, name, filetype, modifiable)
@@ -9,15 +11,6 @@ function M.create_buffer(_, name, filetype, modifiable)
 	vim.api.nvim_set_option_value("filetype", filetype, { buf = buf })
 	vim.api.nvim_set_option_value("modifiable", modifiable, { buf = buf })
 	return buf
-end
-
-function M.start_markdown_treesitter(ctx, buf)
-	if not ctx.buffer.valid(buf) then
-		return
-	end
-	-- pi:// buffers are synthetic nofile buffers, so do not rely on the
-	-- normal file read/filetype path to attach Tree-sitter and its injections.
-	pcall(vim.treesitter.start, buf, "markdown")
 end
 
 function M.set_buffer_lines(ctx, buf, lines, modifiable)
@@ -51,7 +44,7 @@ function M.ensure_transcript_buffer(ctx)
 	end
 
 	state.transcript_buf = M.create_buffer(ctx, "pi://transcript", "markdown", false)
-	M.start_markdown_treesitter(ctx, state.transcript_buf)
+	markdown_render.prepare_buffer(state.transcript_buf, { latex = true })
 	return true
 end
 
@@ -62,7 +55,7 @@ function M.ensure_input_buffer(ctx)
 	end
 
 	state.input_buf = M.create_buffer(ctx, "pi://input", "markdown", true)
-	M.start_markdown_treesitter(ctx, state.input_buf)
+	markdown_render.prepare_buffer(state.input_buf)
 	return true
 end
 
