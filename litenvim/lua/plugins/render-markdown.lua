@@ -6,6 +6,7 @@ vim.api.nvim_create_autocmd("Filetype", {
 		require("render-markdown").setup({
 			heading = {
 				sign = false,
+				setext = false,
 				-- icons = { "󰲡 ", "󰲣 ", "󰲥 ", "󰲧 ", "󰲩 ", "󰲫 " },
 			},
 			callout = {
@@ -16,7 +17,7 @@ vim.api.nvim_create_autocmd("Filetype", {
 				image = { raw = "[!IMAGE]", rendered = " Image", highlight = "RenderMarkdownInfo" },
 				table = { raw = "[!TABLE]", rendered = " Table", highlight = "RenderMarkdownInfo" },
 			},
-			latex = { enabled = true },
+			latex = { enabled = false },
 		})
 	end,
 })
