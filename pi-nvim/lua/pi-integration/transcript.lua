@@ -617,6 +617,20 @@ function M.assistant_placeholder_active(ctx)
 	return ctx.state.placeholder_start_line ~= nil and ctx.state.placeholder_line ~= nil
 end
 
+function M.ensure_assistant_turn_started(ctx, role)
+	local state = ctx.state
+	if state.current_message_started then
+		return false
+	end
+	if M.assistant_placeholder_active(ctx) then
+		M.clear_assistant_placeholder_spinner(ctx)
+	else
+		M.append_message_header(ctx, role or "Assistant")
+	end
+	state.current_message_started = true
+	return true
+end
+
 function M.render_error_message(ctx, title, message)
 	M.clear_assistant_placeholder(ctx)
 	ctx.state.error_rendered_for_active_run = true

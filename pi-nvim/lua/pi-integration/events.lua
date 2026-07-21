@@ -38,6 +38,7 @@ local function render_or_update_live_tool(ctx, event, text, details)
 		return output_id
 	end
 
+	ctx.transcript.ensure_assistant_turn_started("Assistant")
 	ctx.transcript.begin_trace_item()
 	ctx.transcript.append_lines(ctx.tools.summary_lines(output_id))
 	local line = ctx.transcript.line_count()
@@ -256,6 +257,7 @@ local function render_skill_loads(ctx, message)
 	if #loads == 0 then
 		return false
 	end
+	ctx.transcript.ensure_assistant_turn_started("Assistant")
 	ctx.transcript.begin_trace_item()
 	for _, load in ipairs(loads) do
 		local output_id = ctx.skills.store_prompt(load)
@@ -304,6 +306,7 @@ function M.render_message(ctx, message)
 		if update_spawn_details(ctx, name, message.details, text) then
 			return
 		end
+		ctx.transcript.ensure_assistant_turn_started("Assistant")
 		local output_id = ctx.tools.store_output(name, text, nil, message.details, message)
 		ctx.transcript.begin_trace_item()
 		ctx.transcript.append_lines(ctx.tools.summary_lines(output_id))
@@ -478,11 +481,7 @@ function M.handle_message_update(ctx, event)
 		if vim.trim(text) == "" then
 			return
 		end
-		if not state.current_message_started then
-			ctx.transcript.clear_assistant_placeholder()
-			ctx.transcript.append_message_header("Assistant")
-			state.current_message_started = true
-		end
+		ctx.transcript.ensure_assistant_turn_started("Assistant")
 		state.current_thinking_rendered = true
 		ctx.transcript.begin_trace_item()
 		ctx.transcript.append_lines(ctx.thinking.summary_lines(output_id, streaming))
@@ -499,18 +498,10 @@ function M.handle_message_update(ctx, event)
 
 	if update.type == "text_start" then
 		state.awaiting_agent_output = false
-		if not state.current_message_started then
-			ctx.transcript.clear_assistant_placeholder()
-			ctx.transcript.append_message_header("Assistant")
-		end
-		state.current_message_started = true
+		ctx.transcript.ensure_assistant_turn_started("Assistant")
 	elseif update.type == "text_delta" then
 		state.awaiting_agent_output = false
-		if not state.current_message_started then
-			ctx.transcript.clear_assistant_placeholder()
-			state.current_message_started = true
-			ctx.transcript.append_message_header("Assistant")
-		end
+		ctx.transcript.ensure_assistant_turn_started("Assistant")
 		ctx.transcript.append_text(update.delta or "")
 	elseif update.type == "thinking_start" and ctx.config.show_thinking then
 		state.awaiting_agent_output = false
@@ -538,8 +529,7 @@ function M.handle_message_update(ctx, event)
 		state.active_thinking_line = nil
 	elseif update.type == "toolcall_start" then
 		state.awaiting_agent_output = false
-		ctx.transcript.clear_assistant_placeholder_spinner()
-		state.current_message_started = true
+		ctx.transcript.ensure_assistant_turn_started("Assistant")
 	elseif update.type == "toolcall_delta" then
 		-- Tool-call deltas are usually raw JSON arguments. For multiline edits this
 		-- can be thousands of characters streamed token-by-token before the useful
@@ -674,8 +664,6 @@ function M.handle_event(ctx, event)
 		end
 	elseif event.type == "tool_execution_start" then
 		state.awaiting_agent_output = false
-		ctx.transcript.clear_assistant_placeholder_spinner()
-		state.current_message_started = true
 		if event.toolName == "edit" or event.toolName == "write" or event.toolName == "bash" then
 			ctx.tools.record_execution_call(event.toolName, event.toolCallId, event.args)
 		end

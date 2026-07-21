@@ -299,6 +299,10 @@ local function assistant_placeholder_active()
 	return pi_transcript.assistant_placeholder_active(transcript_ctx())
 end
 
+local function ensure_assistant_turn_started(role)
+	return pi_transcript.ensure_assistant_turn_started(transcript_ctx(), role)
+end
+
 local function render_error_message(title, message)
 	return pi_transcript.render_error_message(transcript_ctx(), title, message)
 end
@@ -454,6 +458,7 @@ local integration_context = {
 		open_item_under_cursor = open_transcript_item_under_cursor,
 		start_assistant_placeholder = start_assistant_placeholder,
 		assistant_placeholder_active = assistant_placeholder_active,
+		ensure_assistant_turn_started = ensure_assistant_turn_started,
 		clear_assistant_placeholder = clear_assistant_placeholder,
 		clear_assistant_placeholder_spinner = clear_assistant_placeholder_spinner,
 		render_error_message = render_error_message,

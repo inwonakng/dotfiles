@@ -224,6 +224,19 @@ local function assistant_trace_only_thinking(message)
 	return #thinking > 0 and thinking or nil
 end
 
+local function assistant_has_trace_content(message)
+	local content = message and message.content
+	if type(content) ~= "table" then
+		return false
+	end
+	for _, item in ipairs(content) do
+		if type(item) == "table" and (item.type == "toolCall" or item.type == "tool_call") then
+			return true
+		end
+	end
+	return false
+end
+
 local function is_spawn_tool_name(name)
 	return name == "spawn" or name == "spawn_control"
 end
@@ -353,11 +366,14 @@ local function append_thinking_summary(ctx, lines, items, text)
 	return true
 end
 
-local function append_skill_load_summaries(ctx, lines, items, loads, has_body, previous_kind)
+local function append_skill_load_summaries(ctx, lines, items, loads, has_body, previous_kind, options)
 	if type(loads) ~= "table" or #loads == 0 then
 		return false
 	end
-	if has_body and is_trace_like(previous_kind) then
+	options = options or {}
+	if options.current_message_started then
+		-- The caller already emitted the assistant heading for this trace-only turn.
+	elseif has_body and is_trace_like(previous_kind) then
 		remove_trailing_blank(lines)
 	else
 		add_message_separator(lines, has_body)
@@ -469,6 +485,19 @@ function M.collect_message_lines(ctx, messages)
 	local items = {}
 	local has_body = false
 	local last_rendered_kind = nil
+	local pending_assistant_trace_header = false
+
+	local function append_pending_assistant_trace_header()
+		if not pending_assistant_trace_header then
+			return false
+		end
+		add_message_separator(lines, has_body)
+		table.insert(lines, "## Assistant")
+		table.insert(lines, "")
+		has_body = true
+		pending_assistant_trace_header = false
+		return true
+	end
 
 	for _, message in ipairs(messages or {}) do
 		local role = message.role or message.type
@@ -482,6 +511,10 @@ function M.collect_message_lines(ctx, messages)
 				appended = false
 			elseif is_spawn_tool_name(name) and update_existing_spawn_line(ctx, lines, message, text) then
 				appended = false
+			elseif pending_assistant_trace_header and text ~= "" then
+				append_pending_assistant_trace_header()
+				appended = append_tool_summary(ctx, lines, items, message)
+				rendered_kind = appended and "tool" or nil
 			elseif has_body and is_trace_like(last_rendered_kind) then
 				remove_trailing_blank(lines)
 				appended = append_tool_summary(ctx, lines, items, message)
@@ -502,10 +535,21 @@ function M.collect_message_lines(ctx, messages)
 				previous_kind = last_rendered_kind,
 			})
 			if appended then
+				pending_assistant_trace_header = false
 				has_body = true
 				last_rendered_kind = rendered_kind
+			elseif assistant_has_trace_content(message) then
+				pending_assistant_trace_header = true
 			end
-			if append_skill_load_summaries(ctx, lines, items, skill_loads, has_body, last_rendered_kind) then
+			local skill_loads_start_trace_turn = false
+			if pending_assistant_trace_header and #skill_loads > 0 then
+				append_pending_assistant_trace_header()
+				skill_loads_start_trace_turn = true
+			end
+			if append_skill_load_summaries(ctx, lines, items, skill_loads, has_body, last_rendered_kind, {
+				current_message_started = skill_loads_start_trace_turn,
+			}) then
+				pending_assistant_trace_header = false
 				appended = true
 				rendered_kind = "skill"
 			end
