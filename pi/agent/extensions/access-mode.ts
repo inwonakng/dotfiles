@@ -165,6 +165,44 @@ function hasUnquotedShellWriteSyntax(command: string): boolean {
   return false;
 }
 
+function maskShellQuotedContent(command: string): string {
+  let output = "";
+  let quote: "'" | '"' | undefined;
+  for (let index = 0; index < command.length; index++) {
+    const char = command[index];
+    if (quote) {
+      if (char === quote) {
+        quote = undefined;
+        output += char;
+      } else if (quote === '"' && char === "\\") {
+        output += " ";
+        index++;
+        if (index < command.length) {
+          output += " ";
+        }
+      } else {
+        output += " ";
+      }
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      output += char;
+      continue;
+    }
+    if (char === "\\") {
+      output += " ";
+      index++;
+      if (index < command.length) {
+        output += " ";
+      }
+      continue;
+    }
+    output += char;
+  }
+  return output;
+}
+
 function readonlyBashBlockReason(command: string): string | undefined {
   const normalized = normalizeCommand(command);
   if (!normalized) {
@@ -181,7 +219,8 @@ function readonlyBashBlockReason(command: string): string | undefined {
     return "command substitution can hide side effects";
   }
 
-  const blocked = READONLY_BASH_DENYLIST.find(({ pattern }) => pattern.test(normalized));
+  const denylistCommand = maskShellQuotedContent(normalized);
+  const blocked = READONLY_BASH_DENYLIST.find(({ pattern }) => pattern.test(denylistCommand));
   return blocked?.reason;
 }
 
