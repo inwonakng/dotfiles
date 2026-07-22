@@ -120,16 +120,45 @@ local function cycle_filter_mode(ctx)
 	return ctx.state.tree_filter_mode
 end
 
-local function compact_text(text)
+local function display_width(text)
+	return vim.fn.strdisplaywidth(tostring(text or ""))
+end
+
+local function truncate_display(text, max_width)
+	text = tostring(text or "")
+	if not max_width or max_width <= 0 then
+		return ""
+	end
+	if display_width(text) <= max_width then
+		return text
+	end
+
+	local suffix = max_width >= 3 and "..." or string.rep(".", max_width)
+	local target_width = max_width - display_width(suffix)
+	if target_width <= 0 then
+		return suffix
+	end
+
+	local low = 0
+	local high = vim.fn.strcharlen(text)
+	while low < high do
+		local mid = math.ceil((low + high) / 2)
+		if display_width(vim.fn.strcharpart(text, 0, mid)) <= target_width then
+			low = mid
+		else
+			high = mid - 1
+		end
+	end
+	return vim.fn.strcharpart(text, 0, low) .. suffix
+end
+
+local function compact_text(text, max_width)
 	text = tostring(text or ""):gsub("%s+", " ")
 	text = vim.trim(text)
 	if text == "" then
-		return "(no text)"
+		text = "(no text)"
 	end
-	if #text > 96 then
-		return text:sub(1, 93) .. "..."
-	end
-	return text
+	return truncate_display(text, max_width or 96)
 end
 
 local function visible_parent(record, visible_by_id, by_id)
@@ -224,16 +253,30 @@ local function record_title_highlight(record)
 	return "PiTreeMeta"
 end
 
+local function win_valid(win)
+	return win and vim.api.nvim_win_is_valid(win)
+end
+
+local function tree_window_width(ctx)
+	local state = ctx.state
+	if win_valid(state.tree_win) then
+		return vim.api.nvim_win_get_width(state.tree_win)
+	end
+	return state.tree_width or math.min(math.max(72, math.floor(vim.o.columns * 0.72)), vim.o.columns - 4)
+end
+
 local function render_node_line(ctx, node, leaf_id, lines, line_nodes, sender_highlights, line_prefix)
 	local record = node.record
 	local current = record.id == leaf_id
 	local marker = current and "●" or "○"
 	local title = record_title(record)
 	local label_prefix = string.format("%s%s %s  ", line_prefix, marker, record.id)
-	local label = label_prefix .. title .. ": " .. compact_text(record_text(ctx, record))
-	if current then
-		label = label .. "  ← current"
-	end
+	local heading = label_prefix .. title .. ": "
+	local suffix = current and "  ← current" or ""
+	local max_width = math.max(1, tree_window_width(ctx) - 1)
+	local text_width = max_width - display_width(heading) - display_width(suffix)
+	local label = heading .. compact_text(record_text(ctx, record), text_width) .. suffix
+	label = truncate_display(label, max_width)
 	table.insert(lines, label)
 	line_nodes[#lines] = node
 	sender_highlights[#lines] = {
@@ -287,10 +330,6 @@ local function apply_sender_highlights(ctx)
 			priority = 250,
 		})
 	end
-end
-
-local function win_valid(win)
-	return win and vim.api.nvim_win_is_valid(win)
 end
 
 local function focus_input_window(ctx)
@@ -357,11 +396,58 @@ local function preview_lines(ctx, node)
 	return lines
 end
 
+local function preview_entry_id(node)
+	return node and node.record and node.record.id or nil
+end
+
 local function update_preview(ctx)
-	if not ctx.buffer.valid(ctx.state.tree_preview_buf) then
+	local state = ctx.state
+	if not ctx.buffer.valid(state.tree_preview_buf) then
 		return
 	end
-	ctx.buffer.set_lines(ctx.state.tree_preview_buf, preview_lines(ctx, current_node(ctx)), false)
+
+	local node = current_node(ctx)
+	local entry_id = preview_entry_id(node)
+	local previous_entry_id = state.tree_preview_entry_id
+	ctx.buffer.set_lines(state.tree_preview_buf, preview_lines(ctx, node), false)
+	state.tree_preview_entry_id = entry_id
+
+	if not win_valid(state.tree_preview_win) then
+		return
+	end
+
+	local line = 1
+	if entry_id == previous_entry_id then
+		local ok, cursor = pcall(vim.api.nvim_win_get_cursor, state.tree_preview_win)
+		if ok and cursor then
+			line = math.min(math.max(cursor[1], 1), vim.api.nvim_buf_line_count(state.tree_preview_buf))
+		end
+	end
+	pcall(vim.api.nvim_win_set_cursor, state.tree_preview_win, { line, 0 })
+end
+
+local function scroll_preview(ctx, direction)
+	local state = ctx.state
+	if not (win_valid(state.tree_preview_win) and ctx.buffer.valid(state.tree_preview_buf)) then
+		return
+	end
+	if vim.api.nvim_win_get_buf(state.tree_preview_win) ~= state.tree_preview_buf then
+		return
+	end
+
+	pcall(vim.api.nvim_win_call, state.tree_preview_win, function()
+		local view = vim.fn.winsaveview()
+		local line_count = math.max(1, vim.api.nvim_buf_line_count(state.tree_preview_buf))
+		local height = math.max(1, vim.api.nvim_win_get_height(state.tree_preview_win))
+		local max_topline = math.max(1, line_count - height + 1)
+		local page = math.max(1, height - 1)
+		local target_topline = math.min(math.max((view.topline or 1) + (direction * page), 1), max_topline)
+		view.topline = target_topline
+		view.lnum = target_topline
+		view.col = 0
+		view.curswant = 0
+		vim.fn.winrestview(view)
+	end)
 end
 
 local function selected_tree_position(ctx)
@@ -424,7 +510,8 @@ local function render_tree_buffer(ctx, opts)
 	local lines = {
 		"Pi session tree",
 		"Filter: " .. (state.tree_filter_mode or "default") .. "    Layout: compressed",
-		"<CR> jump   S jump with summary   d delete subtree   o cycle filter   r refresh   q close",
+		"<CR> jump   S jump with summary   <C-f>/<C-b> scroll preview",
+		"d delete subtree   o cycle filter   r refresh   q close",
 		"",
 	}
 	state.tree_nodes_by_line = {}
@@ -560,11 +647,12 @@ function M.show(ctx)
 		return
 	end
 
+	local width = math.min(math.max(72, math.floor(vim.o.columns * 0.72)), vim.o.columns - 4)
+	state.tree_width = width
 	if not render_tree_buffer(ctx) then
 		return
 	end
 
-	local width = math.min(math.max(72, math.floor(vim.o.columns * 0.72)), vim.o.columns - 4)
 	local outer_height = math.min(math.max(22, math.floor(vim.o.lines * 0.78)), vim.o.lines - 4)
 	local top_height = math.max(8, math.floor((outer_height - 4) * 0.6))
 	local preview_height = math.max(6, outer_height - top_height - 4)
@@ -615,6 +703,12 @@ function M.show(ctx)
 	vim.keymap.set("n", "S", function()
 		jump_to_node(ctx, true)
 	end, { buffer = state.tree_buf, desc = "Jump to tree entry with summary" })
+	vim.keymap.set("n", "<C-f>", function()
+		scroll_preview(ctx, 1)
+	end, { buffer = state.tree_buf, desc = "Scroll Pi tree preview down" })
+	vim.keymap.set("n", "<C-b>", function()
+		scroll_preview(ctx, -1)
+	end, { buffer = state.tree_buf, desc = "Scroll Pi tree preview up" })
 	vim.keymap.set("n", "d", function()
 		delete_node(ctx)
 	end, { buffer = state.tree_buf, desc = "Delete Pi tree entry subtree" })

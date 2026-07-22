@@ -538,7 +538,7 @@ function M.collect_message_lines(ctx, messages)
 				pending_assistant_trace_header = false
 				has_body = true
 				last_rendered_kind = rendered_kind
-			elseif assistant_has_trace_content(message) then
+			elseif assistant_has_trace_content(message) and not (has_body and is_trace_like(last_rendered_kind)) then
 				pending_assistant_trace_header = true
 			end
 			local skill_loads_start_trace_turn = false
