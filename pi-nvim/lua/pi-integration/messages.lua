@@ -194,36 +194,6 @@ local function append_compaction_summary(lines, message, has_body)
 	return true, "compaction"
 end
 
-local function assistant_trace_only_thinking(message)
-	local content = message.content
-	if type(content) ~= "table" then
-		return nil
-	end
-
-	local thinking = {}
-	for _, item in ipairs(content) do
-		if type(item) == "string" then
-			if item ~= "" then
-				return nil
-			end
-		elseif type(item) == "table" then
-			if item.type == "thinking" then
-				local text = item.thinking or item.text or ""
-				if text ~= "" then
-					table.insert(thinking, text)
-				end
-			elseif item.type == "text" or item.text then
-				local text = item.text or item.content or item.delta or ""
-				if text ~= "" then
-					return nil
-				end
-			end
-		end
-	end
-
-	return #thinking > 0 and thinking or nil
-end
-
 local function assistant_has_trace_content(message)
 	local content = message and message.content
 	if type(content) ~= "table" then
@@ -407,7 +377,14 @@ local function append_assistant_blocks(ctx, lines, items, message, has_body, opt
 	if type(content) ~= "table" then
 		local text = ctx.messages.extract_text(message)
 		if text and text ~= "" then
-			append_text_message(lines, message, text, has_body)
+			if options.continue_trace then
+				if lines[#lines] ~= "" then
+					table.insert(lines, "")
+				end
+				vim.list_extend(lines, vim.split(text, "\n", { plain = true }))
+			else
+				append_text_message(lines, message, text, has_body)
+			end
 			return true, "message"
 		end
 		return false, nil
@@ -485,6 +462,7 @@ function M.collect_message_lines(ctx, messages)
 	local items = {}
 	local has_body = false
 	local last_rendered_kind = nil
+	local assistant_trace_open = false
 	local pending_assistant_trace_header = false
 
 	local function append_pending_assistant_trace_header()
@@ -495,6 +473,7 @@ function M.collect_message_lines(ctx, messages)
 		table.insert(lines, "## Assistant")
 		table.insert(lines, "")
 		has_body = true
+		assistant_trace_open = true
 		pending_assistant_trace_header = false
 		return true
 	end
@@ -529,16 +508,16 @@ function M.collect_message_lines(ctx, messages)
 		elseif role == "assistant" then
 			ctx.tools.record_calls(message)
 			local skill_loads = pi_skills.collect_loads(ctx.state, message)
-			local thinking = assistant_trace_only_thinking(message)
 			appended, rendered_kind = append_assistant_blocks(ctx, lines, items, message, has_body, {
-				continue_trace = thinking ~= nil and is_trace_like(last_rendered_kind),
+				continue_trace = assistant_trace_open,
 				previous_kind = last_rendered_kind,
 			})
 			if appended then
 				pending_assistant_trace_header = false
 				has_body = true
 				last_rendered_kind = rendered_kind
-			elseif assistant_has_trace_content(message) and not (has_body and is_trace_like(last_rendered_kind)) then
+				assistant_trace_open = is_trace_like(rendered_kind)
+			elseif assistant_has_trace_content(message) and not assistant_trace_open then
 				pending_assistant_trace_header = true
 			end
 			local skill_loads_start_trace_turn = false
@@ -587,6 +566,7 @@ function M.collect_message_lines(ctx, messages)
 		if appended then
 			has_body = true
 			last_rendered_kind = rendered_kind
+			assistant_trace_open = is_trace_like(rendered_kind)
 		end
 	end
 
