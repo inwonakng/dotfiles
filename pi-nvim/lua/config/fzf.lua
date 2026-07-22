@@ -7,12 +7,14 @@ local fzf_opts = {
 
 local fzf_keymap = {
 	builtin = {
-		["<C-d>"] = "preview-half-page-down",
-		["<C-u>"] = "preview-half-page-up",
+		["<C-f>"] = "preview-page-down",
+		["<C-b>"] = "preview-page-up",
 	},
 	fzf = {
-		["ctrl-d"] = "preview-half-page-down",
-		["ctrl-u"] = "preview-half-page-up",
+		["ctrl-d"] = "half-page-down",
+		["ctrl-u"] = "half-page-up",
+		["ctrl-f"] = "preview-page-down",
+		["ctrl-b"] = "preview-page-up",
 	},
 }
 
