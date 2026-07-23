@@ -367,12 +367,39 @@ function M.append_text(ctx, text)
 	M.schedule_refresh(ctx)
 end
 
+local function normalized_header_role(role)
+	role = role or "Message"
+	if role == "You" then
+		return "User"
+	end
+	return role
+end
+
+local function last_buffer_line(ctx)
+	local state = ctx.state
+	if not ctx.buffer.valid(state.transcript_buf) then
+		return nil
+	end
+	local line_count = vim.api.nvim_buf_line_count(state.transcript_buf)
+	return vim.api.nvim_buf_get_lines(state.transcript_buf, line_count - 1, line_count, false)[1]
+end
+
 function M.append_message_header(ctx, role)
+	local state = ctx.state
+	role = normalized_header_role(role)
+	if role == "Assistant" and state.assistant_block_open then
+		if not state.pending_transcript_item_separator and last_buffer_line(ctx) ~= "" then
+			M.append_lines(ctx, { "" })
+		end
+		return false
+	end
+	state.assistant_block_open = role == "Assistant"
 	if M.has_body(ctx) then
 		M.append_lines(ctx, { "", "---", "", "## " .. role, "", "" })
 	else
 		M.append_lines(ctx, { "", "## " .. role, "", "" })
 	end
+	return true
 end
 
 function M.append_status(ctx, text)
@@ -585,10 +612,10 @@ function M.start_assistant_placeholder(ctx)
 	local line_count = vim.api.nvim_buf_line_count(state.transcript_buf)
 	local replacing_empty =
 		line_count == 1 and vim.api.nvim_buf_get_lines(state.transcript_buf, 0, 1, false)[1] == ""
-	local lines = M.has_body(ctx) and { "", "---", "", "## Assistant", "", "⠋" }
-		or { "", "## Assistant", "", "⠋" }
-	state.placeholder_start_line = replacing_empty and 1 or (line_count + 1)
-	M.append_lines(ctx, lines)
+	local header_added = M.append_message_header(ctx, "Assistant")
+	state.placeholder_start_line = header_added and (replacing_empty and 1 or (line_count + 1))
+		or (line_count + 1)
+	M.append_lines(ctx, { "⠋" })
 	state.placeholder_line = vim.api.nvim_buf_line_count(state.transcript_buf)
 	state.placeholder_tick = 1
 

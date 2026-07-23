@@ -146,6 +146,9 @@ local function message_role_title(message)
 	if role == "toolResult" then
 		return "Tool"
 	end
+	if role == "user" or role == "You" then
+		return "User"
+	end
 	return role:gsub("^%l", string.upper)
 end
 
@@ -192,19 +195,6 @@ local function append_compaction_summary(lines, message, has_body)
 	end
 	vim.list_extend(lines, { "> " .. table.concat(parts, " · "), "" })
 	return true, "compaction"
-end
-
-local function assistant_has_trace_content(message)
-	local content = message and message.content
-	if type(content) ~= "table" then
-		return false
-	end
-	for _, item in ipairs(content) do
-		if type(item) == "table" and (item.type == "toolCall" or item.type == "tool_call") then
-			return true
-		end
-	end
-	return false
 end
 
 local function is_spawn_tool_name(name)
@@ -462,20 +452,25 @@ function M.collect_message_lines(ctx, messages)
 	local items = {}
 	local has_body = false
 	local last_rendered_kind = nil
-	local assistant_trace_open = false
-	local pending_assistant_trace_header = false
+	local assistant_block_open = false
 
-	local function append_pending_assistant_trace_header()
-		if not pending_assistant_trace_header then
+	local function ensure_assistant_block()
+		if assistant_block_open then
+			if has_body and is_trace_like(last_rendered_kind) then
+				remove_trailing_blank(lines)
+			end
 			return false
 		end
 		add_message_separator(lines, has_body)
 		table.insert(lines, "## Assistant")
 		table.insert(lines, "")
 		has_body = true
-		assistant_trace_open = true
-		pending_assistant_trace_header = false
+		assistant_block_open = true
 		return true
+	end
+
+	local function close_assistant_block()
+		assistant_block_open = false
 	end
 
 	for _, message in ipairs(messages or {}) do
@@ -490,45 +485,33 @@ function M.collect_message_lines(ctx, messages)
 				appended = false
 			elseif is_spawn_tool_name(name) and update_existing_spawn_line(ctx, lines, message, text) then
 				appended = false
-			elseif pending_assistant_trace_header and text ~= "" then
-				append_pending_assistant_trace_header()
-				appended = append_tool_summary(ctx, lines, items, message)
-				rendered_kind = appended and "tool" or nil
-			elseif has_body and is_trace_like(last_rendered_kind) then
-				remove_trailing_blank(lines)
-				appended = append_tool_summary(ctx, lines, items, message)
-				rendered_kind = appended and "tool" or nil
-			else
-				add_message_separator(lines, has_body)
+			elseif text ~= "" then
+				ensure_assistant_block()
 				appended = append_tool_summary(ctx, lines, items, message)
 				rendered_kind = appended and "tool" or nil
 			end
 		elseif role == "compactionSummary" then
+			close_assistant_block()
 			appended, rendered_kind = append_compaction_summary(lines, message, has_body)
 		elseif role == "assistant" then
 			ctx.tools.record_calls(message)
 			local skill_loads = pi_skills.collect_loads(ctx.state, message)
 			appended, rendered_kind = append_assistant_blocks(ctx, lines, items, message, has_body, {
-				continue_trace = assistant_trace_open,
+				continue_trace = assistant_block_open,
 				previous_kind = last_rendered_kind,
 			})
 			if appended then
-				pending_assistant_trace_header = false
-				has_body = true
-				last_rendered_kind = rendered_kind
-				assistant_trace_open = is_trace_like(rendered_kind)
-			elseif assistant_has_trace_content(message) and not assistant_trace_open then
-				pending_assistant_trace_header = true
+				assistant_block_open = true
 			end
 			local skill_loads_start_trace_turn = false
-			if pending_assistant_trace_header and #skill_loads > 0 then
-				append_pending_assistant_trace_header()
+			if #skill_loads > 0 and not assistant_block_open then
+				ensure_assistant_block()
 				skill_loads_start_trace_turn = true
 			end
 			if append_skill_load_summaries(ctx, lines, items, skill_loads, has_body, last_rendered_kind, {
 				current_message_started = skill_loads_start_trace_turn,
 			}) then
-				pending_assistant_trace_header = false
+				assistant_block_open = true
 				appended = true
 				rendered_kind = "skill"
 			end
@@ -550,6 +533,7 @@ function M.collect_message_lines(ctx, messages)
 			else
 				local text = ctx.messages.extract_text(message)
 				if text and text ~= "" then
+					close_assistant_block()
 					append_text_message(lines, message, text, has_body)
 					appended = true
 					rendered_kind = "message"
@@ -558,6 +542,7 @@ function M.collect_message_lines(ctx, messages)
 		else
 			local text = ctx.messages.extract_text(message)
 			if text and text ~= "" then
+				close_assistant_block()
 				append_text_message(lines, message, text, has_body)
 				appended = true
 				rendered_kind = "message"
@@ -566,7 +551,6 @@ function M.collect_message_lines(ctx, messages)
 		if appended then
 			has_body = true
 			last_rendered_kind = rendered_kind
-			assistant_trace_open = is_trace_like(rendered_kind)
 		end
 	end
 

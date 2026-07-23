@@ -544,6 +544,7 @@ function M.handle_message_update(ctx, event)
 		-- retry decision is only known at agent_end, so keep the error pending
 		-- instead of rendering a scary final error immediately.
 		state.pending_retry_error = ctx.rpc.event_error_text(update) or "unknown"
+		ctx.logs.add("error", "Provider/agent stream error", state.pending_retry_error)
 	end
 end
 
@@ -571,6 +572,9 @@ function M.handle_event(ctx, event)
 		state.active_thinking_output_id = nil
 		state.active_thinking_line = nil
 		local message = ctx.rpc.event_error_text(event)
+		if message then
+			ctx.logs.add(event.willRetry and "warn" or "error", "Agent ended with error", message)
+		end
 		if event.willRetry then
 			state.is_retrying = true
 			start_activity(ctx, "retry")
@@ -610,6 +614,7 @@ function M.handle_event(ctx, event)
 	elseif event.type == "auto_retry_start" then
 		state.is_retrying = true
 		state.pending_retry_error = event.errorMessage or state.pending_retry_error
+		ctx.logs.add("warn", "Pi retrying after transient error", state.pending_retry_error)
 		start_activity(ctx, "retry")
 		ctx.ui.notify(
 			"Pi retrying after transient error ("
@@ -620,6 +625,7 @@ function M.handle_event(ctx, event)
 		)
 	elseif event.type == "auto_retry_end" then
 		state.is_retrying = false
+		ctx.logs.add(event.success == false and "error" or "info", event.success == false and "Pi retry failed" or "Pi retry recovered", event.finalError)
 		state.pending_retry_error = nil
 		if state.is_streaming then
 			start_activity(ctx, "work")
@@ -690,6 +696,10 @@ function M.handle_event(ctx, event)
 		end
 		return
 	elseif event.type == "tool_execution_end" then
+		local execution_result = type(event.result) == "table" and event.result or nil
+		if execution_result and execution_result.isError then
+			ctx.logs.add("error", "Tool execution failed: " .. tostring(event.toolName or "tool"), message_utils.extract_content_text(execution_result.content))
+		end
 		if event.toolName == "spawn" then
 			local result = type(event.result) == "table" and event.result or {}
 			render_or_update_live_tool(ctx, event, message_utils.extract_content_text(result.content), result.details or {})

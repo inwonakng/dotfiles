@@ -15,6 +15,7 @@ M.config = {
 	session_dir = nil,
 	show_thinking = true,
 	show_stderr = false,
+	log_max_entries = 1000,
 	access_modes = { "readonly", "write" },
 	session_dirs = {
 		"~/.pi/agent/sessions",
@@ -50,6 +51,7 @@ local pi_rpc
 local pi_events
 local pi_layout
 local pi_actions
+local pi_logs
 local integration_ctx
 local setup_keymaps
 local function normalize_model_metadata(provider, model)
@@ -112,6 +114,7 @@ local function apply_session_state(data)
 		state.spawn_run_output_by_id = {}
 		state.is_retrying = false
 		state.pending_retry_error = nil
+		state.assistant_block_open = false
 	end
 	state.session_file = data.sessionFile
 	state.session_name = data.sessionName
@@ -365,6 +368,14 @@ local function recent_stderr_text()
 	return table.concat(state.last_stderr_lines, "\n")
 end
 
+local function add_log(level, message, details)
+	return pi_logs.add(integration_ctx(), level, message, details)
+end
+
+local function show_logs()
+	return pi_logs.show(integration_ctx())
+end
+
 local function send(cmd, callback)
 	return pi_rpc.send(integration_ctx(), cmd, callback)
 end
@@ -415,6 +426,7 @@ pi_rpc = require("pi-integration.rpc")
 pi_events = require("pi-integration.events")
 pi_layout = require("pi-integration.layout")
 pi_actions = require("pi-integration.actions")
+pi_logs = require("pi-integration.logs")
 pi_pickers = require("pi-integration.pickers")
 
 local integration_context = {
@@ -437,6 +449,10 @@ local integration_context = {
 		handle_response = handle_response,
 		event_error_text = event_error_text,
 		recent_stderr_text = recent_stderr_text,
+	},
+	logs = {
+		add = add_log,
+		show = show_logs,
 	},
 	transcript = {
 		win_valid = transcript_win_valid,
@@ -678,6 +694,10 @@ end
 
 function M.show_help()
 	pi_help.toggle(integration_ctx())
+end
+
+function M.show_logs()
+	pi_logs.show(integration_ctx())
 end
 
 function M.pick_thinking()

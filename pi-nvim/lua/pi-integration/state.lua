@@ -35,6 +35,7 @@ function M.new()
 		pending_access_mode = nil,
 		current_message_started = false,
 		current_thinking_rendered = false,
+		assistant_block_open = false,
 		session_file = nil,
 		pending_session_file = nil,
 		session_name = nil,
@@ -75,6 +76,9 @@ function M.new()
 		todo_tool_output_id = nil,
 		todo_tool_line = nil,
 		notification_status = nil,
+		logs = {},
+		logs_buf = nil,
+		logs_win = nil,
 	}
 end
 

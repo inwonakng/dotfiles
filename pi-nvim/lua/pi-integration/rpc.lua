@@ -7,6 +7,7 @@ local function decode_json(ctx, line)
 	if decoded ~= nil then
 		return decoded
 	end
+	ctx.logs.add("error", "Bad JSON from pi", line)
 	ctx.transcript.render_error_message("Pi Error", "Bad JSON from pi: " .. line)
 	return nil
 end
@@ -26,7 +27,9 @@ function M.handle_response(ctx, event)
 	end
 
 	if event.success == false then
-		ctx.transcript.render_error_message("Pi Error", ctx.rpc.event_error_text(event) or vim.inspect(event))
+		local message = ctx.rpc.event_error_text(event) or vim.inspect(event)
+		ctx.logs.add("error", "Pi RPC response failed", message)
+		ctx.transcript.render_error_message("Pi Error", message)
 	end
 end
 
@@ -110,6 +113,7 @@ function M.start(ctx)
 						if #state.last_stderr_lines > 20 then
 							table.remove(state.last_stderr_lines, 1)
 						end
+						ctx.logs.add("stderr", line)
 					end
 					if ctx.config.show_stderr and line ~= "" then
 						ctx.transcript.append_status("pi stderr: " .. line)
@@ -123,6 +127,7 @@ function M.start(ctx)
 					state.pending_session_file = state.session_file
 				end
 				local awaiting_output = state.awaiting_agent_output
+				ctx.logs.add(code == 0 and "info" or "error", "pi exited with code " .. tostring(code), ctx.rpc.recent_stderr_text())
 				if (ctx.transcript.assistant_placeholder_active() or awaiting_output) and not state.error_rendered_for_active_run then
 					ctx.transcript.render_error_message(
 						"Pi Error",
@@ -151,6 +156,7 @@ function M.start(ctx)
 	})
 
 	if state.job <= 0 then
+		ctx.logs.add("error", "Failed to start pi. Is `pi` on PATH?")
 		ctx.ui.notify("Failed to start pi. Is `pi` on PATH?", vim.log.levels.ERROR)
 		state.job = nil
 		return
@@ -179,6 +185,7 @@ function M.send(ctx, cmd, callback)
 	local state = ctx.state
 	M.start(ctx)
 	if not state.job or state.job <= 0 then
+		ctx.logs.add("error", "Could not start pi. Is `pi` on PATH?")
 		ctx.transcript.render_error_message("Pi Error", "Could not start pi. Is `pi` on PATH?")
 		return
 	end
@@ -194,6 +201,7 @@ function M.send(ctx, cmd, callback)
 		if cmd.id then
 			state.callbacks[cmd.id] = nil
 		end
+		ctx.logs.add("error", "Could not send request to pi; the RPC channel is closed.", cmd)
 		ctx.transcript.render_error_message("Pi Error", "Could not send request to pi; the RPC channel is closed.")
 	end
 end

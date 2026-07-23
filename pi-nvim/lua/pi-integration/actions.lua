@@ -88,7 +88,7 @@ function M.submit_prompt(ctx)
 	ctx.transcript.remove_status(ctx.notices.pending_new_session)
 	state.pending_user_message = text
 	ctx.transcript.touch()
-	ctx.transcript.append_message_header("You")
+	ctx.transcript.append_message_header("User")
 	ctx.transcript.append_text(text)
 
 	local cmd = { type = "prompt", message = text }
@@ -151,6 +151,7 @@ local function reset_session_transcript_state(ctx, notice)
 	state.spawn_run_output_by_id = {}
 	state.is_retrying = false
 	state.pending_retry_error = nil
+	state.assistant_block_open = false
 	ctx.transcript.touch()
 	ctx.transcript.refresh_ui()
 	ctx.transcript.append_status(notice)

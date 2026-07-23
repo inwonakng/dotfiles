@@ -49,3 +49,7 @@ end, { desc = "Pick a Pi slash command/template/skill" })
 vim.api.nvim_create_user_command("PiReload", function()
 	require("pi-integration").reload()
 end, { desc = "Reload Pi resources" })
+
+vim.api.nvim_create_user_command("PiLogs", function()
+	require("pi-integration").show_logs()
+end, { desc = "Show pi-nvim runtime logs" })
