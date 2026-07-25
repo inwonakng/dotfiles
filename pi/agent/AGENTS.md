@@ -60,4 +60,4 @@ Do not use tools merely to narrate progress.
 
 ## Output Formating
 
-Always use \$ for math symbols. use \$\$ for display math.
+Use $ for inline math symbols. for block math, use $$.
