@@ -719,8 +719,8 @@ function M.get_commands(callback)
 	end)
 end
 
-function M.reload()
-	pi_pickers.reload(integration_ctx())
+function M.restart()
+	pi_rpc.restart(integration_ctx())
 end
 
 function M.pick_session()

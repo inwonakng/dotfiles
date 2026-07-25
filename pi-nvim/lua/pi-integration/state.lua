@@ -5,6 +5,7 @@ function M.new()
 		job = nil,
 		stdout_pending = "",
 		stderr_pending = "",
+		restart_requested = false,
 		next_id = 0,
 		callbacks = {},
 		transcript_buf = nil,

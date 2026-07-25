@@ -85,11 +85,32 @@ function M.job_env(ctx)
 	return nil
 end
 
+local function reset_runtime_state(ctx)
+	local state = ctx.state
+	state.job = nil
+	state.is_streaming = false
+	state.is_retrying = false
+	state.awaiting_agent_output = false
+	state.pending_retry_error = nil
+	if state.activity_timer then
+		state.activity_timer:stop()
+		state.activity_timer:close()
+		state.activity_timer = nil
+	end
+	state.activity_label = nil
+	state.activity_tool_call_id = nil
+	state.activity_spinner_tick = 1
+	state.abort_requested = false
+	ctx.transcript.refresh_ui()
+end
+
 function M.start(ctx)
 	local state = ctx.state
 	if state.job and state.job > 0 then
 		return
 	end
+	state.stdout_pending = ""
+	state.stderr_pending = ""
 	state.last_stderr_lines = {}
 	state.error_rendered_for_active_run = false
 	state.is_retrying = false
@@ -123,34 +144,34 @@ function M.start(ctx)
 		end,
 		on_exit = function(_, code, _)
 			vim.schedule(function()
+				local restarting = state.restart_requested
 				if state.session_file and state.session_file ~= "" then
 					state.pending_session_file = state.session_file
 				end
 				local awaiting_output = state.awaiting_agent_output
-				ctx.logs.add(code == 0 and "info" or "error", "pi exited with code " .. tostring(code), ctx.rpc.recent_stderr_text())
-				if (ctx.transcript.assistant_placeholder_active() or awaiting_output) and not state.error_rendered_for_active_run then
-					ctx.transcript.render_error_message(
-						"Pi Error",
-						ctx.rpc.recent_stderr_text() or ("pi exited with code " .. tostring(code) .. " before returning a message")
-					)
-				else
-					ctx.transcript.append_status("pi exited with code " .. tostring(code))
+				ctx.logs.add(
+					restarting and "info" or (code == 0 and "info" or "error"),
+					(restarting and "pi exited for restart with code " or "pi exited with code ") .. tostring(code),
+					ctx.rpc.recent_stderr_text()
+				)
+				if not restarting then
+					if (ctx.transcript.assistant_placeholder_active() or awaiting_output) and not state.error_rendered_for_active_run then
+						ctx.transcript.render_error_message(
+							"Pi Error",
+							ctx.rpc.recent_stderr_text() or ("pi exited with code " .. tostring(code) .. " before returning a message")
+						)
+					else
+						ctx.transcript.append_status("pi exited with code " .. tostring(code))
+					end
 				end
-				state.job = nil
-				state.is_streaming = false
-				state.is_retrying = false
-				state.awaiting_agent_output = false
-				state.pending_retry_error = nil
-				if state.activity_timer then
-					state.activity_timer:stop()
-					state.activity_timer:close()
-					state.activity_timer = nil
+				reset_runtime_state(ctx)
+				if restarting then
+					state.restart_requested = false
+					M.start(ctx)
+					if state.job and state.job > 0 then
+						ctx.ui.notify("Pi restarted")
+					end
 				end
-				state.activity_label = nil
-				state.activity_tool_call_id = nil
-				state.activity_spinner_tick = 1
-				ctx.transcript.refresh_ui()
-				state.abort_requested = false
 			end)
 		end,
 	})
@@ -203,6 +224,37 @@ function M.send(ctx, cmd, callback)
 		end
 		ctx.logs.add("error", "Could not send request to pi; the RPC channel is closed.", cmd)
 		ctx.transcript.render_error_message("Pi Error", "Could not send request to pi; the RPC channel is closed.")
+	end
+end
+
+function M.restart(ctx)
+	local state = ctx.state
+	if state.is_streaming or state.is_retrying or state.awaiting_agent_output then
+		ctx.ui.notify("Wait for the current Pi response to finish before restarting.", vim.log.levels.WARN)
+		return
+	end
+
+	local session_file = state.session_file or state.pending_session_file
+	if session_file and session_file ~= "" then
+		state.pending_session_file = session_file
+	end
+	if state.access_mode and state.access_mode ~= "" then
+		state.pending_access_mode = state.access_mode
+	end
+	state.callbacks = {}
+	state.stdout_pending = ""
+	state.stderr_pending = ""
+
+	if state.job and state.job > 0 then
+		state.restart_requested = true
+		vim.fn.jobstop(state.job)
+		ctx.ui.notify("Restarting Pi...")
+		return
+	end
+
+	M.start(ctx)
+	if state.job and state.job > 0 then
+		ctx.ui.notify("Pi restarted")
 	end
 end
 

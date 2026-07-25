@@ -165,14 +165,4 @@ function M.pick_command(ctx)
 	end)
 end
 
-function M.reload(ctx)
-	ctx.rpc.send({ type = "prompt", message = "/reload" }, function(event)
-		if event.success then
-			ctx.ui.notify("Pi reload requested")
-		else
-			ctx.ui.notify(event.error or "Could not reload Pi", vim.log.levels.ERROR)
-		end
-	end)
-end
-
 return M
