@@ -111,40 +111,105 @@ local function filetype_from_path(path)
 	return "text"
 end
 
-local function normalize_lines(text)
-	if type(text) ~= "string" or text == "" then
-		return {}
+local function parse_unified_hunk_header(line)
+	if type(line) ~= "string" then
+		return nil
 	end
-	text = text:gsub("\r\n", "\n"):gsub("\r", "\n")
-	local lines = vim.split(text, "\n", { plain = true })
+	local old_start, new_start = line:match("^@@ %-(%d+),?%d* %+(%d+),?%d* @@")
+	if not old_start or not new_start then
+		return nil
+	end
+	return {
+		old_start = tonumber(old_start),
+		new_start = tonumber(new_start),
+	}
+end
+
+local function add_aligned_row(left_lines, right_lines, left_lnums, right_lnums, left_text, right_text, left_lnum, right_lnum)
+	table.insert(left_lines, left_text or "")
+	table.insert(right_lines, right_text or "")
+	table.insert(left_lnums, left_lnum or false)
+	table.insert(right_lnums, right_lnum or false)
+end
+
+local function patch_to_side_by_side(patch)
+	if type(patch) ~= "string" or patch == "" then
+		return nil
+	end
+	local lines = vim.split(patch:gsub("\r\n", "\n"):gsub("\r", "\n"), "\n", { plain = true })
 	if lines[#lines] == "" then
 		table.remove(lines)
 	end
-	return lines
-end
 
-local function edit_args_to_before_after(args)
-	if type(args) ~= "table" then
-		return nil, nil, "missing edit arguments"
-	end
-	local path = path_from_args(args)
-	local edits = args.edits
-	if type(path) ~= "string" or path == "" then
-		return nil, nil, "missing edit path"
-	end
-	if type(edits) ~= "table" then
-		return nil, nil, "missing edit replacements"
-	end
-	local before_parts = {}
-	local after_parts = {}
-	for _, edit in ipairs(edits) do
-		if type(edit) ~= "table" or type(edit.oldText) ~= "string" or type(edit.newText) ~= "string" then
-			return nil, nil, "invalid edit replacement"
+	local left_lines = {}
+	local right_lines = {}
+	local left_lnums = {}
+	local right_lnums = {}
+	local in_hunk = false
+	local old_lnum = 0
+	local new_lnum = 0
+	local pending_old = {}
+	local pending_new = {}
+
+	local function flush_pending_changes()
+		local max_count = math.max(#pending_old, #pending_new)
+		for i = 1, max_count do
+			local old_item = pending_old[i]
+			local new_item = pending_new[i]
+			add_aligned_row(
+				left_lines,
+				right_lines,
+				left_lnums,
+				right_lnums,
+				old_item and old_item.text or "",
+				new_item and new_item.text or "",
+				old_item and old_item.lnum or nil,
+				new_item and new_item.lnum or nil
+			)
 		end
-		table.insert(before_parts, edit.oldText)
-		table.insert(after_parts, edit.newText)
+		pending_old = {}
+		pending_new = {}
 	end
-	return table.concat(before_parts, "\n"), table.concat(after_parts, "\n"), nil
+
+	for _, line in ipairs(lines) do
+		local hunk = parse_unified_hunk_header(line)
+		if hunk then
+			flush_pending_changes()
+			if #left_lines > 0 then
+				add_aligned_row(left_lines, right_lines, left_lnums, right_lnums, "⋮", "⋮", nil, nil)
+			end
+			in_hunk = true
+			old_lnum = hunk.old_start
+			new_lnum = hunk.new_start
+		elseif in_hunk then
+			local prefix = line:sub(1, 1)
+			local text = line:sub(2)
+			if prefix == " " then
+				flush_pending_changes()
+				add_aligned_row(left_lines, right_lines, left_lnums, right_lnums, text, text, old_lnum, new_lnum)
+				old_lnum = old_lnum + 1
+				new_lnum = new_lnum + 1
+			elseif prefix == "-" then
+				table.insert(pending_old, { text = text, lnum = old_lnum })
+				old_lnum = old_lnum + 1
+			elseif prefix == "+" then
+				table.insert(pending_new, { text = text, lnum = new_lnum })
+				new_lnum = new_lnum + 1
+			elseif prefix == "\\" then
+				-- Metadata such as "\ No newline at end of file" applies to the
+				-- previous diff line and is not a file line in either side.
+			else
+				flush_pending_changes()
+				in_hunk = false
+			end
+		end
+	end
+	flush_pending_changes()
+
+	if #left_lines == 0 and #right_lines == 0 then
+		return nil
+	end
+	return left_lines, right_lines, left_lnums, right_lnums
 end
 
 local function compact_text(text)
@@ -468,6 +533,30 @@ local function set_diff_window_options(win)
 	vim.api.nvim_set_option_value("foldmethod", "diff", { win = win })
 	vim.api.nvim_set_option_value("foldenable", true, { win = win })
 	vim.api.nvim_set_option_value("foldlevel", 0, { win = win })
+
+	local buf = vim.api.nvim_win_get_buf(win)
+	local width = vim.b[buf].pi_edit_diff_line_number_width or 4
+	vim.api.nvim_set_option_value("numberwidth", math.min(math.max(width + 1, 2), 20), { win = win })
+	vim.api.nvim_set_option_value(
+		"statuscolumn",
+		"%!v:lua.require('pi-integration.tool-output').edit_diff_statuscolumn(" .. tostring(buf) .. ")",
+		{ win = win }
+	)
+end
+
+function M.edit_diff_statuscolumn(buf)
+	buf = tonumber(buf)
+	local vars = buf and vim.b[buf] or nil
+	local line_map = vars and vars.pi_edit_diff_line_map or nil
+	if type(line_map) ~= "table" then
+		return ""
+	end
+	local width = vars.pi_edit_diff_line_number_width or 4
+	local value = line_map[vim.v.lnum]
+	if value == nil or value == false then
+		return string.rep(" ", width) .. " "
+	end
+	return string.format("%" .. tostring(width) .. "s ", tostring(value))
 end
 
 local function set_scratch_buffer(buf, name, filetype, lines)
@@ -486,8 +575,10 @@ local function open_edit_diff_float(ctx, output)
 	if type(path) ~= "string" or path == "" then
 		return false
 	end
-	local before, after = edit_args_to_before_after(args)
-	if not before then
+
+	local details = type(output.details) == "table" and output.details or {}
+	local left_lines, right_lines, left_lnums, right_lnums = patch_to_side_by_side(details.patch)
+	if not left_lines or not right_lines then
 		return false
 	end
 
@@ -504,8 +595,20 @@ local function open_edit_diff_float(ctx, output)
 
 	local left_buf = vim.api.nvim_create_buf(false, true)
 	local right_buf = vim.api.nvim_create_buf(false, true)
-	set_scratch_buffer(left_buf, "pi://tool/" .. tostring(output.tool_call_id or "edit") .. "/before", filetype, normalize_lines(before))
-	set_scratch_buffer(right_buf, "pi://tool/" .. tostring(output.tool_call_id or "edit") .. "/after", filetype, normalize_lines(after))
+	vim.b[left_buf].pi_edit_diff_line_map = left_lnums
+	vim.b[right_buf].pi_edit_diff_line_map = right_lnums
+	local max_lnum = 1
+	for _, lnum in ipairs(left_lnums) do
+		max_lnum = math.max(max_lnum, tonumber(lnum) or 0)
+	end
+	for _, lnum in ipairs(right_lnums) do
+		max_lnum = math.max(max_lnum, tonumber(lnum) or 0)
+	end
+	local number_width = #tostring(max_lnum)
+	vim.b[left_buf].pi_edit_diff_line_number_width = number_width
+	vim.b[right_buf].pi_edit_diff_line_number_width = number_width
+	set_scratch_buffer(left_buf, "pi://tool/" .. tostring(output.tool_call_id or "edit") .. "/before", filetype, left_lines)
+	set_scratch_buffer(right_buf, "pi://tool/" .. tostring(output.tool_call_id or "edit") .. "/after", filetype, right_lines)
 
 	local left_win = vim.api.nvim_open_win(left_buf, true, {
 		relative = "editor",
