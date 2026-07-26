@@ -54,4 +54,10 @@ require("render-markdown").setup({
 		},
 	},
 	latex = { enabled = false },
+	win_options = {
+		conceallevel = {
+			default = vim.o.conceallevel,
+			rendered = 2,
+		},
+	},
 })

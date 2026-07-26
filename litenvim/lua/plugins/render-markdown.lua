@@ -14,6 +14,12 @@ require("render-markdown").setup({
 		table = { raw = "[!TABLE]", rendered = " Table", highlight = "RenderMarkdownInfo" },
 	},
 	latex = { enabled = false },
+	win_options = {
+		conceallevel = {
+			default = vim.o.conceallevel,
+			rendered = 2,
+		},
+	},
 })
 
 -- vim.api.nvim_create_autocmd("Filetype", {
