@@ -697,12 +697,17 @@ function M.handle_event(ctx, event)
 		return
 	elseif event.type == "tool_execution_end" then
 		local execution_result = type(event.result) == "table" and event.result or nil
-		if execution_result and execution_result.isError then
-			ctx.logs.add("error", "Tool execution failed: " .. tostring(event.toolName or "tool"), message_utils.extract_content_text(execution_result.content))
+		local is_error = event.isError == true or (execution_result and execution_result.isError == true)
+		if is_error then
+			ctx.logs.add("error", "Tool execution failed: " .. tostring(event.toolName or "tool"), message_utils.extract_content_text(execution_result and execution_result.content))
 		end
 		if event.toolName == "spawn" then
 			local result = type(event.result) == "table" and event.result or {}
-			render_or_update_live_tool(ctx, event, message_utils.extract_content_text(result.content), result.details or {})
+			local details = type(result.details) == "table" and shallow_copy(result.details) or {}
+			if is_error and not details.status then
+				details.status = "error"
+			end
+			render_or_update_live_tool(ctx, event, message_utils.extract_content_text(result.content), details)
 		elseif event.toolName == "bash" then
 			local result = type(event.result) == "table" and event.result or {}
 			local details = type(result.details) == "table" and shallow_copy(result.details) or {}
