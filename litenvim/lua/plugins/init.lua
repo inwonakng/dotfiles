@@ -40,7 +40,6 @@ require("plugins.vim-slime")
 require("plugins.treesitter")
 require("plugins.vimtex")
 require("plugins.which-key")
-require("plugins.tiny-cmdline")
 require("plugins.render-latex")
 
 -- add the rest here

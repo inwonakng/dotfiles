@@ -45,7 +45,6 @@ vim.opt.breakindent = true
 vim.opt.termguicolors = true
 vim.opt.spelllang = { "en_us" }
 vim.opt.ignorecase = true
-vim.opt.cmdheight = 0
 -- change where the swap files are stored
 vim.opt.directory = vim.fn.stdpath("data") .. "/swp"
 
