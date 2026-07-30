@@ -7,6 +7,8 @@ description: Use when reviewing a plan, diff, implementation, branch, or complet
 
 Use this skill to review work with fresh, evidence-based judgment.
 
+Use the `write-good-code` skill when reviewing code or code-changing plans.
+
 Use Pi's `spawn` / `spawn_control` when an independent context would reduce author bias or keep a large diff out of the main conversation.
 
 ## When to Review
@@ -68,6 +70,7 @@ Do not paste huge diffs into the main context if a file artifact or git command 
 - Would the tests fail if the changed requirement regressed, or do they only assert implementation details?
 - Is this the least complex design that fully preserves required behavior, affected contracts, and error handling?
 - Does it follow existing project patterns without adding speculative compatibility or unrelated cleanup?
+- Are abstractions, dependencies, public API changes, and Python type annotations justified by the changed code and project conventions?
 
 ## Output Shape
 

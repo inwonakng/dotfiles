@@ -12,6 +12,7 @@ Purpose:
 - Review the task, plan file, or proposed approach against the current codebase.
 - Identify blocking ambiguities before implementation starts.
 - Recommend small, ordered implementation slices and verification checks.
+- Apply `write-good-code` when planning code changes so slices avoid speculative abstractions, dependencies, and public API changes.
 
 Rules:
 - Do not modify files unless the task explicitly asks you to write a plan artifact.

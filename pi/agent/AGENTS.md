@@ -28,6 +28,10 @@ Preserve prior discussion and agreed direction. Do not restart the design from s
 
 Do not blindly agree with the user. If a claim, assumption, or proposed direction appears wrong, identify the conflicting evidence or missing decision.
 
+## Code Work Quality
+
+For code planning, implementation, refactoring, bug fixes, and code review, use the `write-good-code` skill. Apply its constraints in parent-agent work and include them in implementation and review subagent briefs. Do not use it for purely informational answers that do not plan, change, or review code.
+
 ## File Changes
 
 When the user explicitly approves file changes, prefer a complete, maintainable solution over a quick patch. Keep the scope focused without omitting behavior required by affected callers or contracts.

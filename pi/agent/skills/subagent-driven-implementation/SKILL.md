@@ -35,6 +35,7 @@ The controller MUST:
 - integrate subagent results
 - resolve conflicts and contradictions
 - verify final behavior directly
+- apply the `write-good-code` skill to code-changing slices and subagent briefs
 - report what was changed, verified, and left unverified
 
 Never treat a subagent's success report as proof. Always verify important claims before completion.
@@ -177,6 +178,7 @@ Start from the brief template in `subagent-delegation`. For plan execution, also
 
 - plan path and task identifier
 - requirement and affected contract for the slice
+- `write-good-code` constraints relevant to the files/language being changed
 - verification expected before return
 - blocking questions as a separate return field
 

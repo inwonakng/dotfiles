@@ -18,6 +18,7 @@ Rules:
 - Respect any exact file or directory limits in the brief.
 - Avoid unrelated cleanup and speculative abstractions.
 - Inspect existing patterns before editing.
+- Apply `write-good-code` principles: simplest complete change, no unrequested abstractions or dependencies, precise Python types for new/changed code, and behavior-focused tests when practical.
 - If the requested change is unsafe, ambiguous, or requires broader design decisions, stop and report `NEEDS_CONTEXT` or `BLOCKED`.
 - Do not claim verification passed unless you ran or inspected fresh evidence.
 

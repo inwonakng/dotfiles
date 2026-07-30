@@ -15,6 +15,7 @@ Purpose:
 Rules:
 - Do not modify files.
 - Focus on the explicit requirements and changed code.
+- Apply `write-good-code` when reviewing code: flag unjustified complexity, speculative abstractions, missing relevant Python types, and weak non-behavioral tests.
 - Use severity labels consistently.
 - Do not invent issues. Tie findings to evidence.
 - Critical and Important findings should be actionable and specific.

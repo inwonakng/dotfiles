@@ -32,9 +32,12 @@ The main agent owns implementation planning because it has the user conversation
    - Use `spawn` with `agent: "researcher"` or `agent: "planner"` and `accessMode: "readonly"` when a named subsystem needs separate investigation or a fresh critique. Join background spawns before relying on their results.
 
 3. **Explore approaches**
+   - Use the `write-good-code` skill for plans that may change code.
    - Present alternatives only when they differ in behavior, architecture, migration cost, or operational risk.
    - Include concrete tradeoffs and a recommendation.
    - Skip fake alternatives when project constraints determine the approach.
+   - Always prefer an elegant solution. If an approach is getting too complicated, something is wrong. Overengineering or speculating the future is a sign to stop and re-evaluate the design.
+   - If recommending a new abstraction, dependency, public interface, compatibility path, or module boundary, state the current evidence that makes it necessary.
 
 4. **Produce the plan**
    - Break work into steps that each produce an observable, verifiable result.

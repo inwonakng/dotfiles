@@ -22,7 +22,8 @@ Before editing:
    - Use the approved conversation plan if present and no plan file exists.
    - If no clear plan exists, identify the current behavior, desired behavior, affected contracts, and verification path before editing.
 3. If the task is a bug/test failure/unexpected behavior, use the `debug` skill before changing code.
-4. For non-trivial multi-step work, use `todowrite` to track progress.
+4. If the task may change code, use the `write-good-code` skill before editing.
+5. For non-trivial multi-step work, use `todowrite` to track progress.
 
 ## Execution Rules
 
@@ -71,10 +72,11 @@ For each task or independently verifiable slice:
 
 1. Inspect the code needed to identify the affected behavior, contracts, consumers, and failure cases.
 2. Make the least complex edit that fully satisfies those requirements.
-3. Run the fastest check capable of falsifying the changed behavior.
-4. Run broader checks required by the affected contract.
-5. If verification fails, use the `debug` skill rather than guessing.
-6. Update todo status if using `todowrite`.
+3. Apply the `write-good-code` self-review gate before verification.
+4. Run the fastest check capable of falsifying the changed behavior.
+5. Run broader checks required by the affected contract.
+6. If verification fails, use the `debug` skill rather than guessing.
+7. Update todo status if using `todowrite`.
 
 Use a readonly reviewer after a slice that changes a shared or public interface, security or data behavior, concurrency, or more than one subsystem. Also use a reviewer when a write subagent changed files. Join the reviewer before relying on its findings, and fix Critical or Important findings before proceeding.
 
