@@ -173,7 +173,7 @@ outer.right = 0
 
 # direct application toggles
 alt-t = "exec-and-forget open -a /Applications/kitty.app/"
-alt-e = "exec-and-forget open -a Finder"
+alt-e = "exec-and-forget ~/.config/aerospace/focus-finder-windows.sh"
 alt-shift-e = "exec-and-forget open ~/Downloads"
 
 # See: https://nikitabobko.github.io/AeroSpace/commands#layout
