@@ -10,5 +10,11 @@ set -g @catppuccin_flavor "mocha"
 # Initialize TMUX plugin manager (keep this line at the very bottom of tmux.conf)
 run "$HOME/.config/tmux/plugins/tpm/tpm"
 
+# Work around tmux 3.7+ drawing messages/prompts over the status line.
+# Catppuccin sets these styles with align=centre and no fill, which leaves
+# status-positioned window tabs visible around prompts like rename-window.
+set -gF message-style "fg=#{@thm_teal},bg=#{@_ctp_status_bg},fill=#{@_ctp_status_bg}"
+set -gF message-command-style "fg=#{@thm_teal},bg=#{@_ctp_status_bg},fill=#{@_ctp_status_bg}"
+
 # we revert the highlight colors to frappe since that is default background.
 set -g mode-style "bg=#626880,fg=#c6d0f5"

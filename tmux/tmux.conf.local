@@ -5,5 +5,11 @@ bind C-w send-prefix
 source-file "$HOME/dotfiles/tmux/tmux.conf.shared"
 set-option -g status-position top
 
-# Initialize TMUX plugin manager (keep this line at the very bottom of tmux.conf)
+# Initialize TMUX plugin manager
 run "$HOME/.config/tmux/plugins/tpm/tpm"
+
+# Work around tmux 3.7+ drawing messages/prompts over the status line.
+# Catppuccin sets these styles with align=centre and no fill, which leaves
+# top-positioned window tabs visible around prompts like rename-window.
+set -gF message-style "fg=#{@thm_teal},bg=#{@_ctp_status_bg},fill=#{@_ctp_status_bg}"
+set -gF message-command-style "fg=#{@thm_teal},bg=#{@_ctp_status_bg},fill=#{@_ctp_status_bg}"
