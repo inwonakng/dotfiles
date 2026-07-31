@@ -14,7 +14,9 @@ window_ids="$(aerospace list-windows \
   --format '%{window-id}' || true)"
 
 if [[ -z "$window_ids" ]]; then
-  open -a Finder
+  osascript \
+    -e 'tell application "Finder" to make new Finder window' \
+    -e 'tell application "Finder" to activate'
   exit 0
 fi
 
