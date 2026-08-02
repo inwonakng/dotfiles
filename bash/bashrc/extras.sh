@@ -293,6 +293,10 @@ alias oc="opencode"
 alias bc="bob --chat-mode code"
 alias pn="NVIM_APPNAME=pi-nvim nvim"
 
+if [[ -f "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]]; then
+    alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+fi
+
 # remove global conda from path... i don't use this
 export PATH=$(echo "$PATH" | sed -e 's/:\/software\/anaconda3.24\/bin//g')
 
