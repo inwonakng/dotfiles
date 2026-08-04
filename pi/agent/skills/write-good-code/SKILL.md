@@ -1,6 +1,6 @@
 ---
 name: write-good-code
-description: Use when planning, implementing, refactoring, fixing, or reviewing code. Enforces simple maintainable code: avoid overengineering, follow existing patterns, use precise types, test observable behavior, and justify abstractions, dependencies, and public API changes.
+description: Use when planning, implementing, refactoring, fixing, or reviewing code. Enforces simple maintainable code -- avoid overengineering, follow existing patterns, use precise types, test observable behavior, and justify abstractions, dependencies, and public API changes.
 ---
 
 # Write Good Code
