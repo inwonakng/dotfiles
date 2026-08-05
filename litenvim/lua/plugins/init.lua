@@ -7,11 +7,6 @@ vim.api.nvim_create_autocmd("PackChanged", {
 				vim.cmd.packadd("nvim-treesitter")
 			end
 			vim.cmd("TSUpdate")
-		elseif name == "blink.cmp" and (kind == "install" or kind == "update") then
-			if not ev.data.active then
-				vim.cmd.packadd(name)
-			end
-			require("blink.cmp.fuzzy.build").build()
 		elseif name == "markdown-preview.nvim" and (kind == "install" or kind == "update") then
 			local app_dir = vim.fn.stdpath("data") .. "/site/pack/core/opt/markdown-preview.nvim/app"
 			vim.fn.jobstart({ "npx", "--yes", "yarn", "install" }, { cwd = app_dir })

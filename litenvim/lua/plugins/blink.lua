@@ -3,13 +3,13 @@ vim.pack.add({
 	"https://github.com/rafamadriz/friendly-snippets",
 	"https://github.com/micangl/cmp-vimtex",
 	"https://github.com/saghen/blink.compat",
+	"https://github.com/saghen/blink.lib",
 })
 
-vim.api.nvim_create_user_command("BlinkBuild", function()
-	require("blink.cmp.fuzzy.build").build()
-end, { desc = "Build blink.cmp Rust fuzzy library" })
+local cmp = require("blink.cmp")
+cmp.build():pwait()
 
-require("blink.cmp").setup({
+cmp.setup({
 	cmdline = {
 		enabled = false,
 	},

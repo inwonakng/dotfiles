@@ -5,7 +5,7 @@ vim.api.nvim_create_autocmd("PackChanged", {
 			if not ev.data.active then
 				vim.cmd.packadd(name)
 			end
-			require("blink.cmp.fuzzy.build").build()
+			require("blink.cmp").build():pwait()
 		end
 	end,
 })
@@ -18,4 +18,5 @@ vim.pack.add({
 	"https://github.com/nvim-treesitter/nvim-treesitter",
 	"https://github.com/folke/which-key.nvim",
 	"https://github.com/saghen/blink.cmp",
+	"https://github.com/saghen/blink.lib",
 })
