@@ -29,7 +29,7 @@
       "src": "https://github.com/stevearc/conform.nvim"
     },
     "copilot.lua": {
-      "rev": "2a849bc7bec4d175524c332c20d48ca9ece735df",
+      "rev": "261e70f26e6c02562495f900399234c4e26daa2f",
       "src": "https://github.com/zbirenbaum/copilot.lua"
     },
     "friendly-snippets": {
@@ -37,7 +37,7 @@
       "src": "https://github.com/rafamadriz/friendly-snippets"
     },
     "fzf-lua": {
-      "rev": "28440c741e927592877514fba3db21eb188caec8",
+      "rev": "d0355a7f30bc0f7a81223ad2d88a019edd91f768",
       "src": "https://github.com/ibhagwan/fzf-lua"
     },
     "nvim-treesitter": {

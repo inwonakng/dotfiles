@@ -72,26 +72,39 @@ Review the draft in this order:
 2. **Argument:** Are claims precise, supported, and connected to the evidence?
 3. **Paragraphs:** Does each paragraph perform one identifiable job and connect to its neighbors?
 4. **Style:** Is the prose direct, readable, and appropriately formal?
-5. **Empty statements:** Does every substantive sentence make a concrete claim, or has shorthand taken the place of thought?
-6. **Terminology:** Are specialized terms necessary, consistent, and defined for the audience?
-7. **Integrity:** Did the draft introduce any unsupported fact, citation, quotation, result, or causal explanation?
+5. **Voice and emphasis:** Does each action have an appropriate visible actor? Express authorial choices with `we` and an active verb. Rewrite instrumental passives, and retain a corrective contrast only when it rejects a specific interpretation or alternative present in the argument.
+6. **Empty statements:** Does every substantive sentence make a concrete claim, or has shorthand taken the place of thought?
+7. **Terminology:** Are specialized terms necessary, consistent, and defined for the audience?
+8. **Integrity:** Did the draft introduce any unsupported fact, citation, quotation, result, or causal explanation?
 
 Revise substantive problems before polishing individual sentences.
 
 ## Prose Standard
 
-Elegant academic prose makes difficult ideas easier to understand. It does not call attention to its own sophistication.
+Elegant academic prose makes difficult ideas easier to understand while keeping attention on the argument.
 
 - Prefer precise, familiar words when they express the same meaning as a more elaborate alternative.
 - Prefer concrete subjects and strong verbs to strings of abstract nouns.
-- Keep the actor visible when responsibility or causation matters.
 - Give a sentence one principal job, but vary sentence length and structure naturally.
 - Remove filler, repetition, hollow emphasis, and transitions that do not express a real relationship.
 - Use technical terminology when it improves precision; explain it when the audience may not know it.
 - Calibrate confidence: report observed results directly, distinguish association from causation, and label hypotheses or interpretations as such.
-- Preserve the author's meaning and voice when revising. If the source is ambiguous, flag the ambiguity rather than silently choosing a meaning.
+- Preserve the author's meaning and individual voice when revising. If the source is ambiguous, flag the ambiguity rather than silently choosing a meaning.
 
-Do not enforce mechanical style rules such as a universal sentence-length limit or a blanket preference for active voice.
+### Active Voice and Direct Claims
+
+Use active voice as the default and make the actor explicit.
+
+- Express choices and actions made by the authors with `we` and a concrete verb: `We use the encoder to produce sentence representations.` Preserve another authorial convention only when the user or venue requires it.
+- Use a method, system, or component as the subject when it performs the action: `The encoder produces sentence representations.`
+- Use passive voice deliberately when the actor is unknown or irrelevant, or when continuity requires the acted-upon object to remain the subject. Otherwise, replace instrumental passives such as `The encoder is used to produce sentence representations` with an active construction.
+
+State the substantive claim directly in affirmative form. Reserve corrective contrasts such as `not X but Y`, `not merely X`, `does not simply X`, and `rather than X` for passages that address `X` as a specific interpretation, expectation, or documented alternative. If the claim in `Y` stands on its own, omit the rhetorical setup and state `Y` directly:
+
+- Mechanical: `Our method does not merely aggregate features; it models their relationships.`
+- Direct: `Our method models relationships among features.`
+
+Every retained contrast must express a relationship that matters to the argument, rather than serving only as emphasis.
 
 ## Empty Statements and Conceptual Shorthand
 
