@@ -1,7 +1,7 @@
 local M = {}
 
 local CACHE_TTL_MS = 5000
-local DEFAULT_MAX_FILES = 5000
+local DEFAULT_MAX_FILES = 50000
 local DEFAULT_IGNORED_DIRS = {
 	[".git"] = true,
 	[".venv"] = true,
@@ -66,7 +66,67 @@ local function merged_ignored_dirs(opts)
 	return ignored
 end
 
-local function scan_files(cwd, opts)
+local function fd_path(opts)
+	local configured = opts.fd_path
+	if configured and configured ~= "" and vim.fn.executable(configured) == 1 then
+		return configured
+	end
+	if vim.fn.executable("fd") == 1 then
+		return "fd"
+	end
+	if vim.fn.executable("fdfind") == 1 then
+		return "fdfind"
+	end
+	return nil
+end
+
+local function scan_files_with_fd(cwd, opts)
+	local executable = fd_path(opts)
+	if not executable then
+		return nil
+	end
+
+	local ignored_dirs = merged_ignored_dirs(opts)
+	local max_files = opts.max_files or DEFAULT_MAX_FILES
+	local args = {
+		executable,
+		"--base-directory",
+		cwd,
+		"--max-results",
+		tostring(max_files),
+		"--type",
+		"f",
+		"--type",
+		"d",
+		"--hidden",
+		"--follow",
+	}
+
+	for name in pairs(ignored_dirs) do
+		vim.list_extend(args, { "--exclude", name })
+	end
+	table.insert(args, ".")
+
+	local lines = vim.fn.systemlist(args)
+	if vim.v.shell_error ~= 0 then
+		return nil
+	end
+
+	local results = {}
+	for _, line in ipairs(lines) do
+		local path = tostring(line):gsub("\\", "/"):gsub("^%./", "")
+		if path ~= "" then
+			local is_directory = path:sub(-1) == "/"
+			if is_directory then
+				path = path:sub(1, -2)
+			end
+			table.insert(results, { path = path, kind = is_directory and "directory" or "file" })
+		end
+	end
+	return results
+end
+
+local function scan_files_with_lua(cwd, opts)
 	local ignored_dirs = merged_ignored_dirs(opts)
 	local max_files = opts.max_files or DEFAULT_MAX_FILES
 	local results = {}
@@ -122,6 +182,10 @@ local function scan_files(cwd, opts)
 	return results
 end
 
+local function scan_files(cwd, opts)
+	return scan_files_with_fd(cwd, opts) or scan_files_with_lua(cwd, opts)
+end
+
 local function path_depth(relative_path)
 	local depth = 0
 	for _ in relative_path:gmatch("/") do
@@ -134,6 +198,10 @@ local function path_sort_text(relative_path)
 	return ("%03d:%04d:%s"):format(path_depth(relative_path), #relative_path, relative_path)
 end
 
+local function basename(relative_path)
+	return relative_path:match("[^/]+$") or relative_path
+end
+
 local function path_item(entry, range)
 	local completion_kind = require("blink.cmp.types").CompletionItemKind
 	local relative_path = entry.path
@@ -143,7 +211,7 @@ local function path_item(entry, range)
 		label = "@" .. relative_path,
 		kind = is_directory and completion_kind.Folder or completion_kind.File,
 		detail = is_directory and "directory" or "file",
-		filterText = "@" .. relative_path .. " " .. relative_path,
+		filterText = "@" .. relative_path .. " " .. relative_path .. " " .. basename(relative_path),
 		sortText = path_sort_text(relative_path),
 		textEdit = {
 			newText = "@" .. relative_path,
