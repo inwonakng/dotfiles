@@ -6,7 +6,13 @@ end
 local argv0 = vim.fn.argc() > 0 and tostring(vim.fn.argv(0)) or ""
 
 -- stop persistence if opening a CLI scratch file
-if argv0:match("claude%-prompt") or argv0:match("^/private/var/folders/.*/T/%.tmp.*%.md$") then
+if
+	argv0:match("claude%-prompt")
+	or argv0:match("^/var/folders/.*/T/tmp")
+	or argv0:match("^/var/folders/.*/T/%.tmp")
+	or argv0:match("^/private/var/folders/.*/T/tmp")
+	or argv0:match("^/private/var/folders/.*/T/%.tmp")
+then
 	return
 end
 
