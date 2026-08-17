@@ -421,6 +421,7 @@ export default function accessModeExtension(pi: ExtensionAPI) {
     const confirmed = await ctx.ui.confirm(
       `Allow ${event.toolName}?`,
       approvalPayload(event, ctx),
+      { signal: ctx.signal },
     );
     if (!confirmed) {
       return {
