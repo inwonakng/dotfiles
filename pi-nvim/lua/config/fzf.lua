@@ -1,6 +1,7 @@
 local fzf_opts = {
 	default = {
 		["--no-scrollbar"] = true,
+		["--no-mouse"] = true,
 		["--pointer"] = "> ",
 	},
 }
@@ -18,8 +19,26 @@ local fzf_keymap = {
 	},
 }
 
+local saved_mouse
+
+local function disable_mouse_for_fzf()
+	if saved_mouse == nil then
+		saved_mouse = vim.o.mouse
+		vim.o.mouse = ""
+	end
+end
+
+local function restore_mouse_after_fzf()
+	if saved_mouse ~= nil then
+		vim.o.mouse = saved_mouse
+		saved_mouse = nil
+	end
+end
+
 local fzf_winopts = {
 	default = {
+		on_create = disable_mouse_for_fzf,
+		on_close = restore_mouse_after_fzf,
 		border = { "", "-", "", "", "", "", "", "" },
 		height = 1.0,
 		width = 1.0,

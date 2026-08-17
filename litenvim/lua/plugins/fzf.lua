@@ -20,9 +20,10 @@ local function symbols_filter(entry, ctx)
 	return vim.tbl_contains(ctx.symbols_filter, entry.kind)
 end
 
-local fzf_opts = {
+local fzf_cli_opts = {
 	default = {
 		["--no-scrollbar"] = true,
+		["--no-mouse"] = true,
 		-- ["--layout"] = "reverse",
 		-- ["--info"] = "inline",
 		["--pointer"] = " ",
@@ -32,9 +33,37 @@ local fzf_opts = {
 	},
 }
 
-local win_opts = {
+local saved_mouse
+
+local function disable_mouse_for_fzf()
+	if saved_mouse == nil then
+		saved_mouse = vim.o.mouse
+		vim.o.mouse = ""
+	end
+end
+
+local function restore_mouse_after_fzf()
+	if saved_mouse ~= nil then
+		vim.o.mouse = saved_mouse
+		saved_mouse = nil
+	end
+end
+
+local function select_label(prompt)
+	local label = vim.trim(prompt or "Select")
+	label = vim.trim(label:gsub("%s*[>:]%s*$", ""))
+	return label ~= "" and label or "Select"
+end
+
+local function select_prompt(prompt)
+	return select_label(prompt) .. " > "
+end
+
+local fzf_winopts = {
 	default = {
-		title = " " .. vim.trim((fzf_opts.prompt or "Select"):gsub("%s*:%s*$", "")) .. " ",
+		on_create = disable_mouse_for_fzf,
+		on_close = restore_mouse_after_fzf,
+		title = " Select ",
 		title_pos = "left",
 		border = { "", "─", "", "", "", "", "", "" },
 		height = 1.0,
@@ -76,20 +105,22 @@ for _, v in ipairs({
 end
 
 -- this is why the lazy option is disabled
-fzf.register_ui_select(function(fzf_opts, items)
-	local winopts = vim.deepcopy(win_opts.default)
+fzf.register_ui_select(function(select_opts)
+	local winopts = vim.deepcopy(fzf_winopts.default)
 	-- ui.select doesn't have preview. So we will adjust the height
 	winopts.height = 0.4
+	winopts.title = " " .. select_label(select_opts.prompt) .. " "
 	return {
+		prompt = select_prompt(select_opts.prompt),
 		winopts = winopts,
-		fzf_opts = fzf_opts.default,
+		fzf_opts = fzf_cli_opts.default,
 	}
 end)
 
 fzf.setup({
 	fzf_colors = true,
-	fzf_opts = fzf_opts.default,
-	winopts = win_opts.default,
+	fzf_opts = fzf_cli_opts.default,
+	winopts = fzf_winopts.default,
 	defaults = {
 		formatter = "path.dirname_first",
 	},
