@@ -512,35 +512,35 @@ AltCtrl = "Alt + Ctrl"
 "Alt + X" = { switch_to_workspace = "X" }
 "Alt + Y" = { switch_to_workspace = "Y" }
 
-"AltShift + 0" = { move_window_to_workspace = 0, follow = true }
-"AltShift + 1" = { move_window_to_workspace = 1, follow = true }
-"AltShift + 2" = { move_window_to_workspace = 2, follow = true }
-"AltShift + 3" = { move_window_to_workspace = 3, follow = true }
-"AltShift + 4" = { move_window_to_workspace = 4, follow = true }
-"AltShift + 5" = { move_window_to_workspace = 5, follow = true }
-"AltShift + 6" = { move_window_to_workspace = 6, follow = true }
-"AltShift + 7" = { move_window_to_workspace = 7, follow = true }
-"AltShift + 8" = { move_window_to_workspace = 8, follow = true }
-"AltShift + 9" = { move_window_to_workspace = 9, follow = true }
+"AltShift + 0" = { move_window_to_workspace = { workspace = 0, follow = true } }
+"AltShift + 1" = { move_window_to_workspace = { workspace = 1, follow = true } }
+"AltShift + 2" = { move_window_to_workspace = { workspace = 2, follow = true } }
+"AltShift + 3" = { move_window_to_workspace = { workspace = 3, follow = true } }
+"AltShift + 4" = { move_window_to_workspace = { workspace = 4, follow = true } }
+"AltShift + 5" = { move_window_to_workspace = { workspace = 5, follow = true } }
+"AltShift + 6" = { move_window_to_workspace = { workspace = 6, follow = true } }
+"AltShift + 7" = { move_window_to_workspace = { workspace = 7, follow = true } }
+"AltShift + 8" = { move_window_to_workspace = { workspace = 8, follow = true } }
+"AltShift + 9" = { move_window_to_workspace = { workspace = 9, follow = true } }
 
-"AltShift + A" = { move_window_to_workspace = "A", follow = true }
-"AltShift + B" = { move_window_to_workspace = "B", follow = true }
-"AltShift + C" = { move_window_to_workspace = "C", follow = true }
-"AltShift + G" = { move_window_to_workspace = "G", follow = true }
-"AltShift + I" = { move_window_to_workspace = "I", follow = true }
-"AltShift + M" = { move_window_to_workspace = "M", follow = true }
-"AltShift + N" = { move_window_to_workspace = "N", follow = true }
-"AltShift + O" = { move_window_to_workspace = "O", follow = true }
-"AltShift + P" = { move_window_to_workspace = "P", follow = true }
-"AltShift + Q" = { move_window_to_workspace = "Q", follow = true }
-"AltShift + R" = { move_window_to_workspace = "R", follow = true }
-"AltShift + S" = { move_window_to_workspace = "S", follow = true }
-"AltShift + T" = { move_window_to_workspace = "T", follow = true }
-"AltShift + U" = { move_window_to_workspace = "U", follow = true }
-"AltShift + V" = { move_window_to_workspace = "V", follow = true }
-"AltShift + W" = { move_window_to_workspace = "W", follow = true }
-"AltShift + X" = { move_window_to_workspace = "X", follow = true }
-"AltShift + Y" = { move_window_to_workspace = "Y", follow = true }
+"AltShift + A" = { move_window_to_workspace = { workspace = "A", follow = true } }
+"AltShift + B" = { move_window_to_workspace = { workspace = "B", follow = true } }
+"AltShift + C" = { move_window_to_workspace = { workspace = "C", follow = true } }
+"AltShift + G" = { move_window_to_workspace = { workspace = "G", follow = true } }
+"AltShift + I" = { move_window_to_workspace = { workspace = "I", follow = true } }
+"AltShift + M" = { move_window_to_workspace = { workspace = "M", follow = true } }
+"AltShift + N" = { move_window_to_workspace = { workspace = "N", follow = true } }
+"AltShift + O" = { move_window_to_workspace = { workspace = "O", follow = true } }
+"AltShift + P" = { move_window_to_workspace = { workspace = "P", follow = true } }
+"AltShift + Q" = { move_window_to_workspace = { workspace = "Q", follow = true } }
+"AltShift + R" = { move_window_to_workspace = { workspace = "R", follow = true } }
+"AltShift + S" = { move_window_to_workspace = { workspace = "S", follow = true } }
+"AltShift + T" = { move_window_to_workspace = { workspace = "T", follow = true } }
+"AltShift + U" = { move_window_to_workspace = { workspace = "U", follow = true } }
+"AltShift + V" = { move_window_to_workspace = { workspace = "V", follow = true } }
+"AltShift + W" = { move_window_to_workspace = { workspace = "W", follow = true } }
+"AltShift + X" = { move_window_to_workspace = { workspace = "X", follow = true } }
+"AltShift + Y" = { move_window_to_workspace = { workspace = "Y", follow = true } }
 
 
 "Alt + Tab" = "switch_to_last_workspace"
