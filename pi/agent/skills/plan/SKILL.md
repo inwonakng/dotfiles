@@ -1,96 +1,49 @@
 ---
 name: plan
-description: Use when the user asks to plan, design, or compare implementation approaches, or when an unresolved design decision blocks implementation. Produces a standalone plan for user approval without modifying code.
+description: Use when the user asks to plan, design, or compare implementation approaches, or when an unresolved design decision blocks implementation. Produces a concise plan for discussion and approval without changing code.
 ---
 
-# Implementation Planning
+# Plan
 
-Use this skill to turn a request into a clear, approved implementation plan before code is changed.
-
-The main agent owns implementation planning because it has the user conversation, intent, constraints, and approval loop. A `planner` subagent may research a named subsystem, critique the draft, or recommend task boundaries. Its output becomes part of the plan only after main-agent synthesis and any required user approval.
+Use this skill to agree on an implementation approach before changing code. Planning normally stays in the current conversation so the implementation keeps the user's context and decisions.
 
 ## Rules
 
-- Do not modify files while using this skill unless the user explicitly asks you to write a plan file.
-- Do not silently continue into implementation. Stop after the plan and wait for explicit implementation approval.
-- During exploratory planning, ask the single question whose answer would most change the design. During final plan review, batch independent blocking questions so the user can resolve them together.
-- When writing an implementation plan file, include the Agent Handoff marker below. This is mandatory unless the user explicitly asks for a scratch note or non-implementation document.
-- If the plan is more than a few steps, break it up into separate steps. Name the plan files with the order prefix (e.g., `plans/{this-plan}/01-setup.md`, `plans/{this-plan}/02-feature.md`) so they can be executed in order. Each plan should be reviewable and verifiable on its own. If the plan is a single step, name it `plans/{this-plan}.md`, where `{this-plan}` is a descriptive name of the main plan.
+- Do not modify files unless the user explicitly asks you to save the plan.
+- Inspect the relevant code and documentation before proposing changes.
+- Resolve repository facts through inspection. Ask the user only about intent, constraints, or tradeoffs that cannot be discovered.
+- Ask only questions whose answers could materially change the plan.
+- Use the `write-good-code` skill when planning code changes.
+- The main agent owns the plan. If the user asks for subagents, or bounded research would keep substantial exploration out of the main context, load `subagent-delegation` and use readonly subagents.
+- Do not continue into implementation without an explicit request.
 
 ## Process
 
-1. **Understand intent**
-   - Restate the goal in concrete terms.
-   - Identify success criteria, constraints, and what is out of scope.
-   - Identify behavior and contracts that must remain unchanged.
-   - Identify affected users, callers, data, interfaces, and failure paths.
-   - If the request is too large, propose a first slice only when it is independently useful, verifiable, and compatible with the intended end state. State what the slice does not complete.
-
-2. **Inspect targeted context**
-   - Read the files and documentation needed to explain the current behavior, affected contracts, likely failure modes, and verification path.
-   - Follow existing project patterns before proposing new structure.
-   - Use `spawn` with `agent: "researcher"` or `agent: "planner"` and `accessMode: "readonly"` when a named subsystem needs separate investigation or a fresh critique. Join background spawns before relying on their results.
-
-3. **Explore approaches**
-   - Use the `write-good-code` skill for plans that may change code.
-   - Present alternatives only when they differ in behavior, architecture, migration cost, or operational risk.
-   - Include concrete tradeoffs and a recommendation.
-   - Skip fake alternatives when project constraints determine the approach.
-   - Always prefer an elegant solution. If an approach is getting too complicated, something is wrong. Overengineering or speculating the future is a sign to stop and re-evaluate the design.
-   - If recommending a new abstraction, dependency, public interface, compatibility path, or module boundary, state the current evidence that makes it necessary.
-
-4. **Produce the plan**
-   - Break work into steps that each produce an observable, verifiable result.
-   - Name exact files or modules where known.
-   - State which requirement and affected contract each step covers.
-   - Include verification commands or checks.
-   - Separate assumptions, risks, and open questions.
-   - For complex work, ask whether to save the plan under `plans/` before implementation.
-   - If saving an implementation plan file, include status, source-of-truth notes, and the Agent Handoff marker so a later implementation agent knows to use `subagent-driven-implementation`.
-
-5. **Stop**
-   - Ask the user to approve or revise the plan.
-   - Do not edit code until the user explicitly asks to implement/fix/apply/build/refactor.
+1. Establish the goal, success criteria, constraints, and important exclusions.
+2. Inspect the current behavior, affected contracts, existing patterns, and available verification.
+3. Resolve important design choices. Present alternatives only when they have real differences in behavior, cost, or risk.
+4. Produce the shortest plan that leaves no important decision unresolved.
 
 ## Plan Shape
 
-Use this shape unless the task calls for something shorter:
+Use only the sections that help:
 
 ```markdown
-# [Name] Implementation Plan
-
-> <**Agent Handoff Marker**>
-
-**Status:** Draft | Approved
-**Source of truth:** [conversation summary, issue, spec, or design doc]
+# [Name]
 
 ## Goal
 
-## Recommended approach
+## Approach
 
-## Steps
-1. ...
-2. ...
+## Changes
 
 ## Verification
 
-## Assumptions
-
-## Risks
-
-## Open questions
+## Assumptions or open questions
 ```
 
-## Agent Handoff Marker
+Prefer behavior and contracts over a long file-by-file inventory. Name files or symbols when they prevent ambiguity. Keep assumptions and open questions separate, and do not present a final plan while blocking questions remain.
 
-When writing a durable implementation plan file, include this marker verbatim near the top:
+If the user wants a standalone document for a fresh session or another agent, use the `prepare-spec` skill instead.
 
-```markdown
-> **Agent handoff:** When asked to implement this plan, use the `subagent-driven-implementation` skill. Start with a readonly planner or reviewer to identify blocking questions before editing. Use write subagents only for tasks with exact, non-overlapping file scope. Execute tasks in order unless this plan explicitly marks tasks independent.
-```
-
-If the plan is not approved yet, mark `**Status:** Draft`. Do not imply approval. If the user approves the plan, update or state the approved status clearly before implementation.
-
-## Quality Bar
-
-A good plan lets another agent trace every requirement to an implementation step and a verification check without re-deciding the design. It does not invent code that the inspected files do not support.
+After presenting the plan, stop and let the user approve or revise it.
