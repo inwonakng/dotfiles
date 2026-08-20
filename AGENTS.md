@@ -11,3 +11,6 @@ The relevant directories are symlinked to the appropriate locations for each sys
 - ./pi-nvim/ -- custom neovim config for pi agent
 - ./pi/ -- config for pi agent
 
+**Good practices**
+
+- Do not use `chmod` on helper scripts. prefer to use `bash` or `sh` to execute them. 

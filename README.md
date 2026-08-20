@@ -44,7 +44,7 @@ Vim is an exception. link to `~/.vim`
 - [karabiner](https://karabiner-elements.pqrs.org) keyborad remapper
 - [homerow](https://github.com/nchudleigh/homerow#user-guide) vim-like navigation for clicking things
 - [scrolla](https://scrolla.app) just for scrolling. It's smoother.
-- [Aerospace](https://nikitabobko.github.io/AeroSpace) space manager. used to maintain virtual spaces
+- [Rift](https://github.com/acsandmann/rift/wiki) space manager. used to maintain virtual spaces
 - [Rectangle](https://rectangleapp.com) window manager. used to snap windows to the sides of the screen
 - [Hammerspoon](https://www.hammerspoon.org) scriptable automation tool. can do arbitrary things
 - [Zotero](https://www.zotero.org) paper manager
