@@ -8,32 +8,50 @@ if ! command -v rift-cli >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; the
   exit 0
 fi
 
-active_windows="$(rift-cli query windows 2>/dev/null || printf '[]')"
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$script_dir/rift-window-cache.sh"
+
+rift_load_context
+
+cached_non_finder_window() {
+  local cached
+
+  cached="$(rift_cached_window "last_non_finder")"
+  [[ -n "$cached" ]] || return 0
+
+  jq -c --argjson cached "$cached" --arg bundle_id "$finder_bundle_id" \
+    'first(.[] | select(.id == $cached.id and .bundle_id != $bundle_id)) // empty' \
+    <<< "$rift_windows"
+}
 
 focused_finder_window="$(jq -c \
   --arg bundle_id "$finder_bundle_id" \
-  '.[] | select(.is_focused and .bundle_id == $bundle_id)' <<< "$active_windows")"
+  'first(.[] | select(.is_focused and .bundle_id == $bundle_id)) // empty' <<< "$rift_windows")"
 
 if [[ -n "$focused_finder_window" ]]; then
-  other_window="$(jq -c \
-    --arg bundle_id "$finder_bundle_id" \
-    'first(.[] | select(.bundle_id != $bundle_id)) // empty' <<< "$active_windows")"
+  other_window="$(cached_non_finder_window)"
+
+  if [[ -z "$other_window" ]]; then
+    other_window="$(jq -c \
+      --arg bundle_id "$finder_bundle_id" \
+      'first(.[] | select(.bundle_id != $bundle_id)) // empty' <<< "$rift_windows")"
+  fi
 
   if [[ -n "$other_window" ]]; then
-    window_id="$(jq -cr '.id' <<< "$other_window")"
-    window_server_id="$(jq -r '.window_server_id' <<< "$other_window")"
-
-    rift-cli execute window focus \
-      --window-id "$window_id" \
-      --window-server-id "$window_server_id"
+    rift_focus_window "$other_window"
   fi
 
   exit 0
 fi
 
+focused_non_finder_window="$(jq -c \
+  --arg bundle_id "$finder_bundle_id" \
+  'first(.[] | select(.is_focused and .bundle_id != $bundle_id)) // empty' <<< "$rift_windows")"
+rift_save_cached_window "last_non_finder" "$focused_non_finder_window"
+
 finder_windows="$(jq -c \
   --arg bundle_id "$finder_bundle_id" \
-  '.[] | select(.bundle_id == $bundle_id)' <<< "$active_windows")"
+  '.[] | select(.bundle_id == $bundle_id)' <<< "$rift_windows")"
 
 if [[ -z "$finder_windows" ]]; then
   osascript \
@@ -45,13 +63,9 @@ fi
 while IFS= read -r window; do
   [[ -z "$window" ]] && continue
 
-  window_id="$(jq -cr '.id' <<< "$window")"
-  window_server_id="$(jq -r '.window_server_id' <<< "$window")"
   is_floating="$(jq -r '.is_floating' <<< "$window")"
 
-  if rift-cli execute window focus \
-    --window-id "$window_id" \
-    --window-server-id "$window_server_id"; then
+  if rift_focus_window "$window"; then
     if [[ "$is_floating" != "true" ]]; then
       rift-cli execute window toggle-float || true
     fi

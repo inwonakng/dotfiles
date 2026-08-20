@@ -474,7 +474,7 @@ AltCtrl = "Alt + Ctrl"
 "Alt + E" = { exec = [
   "sh",
   "-lc",
-  "exec \"$HOME/.config/rift/scripts/focus-finder-windows.sh\"",
+  "exec bash \"$HOME/.config/rift/scripts/focus-finder-windows.sh\"",
 ] }
 
 "AltShift + H" = { move_node = "left" }
@@ -556,7 +556,11 @@ AltCtrl = "Alt + Ctrl"
 "AltCtrl + L" = { join_window = "right" }
 "AltCtrl + K" = { join_window = "up" }
 
-"Alt + Enter" = "toggle_stack"
+"Alt + Enter" = { exec = [
+  "bash",
+  "-lc",
+  "exec bash \"$HOME/.config/rift/scripts/toggle-stack-preserve-focus.sh\"",
+] }
 "Alt + Backslash" = "toggle_orientation"
 "AltCtrl + E" = "unjoin_windows"
 
@@ -565,7 +569,7 @@ AltCtrl = "Alt + Ctrl"
 "Alt + F" = { exec = [
   "sh",
   "-lc",
-  "exec \"$HOME/.config/rift/scripts/toggle-floating-window-workspace.sh\"",
+  "exec bash \"$HOME/.config/rift/scripts/toggle-floating-window-workspace.sh\"",
 ] }
 
 # smartly resize windows
