@@ -83,7 +83,7 @@ local config = fzf.config
 local actions = fzf.actions
 
 -- Quickfix
-config.defaults.keymap.fzf["ctrl-q"] = "select-all+accept"
+config.defaults.keymap.fzf["ctrl-a"] = "toggle-all"
 config.defaults.keymap.fzf["ctrl-u"] = "half-page-up"
 config.defaults.keymap.fzf["ctrl-d"] = "half-page-down"
 config.defaults.keymap.fzf["ctrl-x"] = "jump"
