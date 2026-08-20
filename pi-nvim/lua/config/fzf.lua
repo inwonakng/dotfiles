@@ -12,6 +12,7 @@ local fzf_keymap = {
 		["<C-b>"] = "preview-page-up",
 	},
 	fzf = {
+    ["ctrl-a"] = "toggle-all",
 		["ctrl-d"] = "half-page-down",
 		["ctrl-u"] = "half-page-up",
 		["ctrl-f"] = "preview-page-down",
