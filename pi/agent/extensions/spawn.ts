@@ -489,12 +489,11 @@ function resolveSubagentProfile(input: {
   return profile;
 }
 
-function subagentSystemPrompt(profile: SubagentProfile, accessMode: AccessMode): string {
+function subagentSystemPrompt(profile: SubagentProfile): string {
   return `You are the ${profile.name} subagent in a pi parent session.
 
 Description: ${profile.description}
 Source: ${profile.source} (${profile.filePath})
-Access mode for this invocation: ${accessMode}
 
 ${profile.systemPrompt}`;
 }
@@ -977,7 +976,7 @@ export default function spawnExtension(pi: ExtensionAPI) {
 
     writeFileSync(briefPath, input.prompt, "utf8");
     if (input.profile && agentPromptPath) {
-      writeFileSync(agentPromptPath, subagentSystemPrompt(input.profile, input.accessMode), "utf8");
+      writeFileSync(agentPromptPath, subagentSystemPrompt(input.profile), "utf8");
     }
 
     if (input.isolation === "worktree") {

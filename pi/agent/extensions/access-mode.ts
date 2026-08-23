@@ -118,19 +118,6 @@ function notifyPermissionRequest(pi: ExtensionAPI, ctx: ExtensionContext): void 
   });
 }
 
-function modeDescription(): string {
-  const accessMode = getAccessMode();
-  if (accessMode === "readonly") {
-    return [
-      "Read-only work is allowed.",
-      "Bash commands may run unless they look mutating or hard to inspect, such as file writes/redirections, mutating git or package-manager commands, background jobs, command substitution, or inline interpreter execution.",
-      "File edit and write tools require user approval.",
-      "Prefer straightforward inspection commands such as find, xargs, rg, grep, ls, head, tail, wc, git status/log/diff/show/ls-files, and simple read-only pipelines.",
-    ].join(" ");
-  }
-  return "All available tools may run without an access-mode prompt.";
-}
-
 function normalizeCommand(command: string): string {
   return command.trim().replace(/\s+/g, " ");
 }
@@ -366,17 +353,6 @@ export default function accessModeExtension(pi: ExtensionAPI) {
   pi.on("session_start", (event, ctx) => {
     void event;
     setStatus(ctx);
-  });
-
-  pi.on("before_agent_start", (event) => {
-    const accessMode = getAccessMode();
-    const spawnedNote =
-      isSpawnedAgent && accessMode === "readonly"
-        ? " This is a spawned subagent: actions requiring approval are blocked instead of asking the user. If blocked, stop and report BLOCKED with the exact action that required write access."
-        : "";
-    return {
-      systemPrompt: `${event.systemPrompt}\n\nAccess mode: ${accessMode}. ${modeDescription()}${spawnedNote}`,
-    };
   });
 
   pi.on("tool_call", async (event, ctx) => {
