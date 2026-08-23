@@ -31,8 +31,10 @@ vim.api.nvim_create_autocmd("FileType", {
 -- Obsidian with hledger. If in this directory, render as ledger filetype
 vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
 	group = vim.api.nvim_create_augroup("md_ledger", { clear = true }),
-	pattern = vim.env.HOME
-		.. "/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal/finance/journals/**.md|**.journal",
+	pattern = {
+		vim.env.HOME .. "/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal/finance/journals/**.md",
+		vim.env.HOME .. "/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal/finance/journals/**.journal",
+	},
 	callback = function()
 		vim.bo.filetype = "ledger"
 		vim.opt_local.wrap = false
@@ -51,7 +53,6 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 		vim.highlight.on_yank()
 	end,
 })
-
 
 -- numi calculator scratch buffer
 vim.filetype.add({ extension = { numi = "numi" } })
@@ -83,7 +84,7 @@ vim.api.nvim_create_autocmd("VimEnter", {
 	callback = function()
 		if vim.fn.argc() == 0 and not vim.g.started_with_stdin then
 			require("persistence").load()
-            close_unnamed_buf()
+			close_unnamed_buf()
 			vim.schedule(function()
 				vim.cmd("doautoall BufRead")
 			end)

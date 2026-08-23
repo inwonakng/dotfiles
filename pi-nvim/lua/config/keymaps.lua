@@ -23,6 +23,9 @@ end, { desc = "Pi transcript" })
 -- tab manipulation
 map("n", "<leader><tab>]", "<cmd>tabnext<cr>", { desc = "Next tab" })
 map("n", "<leader><tab>[", "<cmd>tabprev<cr>", { desc = "Previous tab" })
+for i = 1, 9 do
+	map("n", "<leader><tab>" .. i, ("<cmd>tabnext %d<cr>"):format(i), { desc = "Go to tab " .. i })
+end
 map("n", "<leader><tab><tab>", "<cmd>tabnew<cr>", { desc = "New tab" })
 map("n", "<leader><tab><cr>", "<cmd>tab sp<cr>", { desc = "Open in new tab" })
 map("n", "<leader><tab>o", "<cmd>tabonly<cr>", { desc = "Close other tabs" })

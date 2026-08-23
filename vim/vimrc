@@ -123,6 +123,9 @@ nmap <leader><Tab><Tab> :tabnew<CR>
 nmap <leader><Tab><CR> :tabnew %<CR>
 nmap <leader><Tab>] :tabnext<CR>
 nmap <leader><Tab>[ :tabprev<CR>
+for i in range(1, 9)
+  execute 'nnoremap <silent> <leader><Tab>' . i . ' ' . i . 'gt'
+endfor
 nmap <leader><Tab>s :tab sb<CR>
 
 nmap <leader><Tab>d :tabclose<CR>
