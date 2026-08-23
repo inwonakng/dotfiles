@@ -2,7 +2,8 @@ font-family = IBM Plex Mono
 font-size = 15
 shell-integration-features = no-cursor
 cursor-style = block
-window-decoration = none
+# window-decoration = none
+macos-titlebar-style = hidden
 font-thicken = true
 font-style = Light
 
