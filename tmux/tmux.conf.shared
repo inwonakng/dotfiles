@@ -160,8 +160,19 @@ set -g status-right "#(bash status.sh)"
 if -F '#{extended-keys}' 'set -g extended-keys on'
 if -F '#{extended-keys-format}' 'set -g extended-keys-format csi-u'
 
-# for image rendering (render-latex)
+# Allow the local LaTeX renderer to send Kitty graphics through tmux.
 set -g allow-passthrough on
+
+# A popup that attaches another tmux client adds one passthrough layer. Record
+# whether the latest active client is direct (1) or nested (2) for Neovim.
+set-hook -g client-active[90] \
+  'set-option -q -t "#{client_session}" @graphics-nest-count "#{?#{==:#{client_termname},#{default-terminal}},2,1}"'
+set-hook -g client-attached[90] \
+  'set-option -q -t "#{client_session}" @graphics-nest-count "#{?#{==:#{client_termname},#{default-terminal}},2,1}"'
+set-hook -g client-focus-in[90] \
+  'set-option -q -t "#{client_session}" @graphics-nest-count "#{?#{==:#{client_termname},#{default-terminal}},2,1}"'
+set-hook -g client-session-changed[90] \
+  'set-option -q -t "#{client_session}" @graphics-nest-count "#{?#{==:#{client_termname},#{default-terminal}},2,1}"'
 
 ###=============================###
 ### Plugin configurations start ###
