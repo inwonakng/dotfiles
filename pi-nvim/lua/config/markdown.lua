@@ -1,20 +1,5 @@
-require("render_latex").setup({
-	render = {
-		preset = "match_text",
-		match_text_size = false,
-		font_size = 17,
-		scale = 5.0,
-		padding = 40,
-		background = "transparent",
-	},
-	image = {
-		backend = "kitty",
-		cell_width_px = 40,
-		cell_height_px = 90,
-	},
-	tmux = {
-		install_cleanup_hooks = true,
-	},
+require("latex_renderer").setup({
+	scale = 0.8,
 })
 
 require("render-markdown").setup({
@@ -53,7 +38,12 @@ require("render-markdown").setup({
 			},
 		},
 	},
-	latex = { enabled = false },
+	latex = {
+		enabled = true,
+		converter = "utftex",
+		inline = true,
+		block = false,
+	},
 	win_options = {
 		conceallevel = {
 			default = vim.o.conceallevel,

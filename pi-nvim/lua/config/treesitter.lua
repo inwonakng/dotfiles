@@ -4,6 +4,7 @@ if ok_treesitter then
 		ensure_installed = {
 			"markdown",
 			"markdown_inline",
+			"latex",
 			"yaml",
 		},
 		highlight = {

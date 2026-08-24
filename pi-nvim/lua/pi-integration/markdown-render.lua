@@ -10,12 +10,10 @@ function M.prepare_buffer(buf, opts)
 	end
 	opts = opts or {}
 
-	if opts.latex then
-		-- render-latex.nvim currently refuses to attach to unlisted buffers.
-		vim.api.nvim_set_option_value("buflisted", true, { buf = buf })
-	end
-
 	pcall(vim.treesitter.start, buf, opts.treesitter or "markdown")
+	if opts.latex then
+		require("latex_renderer").attach(buf)
+	end
 end
 
 function M.render(buf, win, opts)
@@ -39,17 +37,7 @@ function M.render(buf, win, opts)
 		return
 	end
 
-	local ok_config, config = pcall(require, "render_latex.config")
-	local ok_sources, sources = pcall(require, "render_latex.sources")
-	local ok_renderer, renderer = pcall(require, "render_latex.renderer")
-	if not ok_config or not ok_sources or not ok_renderer or not config.enabled then
-		return
-	end
-	if not sources.supports(buf) then
-		return
-	end
-	renderer.attach(buf)
-	renderer.queue(buf)
+	require("latex_renderer").queue(buf)
 end
 
 return M

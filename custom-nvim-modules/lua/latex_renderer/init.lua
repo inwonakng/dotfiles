@@ -1,0 +1,543 @@
+local Compiler = require("latex_renderer.compiler")
+local Kitty = require("latex_renderer.kitty")
+
+local M = {}
+
+local display_ns = vim.api.nvim_create_namespace("latex-renderer-display")
+local states = {}
+local did_setup = false
+local latex_query
+local config = {
+	debounce_ms = 30,
+	max_width = 80,
+	max_height = 30,
+	prefetch_lines = 30,
+	scale = 0.8,
+}
+
+local function valid_buf(buf)
+	return type(buf) == "number" and vim.api.nvim_buf_is_valid(buf)
+end
+
+local function sync_tmux_depth()
+	if not vim.env.TMUX or not vim.env.TMUX_PANE or vim.fn.executable("tmux") ~= 1 then
+		return
+	end
+	local result = vim.system({
+		"tmux",
+		"show-options",
+		"-qv",
+		"-t",
+		vim.env.TMUX_PANE,
+		"@graphics-nest-count",
+	}, { text = true }):wait()
+	local depth = vim.trim(result.stdout or "")
+	if result.code == 0 and tonumber(depth) then
+		vim.env.TMUX_NEST_COUNT = depth
+	end
+end
+
+local function math_color()
+	for _, name in ipairs({ "@markup.math", "Special", "Normal" }) do
+		local ok, highlight = pcall(vim.api.nvim_get_hl, 0, { name = name, link = false })
+		if ok and highlight.fg then
+			return ("%06X"):format(highlight.fg)
+		end
+	end
+	return "FFFFFF"
+end
+
+local function compare_position(row, col, other_row, other_col)
+	return row < other_row or (row == other_row and col < other_col)
+end
+
+local function contains(outer, inner)
+	local starts_before = not compare_position(inner.start_row, inner.start_col, outer.start_row, outer.start_col)
+	local ends_after = not compare_position(outer.end_row, outer.end_col, inner.end_row, inner.end_col)
+	return starts_before and ends_after
+end
+
+local function scan(buf)
+	if not latex_query then
+		latex_query = vim.treesitter.query.parse("latex", [[
+			(displayed_equation) @display
+			(math_environment) @display
+		]])
+	end
+
+	local parser = vim.treesitter.get_parser(buf, "markdown")
+	parser:parse(true)
+	local display = {}
+	parser:for_each_tree(function(tree, language_tree)
+		if language_tree:lang() ~= "latex" then
+			return
+		end
+		for _, node in latex_query:iter_captures(tree:root(), buf) do
+			local start_row, start_col, end_row, end_col = node:range()
+			display[#display + 1] = {
+				start_row = start_row,
+				start_col = start_col,
+				end_row = end_row,
+				end_col = end_col,
+				text = vim.treesitter.get_node_text(node, buf),
+			}
+		end
+	end)
+
+	table.sort(display, function(left, right)
+		if left.start_row ~= right.start_row then
+			return left.start_row < right.start_row
+		end
+		if left.start_col ~= right.start_col then
+			return left.start_col < right.start_col
+		end
+		if left.end_row ~= right.end_row then
+			return left.end_row > right.end_row
+		end
+		return left.end_col > right.end_col
+	end)
+	local filtered = {}
+	for _, item in ipairs(display) do
+		local nested = false
+		for _, outer in ipairs(filtered) do
+			if contains(outer, item) then
+				nested = true
+				break
+			end
+		end
+		if not nested then
+			filtered[#filtered + 1] = item
+		end
+	end
+	return filtered
+end
+
+local function normalize_display_source(source)
+	source = vim.trim(source)
+	if vim.startswith(source, "$$") and vim.endswith(source, "$$") then
+		return "\\[\n" .. vim.trim(source:sub(3, -3)) .. "\n\\]"
+	end
+	return source
+end
+
+local function display_key(item)
+	return table.concat({ item.start_row, item.start_col, item.end_row, item.end_col }, ":")
+end
+
+local function display_focused(buf, item)
+	for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+		if vim.api.nvim_win_is_valid(win) then
+			local cursor = vim.api.nvim_win_get_cursor(win)
+			local row, col = cursor[1] - 1, cursor[2]
+			local after_start = not compare_position(row, col, item.start_row, item.start_col)
+			local before_end = compare_position(row, col, item.end_row, item.end_col)
+			if after_start and before_end then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+local function display_visible(buf, item)
+	for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+		if vim.api.nvim_win_is_valid(win) then
+			local viewport = vim.api.nvim_win_call(win, function()
+				return { vim.fn.line("w0") - 1, vim.fn.line("w$") - 1 }
+			end)
+			local top = math.max(0, viewport[1] - config.prefetch_lines)
+			local bottom = viewport[2] + config.prefetch_lines
+			if item.end_row >= top and item.start_row <= bottom then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+local function display_width(buf)
+	local width
+	for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+		if vim.api.nvim_win_is_valid(win) then
+			width = math.max(width or 1, vim.api.nvim_win_get_width(win))
+			if win == vim.api.nvim_get_current_win() then
+				return vim.api.nvim_win_get_width(win)
+			end
+		end
+	end
+	return width or vim.o.columns
+end
+
+function M.fit(width_px, height_px, max_width, max_height, cell_width, cell_height, scale)
+	scale = scale or 1
+	assert(type(scale) == "number" and scale > 0, "latex renderer scale must be a positive number")
+	local natural_width = math.max(1, math.ceil(width_px / cell_width)) * scale
+	local natural_height = math.max(1, math.ceil(height_px / cell_height)) * scale
+	local fit_scale = math.min(1, max_width / natural_width, max_height / natural_height)
+	return math.max(1, math.floor(natural_width * fit_scale + 0.5)),
+		math.max(1, math.floor(natural_height * fit_scale + 0.5))
+end
+
+local function clear_mark(buf, entry)
+	if valid_buf(buf) then
+		if entry.conceal_mark then
+			pcall(vim.api.nvim_buf_del_extmark, buf, display_ns, entry.conceal_mark)
+		end
+		if entry.image_mark then
+			pcall(vim.api.nvim_buf_del_extmark, buf, display_ns, entry.image_mark)
+		end
+	end
+	entry.conceal_mark = nil
+	entry.image_mark = nil
+end
+
+local function clear_entry(buf, entry)
+	clear_mark(buf, entry)
+	if entry.cancel then
+		entry.cancel()
+		entry.cancel = nil
+	end
+	if entry.image_id then
+		Kitty.delete(entry.image_id)
+	end
+end
+
+local function send_entry(entry, force)
+	local layout = table.concat({ Kitty.tmux_depth(), entry.width, entry.height }, ":")
+	if not force and entry.sent_layout == layout then
+		return
+	end
+	if entry.sent_layout then
+		Kitty.delete(entry.image_id)
+	end
+	Kitty.transmit(entry.meta.path, entry.image_id)
+	Kitty.place(entry.image_id, entry.width, entry.height)
+	entry.sent_layout = layout
+end
+
+local function apply_entry(buf, entry, force_send)
+	clear_mark(buf, entry)
+	if display_focused(buf, entry.item) then
+		return
+	end
+
+	local cell_width, cell_height = Kitty.cell_size()
+	local window_width = display_width(buf)
+	local max_width = math.max(1, math.min(config.max_width, window_width - 2))
+	entry.width, entry.height = M.fit(
+		entry.meta.width_px,
+		entry.meta.height_px,
+		max_width,
+		config.max_height,
+		cell_width,
+		cell_height,
+		config.scale
+	)
+	send_entry(entry, force_send)
+	local padding = math.max(0, math.floor((window_width - entry.width) / 2))
+	local lines = Kitty.placeholder_lines(entry.width, entry.height, entry.image_id, padding)
+	entry.conceal_mark = vim.api.nvim_buf_set_extmark(buf, display_ns, entry.item.start_row, entry.item.start_col, {
+		end_row = entry.item.end_row,
+		end_col = entry.item.end_col,
+		conceal_lines = "",
+		priority = 250,
+		strict = false,
+	})
+	local anchor = entry.item.end_row + (entry.item.end_col > 0 and 1 or 0)
+	anchor = math.min(anchor, vim.api.nvim_buf_line_count(buf))
+	entry.image_mark = vim.api.nvim_buf_set_extmark(buf, display_ns, anchor, 0, {
+		virt_lines = lines,
+		virt_lines_above = true,
+		priority = 250,
+		strict = false,
+	})
+end
+
+local function notify_compile_error(source, err)
+	local first_line = vim.split(source, "\n", { plain = true })[1] or "equation"
+	vim.notify(("Could not render %s: %s"):format(first_line, err), vim.log.levels.WARN, {
+		title = "latex-renderer",
+	})
+end
+
+local function render(buf)
+	local state = states[buf]
+	if not state or not valid_buf(buf) then
+		return
+	end
+
+	local ok, display_items = pcall(scan, buf)
+	if not ok then
+		if state.scan_error ~= display_items then
+			state.scan_error = display_items
+			vim.notify("Could not parse Markdown equations: " .. tostring(display_items), vim.log.levels.WARN, {
+				title = "latex-renderer",
+			})
+		end
+		return
+	end
+	state.scan_error = nil
+
+	local active = {}
+	local color = math_color()
+	for _, item in ipairs(display_items) do
+		local key = display_key(item)
+		active[key] = true
+		local source = normalize_display_source(item.text)
+		local entry = state.displays[key]
+		if entry and (entry.source ~= source or entry.color ~= color) then
+			clear_entry(buf, entry)
+			state.displays[key] = nil
+			entry = nil
+		end
+		if not entry then
+			entry = {
+				item = item,
+				source = source,
+				color = color,
+			}
+			state.displays[key] = entry
+		else
+			entry.item = item
+		end
+
+		if entry.meta then
+			apply_entry(buf, entry, false)
+		elseif display_visible(buf, item) and not entry.pending and not entry.failed then
+			entry.pending = true
+			local expected = entry
+			entry.cancel = Compiler.compile(source, color, function(meta, err)
+				local current = states[buf]
+				if not current or current.displays[key] ~= expected or not valid_buf(buf) then
+					return
+				end
+				expected.pending = nil
+				expected.cancel = nil
+				if not meta then
+					expected.failed = true
+					notify_compile_error(source, err or "unknown compiler error")
+					return
+				end
+				expected.meta = meta
+				expected.image_id = Kitty.next_id()
+				apply_entry(buf, expected, true)
+			end)
+		end
+	end
+
+	for key, entry in pairs(state.displays) do
+		if not active[key] then
+			clear_entry(buf, entry)
+			state.displays[key] = nil
+		end
+	end
+end
+
+function M.queue(buf, immediate)
+	if not valid_buf(buf) then
+		return
+	end
+	if not states[buf] then
+		M.attach(buf)
+	end
+	local state = states[buf]
+	if not state then
+		return
+	end
+
+	if state.queued then
+		if not immediate or state.queued == "immediate" then
+			return
+		end
+	end
+
+	state.queue_generation = (state.queue_generation or 0) + 1
+	local generation = state.queue_generation
+	state.queued = immediate and "immediate" or "deferred"
+	local function run()
+		if states[buf] == state and state.queue_generation == generation then
+			state.queued = nil
+			render(buf)
+		end
+	end
+	if immediate then
+		vim.schedule(run)
+	else
+		vim.defer_fn(run, config.debounce_ms)
+	end
+end
+
+function M.attach(buf)
+	if not valid_buf(buf) or states[buf] then
+		return
+	end
+	pcall(vim.treesitter.start, buf, "markdown")
+	states[buf] = { displays = {} }
+	vim.api.nvim_buf_attach(buf, false, {
+		on_lines = function()
+			vim.schedule(function()
+				if states[buf] then
+					M.queue(buf)
+				end
+			end)
+		end,
+		on_detach = function()
+			local state = states[buf]
+			if state then
+				for _, entry in pairs(state.displays) do
+					if entry.cancel then
+						entry.cancel()
+					end
+					if entry.image_id then
+						Kitty.delete(entry.image_id)
+					end
+				end
+			end
+			states[buf] = nil
+		end,
+	})
+	for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+		if vim.api.nvim_win_is_valid(win) then
+			vim.api.nvim_set_option_value("conceallevel", 2, { win = win })
+		end
+	end
+	M.queue(buf, true)
+end
+
+function M.detach(buf)
+	local state = states[buf]
+	if not state then
+		return
+	end
+	for _, entry in pairs(state.displays) do
+		clear_entry(buf, entry)
+	end
+	if valid_buf(buf) then
+		vim.api.nvim_buf_clear_namespace(buf, display_ns, 0, -1)
+	end
+	states[buf] = nil
+end
+
+local function queue_visible_markdown()
+	local seen = {}
+	for _, win in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+		local buf = vim.api.nvim_win_get_buf(win)
+		if not seen[buf] and vim.bo[buf].filetype == "markdown" then
+			seen[buf] = true
+			M.queue(buf)
+		end
+	end
+end
+
+function M.setup(opts)
+	if did_setup then
+		return
+	end
+	local next_config = vim.tbl_extend("force", config, opts or {})
+	assert(
+		type(next_config.scale) == "number" and next_config.scale > 0,
+		"latex renderer scale must be a positive number"
+	)
+	config = next_config
+	did_setup = true
+	sync_tmux_depth()
+
+	local group = vim.api.nvim_create_augroup("latex-renderer", { clear = true })
+	vim.api.nvim_create_autocmd("FileType", {
+		group = group,
+		pattern = "markdown",
+		callback = function(args)
+			M.attach(args.buf)
+		end,
+	})
+	vim.api.nvim_create_autocmd({ "BufWinEnter", "WinEnter" }, {
+		group = group,
+		callback = function(args)
+			if vim.bo[args.buf].filetype == "markdown" then
+				M.attach(args.buf)
+				local win = vim.api.nvim_get_current_win()
+				if vim.api.nvim_win_get_buf(win) == args.buf then
+					vim.api.nvim_set_option_value("conceallevel", 2, { win = win })
+				end
+				M.queue(args.buf)
+			end
+		end,
+	})
+	vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+		group = group,
+		callback = function(args)
+			if states[args.buf] then
+				M.queue(args.buf)
+			end
+		end,
+	})
+	vim.api.nvim_create_autocmd("WinScrolled", {
+		group = group,
+		callback = queue_visible_markdown,
+	})
+	vim.api.nvim_create_autocmd("ColorScheme", {
+		group = group,
+		callback = queue_visible_markdown,
+	})
+	vim.api.nvim_create_autocmd("VimResized", {
+		group = group,
+		callback = function()
+			Kitty.invalidate_cell_size()
+			queue_visible_markdown()
+		end,
+	})
+	vim.api.nvim_create_autocmd("FocusGained", {
+		group = group,
+		callback = function()
+			sync_tmux_depth()
+			for buf, state in pairs(states) do
+				for _, entry in pairs(state.displays) do
+					if entry.meta then
+						apply_entry(buf, entry, true)
+					end
+				end
+				M.queue(buf)
+			end
+		end,
+	})
+	vim.api.nvim_create_autocmd("BufWipeout", {
+		group = group,
+		callback = function(args)
+			M.detach(args.buf)
+		end,
+	})
+	vim.api.nvim_create_autocmd("VimLeavePre", {
+		group = group,
+		callback = function()
+			local buffers = vim.tbl_keys(states)
+			for _, buf in ipairs(buffers) do
+				M.detach(buf)
+			end
+		end,
+	})
+	vim.api.nvim_create_user_command("LatexRendererRefresh", function()
+		local buf = vim.api.nvim_get_current_buf()
+		local state = states[buf]
+		if state then
+			for _, entry in pairs(state.displays) do
+				entry.failed = nil
+				if entry.sent_layout then
+					Kitty.delete(entry.image_id)
+					entry.sent_layout = nil
+				end
+			end
+		end
+		M.queue(buf, true)
+	end, {})
+
+	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+		if vim.bo[buf].filetype == "markdown" then
+			M.attach(buf)
+		end
+	end
+end
+
+M.scan = scan
+M.sync_tmux_depth = sync_tmux_depth
+
+return M

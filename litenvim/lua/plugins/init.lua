@@ -35,7 +35,7 @@ require("plugins.vim-slime")
 require("plugins.treesitter")
 require("plugins.vimtex")
 require("plugins.which-key")
-require("plugins.render-latex")
+require("plugins.latex-renderer")
 
 -- add the rest here
 vim.pack.add({

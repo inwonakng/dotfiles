@@ -13,7 +13,12 @@ require("render-markdown").setup({
 		image = { raw = "[!IMAGE]", rendered = " Image", highlight = "RenderMarkdownInfo" },
 		table = { raw = "[!TABLE]", rendered = " Table", highlight = "RenderMarkdownInfo" },
 	},
-	latex = { enabled = false },
+	latex = {
+		enabled = true,
+		converter = "utftex",
+		inline = true,
+		block = false,
+	},
 	win_options = {
 		conceallevel = {
 			default = vim.o.conceallevel,
