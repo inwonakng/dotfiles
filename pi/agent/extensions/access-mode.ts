@@ -122,6 +122,11 @@ function normalizeCommand(command: string): string {
   return command.trim().replace(/\s+/g, " ");
 }
 
+function fileDescriptorDuplicationEnd(command: string, index: number): number | undefined {
+  const match = command.slice(index).match(/^[<>]&\s*(?:\d+|-)(?=$|[\s;&|()<>])/);
+  return match ? index + match[0].length : undefined;
+}
+
 function hasUnquotedShellWriteSyntax(command: string): boolean {
   let quote: "'" | '"' | undefined;
   for (let index = 0; index < command.length; index++) {
@@ -143,6 +148,11 @@ function hasUnquotedShellWriteSyntax(command: string): boolean {
       continue;
     }
     if (char === "<" || char === ">") {
+      const duplicationEnd = fileDescriptorDuplicationEnd(command, index);
+      if (duplicationEnd !== undefined) {
+        index = duplicationEnd - 1;
+        continue;
+      }
       return true;
     }
     if (char === "&" && command[index - 1] !== "&" && command[index + 1] !== "&") {
