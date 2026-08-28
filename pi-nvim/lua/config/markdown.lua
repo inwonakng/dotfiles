@@ -39,10 +39,7 @@ require("render-markdown").setup({
 		},
 	},
 	latex = {
-		enabled = true,
-		converter = "utftex",
-		inline = true,
-		block = false,
+		enabled = false,
 	},
 	win_options = {
 		conceallevel = {

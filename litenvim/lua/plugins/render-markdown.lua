@@ -14,10 +14,7 @@ require("render-markdown").setup({
 		table = { raw = "[!TABLE]", rendered = " Table", highlight = "RenderMarkdownInfo" },
 	},
 	latex = {
-		enabled = true,
-		converter = "utftex",
-		inline = true,
-		block = false,
+		enabled = false,
 	},
 	win_options = {
 		conceallevel = {

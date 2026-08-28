@@ -25,15 +25,59 @@ local function write_file(path, content)
 end
 
 local function document(source, color)
-	return ([[
+	local prefix = ([[
 \documentclass[preview,border=2pt,varwidth,12pt]{standalone}
 \usepackage{xcolor,amsmath,amssymb,amsfonts,amscd,mathtools}
 \begin{document}
 {\Large\color[HTML]{%s}
-%s
+]]):format(color)
+	local suffix = [[
 }
 \end{document}
-]]):format(color, source)
+]]
+	local _, prefix_newlines = prefix:gsub("\n", "\n")
+	return prefix .. source .. "\n" .. suffix, prefix_newlines + 1
+end
+
+local function latex_error_message(job, output)
+	local lines = vim.split(output or "", "\n", { plain = true })
+	local message
+	local message_index
+	for index, line in ipairs(lines) do
+		local candidate = line:match("^!%s+(.+)")
+		if candidate and not candidate:match("^==>") then
+			message = candidate
+			message_index = index
+			break
+		end
+	end
+
+	message = message or "pdflatex failed"
+	local tex_line
+	if message_index then
+		for index = message_index + 1, math.min(#lines, message_index + 12) do
+			tex_line = tonumber(lines[index]:match("^l%.(%d+)"))
+			if tex_line then
+				break
+			end
+		end
+	end
+
+	local details = { message }
+	if tex_line then
+		local source_line = tex_line - job.source_start_line + 1
+		local source_lines = vim.split(job.source, "\n", { plain = true })
+		local context = source_lines[source_line]
+		if context then
+			context = vim.trim(context)
+			if #context > 160 then
+				context = context:sub(1, 157) .. "..."
+			end
+			details[#details + 1] = ("Equation line %d: %s"):format(source_line, context)
+		end
+	end
+	details[#details + 1] = "Log: " .. vim.fn.fnamemodify(job.log_path, ":~")
+	return table.concat(details, "\n")
 end
 
 local function has_subscribers(job)
@@ -62,7 +106,7 @@ local function subscribe(job, callback)
 	end
 end
 
-local function complete(job, result, err)
+local function complete(job, result, err, preserved_paths)
 	if job.completed then
 		return
 	end
@@ -75,7 +119,9 @@ local function complete(job, result, err)
 	end
 	job.process = nil
 	for _, path in ipairs(job.temporary_paths) do
-		pcall(vim.uv.fs_unlink, path)
+		if not preserved_paths or not preserved_paths[path] then
+			pcall(vim.uv.fs_unlink, path)
+		end
 	end
 	run_next()
 	local callbacks = {}
@@ -134,11 +180,12 @@ local function run_job(job)
 			job.tex_path,
 		}, { cwd = cache_dir, text = true, timeout = 15000 }, function(latex_result)
 			if latex_result.code ~= 0 then
-				local message = latex_result.stderr
-				if not message or message == "" then
-					message = latex_result.stdout
-				end
-				complete(job, nil, vim.trim(message or "pdflatex could not render the equation"))
+				local output = table.concat({ latex_result.stderr or "", latex_result.stdout or "" }, "\n")
+				local preserved_paths = {
+					[job.tex_path] = true,
+					[job.log_path] = true,
+				}
+				complete(job, nil, latex_error_message(job, output), preserved_paths)
 				return
 			end
 			pcall(vim.uv.fs_unlink, job.temp_png_path)
@@ -240,11 +287,16 @@ function M.compile(source, color, callback)
 	local tex_path = vim.fs.joinpath(cache_dir, basename .. ".tex")
 	local pdf_path = vim.fs.joinpath(cache_dir, basename .. ".pdf")
 	local temp_png_path = vim.fs.joinpath(cache_dir, basename .. ".png")
+	local log_path = vim.fs.joinpath(cache_dir, basename .. ".log")
+	local tex, source_start_line = document(source, color)
 	local job = {
 		accepting = true,
 		key = key,
-		tex = document(source, color),
+		source = source,
+		source_start_line = source_start_line,
+		tex = tex,
 		tex_path = tex_path,
+		log_path = log_path,
 		pdf_path = pdf_path,
 		png_path = vim.fs.joinpath(cache_dir, key .. ".png"),
 		temp_png_path = temp_png_path,
@@ -252,7 +304,7 @@ function M.compile(source, color, callback)
 			tex_path,
 			pdf_path,
 			vim.fs.joinpath(cache_dir, basename .. ".aux"),
-			vim.fs.joinpath(cache_dir, basename .. ".log"),
+			log_path,
 			temp_png_path,
 		},
 		pdflatex = pdflatex,

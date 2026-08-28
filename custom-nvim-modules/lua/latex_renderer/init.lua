@@ -1,5 +1,7 @@
 local Compiler = require("latex_renderer.compiler")
+local Inline = require("latex_renderer.inline")
 local Kitty = require("latex_renderer.kitty")
+local Utftex = require("latex_renderer.utftex")
 
 local M = {}
 
@@ -57,34 +59,8 @@ local function contains(outer, inner)
 	return starts_before and ends_after
 end
 
-local function scan(buf)
-	if not latex_query then
-		latex_query = vim.treesitter.query.parse("latex", [[
-			(displayed_equation) @display
-			(math_environment) @display
-		]])
-	end
-
-	local parser = vim.treesitter.get_parser(buf, "markdown")
-	parser:parse(true)
-	local display = {}
-	parser:for_each_tree(function(tree, language_tree)
-		if language_tree:lang() ~= "latex" then
-			return
-		end
-		for _, node in latex_query:iter_captures(tree:root(), buf) do
-			local start_row, start_col, end_row, end_col = node:range()
-			display[#display + 1] = {
-				start_row = start_row,
-				start_col = start_col,
-				end_row = end_row,
-				end_col = end_col,
-				text = vim.treesitter.get_node_text(node, buf),
-			}
-		end
-	end)
-
-	table.sort(display, function(left, right)
+local function sort_items(items)
+	table.sort(items, function(left, right)
 		if left.start_row ~= right.start_row then
 			return left.start_row < right.start_row
 		end
@@ -96,8 +72,12 @@ local function scan(buf)
 		end
 		return left.end_col > right.end_col
 	end)
+end
+
+local function remove_nested(items)
+	sort_items(items)
 	local filtered = {}
-	for _, item in ipairs(display) do
+	for _, item in ipairs(items) do
 		local nested = false
 		for _, outer in ipairs(filtered) do
 			if contains(outer, item) then
@@ -112,6 +92,46 @@ local function scan(buf)
 	return filtered
 end
 
+local function scan(buf)
+	if not latex_query then
+		latex_query = vim.treesitter.query.parse("latex", [[
+			(inline_formula) @inline
+			(displayed_equation) @display
+			(math_environment) @display
+		]])
+	end
+
+	local parser = vim.treesitter.get_parser(buf, "markdown")
+	parser:parse(true)
+	local display = {}
+	local inline = {}
+	parser:for_each_tree(function(tree, language_tree)
+		local parent = language_tree:parent()
+		if language_tree:lang() ~= "latex" or not parent or parent:lang() ~= "markdown_inline" then
+			return
+		end
+		for capture_id, node in latex_query:iter_captures(tree:root(), buf) do
+			local start_row, start_col, end_row, end_col = node:range()
+			local item = {
+				start_row = start_row,
+				start_col = start_col,
+				end_row = end_row,
+				end_col = end_col,
+				text = vim.treesitter.get_node_text(node, buf),
+			}
+			local capture = latex_query.captures[capture_id]
+			if capture == "display" then
+				display[#display + 1] = item
+			elseif capture == "inline" then
+				inline[#inline + 1] = item
+			end
+		end
+	end)
+
+	sort_items(inline)
+	return remove_nested(display), inline
+end
+
 local function normalize_display_source(source)
 	source = vim.trim(source)
 	if vim.startswith(source, "$$") and vim.endswith(source, "$$") then
@@ -120,11 +140,19 @@ local function normalize_display_source(source)
 	return source
 end
 
+local function normalize_inline_source(source)
+	source = vim.trim(source)
+	if vim.startswith(source, "$") and vim.endswith(source, "$") then
+		return source:sub(2, -2)
+	end
+	return source
+end
+
 local function display_key(item)
 	return table.concat({ item.start_row, item.start_col, item.end_row, item.end_col }, ":")
 end
 
-local function display_focused(buf, item)
+local function item_focused(buf, item)
 	for _, win in ipairs(vim.fn.win_findbuf(buf)) do
 		if vim.api.nvim_win_is_valid(win) then
 			local cursor = vim.api.nvim_win_get_cursor(win)
@@ -139,7 +167,7 @@ local function display_focused(buf, item)
 	return false
 end
 
-local function display_visible(buf, item)
+local function item_visible(buf, item)
 	for _, win in ipairs(vim.fn.win_findbuf(buf)) do
 		if vim.api.nvim_win_is_valid(win) then
 			local viewport = vim.api.nvim_win_call(win, function()
@@ -217,7 +245,7 @@ end
 
 local function apply_entry(buf, entry, force_send)
 	clear_mark(buf, entry)
-	if display_focused(buf, entry.item) then
+	if item_focused(buf, entry.item) then
 		return
 	end
 
@@ -253,9 +281,32 @@ local function apply_entry(buf, entry, force_send)
 	})
 end
 
-local function notify_compile_error(source, err)
-	local first_line = vim.split(source, "\n", { plain = true })[1] or "equation"
-	vim.notify(("Could not render %s: %s"):format(first_line, err), vim.log.levels.WARN, {
+local function clear_inline_entry(entry)
+	if entry.cancel then
+		entry.cancel()
+		entry.cancel = nil
+	end
+end
+
+local inline_error_notifications = {}
+
+local function notify_compile_error(err)
+	vim.notify("Could not render LaTeX: " .. err, vim.log.levels.WARN, {
+		title = "latex-renderer",
+	})
+end
+
+local function notify_inline_error(source, err)
+	local notification_key = source .. "\0" .. err
+	if inline_error_notifications[notification_key] then
+		return
+	end
+	inline_error_notifications[notification_key] = true
+	local preview = source:gsub("%s+", " ")
+	if #preview > 120 then
+		preview = preview:sub(1, 117) .. "..."
+	end
+	vim.notify(("Could not render inline LaTeX: %s\nFormula: %s"):format(err, preview), vim.log.levels.WARN, {
 		title = "latex-renderer",
 	})
 end
@@ -266,7 +317,7 @@ local function render(buf)
 		return
 	end
 
-	local ok, display_items = pcall(scan, buf)
+	local ok, display_items, inline_items = pcall(scan, buf)
 	if not ok then
 		if state.scan_error ~= display_items then
 			state.scan_error = display_items
@@ -278,11 +329,11 @@ local function render(buf)
 	end
 	state.scan_error = nil
 
-	local active = {}
+	local active_displays = {}
 	local color = math_color()
 	for _, item in ipairs(display_items) do
 		local key = display_key(item)
-		active[key] = true
+		active_displays[key] = true
 		local source = normalize_display_source(item.text)
 		local entry = state.displays[key]
 		if entry and (entry.source ~= source or entry.color ~= color) then
@@ -303,7 +354,7 @@ local function render(buf)
 
 		if entry.meta then
 			apply_entry(buf, entry, false)
-		elseif display_visible(buf, item) and not entry.pending and not entry.failed then
+		elseif item_visible(buf, item) and not entry.pending and not entry.failed then
 			entry.pending = true
 			local expected = entry
 			entry.cancel = Compiler.compile(source, color, function(meta, err)
@@ -315,7 +366,7 @@ local function render(buf)
 				expected.cancel = nil
 				if not meta then
 					expected.failed = true
-					notify_compile_error(source, err or "unknown compiler error")
+					notify_compile_error(err or "unknown compiler error")
 					return
 				end
 				expected.meta = meta
@@ -326,11 +377,65 @@ local function render(buf)
 	end
 
 	for key, entry in pairs(state.displays) do
-		if not active[key] then
+		if not active_displays[key] then
 			clear_entry(buf, entry)
 			state.displays[key] = nil
 		end
 	end
+
+	local active_inlines = {}
+	for _, item in ipairs(inline_items) do
+		local key = display_key(item)
+		active_inlines[key] = true
+		local source = normalize_inline_source(item.text)
+		local entry = state.inlines[key]
+		if entry and entry.source ~= source then
+			clear_inline_entry(entry)
+			state.inlines[key] = nil
+			entry = nil
+		end
+		if not entry then
+			entry = {
+				item = item,
+				source = source,
+			}
+			state.inlines[key] = entry
+		else
+			entry.item = item
+		end
+
+		if not entry.output and item_visible(buf, item) and not entry.pending and not entry.failed then
+			entry.pending = true
+			local expected = entry
+			entry.cancel = Utftex.convert(source, function(output, err)
+				local current = states[buf]
+				if not current or current.inlines[key] ~= expected or not valid_buf(buf) then
+					return
+				end
+				expected.pending = nil
+				expected.cancel = nil
+				if not output then
+					expected.failed = true
+					notify_inline_error(source, err or "unknown converter error")
+					return
+				end
+				expected.output = output
+				Inline.apply(buf, current.inlines, function(item)
+					return item_focused(buf, item)
+				end)
+			end)
+		end
+	end
+
+	for key, entry in pairs(state.inlines) do
+		if not active_inlines[key] then
+			clear_inline_entry(entry)
+			state.inlines[key] = nil
+		end
+	end
+	Inline.apply(buf, state.inlines, function(item)
+		return item_focused(buf, item)
+	end)
 end
 
 function M.queue(buf, immediate)
@@ -372,7 +477,7 @@ function M.attach(buf)
 		return
 	end
 	pcall(vim.treesitter.start, buf, "markdown")
-	states[buf] = { displays = {} }
+	states[buf] = { displays = {}, inlines = {} }
 	vim.api.nvim_buf_attach(buf, false, {
 		on_lines = function()
 			vim.schedule(function()
@@ -391,6 +496,9 @@ function M.attach(buf)
 					if entry.image_id then
 						Kitty.delete(entry.image_id)
 					end
+				end
+				for _, entry in pairs(state.inlines) do
+					clear_inline_entry(entry)
 				end
 			end
 			states[buf] = nil
@@ -412,8 +520,12 @@ function M.detach(buf)
 	for _, entry in pairs(state.displays) do
 		clear_entry(buf, entry)
 	end
+	for _, entry in pairs(state.inlines) do
+		clear_inline_entry(entry)
+	end
 	if valid_buf(buf) then
 		vim.api.nvim_buf_clear_namespace(buf, display_ns, 0, -1)
+		Inline.clear(buf)
 	end
 	states[buf] = nil
 end
@@ -526,7 +638,11 @@ function M.setup(opts)
 					entry.sent_layout = nil
 				end
 			end
+			for _, entry in pairs(state.inlines) do
+				entry.failed = nil
+			end
 		end
+		inline_error_notifications = {}
 		M.queue(buf, true)
 	end, {})
 

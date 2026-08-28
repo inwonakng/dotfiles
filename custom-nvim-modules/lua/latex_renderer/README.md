@@ -4,12 +4,12 @@ A shared Neovim module used by `litenvim` and `pi-nvim` to render Markdown math.
 
 ## Rendering
 
-The setup uses two complementary rendering paths:
+The module owns two rendering paths:
 
-- **Display math:** this module compiles equations to transparent PNGs and places them with the Kitty graphics protocol.
-- **Inline math:** `render-markdown.nvim` sends equations to `utftex` and displays the resulting Unicode.
+- **Display math:** equations are compiled to transparent PNGs and placed with the Kitty graphics protocol.
+- **Inline math:** equations are converted to Unicode with `utftex` and displayed with extmarks.
 
-Delegating inline conversion to `utftex` supports constructs such as `\mathcal`, `\mathbb`, fractions, roots, and scripts without maintaining a partial LaTeX parser here.
+Using `utftex` supports constructs such as `\mathcal`, `\mathbb`, fractions, roots, and scripts without maintaining a partial LaTeX parser here. LaTeX injected for fenced `tex` or `latex` code blocks is excluded from both rendering paths and remains syntax-highlighted source.
 
 ## Dependencies
 
@@ -17,7 +17,6 @@ Delegating inline conversion to `utftex` supports constructs such as `\mathcal`,
 
 - A recent Neovim with `vim.system`, `vim.fs`, Tree-sitter, extmarks, and `vim.api.nvim_ui_send` (tested with Neovim 0.12).
 - `nvim-treesitter` with the `markdown`, `markdown_inline`, and `latex` parsers.
-- `render-markdown.nvim` for inline Unicode rendering.
 
 ### Executables
 
@@ -66,31 +65,30 @@ Available options and their defaults are:
 
 `scale` controls the displayed image dimensions. `max_width` and `max_height` cap those dimensions in terminal cells.
 
-Inline rendering is configured through `render-markdown.nvim`:
+When using `render-markdown.nvim` alongside this module, disable its LaTeX handler so this module remains the sole owner of math rendering:
 
 ```lua
 latex = {
-    enabled = true,
-    converter = "utftex",
-    inline = true,
-    block = false,
+    enabled = false,
 }
 ```
 
-`block = false` prevents render-markdown from conflicting with this module's display-image renderer.
-
 ## Behavior
 
-- Display equations are found through Markdown's injected LaTeX Tree-sitter trees.
-- Only equations in or near a visible viewport are compiled.
-- Raw source is shown while the cursor is inside a display equation.
+- Inline and display equations are found through LaTeX trees injected by `markdown_inline`.
+- LaTeX trees injected directly from fenced code blocks are ignored.
+- Only equations in or near a visible viewport are converted or compiled.
+- Raw source is shown while the cursor is inside an equation.
+- Successful inline conversions are cached in memory by source.
 - PNGs are cached under `stdpath("cache")/latex-renderer` using the source and foreground color.
 - At most two LaTeX compilation jobs run concurrently.
 - `:LatexRendererRefresh` retries failed equations and retransmits cached images.
 
 ## Files
 
-- `init.lua`: scanning, scheduling, layout, and buffer lifecycle.
+- `init.lua`: scanning, scheduling, and buffer lifecycle.
+- `inline.lua`: inline extmark and multiline Unicode layout.
+- `utftex.lua`: asynchronous inline conversion and result caching.
 - `compiler.lua`: asynchronous LaTeX compilation and PNG caching.
 - `kitty.lua`: Kitty protocol encoding, placement, and tmux wrapping.
 
