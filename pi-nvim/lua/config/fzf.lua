@@ -78,6 +78,15 @@ if ok then
 		else
 			winopts.height = 0.4
 		end
+		if type(select_opts.on_close) == "function" then
+			local default_on_close = winopts.on_close
+			winopts.on_close = function(...)
+				if default_on_close then
+					default_on_close(...)
+				end
+				select_opts.on_close(...)
+			end
+		end
 		winopts.title = " " .. select_label(select_opts.prompt) .. " "
 		winopts.title_pos = "left"
 		return {
@@ -85,6 +94,7 @@ if ok then
 			winopts = winopts,
 			fzf_opts = fzf_opts.default,
 			keymap = fzf_keymap,
+			no_hide = select_opts.no_hide,
 		}
 	end)
 

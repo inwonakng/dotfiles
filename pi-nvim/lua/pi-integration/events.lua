@@ -372,16 +372,37 @@ local function confirm_with_preview(ctx, event)
 		return false
 	end
 
+	local responded = false
+	local function respond_once(response)
+		if responded then
+			return
+		end
+		responded = true
+		send_extension_ui_response(ctx, event.id, response)
+	end
+
+	local function deny_if_unanswered()
+		vim.defer_fn(function()
+			respond_once({ confirmed = false })
+		end, 50)
+	end
+
 	local prompt = payload.tool and ("Allow " .. payload.tool .. "?") or (event.title or "Pi confirm")
-	vim.ui.select({ "Allow", "Deny" }, {
+	local ok, err = pcall(vim.ui.select, { "Allow", "Deny" }, {
 		prompt = prompt,
 		kind = "pi_approval",
+		no_hide = true,
+		on_close = deny_if_unanswered,
 		preview_item = function()
 			return approval_preview_item(payload)
 		end,
 	}, function(choice)
-		send_extension_ui_response(ctx, event.id, { confirmed = choice == "Allow" })
+		respond_once({ confirmed = choice == "Allow" })
 	end)
+	if not ok then
+		ctx.logs.add("error", "Approval picker failed", tostring(err))
+		respond_once({ confirmed = false })
+	end
 	return true
 end
 
