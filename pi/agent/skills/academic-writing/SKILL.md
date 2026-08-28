@@ -96,7 +96,7 @@ Elegant academic prose makes difficult ideas easier to understand while keeping 
 Use active voice as the default and make the actor explicit.
 
 - Express choices and actions made by the authors with `we` and a concrete verb: `We use the encoder to produce sentence representations.` Preserve another authorial convention only when the user or venue requires it.
-- Use a method, system, or component as the subject when it performs the action: `The encoder produces sentence representations.`
+- Use a method, system, or component as the subject when it performs the action: `The encoder produces sentence representations.`. You may also mix in `We implement the encoder to produce sentence representations.` when highlighting the choices made by the authors if appropriate.
 - Use passive voice deliberately when the actor is unknown or irrelevant, or when continuity requires the acted-upon object to remain the subject. Otherwise, replace instrumental passives such as `The encoder is used to produce sentence representations` with an active construction.
 
 State the substantive claim directly in affirmative form. Reserve corrective contrasts such as `not X but Y`, `not merely X`, `does not simply X`, and `rather than X` for passages that address `X` as a specific interpretation, expectation, or documented alternative. If the claim in `Y` stands on its own, omit the rhetorical setup and state `Y` directly:
