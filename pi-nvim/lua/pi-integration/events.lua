@@ -433,7 +433,13 @@ function M.handle_extension_ui_request(ctx, event)
 	if event.method == "set_editor_text" and type(event.text) == "string" and ctx.buffer.valid(state.input_buf) then
 		vim.api.nvim_buf_set_lines(state.input_buf, 0, -1, false, vim.split(event.text, "\n", { plain = true }))
 	elseif event.method == "notify" then
-		ctx.ui.notify(event.message or vim.inspect(event))
+		local message = event.message or vim.inspect(event)
+		local log_level = event.notifyType == "warning" and "warn" or event.notifyType == "error" and "error" or "info"
+		local vim_level = event.notifyType == "warning" and vim.log.levels.WARN
+			or event.notifyType == "error" and vim.log.levels.ERROR
+			or vim.log.levels.INFO
+		ctx.logs.add(log_level, message)
+		ctx.ui.notify(message, vim_level)
 	elseif event.method == "setStatus" then
 		if event.statusKey == "pi-access-mode" then
 			update_access_mode_from_status(ctx, event.statusText)

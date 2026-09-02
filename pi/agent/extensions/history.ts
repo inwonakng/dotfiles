@@ -1,7 +1,7 @@
 import type { ExtensionAPI, ExtensionCommandContext, SessionEntry } from "@earendil-works/pi-coding-agent";
 import { CONFIG_DIR_NAME, getAgentDir, withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 import { spawnSync } from "child_process";
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "fs";
 import { appendFile } from "fs/promises";
 import { dirname, join, relative, resolve, sep } from "path";
 import { createHash } from "crypto";
@@ -183,6 +183,18 @@ function snapshotGitHead(gitRoot: string | undefined, cwd: string, path: string)
 
 function sameState(left: SnapshotState, right: SnapshotState) {
 	return left.kind === right.kind && (left.kind === "missing" || left.blob === (right as { blob: string }).blob);
+}
+
+function formatBytes(bytes: number) {
+	const units = ["B", "KiB", "MiB", "GiB", "TiB"];
+	let value = bytes;
+	let unitIndex = 0;
+	while (value >= 1024 && unitIndex < units.length - 1) {
+		value /= 1024;
+		unitIndex++;
+	}
+	const digits = unitIndex > 0 && value < 10 ? 1 : 0;
+	return `${value.toFixed(digits)} ${units[unitIndex]}`;
 }
 
 function snapshotBefore(path: string) {
@@ -381,12 +393,34 @@ export default function historyExtension(pi: ExtensionAPI) {
 			dirtyAtStart: gitStatusPaths(gitRoot),
 			files: new Map(),
 		};
+
+		const snapshotPaths: string[] = [];
+		let snapshotBytes = 0;
 		for (const path of turn.dirtyAtStart) {
 			const normalizedPath = normalizeGitPath(ctx.cwd, gitRoot, path);
 			if (!normalizedPath || isHistoryIgnoredPath(normalizedPath)) {
 				continue;
 			}
-			snapshotBefore(normalizedPath);
+			snapshotPaths.push(normalizedPath);
+			try {
+				const stats = statSync(absolutePath(ctx.cwd, normalizedPath));
+				if (stats.isFile()) {
+					snapshotBytes += stats.size;
+				}
+			} catch {
+				// Missing or unreadable paths are represented by the snapshot itself.
+			}
+		}
+
+		if (snapshotPaths.length > 0) {
+			const noun = snapshotPaths.length === 1 ? "file" : "files";
+			ctx.ui.notify(
+				`History: snapshotting ${snapshotPaths.length} dirty ${noun} (${formatBytes(snapshotBytes)}) for rollback`,
+				"info",
+			);
+		}
+		for (const path of snapshotPaths) {
+			snapshotBefore(path);
 		}
 	});
 
