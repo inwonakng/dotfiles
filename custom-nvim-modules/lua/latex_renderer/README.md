@@ -9,7 +9,23 @@ The module owns two rendering paths:
 - **Display math:** equations are compiled to transparent PNGs and placed with the Kitty graphics protocol.
 - **Inline math:** equations are converted to Unicode with `utftex` and displayed with extmarks.
 
-Using `utftex` supports constructs such as `\mathcal`, `\mathbb`, fractions, roots, and scripts without maintaining a partial LaTeX parser here. LaTeX injected for fenced `tex` or `latex` code blocks is excluded from both rendering paths and remains syntax-highlighted source.
+Display blocks may use delimiter-only lines, with optional indentation:
+
+```markdown
+$$
+x = y
+$$
+```
+
+```markdown
+\[
+x = y
+\]
+```
+
+The display-fence scanner owns these newline-delimited forms so Markdown constructs such as Setext heading underlines and list markers inside an equation do not split it. Tree-sitter continues to detect inline math and other LaTeX forms. Dedicated display ranges take precedence over overlapping Tree-sitter captures.
+
+Using `utftex` supports constructs such as `\mathcal`, `\mathbb`, fractions, roots, and scripts without maintaining a partial LaTeX parser here. Math delimiters inside fenced or indented code blocks and multiline code spans are ignored. LaTeX injected for fenced `tex` or `latex` code blocks remains syntax-highlighted source.
 
 ## Dependencies
 
@@ -75,7 +91,8 @@ latex = {
 
 ## Behavior
 
-- Inline and display equations are found through LaTeX trees injected by `markdown_inline`.
+- Inline and non-fenced display equations are found through LaTeX trees injected by `markdown_inline`.
+- Newline-delimited `$$` and `\[` display blocks are found by the dedicated display-fence scanner.
 - LaTeX trees injected directly from fenced code blocks are ignored.
 - Only equations in or near a visible viewport are converted or compiled.
 - Raw source is shown while the cursor is inside an equation.
@@ -86,7 +103,8 @@ latex = {
 
 ## Files
 
-- `init.lua`: scanning, scheduling, and buffer lifecycle.
+- `init.lua`: Tree-sitter integration, scheduling, and buffer lifecycle.
+- `display_fences.lua`: newline-delimited display-math scanning.
 - `inline.lua`: inline extmark and multiline Unicode layout.
 - `utftex.lua`: asynchronous inline conversion and result caching.
 - `compiler.lua`: asynchronous LaTeX compilation and PNG caching.

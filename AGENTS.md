@@ -14,3 +14,4 @@ The relevant directories are symlinked to the appropriate locations for each sys
 **Good practices**
 
 - Do not use `chmod` on helper scripts. prefer to use `bash` or `sh` to execute them. 
+- Do not write "tests". If you need to validate certain behavior, do so in a separate script in a throwaway directory. If you really think it is necessary, ask the user. 

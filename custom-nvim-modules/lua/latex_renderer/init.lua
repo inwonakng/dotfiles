@@ -1,4 +1,5 @@
 local Compiler = require("latex_renderer.compiler")
+local DisplayFences = require("latex_renderer.display_fences")
 local Inline = require("latex_renderer.inline")
 local Kitty = require("latex_renderer.kitty")
 local Utftex = require("latex_renderer.utftex")
@@ -9,6 +10,8 @@ local display_ns = vim.api.nvim_create_namespace("latex-renderer-display")
 local states = {}
 local did_setup = false
 local latex_query
+local markdown_protected_query
+local markdown_inline_protected_query
 local config = {
 	debounce_ms = 30,
 	max_width = 80,
@@ -59,6 +62,18 @@ local function contains(outer, inner)
 	return starts_before and ends_after
 end
 
+local function contains_position(item, row, col)
+	local after_start = not compare_position(row, col, item.start_row, item.start_col)
+	local before_end = compare_position(row, col, item.end_row, item.end_col)
+	return after_start and before_end
+end
+
+local function overlaps(left, right)
+	local left_before_right_end = compare_position(left.start_row, left.start_col, right.end_row, right.end_col)
+	local right_before_left_end = compare_position(right.start_row, right.start_col, left.end_row, left.end_col)
+	return left_before_right_end and right_before_left_end
+end
+
 local function sort_items(items)
 	table.sort(items, function(left, right)
 		if left.start_row ~= right.start_row then
@@ -92,6 +107,25 @@ local function remove_nested(items)
 	return filtered
 end
 
+local function node_range(node)
+	local start_row, start_col, end_row, end_col = node:range()
+	return {
+		start_row = start_row,
+		start_col = start_col,
+		end_row = end_row,
+		end_col = end_col,
+	}
+end
+
+local function overlaps_any(item, ranges)
+	for _, range in ipairs(ranges) do
+		if overlaps(item, range) then
+			return true
+		end
+	end
+	return false
+end
+
 local function scan(buf)
 	if not latex_query then
 		latex_query = vim.treesitter.query.parse("latex", [[
@@ -99,26 +133,41 @@ local function scan(buf)
 			(displayed_equation) @display
 			(math_environment) @display
 		]])
+		markdown_protected_query = vim.treesitter.query.parse("markdown", [[
+			(fenced_code_block) @protected
+			(indented_code_block) @protected
+		]])
+		markdown_inline_protected_query = vim.treesitter.query.parse("markdown_inline", [[
+			(code_span) @protected
+		]])
 	end
 
 	local parser = vim.treesitter.get_parser(buf, "markdown")
 	parser:parse(true)
 	local display = {}
 	local inline = {}
+	local protected = {}
 	parser:for_each_tree(function(tree, language_tree)
+		local language = language_tree:lang()
+		local query
+		if language == "markdown" then
+			query = markdown_protected_query
+		elseif language == "markdown_inline" then
+			query = markdown_inline_protected_query
+		end
+		if query then
+			for _, node in query:iter_captures(tree:root(), buf) do
+				protected[#protected + 1] = node_range(node)
+			end
+		end
+
 		local parent = language_tree:parent()
-		if language_tree:lang() ~= "latex" or not parent or parent:lang() ~= "markdown_inline" then
+		if language ~= "latex" or not parent or parent:lang() ~= "markdown_inline" then
 			return
 		end
 		for capture_id, node in latex_query:iter_captures(tree:root(), buf) do
-			local start_row, start_col, end_row, end_col = node:range()
-			local item = {
-				start_row = start_row,
-				start_col = start_col,
-				end_row = end_row,
-				end_col = end_col,
-				text = vim.treesitter.get_node_text(node, buf),
-			}
+			local item = node_range(node)
+			item.text = vim.treesitter.get_node_text(node, buf)
 			local capture = latex_query.captures[capture_id]
 			if capture == "display" then
 				display[#display + 1] = item
@@ -128,8 +177,32 @@ local function scan(buf)
 		end
 	end)
 
-	sort_items(inline)
-	return remove_nested(display), inline
+	local fenced_display = DisplayFences.scan(vim.api.nvim_buf_get_lines(buf, 0, -1, false), function(row, col)
+		for _, range in ipairs(protected) do
+			if contains_position(range, row, col) then
+				return true
+			end
+		end
+		return false
+	end)
+
+	local merged_display = {}
+	for _, item in ipairs(display) do
+		if not overlaps_any(item, fenced_display) then
+			merged_display[#merged_display + 1] = item
+		end
+	end
+	vim.list_extend(merged_display, fenced_display)
+
+	local retained_inline = {}
+	for _, item in ipairs(inline) do
+		if not overlaps_any(item, fenced_display) then
+			retained_inline[#retained_inline + 1] = item
+		end
+	end
+
+	sort_items(retained_inline)
+	return remove_nested(merged_display), retained_inline
 end
 
 local function normalize_display_source(source)
