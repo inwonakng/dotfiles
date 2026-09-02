@@ -400,12 +400,13 @@ local function append_assistant_blocks(ctx, lines, items, message, has_body, opt
 	end
 
 	local function ensure_inline_gap(kind)
-		if
-			is_trace_like(kind)
-			and (is_trace_like(last_rendered_kind) or (not appended and options.continue_trace and is_trace_like(options.previous_kind)))
-		then
+		local previous_kind = last_rendered_kind
+		if not previous_kind and not appended and options.continue_trace then
+			previous_kind = options.previous_kind
+		end
+		if is_trace_like(kind) and is_trace_like(previous_kind) then
 			remove_trailing_blank(lines)
-		elseif appended and lines[#lines] ~= "" then
+		elseif previous_kind and lines[#lines] ~= "" then
 			table.insert(lines, "")
 		end
 	end
@@ -458,6 +459,8 @@ function M.collect_message_lines(ctx, messages)
 		if assistant_block_open then
 			if has_body and is_trace_like(last_rendered_kind) then
 				remove_trailing_blank(lines)
+			elseif last_rendered_kind and lines[#lines] ~= "" then
+				table.insert(lines, "")
 			end
 			return false
 		end

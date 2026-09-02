@@ -520,7 +520,15 @@ function M.append_transcript_item_separator(ctx)
 end
 
 function M.begin_trace_item(ctx)
-	return M.remove_pending_transcript_item_separator(ctx)
+	if M.remove_pending_transcript_item_separator(ctx) then
+		return true
+	end
+	local last_line = last_buffer_line(ctx)
+	if last_line ~= nil and last_line ~= "" then
+		M.append_lines(ctx, { "" })
+		return true
+	end
+	return false
 end
 
 function M.end_trace_item(ctx)
