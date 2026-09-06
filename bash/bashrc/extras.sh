@@ -1,9 +1,7 @@
-# vi mode/editors setup.
-set -o vi
-
 ################################
 ## OS-Specific Configurations ##
 ################################
+
 if [[ "$OSTYPE" == "darwin"* ]]; then
     # NOTE: for now, we assume mac is always a local machine.
     export HOMEBREW_NO_AUTO_UPDATE=true
@@ -61,16 +59,12 @@ fi
 
 # at this point, we have finished setting the paths to the relevant tools we need
 
-###################################
-## Exit early if not interactive ##
-###################################
-if [[ $- != *i* ]]; then
-    return
-fi
-
 ################
 ## PATH Setup ##
 ################
+
+# remove global conda from path... i don't use this
+export PATH=$(echo "$PATH" | sed -e 's/:\/software\/anaconda3.24\/bin//g')
 
 if [[ -d ${HOMEBREW_BIN_DIR:-} ]]; then
     PATH="$HOMEBREW_BIN_DIR:$PATH"
@@ -91,6 +85,92 @@ if [[ -d $FZF_DIR ]]; then
 fi
 [ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
 [ -f "$HOME/.config/ripgrep/config" ] && export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"
+
+if [[ -d "$HOME/.pixi" ]]; then
+    export PATH="$HOME/.pixi/bin:$PATH"
+fi
+
+############################
+## FZF Full Configuration ##
+############################
+
+export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix --hidden --follow --exclude .git'
+export FZF_DEFAULT_OPTS='--height=40% --preview-window=right:50%:wrap --bind ctrl-f:page-down,ctrl-b:page-up'
+
+# i got this from here:
+# https://thevaluable.dev/practical-guide-fzf-example/
+export FZF_CTRL_T_OPTS="--multi --height=80% --border=sharp \
+--preview='tree -C {}' --preview-window='45%,border-sharp' \
+--prompt='Dirs > ' \
+--bind='del:execute(rm -ri {+})' \
+--bind='ctrl-v:toggle-preview' \
+--bind='ctrl-d:change-prompt(Dirs > )' \
+--bind='ctrl-d:+reload(fd --type d)' \
+--bind='ctrl-d:+change-preview(tree -C {})' \
+--bind='ctrl-d:+refresh-preview' \
+--bind='ctrl-f:change-prompt(Files > )' \
+--bind='ctrl-f:+reload(fd --type f)' \
+--bind='ctrl-f:+change-preview(bat {})' \
+--bind='ctrl-f:+refresh-preview' \
+--bind='ctrl-a:select-all' \
+--bind='ctrl-x:deselect-all' \
+--header '
+    CTRL-D to display directories | CTRL-F to display files
+    CTRL-A to select all | CTRL-x to deselect all
+    ENTER to edit | DEL to delete
+    CTRL-V to toggle preview
+'"
+
+export FZF_CTRL_R_OPTS="
+  --preview 'echo {}' --preview-window up:3:hidden:wrap
+  --bind 'ctrl-y:execute-silent(echo -n {2..} | pbcopy)+abort'
+  --color header:italic
+  --header 'Press CTRL-Y to copy command into clipboard'"
+
+# rebind alt-c into ctrl+p
+export FZF_ALT_C_OPTS="
+  --walker-skip .git,node_modules,target
+  --preview 'tree -C {}'"
+
+# FZF_ALT_C_COMMAND="CTRL-K"
+fzf_cd_pushd() {
+    local cmd
+    cmd="$(__fzf_cd__)" || return
+    cmd=${cmd/builtin cd/pushd}
+    eval "$cmd" >/dev/null || return
+    # show where we landed since the prompt may not redraw immediately
+    printf 'pushd %s\n' "$PWD"
+    READLINE_LINE=""
+    READLINE_POINT=0
+}
+bind -x '"\C-k": "fzf_cd_pushd"'
+bind -m vi-insert -x '"\C-k": "fzf_cd_pushd"'
+
+##################
+## Editor setup ##
+##################
+
+if command -v "nvim" >/dev/null 2>&1; then
+    export EDITOR="nvim"
+    export VISUAL="nvim"
+else
+    export EDITOR="vim"
+    export VISUAL="vim"
+fi
+
+###################################
+## Exit early if not interactive ##
+###################################
+
+if [[ $- != *i* ]]; then
+    return
+fi
+
+################
+## Input Mode ##
+################
+
+set -o vi
 
 #######################
 ## Completions Setup ##
@@ -208,62 +288,6 @@ if [[ "$(set -o | grep 'emacs\|\bvi\b' | cut -f2 | tr '\n' ':')" != 'off:off:' ]
     bind '"\C-g": "scratch\n"'
 fi
 
-############################
-## FZF Full Configuration ##
-############################
-
-export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix --hidden --follow --exclude .git'
-export FZF_DEFAULT_OPTS='--height=40% --preview-window=right:50%:wrap --bind ctrl-f:page-down,ctrl-b:page-up'
-
-# i got this from here:
-# https://thevaluable.dev/practical-guide-fzf-example/
-export FZF_CTRL_T_OPTS="--multi --height=80% --border=sharp \
---preview='tree -C {}' --preview-window='45%,border-sharp' \
---prompt='Dirs > ' \
---bind='del:execute(rm -ri {+})' \
---bind='ctrl-v:toggle-preview' \
---bind='ctrl-d:change-prompt(Dirs > )' \
---bind='ctrl-d:+reload(fd --type d)' \
---bind='ctrl-d:+change-preview(tree -C {})' \
---bind='ctrl-d:+refresh-preview' \
---bind='ctrl-f:change-prompt(Files > )' \
---bind='ctrl-f:+reload(fd --type f)' \
---bind='ctrl-f:+change-preview(bat {})' \
---bind='ctrl-f:+refresh-preview' \
---bind='ctrl-a:select-all' \
---bind='ctrl-x:deselect-all' \
---header '
-    CTRL-D to display directories | CTRL-F to display files
-    CTRL-A to select all | CTRL-x to deselect all
-    ENTER to edit | DEL to delete
-    CTRL-V to toggle preview
-'"
-
-export FZF_CTRL_R_OPTS="
-  --preview 'echo {}' --preview-window up:3:hidden:wrap
-  --bind 'ctrl-y:execute-silent(echo -n {2..} | pbcopy)+abort'
-  --color header:italic
-  --header 'Press CTRL-Y to copy command into clipboard'"
-
-# rebind alt-c into ctrl+p
-export FZF_ALT_C_OPTS="
-  --walker-skip .git,node_modules,target
-  --preview 'tree -C {}'"
-
-# FZF_ALT_C_COMMAND="CTRL-K"
-fzf_cd_pushd() {
-    local cmd
-    cmd="$(__fzf_cd__)" || return
-    cmd=${cmd/builtin cd/pushd}
-    eval "$cmd" >/dev/null || return
-    # show where we landed since the prompt may not redraw immediately
-    printf 'pushd %s\n' "$PWD"
-    READLINE_LINE=""
-    READLINE_POINT=0
-}
-bind -x '"\C-k": "fzf_cd_pushd"'
-bind -m vi-insert -x '"\C-k": "fzf_cd_pushd"'
-
 ###################################
 ## Alaising/Overriding Variables ##
 ###################################
@@ -273,14 +297,6 @@ if command -v "zoxide" >/dev/null 2>&1; then
     eval "$(zoxide init bash --cmd cd)"
     alias z="cd"
     alias zi="cdi"
-fi
-
-if command -v "nvim" >/dev/null 2>&1; then
-    export EDITOR="nvim"
-    export VISUAL="nvim"
-else
-    export EDITOR="vim"
-    export VISUAL="vim"
 fi
 
 alias mail-search="bash $HOME/dotfiles/utils/search_mail.sh"
@@ -295,14 +311,6 @@ alias pn="bash ~/dotfiles/scripts/pi-nvim.sh"
 
 if [[ -f "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]]; then
     alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
-fi
-
-# remove global conda from path... i don't use this
-export PATH=$(echo "$PATH" | sed -e 's/:\/software\/anaconda3.24\/bin//g')
-
-# if pixi is installed, just add to path. this doesn't auto load the full thing though.
-if [[ -d "$HOME/.pixi" ]]; then
-    export PATH="$HOME/.pixi/bin:$PATH"
 fi
 
 ###################
