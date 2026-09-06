@@ -2,6 +2,7 @@ local M = {}
 
 local cache = {}
 local pending = {}
+local baseline_marker = vim.fn.nr2char(0xE000)
 
 local function executable()
 	local path = vim.fn.exepath("utftex")
@@ -34,13 +35,13 @@ local function subscribe(job, callback)
 	end
 end
 
-local function finish(job, output, err)
+local function finish(job, converted, err)
 	if pending[job.source] == job then
 		pending[job.source] = nil
 	end
 	job.process = nil
-	if output then
-		cache[job.source] = output
+	if converted then
+		cache[job.source] = converted
 	end
 	local callbacks = {}
 	for _, subscriber in ipairs(job.subscribers) do
@@ -50,9 +51,26 @@ local function finish(job, output, err)
 	end
 	vim.schedule(function()
 		for _, callback in ipairs(callbacks) do
-			callback(output, err)
+			callback(converted, err)
 		end
 	end)
+end
+
+local function parse_output(stdout)
+	local output = stdout:gsub("\r\n", "\n"):gsub("\n+$", "")
+	local marker_start = output:find(baseline_marker, 1, true)
+	if not marker_start then
+		return nil
+	end
+
+	local prefix = output:sub(1, marker_start - 1)
+	local baseline = select(2, prefix:gsub("\n", "")) + 1
+	prefix = prefix:gsub("[ \t]+$", "")
+	output = (prefix .. output:sub(marker_start + #baseline_marker)):gsub("\n+$", "")
+	if output == "" then
+		return nil
+	end
+	return { output = output, baseline = baseline }
 end
 
 local function error_message(result)
@@ -101,13 +119,18 @@ function M.convert(source, callback)
 	}
 	pending[source] = job
 	local cancel = subscribe(job, callback)
-	job.process = vim.system({ command }, { stdin = source, text = true, timeout = 15000 }, function(result)
-		local output = (result.stdout or ""):gsub("\r\n", "\n"):gsub("\n+$", "")
-		if result.code == 0 and output ~= "" then
-			finish(job, output)
-		else
+	local marked_source = source .. "\\text{" .. baseline_marker .. "}"
+	job.process = vim.system({ command }, { stdin = marked_source, text = true, timeout = 15000 }, function(result)
+		if result.code ~= 0 then
 			finish(job, nil, error_message(result))
+			return
 		end
+		local converted = parse_output(result.stdout or "")
+		if not converted then
+			finish(job, nil, "utftex did not return a usable baseline marker")
+			return
+		end
+		finish(job, converted)
 	end)
 	return cancel
 end

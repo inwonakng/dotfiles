@@ -28,12 +28,12 @@ function M.apply(buf, entries, focused)
 
 		for _, entry in ipairs(row_entries) do
 			local output = vim.split(entry.output, "\n", { plain = true })
-			local center = math.floor(#output / 2) + 1
+			local baseline = entry.baseline
 			vim.api.nvim_buf_set_extmark(buf, namespace, entry.item.start_row, entry.item.start_col, {
 				end_row = entry.item.end_row,
 				end_col = entry.item.end_col,
 				conceal = "",
-				virt_text = { { output[center], "@markup.math" } },
+				virt_text = { { output[baseline], "@markup.math" } },
 				virt_text_pos = "inline",
 				priority = 250,
 				strict = false,
@@ -50,8 +50,8 @@ function M.apply(buf, entries, focused)
 			local source_prefix = source_line:sub(1, entry.item.start_col)
 			local column = vim.fn.strdisplaywidth(source_prefix)
 			local prefix = math.max(column - current_width, current_width == 0 and 0 or 1)
-			local above = center - 1
-			local below = #output - center
+			local above = baseline - 1
+			local below = #output - baseline
 
 			while #lines_above < above do
 				table.insert(lines_above, 1, spaces(current_width))

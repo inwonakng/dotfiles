@@ -95,8 +95,8 @@ latex = {
 - Newline-delimited `$$` and `\[` display blocks are found by the dedicated display-fence scanner.
 - LaTeX trees injected directly from fenced code blocks are ignored.
 - Only equations in or near a visible viewport are converted or compiled.
-- Raw source is shown while the cursor is inside an equation.
-- Successful inline conversions are cached in memory by source.
+- Raw inline source is shown for every equation on the cursor line.
+- Successful inline conversions and their `utftex` baselines are cached in memory by source.
 - PNGs are cached under `stdpath("cache")/latex-renderer` using the source and foreground color.
 - At most two LaTeX compilation jobs run concurrently.
 - `:LatexRendererRefresh` retries failed equations and retransmits cached images.

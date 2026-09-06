@@ -240,6 +240,18 @@ local function item_focused(buf, item)
 	return false
 end
 
+local function item_on_cursor_line(buf, item)
+	for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+		if vim.api.nvim_win_is_valid(win) then
+			local row = vim.api.nvim_win_get_cursor(win)[1] - 1
+			if row >= item.start_row and row <= item.end_row then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 local function item_visible(buf, item)
 	for _, win in ipairs(vim.fn.win_findbuf(buf)) do
 		if vim.api.nvim_win_is_valid(win) then
@@ -480,21 +492,22 @@ local function render(buf)
 		if not entry.output and item_visible(buf, item) and not entry.pending and not entry.failed then
 			entry.pending = true
 			local expected = entry
-			entry.cancel = Utftex.convert(source, function(output, err)
+			entry.cancel = Utftex.convert(source, function(result, err)
 				local current = states[buf]
 				if not current or current.inlines[key] ~= expected or not valid_buf(buf) then
 					return
 				end
 				expected.pending = nil
 				expected.cancel = nil
-				if not output then
+				if not result then
 					expected.failed = true
 					notify_inline_error(source, err or "unknown converter error")
 					return
 				end
-				expected.output = output
+				expected.output = result.output
+				expected.baseline = result.baseline
 				Inline.apply(buf, current.inlines, function(item)
-					return item_focused(buf, item)
+					return item_on_cursor_line(buf, item)
 				end)
 			end)
 		end
@@ -507,7 +520,7 @@ local function render(buf)
 		end
 	end
 	Inline.apply(buf, state.inlines, function(item)
-		return item_focused(buf, item)
+		return item_on_cursor_line(buf, item)
 	end)
 end
 
