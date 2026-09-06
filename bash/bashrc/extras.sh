@@ -90,61 +90,12 @@ if [[ -d "$HOME/.pixi" ]]; then
     export PATH="$HOME/.pixi/bin:$PATH"
 fi
 
-############################
-## FZF Full Configuration ##
-############################
+###############################
+## FZF Options Configuration ##
+###############################
 
 export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix --hidden --follow --exclude .git'
 export FZF_DEFAULT_OPTS='--height=40% --preview-window=right:50%:wrap --bind ctrl-f:page-down,ctrl-b:page-up'
-
-# i got this from here:
-# https://thevaluable.dev/practical-guide-fzf-example/
-export FZF_CTRL_T_OPTS="--multi --height=80% --border=sharp \
---preview='tree -C {}' --preview-window='45%,border-sharp' \
---prompt='Dirs > ' \
---bind='del:execute(rm -ri {+})' \
---bind='ctrl-v:toggle-preview' \
---bind='ctrl-d:change-prompt(Dirs > )' \
---bind='ctrl-d:+reload(fd --type d)' \
---bind='ctrl-d:+change-preview(tree -C {})' \
---bind='ctrl-d:+refresh-preview' \
---bind='ctrl-f:change-prompt(Files > )' \
---bind='ctrl-f:+reload(fd --type f)' \
---bind='ctrl-f:+change-preview(bat {})' \
---bind='ctrl-f:+refresh-preview' \
---bind='ctrl-a:select-all' \
---bind='ctrl-x:deselect-all' \
---header '
-    CTRL-D to display directories | CTRL-F to display files
-    CTRL-A to select all | CTRL-x to deselect all
-    ENTER to edit | DEL to delete
-    CTRL-V to toggle preview
-'"
-
-export FZF_CTRL_R_OPTS="
-  --preview 'echo {}' --preview-window up:3:hidden:wrap
-  --bind 'ctrl-y:execute-silent(echo -n {2..} | pbcopy)+abort'
-  --color header:italic
-  --header 'Press CTRL-Y to copy command into clipboard'"
-
-# rebind alt-c into ctrl+p
-export FZF_ALT_C_OPTS="
-  --walker-skip .git,node_modules,target
-  --preview 'tree -C {}'"
-
-# FZF_ALT_C_COMMAND="CTRL-K"
-fzf_cd_pushd() {
-    local cmd
-    cmd="$(__fzf_cd__)" || return
-    cmd=${cmd/builtin cd/pushd}
-    eval "$cmd" >/dev/null || return
-    # show where we landed since the prompt may not redraw immediately
-    printf 'pushd %s\n' "$PWD"
-    READLINE_LINE=""
-    READLINE_POINT=0
-}
-bind -x '"\C-k": "fzf_cd_pushd"'
-bind -m vi-insert -x '"\C-k": "fzf_cd_pushd"'
 
 ##################
 ## Editor setup ##
@@ -312,6 +263,60 @@ alias pn="bash ~/dotfiles/scripts/pi-nvim.sh"
 if [[ -f "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]]; then
     alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
 fi
+
+###################################
+## FZF Interactive Configuration ##
+###################################
+
+# i got this from here:
+# https://thevaluable.dev/practical-guide-fzf-example/
+export FZF_CTRL_T_OPTS="--multi --height=80% --border=sharp \
+--preview='tree -C {}' --preview-window='45%,border-sharp' \
+--prompt='Dirs > ' \
+--bind='del:execute(rm -ri {+})' \
+--bind='ctrl-v:toggle-preview' \
+--bind='ctrl-d:change-prompt(Dirs > )' \
+--bind='ctrl-d:+reload(fd --type d)' \
+--bind='ctrl-d:+change-preview(tree -C {})' \
+--bind='ctrl-d:+refresh-preview' \
+--bind='ctrl-f:change-prompt(Files > )' \
+--bind='ctrl-f:+reload(fd --type f)' \
+--bind='ctrl-f:+change-preview(bat {})' \
+--bind='ctrl-f:+refresh-preview' \
+--bind='ctrl-a:select-all' \
+--bind='ctrl-x:deselect-all' \
+--header '
+    CTRL-D to display directories | CTRL-F to display files
+    CTRL-A to select all | CTRL-x to deselect all
+    ENTER to edit | DEL to delete
+    CTRL-V to toggle preview
+'"
+
+export FZF_CTRL_R_OPTS="
+  --preview 'echo {}' --preview-window up:3:hidden:wrap
+  --bind 'ctrl-y:execute-silent(echo -n {2..} | pbcopy)+abort'
+  --color header:italic
+  --header 'Press CTRL-Y to copy command into clipboard'"
+
+# rebind alt-c into ctrl+p
+export FZF_ALT_C_OPTS="
+  --walker-skip .git,node_modules,target
+  --preview 'tree -C {}'"
+
+# FZF_ALT_C_COMMAND="CTRL-K"
+fzf_cd_pushd() {
+    local cmd
+    cmd="$(__fzf_cd__)" || return
+    cmd=${cmd/builtin cd/pushd}
+    eval "$cmd" >/dev/null || return
+    # show where we landed since the prompt may not redraw immediately
+    printf 'pushd %s\n' "$PWD"
+    READLINE_LINE=""
+    READLINE_POINT=0
+}
+bind -x '"\C-k": "fzf_cd_pushd"'
+bind -m vi-insert -x '"\C-k": "fzf_cd_pushd"'
+
 
 ###################
 ## CUSTOM PROMPT ##
