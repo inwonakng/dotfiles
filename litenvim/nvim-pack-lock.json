@@ -9,7 +9,7 @@
       "src": "https://github.com/stevearc/aerial.nvim"
     },
     "blink.cmp": {
-      "rev": "101d71861f6a012f2be80e4100720874330d86aa",
+      "rev": "49d39fda6350d7f789d1da1053e86c9e256f8108",
       "src": "https://github.com/saghen/blink.cmp"
     },
     "blink.compat": {
@@ -17,7 +17,7 @@
       "src": "https://github.com/saghen/blink.compat"
     },
     "blink.lib": {
-      "rev": "c8fdc12c8a2fab6cf786dd7141a283f8079f902b",
+      "rev": "f55df8a6e0a7acccf45ef0ffbb4ce46110fcf7d0",
       "src": "https://github.com/saghen/blink.lib"
     },
     "catppuccin": {
@@ -33,7 +33,7 @@
       "src": "https://github.com/stevearc/conform.nvim"
     },
     "copilot.lua": {
-      "rev": "7e6723aabea044519462958ffcea68d7985c5ed0",
+      "rev": "e5401d5a1729eca3a29ae4b8975de5c695905bf0",
       "src": "https://github.com/zbirenbaum/copilot.lua"
     },
     "diffview.nvim": {
@@ -45,7 +45,7 @@
       "src": "https://github.com/Bekaboo/dropbar.nvim"
     },
     "fidget.nvim": {
-      "rev": "6f793b2bcd2d35e201c09520f698bb763220908a",
+      "rev": "9e0201673e08e997e7cf52afca5565c70bd117f3",
       "src": "https://github.com/j-hui/fidget.nvim"
     },
     "friendly-snippets": {
@@ -89,7 +89,7 @@
       "src": "https://github.com/rcarriga/nvim-notify"
     },
     "nvim-treesitter": {
-      "rev": "8b98b4470eb326f1c7b50dae79f8c963568e5720",
+      "rev": "0d0969030ad955b510d7c8012b40252a25c12a6d",
       "src": "https://github.com/nvim-treesitter/nvim-treesitter"
     },
     "nvim-treesitter-context": {
@@ -97,7 +97,7 @@
       "src": "https://github.com/nvim-treesitter/nvim-treesitter-context"
     },
     "nvim-web-devicons": {
-      "rev": "2ae6958df7ced50baac5035cec0c15799eedfbf7",
+      "rev": "5f032a85be210cd1c6ac98861eb3b187ff3bd5eb",
       "src": "https://github.com/nvim-tree/nvim-web-devicons"
     },
     "nvumi": {
@@ -105,7 +105,7 @@
       "src": "https://github.com/josephburgess/nvumi"
     },
     "obsidian.nvim": {
-      "rev": "07f94ef04a417555ee56a5895ddeb740f2de0033",
+      "rev": "cb8a5a60df74aa15fb2069cd8cbd4a55e9c76077",
       "src": "https://github.com/obsidian-nvim/obsidian.nvim"
     },
     "oil.nvim": {
@@ -161,7 +161,7 @@
       "src": "https://github.com/jpalardy/vim-slime"
     },
     "vimtex": {
-      "rev": "c1b96604d9a387cde5a98bec8f6687ae3078b571",
+      "rev": "e355987594cbf16283bee7b37e3aa3a65d5e1c5c",
       "src": "https://github.com/lervag/vimtex"
     },
     "which-key.nvim": {

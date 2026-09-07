@@ -1,5 +1,7 @@
 local M = {}
 
+local render_markdown = require("render-markdown")
+
 local function valid_buf(buf)
 	return type(buf) == "number" and vim.api.nvim_buf_is_valid(buf)
 end
@@ -23,14 +25,11 @@ function M.render(buf, win, opts)
 	opts = opts or {}
 
 	if type(win) == "number" and vim.api.nvim_win_is_valid(win) then
-		local ok_render_markdown, render_markdown = pcall(require, "render-markdown")
-		if ok_render_markdown and type(render_markdown.render) == "function" then
-			render_markdown.render({
-				buf = buf,
-				win = win,
-				event = opts.event or "PiNvim",
-			})
-		end
+		render_markdown.render({
+			buf = buf,
+			win = win,
+			event = opts.event or "PiNvim",
+		})
 	end
 
 	if not opts.latex then

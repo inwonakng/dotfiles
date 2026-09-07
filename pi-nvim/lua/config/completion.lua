@@ -1,5 +1,3 @@
--- local ok_blink, blink = pcall(require, "blink.cmp")
--- if ok_blink then
 local cmp = require("blink.cmp")
 cmp.build():pwait()
 cmp.setup({

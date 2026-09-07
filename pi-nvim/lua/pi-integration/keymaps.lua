@@ -1,5 +1,7 @@
 local M = {}
 
+local which_key = require("which-key")
+
 M.specs = {
 	input = {
 		{ modes = { "n", "i" }, lhs = "<C-CR>", action = "submit_prompt", desc = "Submit prompt" },
@@ -81,10 +83,6 @@ end
 
 local function register_which_key(ctx, buf, specs)
 	if not ctx.buffer.valid(buf) then
-		return
-	end
-	local ok, which_key = pcall(require, "which-key")
-	if not ok then
 		return
 	end
 	which_key.add(which_key_specs(buf, specs))

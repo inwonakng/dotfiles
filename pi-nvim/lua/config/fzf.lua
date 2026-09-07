@@ -63,47 +63,44 @@ local function select_prompt(prompt)
 	return select_label(prompt) .. " > "
 end
 
-local ok, fzf = pcall(require, "fzf-lua")
-if ok then
-	fzf.register_ui_select(function(select_opts)
-		local winopts = vim.deepcopy(fzf_winopts.default)
-		if select_opts.kind == "pi_approval" then
-			winopts.height = 0.85
-			winopts.preview = {
-				layout = "vertical",
-				vertical = "up:78%",
-				border = "none",
-				wrap = true,
-			}
-		else
-			winopts.height = 0.4
-		end
-		if type(select_opts.on_close) == "function" then
-			local default_on_close = winopts.on_close
-			winopts.on_close = function(...)
-				if default_on_close then
-					default_on_close(...)
-				end
-				select_opts.on_close(...)
-			end
-		end
-		winopts.title = " " .. select_label(select_opts.prompt) .. " "
-		winopts.title_pos = "left"
-		return {
-			prompt = select_prompt(select_opts.prompt),
-			winopts = winopts,
-			fzf_opts = fzf_opts.default,
-			keymap = fzf_keymap,
-			no_hide = select_opts.no_hide,
-		}
-	end)
+local fzf = require("fzf-lua")
 
-	fzf.setup({
-		fzf_colors = true,
+fzf.register_ui_select(function(select_opts)
+	local winopts = vim.deepcopy(fzf_winopts.default)
+	if select_opts.kind == "pi_approval" then
+		winopts.height = 0.85
+		winopts.preview = {
+			layout = "vertical",
+			vertical = "up:78%",
+			border = "none",
+			wrap = true,
+		}
+	else
+		winopts.height = 0.4
+	end
+	if type(select_opts.on_close) == "function" then
+		local default_on_close = winopts.on_close
+		winopts.on_close = function(...)
+			if default_on_close then
+				default_on_close(...)
+			end
+			select_opts.on_close(...)
+		end
+	end
+	winopts.title = " " .. select_label(select_opts.prompt) .. " "
+	winopts.title_pos = "left"
+	return {
+		prompt = select_prompt(select_opts.prompt),
+		winopts = winopts,
 		fzf_opts = fzf_opts.default,
 		keymap = fzf_keymap,
-		winopts = fzf_winopts.default,
-	})
-else
-	vim.notify("fzf-lua unavailable; using native vim.ui.select", vim.log.levels.WARN)
-end
+		no_hide = select_opts.no_hide,
+	}
+end)
+
+fzf.setup({
+	fzf_colors = true,
+	fzf_opts = fzf_opts.default,
+	keymap = fzf_keymap,
+	winopts = fzf_winopts.default,
+})

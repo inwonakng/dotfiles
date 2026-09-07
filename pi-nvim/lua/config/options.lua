@@ -2,9 +2,7 @@ vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
 vim.opt.number = false
-vim.opt.relativenumber = false
 vim.opt.laststatus = 2
-vim.opt.showmode = false
 vim.opt.wrap = true
 vim.opt.linebreak = true
 vim.opt.breakindent = true

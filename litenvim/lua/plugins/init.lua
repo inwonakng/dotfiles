@@ -86,3 +86,9 @@ vim.keymap.set("n", "[c", function()
 	require("treesitter-context").go_to_context(vim.v.count1)
 end, { silent = true })
 vim.keymap.set("n", "<leader>uc", "<cmd>TSContext toggle<CR>", { desc = "Toggle Treesitter Context" })
+
+-- add command for updating
+
+vim.api.nvim_create_user_command("PlugUpdate", function()
+	vim.pack.update()
+end, { desc = "Update all plugins" })
