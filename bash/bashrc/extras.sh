@@ -194,20 +194,6 @@ function load() {
     esac
 }
 
-# override cd to use pushd, but keep standard behavior for 'cd' and 'cd -'
-cd() {
-    if [ "$#" -eq 0 ]; then
-        # No arguments: standard 'cd' behavior (go home)
-        builtin cd "$HOME"
-    elif [ "$1" = "-" ]; then
-        # 'cd -': standard 'cd' behavior (go previous)
-        builtin cd "$OLDPWD"
-    else
-        # Otherwise: pushd to the directory, suppress stdout
-        builtin pushd "$1" >/dev/null
-    fi
-}
-
 open_scratch_buffer() {
     # Create a temporary file
     local TMP_FILE=$(mktemp)
@@ -246,8 +232,43 @@ fi
 # if installed activate zoxide (for shell pwd history)
 if command -v "zoxide" >/dev/null 2>&1; then
     eval "$(zoxide init bash --cmd cd)"
-    alias z="cd"
-    alias zi="cdi"
+
+    # Keep standard behavior for 'cd' and 'cd -'. For other successful jumps,
+    # add the previous directory to the stack without changing directories again.
+    cd() {
+        local previous status should_stack=1
+        previous=$PWD
+
+        if (( $# == 0 )) || { (( $# == 1 )) && [[ $1 == "-" ]]; }; then
+            should_stack=0
+        fi
+
+        __zoxide_z "$@"
+        status=$?
+        (( status == 0 )) || return "$status"
+
+        if (( should_stack )) && [[ $PWD != "$previous" ]]; then
+            builtin pushd -n -- "$previous" >/dev/null
+        fi
+    }
+
+    # Use zoxide's interactive selector, then push the selected directory.
+    cdi() {
+        local result
+        result="$(command zoxide query --interactive -- "$@")" || return
+        [[ $result == "$PWD" ]] || builtin pushd -- "$result" >/dev/null
+    }
+else
+    # Fall back to pushd when zoxide is unavailable.
+    cd() {
+        if (( $# == 0 )); then
+            builtin cd "$HOME"
+        elif (( $# == 1 )) && [[ $1 == "-" ]]; then
+            builtin cd "$OLDPWD"
+        else
+            builtin pushd -- "$1" >/dev/null
+        fi
+    }
 fi
 
 alias mail-search="bash $HOME/dotfiles/utils/search_mail.sh"
