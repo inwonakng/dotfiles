@@ -39,6 +39,8 @@ Vim is an exception. link to `~/.vim`
 ## Main Apps & Tools
 
 - [Kitty](https://sw.kovidgoyal.net/kitty/)/[Ghostty](https://ghostty.org)
+- [Obsidian](https://obsidian.md/help/) for note taking.
+  - [obsidian.nvim](https://github.com/obsidian-nvim/obsidian.nvim) plugin used for desktop neovim integration. But using [templater](https://github.com/silentvoid13/Templater) for all templating (so that it also works on mobile)
 - [conda](https://www.anaconda.com/docs/getting-started/miniconda/main) package manager. used for global binaries only
   - [pixi](https://pixi.prefix.dev/latest/) project-based package manager. used for actual projects
 - [karabiner](https://karabiner-elements.pqrs.org) keyborad remapper

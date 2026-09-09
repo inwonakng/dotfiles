@@ -1,16 +1,11 @@
-import { getAgentDir, readStoredCredential, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { join } from "node:path";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { loadExtensionSettings } from "./shared/extension-settings";
 
-const DEFAULT_TITLE_PROVIDER = "opencode";
-// OpenCode normally generates titles with its hidden title agent and the active provider's small model.
-// We could mirror that by discovering configured providers and selecting their smallest model, but for now
-// keep this extension self-contained by using an anonymously available OpenCode free model.
-const DEFAULT_TITLE_MODEL = "opencode/nemotron-3-ultra-free";
-const DEFAULT_TITLE_ENDPOINT = "https://opencode.ai/zen/v1/chat/completions";
 const TITLE_LIMIT = 80;
 const MODEL_TITLE_LIMIT = 80;
 const MODEL_TITLE_WORD_LIMIT = 12;
-const DEFAULT_TITLE_MAX_TOKENS = 800;
+const TITLE_MAX_TOKENS = 800;
+const TITLE_TIMEOUT_MS = 60_000;
 const TITLE_SYSTEM_PROMPT = [
 	"You are a title generator. You output ONLY a thread title. Nothing else.",
 	"Generate a brief title that would help the user find this conversation later.",
@@ -47,62 +42,39 @@ const TITLE_SYSTEM_PROMPT = [
 	"\"@App.tsx add dark mode toggle\" → Dark mode toggle in App",
 ].join("\n");
 
-function titleProvider() {
-	return process.env.PI_TITLE_PROVIDER || DEFAULT_TITLE_PROVIDER;
-}
+function titleModel(ctx: ExtensionContext) {
+	const provider = ctx.model?.provider;
+	if (!provider) throw new Error("No active provider for title generation");
 
-function resolveStoredApiKeyValue(key: string, env?: Record<string, string>) {
-	const trimmed = key.trim();
-	if (!trimmed || trimmed.startsWith("!")) {
-		return undefined;
-	}
-
-	const envMatch = trimmed.match(/^\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))$/);
-	if (envMatch) {
-		const name = envMatch[1] || envMatch[2];
-		return env?.[name] || process.env[name];
-	}
-
-	return key;
-}
-
-async function titleApiKey(ctx?: ExtensionContext) {
-	const envKey = process.env.PI_TITLE_API_KEY || process.env.OPENCODE_ZEN_API_KEY || process.env.OPENCODE_API_KEY;
-	if (envKey) {
-		return envKey;
-	}
-
-	try {
-		const registryKey = await ctx?.modelRegistry.getApiKeyForProvider(titleProvider());
-		if (registryKey) {
-			return registryKey;
+	const providerModels = loadExtensionSettings()["auto-title"]?.["provider-models"];
+	const configuredId = providerModels && Object.hasOwn(providerModels, provider) ? providerModels[provider] : undefined;
+	const available = ctx.modelRegistry.getAvailable()
+		.filter((model) => model.provider === provider && model.input.includes("text"));
+	if (configuredId) {
+		const model = available.find((candidate) => candidate.id === configuredId);
+		if (!model) {
+			throw new Error(
+				`Configured title model ${provider}/${configuredId} is not an available text model; check auto-title.provider-models in extension-settings.yaml`,
+			);
 		}
-	} catch {
-		// Fall through to a best-effort direct auth.json read.
+		return model;
 	}
 
-	const credential = readStoredCredential(titleProvider(), join(getAgentDir(), "auth.json"));
-	if (credential?.type === "api_key" && typeof credential.key === "string") {
-		return resolveStoredApiKeyValue(credential.key, credential.env);
+	// Equal input/output token weighting. Catalog prices may not reflect subscription quotas.
+	const candidates = available.filter((model) =>
+		Number.isFinite(model.cost.input) && model.cost.input >= 0
+		&& Number.isFinite(model.cost.output) && model.cost.output >= 0,
+	);
+	candidates.sort((a, b) =>
+		(a.cost.input + a.cost.output) - (b.cost.input + b.cost.output) || a.id.localeCompare(b.id),
+	);
+	const model = candidates[0];
+	if (!model) {
+		throw new Error(
+			`No available text model with catalog pricing for ${provider}; configure auto-title.provider-models in extension-settings.yaml`,
+		);
 	}
-	return undefined;
-}
-
-function titleModel() {
-	return process.env.PI_TITLE_MODEL || DEFAULT_TITLE_MODEL;
-}
-
-function titleEndpoint() {
-	return process.env.PI_TITLE_ENDPOINT || DEFAULT_TITLE_ENDPOINT;
-}
-
-function titleMaxTokens() {
-	const parsed = Number.parseInt(process.env.PI_TITLE_MAX_TOKENS || "", 10);
-	return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TITLE_MAX_TOKENS;
-}
-
-function apiModelId(model: string) {
-	return model.startsWith("opencode/") ? model.slice("opencode/".length) : model;
+	return model;
 }
 
 function isPromptTitleCandidate(text: string) {
@@ -207,8 +179,7 @@ function messageText(message: unknown) {
 function branchUserMessages(ctx: ExtensionContext) {
 	return ctx.sessionManager
 		.getBranch()
-		.filter((entry) => entry.type === "message" && entry.message.role === "user")
-		.map((entry) => messageText(entry.message))
+		.flatMap((entry) => entry.type === "message" && entry.message.role === "user" ? [messageText(entry.message)] : [])
 		.filter((text) => text.trim() !== "");
 }
 
@@ -221,55 +192,31 @@ function branchUserMessagesWithEvent(ctx: ExtensionContext, message: unknown) {
 	return messages;
 }
 
-async function modelTitle(prompt: string, ctx?: ExtensionContext) {
-	const apiKey = await titleApiKey(ctx);
-	const headers: Record<string, string> = {
-		"content-type": "application/json",
-	};
-	if (apiKey) {
-		headers.authorization = `Bearer ${apiKey}`;
+async function modelTitle(prompt: string, ctx: ExtensionContext, sessionSignal: AbortSignal) {
+	const model = titleModel(ctx);
+	const signal = AbortSignal.any([sessionSignal, AbortSignal.timeout(TITLE_TIMEOUT_MS)]);
+	const response = await ctx.modelRegistry.complete(
+		model,
+		{
+			systemPrompt: TITLE_SYSTEM_PROMPT,
+			messages: [{ role: "user", content: titleUserPrompt(prompt), timestamp: Date.now() }],
+		},
+		{
+			maxTokens: Math.min(TITLE_MAX_TOKENS, model.maxTokens),
+			cacheRetention: "none",
+			signal,
+		},
+	);
+	signal.throwIfAborted();
+	if (response.stopReason === "error" || response.stopReason === "aborted") {
+		throw new Error(`Title request to ${model.provider}/${model.id} failed: ${response.errorMessage || response.stopReason}`);
 	}
 
-	const response = await fetch(titleEndpoint(), {
-		method: "POST",
-		headers,
-		body: JSON.stringify({
-			model: apiModelId(titleModel()),
-			messages: [
-				{
-					role: "system",
-					content: TITLE_SYSTEM_PROMPT,
-				},
-				{
-					role: "user",
-					content: titleUserPrompt(prompt),
-				},
-			],
-			max_tokens: titleMaxTokens(),
-			temperature: 0.3,
-		}),
-	});
-	if (!response.ok) {
-		throw new Error(`title request failed: ${response.status} ${response.statusText}`);
-	}
-
-	const data = (await response.json()) as {
-		choices?: { finish_reason?: unknown; message?: { content?: unknown; reasoning?: unknown } }[];
-	};
-	const choice = data.choices?.[0];
-	const finishReason = typeof choice?.finish_reason === "string" ? choice.finish_reason : "unknown";
-	const content = choice?.message?.content;
-	if (typeof content !== "string" || content.trim() === "") {
-		const reasoning = previewText(choice?.message?.reasoning);
-		throw new Error(
-			`title response missing content; finish_reason=${finishReason}${reasoning ? `; reasoning=${reasoning}` : ""}`,
-		);
-	}
-
+	const content = messageText(response);
 	const title = cleanModelTitle(content);
 	if (!title) {
 		throw new Error(
-			`title response was not a useful title; finish_reason=${finishReason}; content=${previewText(content) || "<empty>"}`,
+			`Title response from ${model.provider}/${model.id} was not a useful title; stop_reason=${response.stopReason}; content=${previewText(content) || "<empty>"}`,
 		);
 	}
 	return title;
@@ -283,8 +230,15 @@ function setTitle(pi: ExtensionAPI, ctx: ExtensionContext, title: string) {
 
 export default function autoTitleExtension(pi: ExtensionAPI) {
 	let titleGenerationInFlightForSession: string | undefined;
+	let sessionController = new AbortController();
+
+	pi.on("session_shutdown", () => {
+		sessionController.abort();
+	});
 
 	pi.on("session_start", (_event, ctx) => {
+		sessionController.abort();
+		sessionController = new AbortController();
 		titleGenerationInFlightForSession = undefined;
 		const title = pi.getSessionName();
 		if (title) {
@@ -313,14 +267,16 @@ export default function autoTitleExtension(pi: ExtensionAPI) {
 		const prompt = userMessages[0];
 		ctx.ui.setStatus("pi-session-title", "Generating title…");
 
-		void modelTitle(prompt, ctx)
+		const signal = sessionController.signal;
+		void modelTitle(prompt, ctx, signal)
 			.then((title) => {
-				if (currentSessionKey() !== sessionKey || pi.getSessionName()) {
+				if (signal.aborted || currentSessionKey() !== sessionKey || pi.getSessionName()) {
 					return;
 				}
 				setTitle(pi, ctx, title);
 			})
 			.catch((error: unknown) => {
+				if (signal.aborted) return;
 				if (currentSessionKey() === sessionKey && !pi.getSessionName()) {
 					setTitle(pi, ctx, deterministicTitle(prompt));
 				}
@@ -328,7 +284,7 @@ export default function autoTitleExtension(pi: ExtensionAPI) {
 				ctx.ui.notify(`Could not generate model session title: ${message}`, "warning");
 			})
 			.finally(() => {
-				if (titleGenerationInFlightForSession === sessionKey) {
+				if (!signal.aborted && titleGenerationInFlightForSession === sessionKey) {
 					titleGenerationInFlightForSession = undefined;
 				}
 			});
@@ -357,9 +313,17 @@ export default function autoTitleExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			const fallback = deterministicTitle(prompt);
-			const title = (await modelTitle(prompt, ctx)) || fallback;
-			setTitle(pi, ctx, title);
+			const signal = sessionController.signal;
+			const originalTitle = pi.getSessionName();
+			try {
+				const title = await modelTitle(prompt, ctx, signal);
+				if (!signal.aborted && pi.getSessionName() === originalTitle) setTitle(pi, ctx, title);
+			} catch (error) {
+				if (signal.aborted) return;
+				if (!pi.getSessionName()) setTitle(pi, ctx, deterministicTitle(prompt));
+				const message = error instanceof Error ? error.message : String(error);
+				ctx.ui.notify(`Could not generate model session title: ${message}`, "warning");
+			}
 		},
 	});
 

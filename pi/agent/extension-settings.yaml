@@ -1,0 +1,13 @@
+# Shared settings for our custom Pi extensions. Use dash-case for all keys.
+# Install dependencies with: npm ci --prefix pi/agent
+# Changes are read on the next title request; no restart is needed.
+# Credentials remain in Pi's auth.json or provider environment variables.
+
+auto-title:
+  # Model IDs are resolved within the active provider; no cross-provider fallback.
+  provider-models:
+    openai-codex: gpt-5.6-luna
+  # Unmapped providers use an available text model with the lowest catalog
+  # input + output price (equal token weighting; model ID breaks ties).
+  # Catalog prices are estimates, not subscription quota costs. Explicitly map
+  # providers whose catalog prices are unknown or recorded as zero.
