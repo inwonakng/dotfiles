@@ -1,41 +1,3 @@
--- helper for getting the content of the most recent daily note, excluding frontmatter and template lines
-local get_recent_daily_note_content = function()
-	local most_recent_content = ""
-	local files = vim.split(vim.fn.glob("daily/*.md"), "\n")
-	if #files > 0 then
-		files = vim.fn.sort(files)
-		-- by the time this is called, the current daily note is already
-		-- created by the Obsidian today command. so we want to get the
-		-- second most recent.
-		local most_recent = files[#files - 1]
-		local file = io.open(most_recent, "r")
-		if not file then
-			vim.notify("Error: Could not open template file: " .. most_recent, vim.log.levels.ERROR)
-			return
-		end
-		most_recent_content = file:read("*a") -- Read the whole file
-		local past_frontmatter_open = false
-		local past_frontmatter_close = false
-		local without_frontmatter_lines = {}
-		local lines = vim.split(most_recent_content, "\n")
-		for i = 1, #lines do
-			if past_frontmatter_open and past_frontmatter_close then
-				table.insert(without_frontmatter_lines, lines[i])
-			elseif lines[i]:match("^---$") then
-				if not past_frontmatter_open then
-					past_frontmatter_open = true -- we have reached the end of the frontmatter
-				elseif not past_frontmatter_close then
-					past_frontmatter_close = true -- we have reached the end of the frontmatter
-				end
-			end
-		end
-		-- remove the template lines from the most recent content
-		file:close()
-		most_recent_content = table.concat(without_frontmatter_lines, "\n")
-	end
-	return most_recent_content
-end
-
 vim.pack.add({ "https://github.com/obsidian-nvim/obsidian.nvim" })
 
 require("obsidian").setup({
@@ -54,7 +16,6 @@ require("obsidian").setup({
 		folder = "daily",
 		date_format = "%Y-%m-%d",
 		default_tags = {},
-		template = "daily",
 	},
 	completion = {
 		-- blink = true,
@@ -109,10 +70,6 @@ require("obsidian").setup({
 		folder = "templates",
 		date_format = "%Y-%m-%d",
 		time_format = "%H:%M",
-		-- A map for custom variables, the key should be the variable and the value a function
-		substitutions = {
-			most_recent_daily_note = get_recent_daily_note_content,
-		},
 	},
 	picker = {
 		name = "fzf-lua",
@@ -137,9 +94,83 @@ require("obsidian").setup({
 	},
 })
 
-vim.keymap.set("n", "<leader>ot", "<cmd>Obsidian template<cr>", { desc = "Insert template" })
-vim.keymap.set("n", "<leader>oT", "<cmd>Obsidian template default.md<cr>", { desc = "Insert default template" })
-vim.keymap.set("n", "<leader>od", "<cmd>Obsidian today<cr>", { desc = "Create a daily note" })
+-- Only regular templates belong in Neovim's insertion picker. Obsidian owns
+-- daily/default rendering; ordinary Neovim notes get frontmatter on save.
+local function insert_regular_template()
+	local dir = require("obsidian.api").templates_dir()
+	if not dir then
+		return
+	end
+	local templates = {}
+	for _, path in ipairs(vim.fn.globpath(tostring(dir), "**/*.md", false, true)) do
+		local name = path:sub(#tostring(dir) + 2)
+		if name ~= "daily.md" and name ~= "default.md" then
+			table.insert(templates, name)
+		end
+	end
+	table.sort(templates)
+	require("obsidian.picker").select(templates, {
+		prompt = "Insert template",
+		no_default_mappings = true,
+	}, function(choices)
+		if choices and choices[1] then
+			require("obsidian.actions").insert_template(choices[1])
+		end
+	end)
+end
+
+local function open_daily_note()
+	local workspace = require("obsidian.api").find_workspace(vim.api.nvim_buf_get_name(0)) or Obsidian.workspace
+	-- Use the application launcher, not its internal obsidian-cli binary:
+	-- the launcher routes commands to the requested vault.
+	local cli = vim.fn.exepath("obsidian")
+	if cli == "" then
+		cli = "/Applications/Obsidian.app/Contents/MacOS/Obsidian"
+	end
+	if vim.fn.executable(cli) ~= 1 then
+		vim.notify("Enable the Obsidian CLI before creating daily notes", vim.log.levels.ERROR)
+		return
+	end
+	local function run(command, ...)
+		local result = vim.system({ cli, "vault=" .. workspace.name, command, ... }, { text = true }):wait(10000)
+		local output = vim.trim(result.stdout or "")
+		if result.code ~= 0 or output:match("^Error:") then
+			error(
+				("Obsidian CLI %s failed (exit %s): %s"):format(
+					command,
+					result.code,
+					vim.trim((result.stderr or "") .. "\n" .. output)
+				)
+			)
+		end
+		return output
+	end
+	local ok, err = pcall(function()
+		local relative = run("daily:path")
+		if relative == "" or relative:find("[\r\n]") or not relative:match("%.md$") then
+			error("Obsidian did not return a daily note path")
+		end
+		local path = vim.fs.joinpath(tostring(workspace.root), relative)
+		if vim.fn.filereadable(path) ~= 1 then
+			-- The app action opens Source mode, where Templater's editor changes
+			-- are saved correctly. CLI `daily` instead uses the default view mode.
+			run("command", "id=daily-notes")
+			-- The creation hook runs asynchronously after the empty file is made.
+			if not vim.wait(10000, function()
+				return vim.fn.getfsize(path) > 0
+			end, 100) then
+				error("Daily note remained empty; check Templater in Obsidian: " .. relative)
+			end
+		end
+		vim.cmd.edit(vim.fn.fnameescape(path))
+	end)
+	if not ok then
+		vim.notify(tostring(err), vim.log.levels.ERROR)
+	end
+end
+
+vim.keymap.set("n", "<leader>ot", insert_regular_template, { desc = "Insert regular template" })
+vim.keymap.set("n", "<leader>od", open_daily_note, { desc = "Open daily note through Obsidian" })
 vim.keymap.set("n", "<leader>oo", "<cmd>Obsidian open<cr>", { desc = "Open in Obsidian" })
 vim.keymap.set("n", "<C-CR>", "<cmd>Obsidian follow_link vsp<cr>", { desc = "Follow link in vsplit" })
 vim.keymap.set("n", "<S-CR>", "<cmd>Obsidian follow_link hsplit<cr>", { desc = "Follow link in hsplit" })
