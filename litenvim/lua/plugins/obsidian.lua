@@ -162,7 +162,13 @@ local function open_daily_note()
 				error("Daily note remained empty; check Templater in Obsidian: " .. relative)
 			end
 		end
-		vim.cmd.edit(vim.fn.fnameescape(path))
+		local buffer = vim.fn.bufnr(path)
+		local windows = buffer ~= -1 and vim.fn.win_findbuf(buffer) or {}
+		if windows[1] then
+			vim.api.nvim_set_current_win(windows[1])
+		else
+			vim.cmd.edit(vim.fn.fnameescape(path))
+		end
 	end)
 	if not ok then
 		vim.notify(tostring(err), vim.log.levels.ERROR)

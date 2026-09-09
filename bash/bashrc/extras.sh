@@ -90,6 +90,10 @@ if [[ -d "$HOME/.pixi" ]]; then
     export PATH="$HOME/.pixi/bin:$PATH"
 fi
 
+if [[ -d "/Applications/Obsidian.app/Contents/MacOS" ]]; then
+    export PATH="$PATH:/Applications/Obsidian.app/Contents/MacOS"
+fi
+
 ###############################
 ## FZF Options Configuration ##
 ###############################
