@@ -1,20 +1,15 @@
 import type {
   ExtensionAPI,
   ExtensionContext,
-  ToolCallEvent,
 } from "@earendil-works/pi-coding-agent";
-import { generateUnifiedPatch } from "@earendil-works/pi-coding-agent";
-import assert from "node:assert";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { getAccessMode, parseAccessMode, setAccessMode, type AccessMode } from "./shared/access-state";
-import { notificationsEnabled, sendAlerterNotification } from "./shared/notifications";
+import { getAccessMode, parseAccessMode, setAccessMode } from "./shared/access-state";
 
-type PermissionDecision = "allow" | "ask";
-const WRITE_TOOLS = new Set(["edit", "write"]);
 const MUTATING_FILE_COMMANDS =
   "rm|rmdir|mv|cp|mkdir|touch|chmod|chown|chgrp|ln|tee|truncate|dd|shred";
 const COMMAND_START = String.raw`(?:^|[;&|]\s*)(?:\w+=\S+\s+)*`;
+const READONLY_TOOLS = new Set(["read", "grep", "find", "ls", "web_search", "web_fetch"]);
+const READONLY_WORKSPACE_ACTIONS = new Set(["status", "list"]);
+const READONLY_SPAWN_CONTROL_ACTIONS = new Set(["list", "status", "join", "join_all"]);
 
 const READONLY_BASH_DENYLIST: Array<{ pattern: RegExp; reason: string }> = [
   {
@@ -97,25 +92,8 @@ const READONLY_BASH_DENYLIST: Array<{ pattern: RegExp; reason: string }> = [
   },
 ];
 
-const isSpawnedAgent = process.env.PI_SPAWN_AGENT === "1";
-
 function commandPattern(commands: string): RegExp {
   return new RegExp(`${COMMAND_START}(?:${commands})\\b`, "i");
-}
-
-function notifyPermissionRequest(pi: ExtensionAPI, ctx: ExtensionContext): void {
-  if (!notificationsEnabled()) {
-    return;
-  }
-
-  sendAlerterNotification(pi, ctx, {
-    title: "Requesting Permission",
-    group: "pi-coding-agent-permission",
-    soundEnv: "PI_PERMISSION_SOUND",
-    defaultSound: "Ping",
-    timeoutEnv: "PI_PERMISSION_NOTIFICATION_TIMEOUT",
-    defaultTimeoutSeconds: 15,
-  });
 }
 
 function normalizeCommand(command: string): string {
@@ -207,7 +185,7 @@ export function readonlyBashBlockReason(command: string): string | undefined {
   }
 
   // Sending stderr to /dev/null is common for read-only probes and does not
-  // mutate project files. Keep other redirections/background jobs ask-gated.
+  // mutate project files. Keep other redirections and background jobs blocked.
   const withoutBenignStderr = normalized.replace(/(^|\s)2>\s*\/dev\/null(?=\s|$)/g, " ");
   if (hasUnquotedShellWriteSyntax(withoutBenignStderr)) {
     return "shell redirection or background execution";
@@ -225,142 +203,48 @@ export function bashMayMutate(command: string): boolean {
   return readonlyBashBlockReason(command) !== undefined;
 }
 
-function bashPermission(input: Record<string, unknown>): PermissionDecision {
-  if (typeof input.command !== "string") {
-    return "ask";
+function readonlyToolBlockReason(
+  toolName: string,
+  input: Record<string, unknown>,
+): string | undefined {
+  if (READONLY_TOOLS.has(toolName)) {
+    return undefined;
   }
 
-  return readonlyBashBlockReason(input.command) ? "ask" : "allow";
+  if (toolName === "bash") {
+    if (typeof input.command !== "string") {
+      return "bash requires a command that can be classified as read-only";
+    }
+    const reason = readonlyBashBlockReason(input.command);
+    return reason ? `bash command is not read-only: ${reason}` : undefined;
+  }
+
+  if (toolName === "workspace") {
+    return typeof input.action === "string" && READONLY_WORKSPACE_ACTIONS.has(input.action)
+      ? undefined
+      : "workspace action is not whitelisted as read-only";
+  }
+
+  if (toolName === "spawn") {
+    if (input.accessMode !== "readonly") {
+      return "spawn requires explicit accessMode=readonly";
+    }
+    return input.isolation === undefined || input.isolation === "none"
+      ? undefined
+      : "spawn worktree isolation is not read-only";
+  }
+
+  if (toolName === "spawn_control") {
+    return typeof input.action === "string" && READONLY_SPAWN_CONTROL_ACTIONS.has(input.action)
+      ? undefined
+      : "spawn_control action is not whitelisted as read-only";
+  }
+
+  return `tool "${toolName}" is not whitelisted as read-only`;
 }
 
 function setStatus(ctx: ExtensionContext): void {
   ctx.ui.setStatus("pi-access-mode", `Mode: ${getAccessMode()}`);
-}
-
-function toolSummary(event: ToolCallEvent): string {
-  const input = event.input as Record<string, unknown>;
-  if (event.toolName === "bash" && typeof input.command === "string") {
-    return input.command;
-  }
-  if (
-    (event.toolName === "edit" || event.toolName === "write") &&
-    typeof input.path === "string"
-  ) {
-    return input.path;
-  }
-  return JSON.stringify(input);
-}
-
-function jsonPreview(value: unknown): string {
-  return JSON.stringify(value, null, 2);
-}
-
-function exactEditPreview(cwd: string, input: Record<string, unknown>): string {
-  const path = input.path;
-  const edits = input.edits;
-  if (typeof path !== "string" || !Array.isArray(edits)) {
-    return jsonPreview(input);
-  }
-
-  const absolutePath = resolve(cwd, path);
-  const original = readFileSync(absolutePath, "utf-8");
-  const replacements: { index: number; oldText: string; newText: string }[] =
-    [];
-  for (const edit of edits) {
-    assertEdit(edit);
-    const index = original.indexOf(edit.oldText);
-    const matches = original.split(edit.oldText).length - 1;
-    if (matches !== 1) {
-      throw new Error(
-        `Cannot preview edit for ${path}: oldText matched ${matches} times.`,
-      );
-    }
-    replacements.push({ index, oldText: edit.oldText, newText: edit.newText });
-  }
-  replacements.sort((left, right) => right.index - left.index);
-  for (let index = 0; index < replacements.length - 1; index++) {
-    const current = replacements[index];
-    const next = replacements[index + 1];
-    const nextEnd = next.index + next.oldText.length;
-    assert(
-      nextEnd <= current.index,
-      `Cannot preview edit for ${path}: edits overlap.`,
-    );
-  }
-  let nextContent = original;
-  for (const replacement of replacements) {
-    nextContent =
-      nextContent.slice(0, replacement.index) +
-      replacement.newText +
-      nextContent.slice(replacement.index + replacement.oldText.length);
-  }
-  return generateUnifiedPatch(path, original, nextContent);
-}
-
-function writePreview(
-  cwd: string,
-  input: Record<string, unknown>,
-): { text: string; filetype: string } {
-  const path = input.path;
-  const content = input.content;
-  if (typeof path !== "string" || typeof content !== "string") {
-    return { text: jsonPreview(input), filetype: "json" };
-  }
-
-  const absolutePath = resolve(cwd, path);
-  if (!existsSync(absolutePath)) {
-    return {
-      text: `# New file: ${path}\n# Directory: ${dirname(absolutePath)}\n\n${content}`,
-      filetype: "text",
-    };
-  }
-  const original = readFileSync(absolutePath, "utf-8");
-  return {
-    text: generateUnifiedPatch(path, original, content),
-    filetype: "diff",
-  };
-}
-
-function assertEdit(
-  value: unknown,
-): asserts value is { oldText: string; newText: string } {
-  assert(typeof value === "object" && value !== null, "invalid edit object");
-  const edit = value as Record<string, unknown>;
-  assert(typeof edit.oldText === "string", "edit.oldText must be a string");
-  assert(edit.oldText.length > 0, "edit.oldText must not be empty");
-  assert(typeof edit.newText === "string", "edit.newText must be a string");
-}
-
-function previewForTool(
-  event: ToolCallEvent,
-  ctx: ExtensionContext,
-): { text: string; filetype: string } {
-  const input = event.input as Record<string, unknown>;
-  if (event.toolName === "bash") {
-    return {
-      filetype: "sh",
-      text: `# cwd: ${ctx.cwd}\n# mode: ${getAccessMode()}\n\n${typeof input.command === "string" ? input.command : jsonPreview(input)}`,
-    };
-  }
-  if (event.toolName === "edit") {
-    return { text: exactEditPreview(ctx.cwd, input), filetype: "diff" };
-  }
-  if (event.toolName === "write") {
-    return writePreview(ctx.cwd, input);
-  }
-  return { text: jsonPreview(input), filetype: "json" };
-}
-
-function approvalPayload(event: ToolCallEvent, ctx: ExtensionContext): string {
-  const preview = previewForTool(event, ctx);
-  return JSON.stringify({
-    kind: "pi_approval_preview",
-    tool: event.toolName,
-    mode: getAccessMode(),
-    summary: toolSummary(event),
-    preview_filetype: preview.filetype,
-    preview: preview.text,
-  });
 }
 
 export default function accessModeExtension(pi: ExtensionAPI) {
@@ -369,58 +253,23 @@ export default function accessModeExtension(pi: ExtensionAPI) {
     setStatus(ctx);
   });
 
-  pi.on("tool_call", async (event, ctx) => {
+  pi.on("tool_call", (event, ctx) => {
     setStatus(ctx);
 
-    const accessMode = getAccessMode();
-    if (accessMode === "write") {
+    if (getAccessMode() === "write") {
       return undefined;
     }
 
-    const input = event.input as Record<string, unknown>;
-    if (event.toolName === "spawn" && (input.accessMode === "write" || input.isolation === "worktree")) {
-      return {
-        block: true,
-        reason: "Spawning write-capable subagents requires parent access mode write. Run /pi-mode write before delegating write work.",
-      };
-    }
-    if (event.toolName === "bash") {
-      if (bashPermission(input) === "allow") {
-        return undefined;
-      }
-    } else if (!WRITE_TOOLS.has(event.toolName)) {
-      return undefined;
-    }
-
-    if (isSpawnedAgent) {
-      return {
-        block: true,
-        reason: `Tool "${event.toolName}" requires approval${event.toolName === "bash" && typeof input.command === "string" ? ` (${readonlyBashBlockReason(input.command) ?? "not read-only"})` : ""}, but this spawned subagent is running in readonly mode.`,
-      };
-    }
-
-    if (!ctx.hasUI) {
-      return {
-        block: true,
-        reason: `Tool "${event.toolName}" requires approval${event.toolName === "bash" && typeof input.command === "string" ? ` (${readonlyBashBlockReason(input.command) ?? "not read-only"})` : ""}, but no UI is available.`,
-      };
-    }
-
-    notifyPermissionRequest(pi, ctx);
-
-    const confirmed = await ctx.ui.confirm(
-      `Allow ${event.toolName}?`,
-      approvalPayload(event, ctx),
-      { signal: ctx.signal },
+    const reason = readonlyToolBlockReason(
+      event.toolName,
+      event.input as Record<string, unknown>,
     );
-    if (!confirmed) {
-      return {
-        block: true,
-        reason: `Tool "${event.toolName}" blocked by user.`,
-      };
-    }
-
-    return undefined;
+    return reason
+      ? {
+          block: true,
+          reason: `Tool "${event.toolName}" blocked in readonly mode: ${reason}. Run /pi-mode write to allow mutating tools.`,
+        }
+      : undefined;
   });
 
   pi.registerCommand("pi-mode", {
