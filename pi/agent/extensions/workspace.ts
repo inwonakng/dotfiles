@@ -176,6 +176,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
             setExpectedWorkspaceMissing(undefined);
             publishWorkspaceState(nextCtx);
             nextCtx.ui.notify(`Entered workspace ${record.label}.`, "info");
+            await nextCtx.sendUserMessage("continue");
           },
         });
         if (result.cancelled) {
