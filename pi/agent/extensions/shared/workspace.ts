@@ -626,12 +626,6 @@ export function removeWorkspace(id: string, finalLifecycle: "integrated" | "disc
     throw new Error(`Unknown workspace: ${id}`);
   }
   if (record.retained && existsSync(record.worktreePath)) {
-    if (finalLifecycle === "integrated" && record.unpreservedFiles && record.unpreservedFiles.length > 0) {
-      record.lifecycle = "cleanup_failed";
-      record.integrationReason = `Workspace contains ignored untracked files that are not in the result patch: ${record.unpreservedFiles.join(", ")}`;
-      saveWorkspace(record);
-      return record;
-    }
     const result = gitResult(record.destinationRoot, ["worktree", "remove", "--force", record.worktreePath]);
     if (result.status !== 0) {
       record.lifecycle = "cleanup_failed";
