@@ -6,16 +6,20 @@ import {
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { existsSync } from "node:fs";
-import { bashMayMutate } from "./access-mode";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 import {
   createWorkspace,
+  findGitRoot,
   formatWorkspaceRecord,
   getExpectedWorkspaceMissing,
   getPendingWorkspace,
   integrateWorkspace,
+  isWorkspaceFinalized,
   linkedTaskForSession,
   listWorkspaces,
   loadWorkspace,
+  pathInside,
   prepareWorkspaceDiscard,
   removeWorkspace,
   saveWorkspace,
@@ -83,20 +87,27 @@ function formatStatus(ctx: ExtensionContext): string {
   return lines.join("\n");
 }
 
+function resolveToolPath(path: string, cwd: string): string {
+  const normalized = path.startsWith("@") ? path.slice(1) : path;
+  if (normalized === "~") {
+    return homedir();
+  }
+  if (normalized.startsWith("~/")) {
+    return join(homedir(), normalized.slice(2));
+  }
+  return resolve(cwd, normalized);
+}
+
 function shouldBlockMutation(
   toolName: string,
   input: Record<string, unknown>,
   ctx: ExtensionContext,
 ): string | undefined {
-  const active = workspaceForContext(ctx.cwd, sessionFile(ctx));
-  if (active && existsSync(active.worktreePath)) {
-    return undefined;
-  }
-  const pending = getPendingWorkspace();
-  const missing = getExpectedWorkspaceMissing();
-  let mutating = toolName === "edit" || toolName === "write";
-  if (toolName === "bash" && typeof input.command === "string") {
-    mutating = bashMayMutate(input.command);
+  let mutating = false;
+  if (toolName === "edit" || toolName === "write") {
+    const gitRoot = findGitRoot(ctx.cwd);
+    mutating = typeof input.path !== "string"
+      || (!!gitRoot && pathInside(gitRoot, resolveToolPath(input.path, ctx.cwd)));
   }
   if (toolName === "spawn") {
     mutating = input.accessMode === "write" || input.isolation === "worktree";
@@ -104,6 +115,14 @@ function shouldBlockMutation(
   if (!mutating) {
     return undefined;
   }
+  const active = workspaceForContext(ctx.cwd, sessionFile(ctx));
+  if (active && existsSync(active.worktreePath)) {
+    return isWorkspaceFinalized(active)
+      ? `Workspace ${active.id} has a finalized contribution and is retained only for cleanup; it cannot be edited.`
+      : undefined;
+  }
+  const pending = getPendingWorkspace();
+  const missing = getExpectedWorkspaceMissing();
   if (missing) {
     return `Expected Pi workspace ${missing} is missing. Inspect or discard the retained workspace record before editing.`;
   }
@@ -152,6 +171,12 @@ export default function workspaceExtension(pi: ExtensionAPI) {
       const record = loadWorkspace(id);
       if (!record || record.kind !== "task") {
         throw new Error(`Unknown task workspace: ${id}`);
+      }
+      if (isWorkspaceFinalized(record)) {
+        setPendingWorkspace(undefined);
+        throw new Error(
+          `Workspace ${record.id} has a finalized contribution and is retained only for cleanup; it cannot be re-entered.`,
+        );
       }
       try {
         await ctx.waitForIdle();
@@ -270,7 +295,8 @@ export default function workspaceExtension(pi: ExtensionAPI) {
     description: "Create/reuse a task worktree, inspect workspace state, explicitly integrate a completed task, or discard retained work. Top-level integration is never automatic. Status includes full workspace paths.",
     promptSnippet: "Manage the current task's isolated Git worktree and explicit integration lifecycle.",
     promptGuidelines: [
-      "Call workspace with action=enter before the first implementation edit unless the current session is already in an associated workspace.",
+      "Call workspace with action=enter before modifying files in the current repository unless the current session is already in an associated workspace.",
+      "Temporary probes, scripts, and generated artifacts may be created under $TMPDIR without entering a workspace; keep them outside the repository and remove them when finished.",
       "Call workspace with action=status when the expected workspace is missing or its lifecycle is unclear.",
       "Call workspace with action=integrate only after the user explicitly approves top-level integration.",
     ],
@@ -298,6 +324,11 @@ export default function workspaceExtension(pi: ExtensionAPI) {
       if (action === "enter") {
         const active = taskForCurrentContext(ctx);
         if (active && existsSync(active.worktreePath)) {
+          if (isWorkspaceFinalized(active)) {
+            throw new Error(
+              `Workspace ${active.id} has a finalized contribution and is retained only for cleanup; it cannot be re-entered.`,
+            );
+          }
           publishWorkspaceState(ctx);
           return {
             content: [{ type: "text", text: `Already in task workspace.\n${formatWorkspaceRecord(active)}` }],
@@ -306,8 +337,16 @@ export default function workspaceExtension(pi: ExtensionAPI) {
         }
         const source = sessionFile(ctx);
         let record = params.id ? loadWorkspace(params.id) : linkedTaskForSession(source);
+        if (!params.id && record && isWorkspaceFinalized(record)) {
+          record = undefined;
+        }
         if (record && record.kind !== "task") {
           throw new Error(`Workspace ${record.id} is a child workspace; resume it through spawn_control.`);
+        }
+        if (record && isWorkspaceFinalized(record)) {
+          throw new Error(
+            `Workspace ${record.id} has a finalized contribution and is retained only for cleanup; it cannot be re-entered.`,
+          );
         }
         if (!record) {
           if (params.id) {

@@ -15,7 +15,7 @@ Use this skill when the user explicitly asks for code or file changes.
 4. For bugs, test failures, or unexpected behavior, use the `debug` skill before changing code.
 5. For code changes, use the `write-good-code` skill.
 6. Use `todowrite` for non-trivial work with several distinct steps.
-7. Before the first implementation edit or mutating shell command, call the `workspace` tool with `action=enter`. Wait for the linked continuation session to enter its task worktree. Reuse an associated task or child workspace instead of nesting another worktree.
+7. Before the first edit or shell command that may modify the current repository, call the `workspace` tool with `action=enter`. Temporary probes, scripts, and generated artifacts may instead be created under `$TMPDIR`; keep them outside the repository and remove them when finished. Wait for the linked continuation session to enter its task worktree. Reuse an associated task or child workspace instead of nesting another worktree.
 8. If the user asks for subagents, load `subagent-delegation` before using them.
 
 Do not create a workspace for discussion, explanation, planning, or read-only research. If an expected workspace is missing, stop editing and inspect it with `workspace` status rather than falling back to the original checkout.

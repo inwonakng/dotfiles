@@ -126,7 +126,7 @@ function canonicalPath(path: string): string {
   return resolve(realpathSync.native(current), ...suffix);
 }
 
-function pathInside(parent: string, child: string): boolean {
+export function pathInside(parent: string, child: string): boolean {
   const rel = relative(canonicalPath(parent), canonicalPath(child));
   return rel === "" || (!rel.startsWith("..") && !rel.startsWith(sep));
 }
@@ -356,6 +356,10 @@ export function createWorkspace(input: {
   return record;
 }
 
+export function isWorkspaceFinalized(record: WorkspaceRecord): boolean {
+  return record.integration === "applied" || record.integration === "none";
+}
+
 export function workspaceForContext(cwd: string, sessionFile?: string): WorkspaceRecord | undefined {
   const resolvedCwd = canonicalPath(cwd);
   const envId = process.env.PI_WORKSPACE_ID;
@@ -537,7 +541,7 @@ export async function integrateWorkspace(id: string): Promise<WorkspaceRecord> {
   if (!initial) {
     throw new Error(`Unknown workspace: ${id}`);
   }
-  if (initial.integration === "applied" || initial.integration === "none") {
+  if (isWorkspaceFinalized(initial)) {
     return initial;
   }
   return withDestinationQueue(initial.destinationRoot, async () => {
