@@ -278,7 +278,10 @@ reapply_app_rules_on_title_change = true
 #   { workspace = 1, layout = "bsp" },
 #   { workspace = "second", layout = "scrolling" }
 # ]
-workspace_rules = [{ workspace = "M", layout = "scrolling" }]
+workspace_rules = [
+  { workspace = "M", layout = "scrolling" },
+  { workspace = "W", layout = "scrolling" },
+]
 
 
 # Default workspace to activate on startup (0-based index).
@@ -395,16 +398,25 @@ workspace_names = [
 #
 # By default there are no app rules; add or uncomment rules below as needed.
 app_rules = [
-  { app_id = "com.apple.finder", floating = true },
-  { app_id = "com.apple.ActivityMonitor", floating = true },
-  { app_id = "com.apple.systempreferences", floating = true },
-  { app_id = "ch.protonvpn.mac", floating = true },
-  { app_id = "com.apple.mail", workspace = "M" },
-  { app_id = "com.tinyspeck.slackmacgap", workspace = "M" },
-  { app_id = "com.apple.iCal", workspace = "C" },
-  { app_id = "com.apple.Safari", title_substring = "Bitwarden", floating = true },
-  { app_id = "org.mozilla.firefox", title_substring = "Extension: (Bitwarden Password Manager)", floating = true },
-  { app_name = "Zotero", title_substring = "Move to Trash", floating = true },
+  { app_name = "Finder", floating = true },
+  { app_name = "Activity Monitor", floating = true },
+  { app_name = "System Settings", floating = true },
+  { app_name = "Proton VPN", floating = true },
+  { app_name = "Mail", workspace = "M" },
+  { app_name = "Slack", workspace = "M" },
+  { app_name = "Calendar", workspace = "C" },
+  { app_name = "Safari", title_substring = "Bitwarden", floating = true },
+  { app_name = "Firefox", workspace = "2" },
+  { app_name = "Firefox", title_substring = "Extension: (Bitwarden Password Manager)", floating = true },
+  { app_name = "Ghostty", workspace = "1" },
+  { app_name = "Notes", workspace = "N" },
+  { app_name = "Skim", workspace = "V" },
+  { app_name = "Obsidian", workspace = "N" },
+  { app_name = "Webex", workspace = "W" },
+  { app_name = "Microsoft Teams", workspace = "W" },
+  { app_name = "zoom.us", workspace = "W" },
+  { app_name = "Zotero", workspace = "R" },
+  { app_name = "Zotero", title_substring = "Move to Trash", floating = true, workspace = "R" },
 ]
 
 # Modifier combinations that can be reused in key bindings
@@ -574,6 +586,7 @@ AltCtrl = "Alt + Ctrl"
 # smartly resize windows
 "AltShift + Equal" = "resize_window_grow"
 "AltShift + Minus" = "resize_window_shrink"
+
 # Example vertical bindings for windows stacked in a scrolling-layout column:
 # "AltCtrl + Equal" = { resize_window_grow = "vertical" }
 # "AltCtrl + Minus" = { resize_window_shrink = "vertical" }
