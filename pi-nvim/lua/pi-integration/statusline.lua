@@ -101,12 +101,27 @@ end
 
 local function workspace_statusline_label(state)
 	local workspace = state.workspace or {}
-	local name = type(workspace.name) == "string" and workspace.name ~= "" and workspace.name or "Local checkout"
 	if workspace.localCheckout == true then
-		return name
+		return "local"
 	end
+
+	local id = type(workspace.id) == "string" and workspace.id ~= "" and workspace.id or nil
+	local hash = id and id:match("([%x]+)$") or nil
+	if hash then
+		return hash
+	end
+
+	local name = type(workspace.name) == "string" and workspace.name ~= "" and workspace.name or "workspace"
 	local branch = type(workspace.branch) == "string" and workspace.branch ~= "" and workspace.branch or nil
 	return branch and (name .. "@" .. branch) or name
+end
+
+local function workspace_statusline_highlight(state)
+	local workspace = state.workspace or {}
+	if workspace.localCheckout == true then
+		return "%#PiWorkspaceLocal#"
+	end
+	return "%#PiWorkspaceActive#"
 end
 
 local function current_model_statusline_label(ctx)
@@ -192,7 +207,8 @@ function M.render(ctx)
 	local status_delimiter = "·"
 	local notification_label = state.notification_status and notification_statusline_label(state.notification_status) or ""
 	local notification_segment_label = notification_label ~= "" and (status_delimiter .. notification_label) or ""
-	local workspace_label = status_delimiter .. workspace_statusline_label(state)
+	local workspace_text = workspace_statusline_label(state)
+	local workspace_label = status_delimiter .. workspace_text
 	local model_label = status_delimiter .. current_model_statusline_label(ctx)
 	local thinking_level = current_thinking_level_label(state)
 	local thinking_label = thinking_level and (" [" .. thinking_level .. "]") or ""
@@ -246,7 +262,12 @@ function M.render(ctx)
 			.. statusline_escape(notification_label)
 			.. "%#PiUsageStats#"
 	end
-	left_label = left_label .. statusline_escape(workspace_label) .. statusline_escape(model_label)
+	left_label = left_label
+		.. statusline_escape(status_delimiter)
+		.. workspace_statusline_highlight(state)
+		.. statusline_escape(workspace_text)
+		.. "%#PiUsageStats#"
+		.. statusline_escape(model_label)
 	if thinking_label ~= "" then
 		left_label = left_label
 			.. thinking_statusline_highlight(thinking_level)

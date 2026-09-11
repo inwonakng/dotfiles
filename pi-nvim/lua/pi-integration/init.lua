@@ -546,6 +546,7 @@ end
 
 function M.open()
 	pi_layout.open(integration_ctx())
+	pi_rpc.start(integration_ctx())
 end
 
 function M.show_input()

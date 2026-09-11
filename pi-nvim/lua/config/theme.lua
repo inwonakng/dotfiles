@@ -40,6 +40,8 @@ require("catppuccin").setup({
 			PiModeReadonly = { fg = colors.blue, bg = M.ui_bg, bold = true },
 			PiModeWrite = { fg = colors.peach, bg = M.ui_bg, bold = true },
 			PiModeUnknown = { fg = colors.subtext1, bg = M.ui_bg, bold = true },
+			PiWorkspaceLocal = { fg = colors.overlay0, bg = M.ui_bg },
+			PiWorkspaceActive = { fg = colors.teal, bg = M.ui_bg, bold = true },
 			PiNotifyOn = { fg = colors.green, bg = M.ui_bg, bold = true },
 			PiNotifyOff = { fg = colors.overlay0, bg = M.ui_bg },
 			PiThinkingOff = { fg = colors.overlay0, bg = M.ui_bg },
