@@ -511,7 +511,8 @@ function M.collect_message_lines(ctx, messages)
 				ensure_assistant_block()
 				skill_loads_start_trace_turn = true
 			end
-			if append_skill_load_summaries(ctx, lines, items, skill_loads, has_body, last_rendered_kind, {
+			local previous_kind = rendered_kind or last_rendered_kind
+			if append_skill_load_summaries(ctx, lines, items, skill_loads, has_body, previous_kind, {
 				current_message_started = skill_loads_start_trace_turn,
 			}) then
 				assistant_block_open = true
