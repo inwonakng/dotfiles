@@ -201,7 +201,14 @@ export default function workspaceExtension(pi: ExtensionAPI) {
             setExpectedWorkspaceMissing(undefined);
             publishWorkspaceState(nextCtx);
             nextCtx.ui.notify(`Entered workspace ${record.label}.`, "info");
-            await nextCtx.sendUserMessage("continue");
+            await nextCtx.sendMessage(
+              {
+                customType: "workspace-continuation",
+                content: "continue",
+                display: false,
+              },
+              { triggerTurn: true },
+            );
           },
         });
         if (result.cancelled) {
