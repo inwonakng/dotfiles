@@ -83,9 +83,7 @@ function M.submit_prompt(ctx)
 	state.abort_requested = false
 	state.error_rendered_for_active_run = false
 	clear_input(ctx)
-	ctx.transcript.remove_status(ctx.notices.initial_session)
-	ctx.transcript.remove_status(ctx.notices.new_session)
-	ctx.transcript.remove_status(ctx.notices.pending_new_session)
+	ctx.transcript.remove_status(ctx.notices.empty_session)
 	state.pending_user_message = text
 	ctx.transcript.touch()
 	ctx.transcript.append_message_header("User")
@@ -132,7 +130,7 @@ function M.rename_session(ctx)
 	end)
 end
 
-local function reset_session_transcript_state(ctx, notice)
+local function reset_session_transcript_state(ctx)
 	local state = ctx.state
 	ctx.buffer.set_modifiable(state.transcript_buf, true)
 	replace_all_lines(ctx, state.transcript_buf, {})
@@ -154,7 +152,7 @@ local function reset_session_transcript_state(ctx, notice)
 	state.assistant_block_open = false
 	ctx.transcript.touch()
 	ctx.transcript.refresh_ui()
-	ctx.transcript.append_status(notice)
+	ctx.transcript.append_status(ctx.notices.empty_session)
 end
 
 function M.new_session(ctx)
@@ -163,7 +161,7 @@ function M.new_session(ctx)
 		if not (state.job and state.job > 0) then
 			state.pending_session_file = nil
 			state.session_file = nil
-			reset_session_transcript_state(ctx, ctx.notices.pending_new_session)
+			reset_session_transcript_state(ctx)
 			return
 		end
 
@@ -171,7 +169,7 @@ function M.new_session(ctx)
 			if event.success then
 				state.is_retrying = false
 				state.pending_retry_error = nil
-				reset_session_transcript_state(ctx, ctx.notices.new_session)
+				reset_session_transcript_state(ctx)
 				ctx.rpc.send({ type = "get_state" }, function(state_event)
 					if state_event.success and state_event.data then
 						ctx.session.apply_state(state_event.data)

@@ -108,7 +108,6 @@ function M.open(ctx)
 	M.apply_input_window_options(ctx, state.input_win)
 
 	ctx.transcript.refresh_ui()
-	ctx.transcript.append_status(ctx.notices.initial_session)
 	ctx.session.setup_keymaps()
 	return true
 end

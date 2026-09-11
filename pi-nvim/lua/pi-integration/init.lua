@@ -1,8 +1,6 @@
 local M = {}
 
-local INITIAL_SESSION_NOTICE = "No Pi session started yet. Send a message or pick a session."
-local NEW_SESSION_NOTICE = "New session."
-local PENDING_NEW_SESSION_NOTICE = "New session will be created when you send a message."
+local EMPTY_SESSION_NOTICE = "Send a message to begin. This session will be saved after the first response."
 
 local message_utils = require("pi-integration.utils.message")
 local state = require("pi-integration.state").new()
@@ -510,9 +508,7 @@ local integration_context = {
 	access = {},
 	window = {},
 	notices = {
-		initial_session = INITIAL_SESSION_NOTICE,
-		new_session = NEW_SESSION_NOTICE,
-		pending_new_session = PENDING_NEW_SESSION_NOTICE,
+		empty_session = EMPTY_SESSION_NOTICE,
 	},
 }
 
@@ -554,11 +550,9 @@ function M.show_input()
 end
 
 function M.show_transcript()
-	local recreated = pi_layout.show_transcript(integration_ctx())
+	pi_layout.show_transcript(integration_ctx())
 	if state.session_file or state.pending_session_file or (state.job and state.job > 0) then
 		M.refresh_messages()
-	elseif recreated then
-		append_status(INITIAL_SESSION_NOTICE)
 	end
 end
 
@@ -674,7 +668,7 @@ function M.refresh_messages()
 		return
 	end
 
-	notify("No Pi session has been started yet.", vim.log.levels.WARN)
+	notify("Pi is not running.", vim.log.levels.WARN)
 end
 
 function M.show_tree()

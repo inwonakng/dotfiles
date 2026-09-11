@@ -187,6 +187,7 @@ function M.start(ctx)
 		if event.success and event.data then
 			state.pending_session_file = nil
 			ctx.session.apply_state(event.data)
+			ctx.actions.refresh_messages()
 			ctx.actions.refresh_session_stats()
 			M.send(ctx, { type = "prompt", message = "/pi-workspace-publish" })
 		end

@@ -558,6 +558,10 @@ function M.collect_message_lines(ctx, messages)
 		end
 	end
 
+	if not has_body then
+		vim.list_extend(lines, { "", "> " .. ctx.notices.empty_session })
+	end
+
 	return lines, items
 end
 
