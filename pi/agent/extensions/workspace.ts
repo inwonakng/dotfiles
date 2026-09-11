@@ -305,7 +305,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
       "Call workspace with action=enter before modifying files in the current repository unless the current session is already in an associated workspace.",
       "Temporary probes, scripts, and generated artifacts may be created under $TMPDIR without entering a workspace; keep them outside the repository and remove them when finished.",
       "Call workspace with action=status when the expected workspace is missing or its lifecycle is unclear.",
-      "Call workspace with action=integrate only after the user explicitly approves top-level integration.",
+      "Call workspace with action=integrate to request approval for a completed top-level task workspace.",
     ],
     parameters: Type.Object({
       action: StringEnum(WORKSPACE_ACTIONS, { description: "Workspace lifecycle action." }),
@@ -390,14 +390,19 @@ export default function workspaceExtension(pi: ExtensionAPI) {
         if (!active || active.id !== selected.id) {
           throw new Error(`Enter task workspace ${selected.id} before integrating it so the linked conversation can return safely.`);
         }
-        const confirmed = await confirmDestructive(
-          ctx,
-          "Integrate task workspace?",
-          `Apply ${selected.label} to ${selected.destinationRoot} and return to the origin checkout?`,
-          params.approved,
-        );
-        if (!confirmed) {
-          return { content: [{ type: "text", text: "Workspace integration was not approved." }], details: selected };
+        const decision = ctx.hasUI
+          ? await ctx.ui.select(
+            `Apply ${selected.label} to ${selected.destinationRoot}?`,
+            ["Integrate and return", "Keep workspace"],
+            { signal: ctx.signal },
+          )
+          : params.approved === true ? "Integrate and return" : "Keep workspace";
+        if (decision !== "Integrate and return") {
+          return {
+            content: [{ type: "text", text: "Workspace retained without integration." }],
+            details: selected,
+            terminate: true,
+          };
         }
         const integrated = await integrateWorkspace(selected.id);
         if (integrated.integration !== "applied" && integrated.integration !== "none") {

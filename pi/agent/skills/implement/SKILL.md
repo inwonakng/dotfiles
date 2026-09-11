@@ -43,4 +43,4 @@ If implementation reveals a blocking design decision, stop and ask rather than s
 
 ## Completion
 
-Before claiming completion, use the `verify` skill and report only what fresh evidence proves. Report the active workspace and ask for explicit approval before top-level integration. Never integrate automatically on completion or session exit.
+Before claiming completion, use the `verify` skill and report only what fresh evidence proves. Report the active workspace, then call the `workspace` tool with `action=integrate` to request top-level integration. Never integrate automatically on completion or session exit.
