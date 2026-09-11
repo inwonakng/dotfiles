@@ -43,6 +43,14 @@ Every subagent brief must state:
 
 Ask the subagent to return `DONE`, `BLOCKED`, or `NEEDS_CONTEXT`, followed by concise evidence, findings, changes, commands, and remaining uncertainty.
 
+## Workspace Rules
+
+- Writing subagents use the isolated child workspace assigned by `spawn`; they must not create another worktree when they load the implementation skill.
+- Child workspaces inherit the immediate parent's tracked working state and non-ignored untracked files, including additions and deletions.
+- Join integrates the child's contribution relative to that inherited baseline. Compatible parent changes are preserved; conflicts retain the child worktree and recovery artifacts without changing the parent.
+- Treat `integration=needs_parent` or `integration=failed` as unresolved. Inspect the reported workspace, result patch, and conflict diagnostics instead of applying a blind patch.
+- Child integration targets the immediate parent workspace, not the original checkout.
+
 ## Main-Agent Responsibility
 
 The main agent must:

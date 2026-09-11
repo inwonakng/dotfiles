@@ -1,12 +1,28 @@
 import type { ExtensionAPI, ExtensionCommandContext, SessionEntry } from "@earendil-works/pi-coding-agent";
 import { CONFIG_DIR_NAME, getAgentDir, withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 import { spawnSync } from "child_process";
-import { existsSync, mkdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from "fs";
+import {
+  chmodSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  readlinkSync,
+  realpathSync,
+  rmdirSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from "fs";
 import { appendFile } from "fs/promises";
 import { dirname, join, relative, resolve, sep } from "path";
 import { createHash } from "crypto";
+import { workspaceForContext } from "./shared/workspace";
 
-type SnapshotState = { kind: "missing" } | { kind: "blob"; blob: string };
+type SnapshotState =
+  | { kind: "missing" }
+  | { kind: "file"; blob: string; mode: number }
+  | { kind: "symlink"; target: string };
 
 type FileRecord = {
 	path: string;
@@ -30,7 +46,8 @@ type FileState = {
 type TurnState = {
 	baseEntryId: string | null;
 	cwd: string;
-	gitRoot?: string;
+	root: string;
+	gitRoot: string;
 	dirtyAtStart: Set<string>;
 	files: Map<string, FileState>;
 };
@@ -87,39 +104,32 @@ function isHistoryIgnoredPath(path: string) {
 }
 
 function pathInside(parent: string, child: string) {
-	const rel = relative(parent, child);
+	const rel = relative(resolve(parent), resolve(child));
 	return rel === "" || (!rel.startsWith("..") && !rel.startsWith(sep));
 }
 
-function normalizePath(cwd: string, path: string) {
-	const absolutePath = resolve(cwd, path);
-	assertOk(pathInside(cwd, absolutePath), `Refusing to snapshot outside cwd: ${path}`);
-	return relative(cwd, absolutePath) || ".";
+function assertSafeWorkspacePath(root: string, path: string) {
+	const canonicalRoot = realpathSync(root);
+	let ancestor = dirname(path);
+	while (!existsSync(ancestor) && ancestor !== dirname(ancestor)) {
+		ancestor = dirname(ancestor);
+	}
+	const canonicalAncestor = realpathSync(ancestor);
+	assertOk(pathInside(canonicalRoot, canonicalAncestor), `Refusing to follow a path outside workspace: ${path}`);
 }
 
-function absolutePath(cwd: string, path: string) {
-	const resolvedPath = resolve(cwd, path);
-	assertOk(pathInside(cwd, resolvedPath), `Refusing to restore outside cwd: ${path}`);
+function normalizePath(root: string, cwd: string, path: string) {
+	const absolute = resolve(cwd, path);
+	assertOk(pathInside(root, absolute), `Refusing to snapshot outside workspace: ${path}`);
+	assertSafeWorkspacePath(root, absolute);
+	return relative(root, absolute) || ".";
+}
+
+function absolutePath(root: string, path: string) {
+	const resolvedPath = resolve(root, path);
+	assertOk(pathInside(root, resolvedPath), `Refusing to restore outside workspace: ${path}`);
+	assertSafeWorkspacePath(root, resolvedPath);
 	return resolvedPath;
-}
-
-function normalizeGitPath(cwd: string, gitRoot: string | undefined, path: string) {
-	const resolvedPath = resolve(gitRoot || cwd, path);
-	if (!pathInside(cwd, resolvedPath)) {
-		return undefined;
-	}
-	return relative(cwd, resolvedPath) || ".";
-}
-
-function getGitRoot(cwd: string) {
-	const result = spawnSync("git", ["rev-parse", "--show-toplevel"], {
-		cwd,
-		encoding: "utf-8",
-	});
-	if (result.status !== 0) {
-		return undefined;
-	}
-	return result.stdout.trim() || undefined;
 }
 
 function parseGitStatus(output: string) {
@@ -143,46 +153,51 @@ function parseGitStatus(output: string) {
 	return paths;
 }
 
-function gitStatusPaths(gitRoot: string | undefined) {
-	if (!gitRoot) {
-		return new Set<string>();
-	}
+function gitStatusPaths(gitRoot: string) {
 	const output = runGit(["status", "--porcelain=v1", "-z", "--untracked-files=all"], { cwd: gitRoot });
 	return parseGitStatus(String(output));
 }
 
-function snapshotCurrentFile(cwd: string, path: string): SnapshotState {
+function snapshotCurrentFile(root: string, path: string): SnapshotState {
 	ensureSnapshotStore();
-	const filePath = absolutePath(cwd, path);
-	if (!existsSync(filePath)) {
+	const filePath = absolutePath(root, path);
+	let stats;
+	try {
+		stats = lstatSync(filePath);
+	} catch {
 		return { kind: "missing" };
 	}
+	if (stats.isSymbolicLink()) {
+		return { kind: "symlink", target: readlinkSync(filePath) };
+	}
+	assertOk(stats.isFile(), `Unsupported history path type: ${filePath}`);
 	const output = runGit(["--git-dir", SNAPSHOT_GIT_DIR, "hash-object", "-w", filePath]);
-	return { kind: "blob", blob: String(output).trim() };
+	return { kind: "file", blob: String(output).trim(), mode: stats.mode & 0o777 };
 }
 
-function snapshotGitHead(gitRoot: string | undefined, cwd: string, path: string): SnapshotState {
-	if (!gitRoot) {
+function snapshotGitHead(gitRoot: string, path: string): SnapshotState {
+	const treeEntry = String(runGit(["ls-tree", "-z", "HEAD", "--", path], { cwd: gitRoot }));
+	if (!treeEntry) {
 		return { kind: "missing" };
 	}
-	const absolute = absolutePath(cwd, path);
-	const repoPath = relative(gitRoot, absolute);
-	const result = spawnSync("git", ["show", `HEAD:${repoPath}`], {
-		cwd: gitRoot,
-		encoding: undefined,
-	});
-	if (result.status !== 0) {
-		return { kind: "missing" };
+	const header = treeEntry.slice(0, treeEntry.indexOf("\t"));
+	const [mode, type, object] = header.split(" ");
+	assertOk(type === "blob" && object, `Unsupported Git history entry for ${path}: ${header}`);
+	const content = runGit(["cat-file", "-p", object], { cwd: gitRoot, binary: true }) as Buffer;
+	if (mode === "120000") {
+		return { kind: "symlink", target: content.toString("utf8") };
 	}
 	ensureSnapshotStore();
-	const blob = runGit(["--git-dir", SNAPSHOT_GIT_DIR, "hash-object", "-w", "--stdin"], {
-		input: result.stdout,
-	});
-	return { kind: "blob", blob: String(blob).trim() };
+	const blob = runGit(["--git-dir", SNAPSHOT_GIT_DIR, "hash-object", "-w", "--stdin"], { input: content });
+	return { kind: "file", blob: String(blob).trim(), mode: mode === "100755" ? 0o755 : 0o644 };
 }
 
 function sameState(left: SnapshotState, right: SnapshotState) {
-	return left.kind === right.kind && (left.kind === "missing" || left.blob === (right as { blob: string }).blob);
+	if (left.kind !== right.kind) return false;
+	if (left.kind === "missing") return true;
+	if (left.kind === "symlink") return left.target === (right as { kind: "symlink"; target: string }).target;
+	const other = right as { kind: "file"; blob: string; mode: number };
+	return left.blob === other.blob && left.mode === other.mode;
 }
 
 function formatBytes(bytes: number) {
@@ -199,27 +214,27 @@ function formatBytes(bytes: number) {
 
 function snapshotBefore(path: string) {
 	assertOk(turn, "No active turn");
-	const normalizedPath = normalizePath(turn.cwd, path);
+	const normalizedPath = normalizePath(turn.root, turn.cwd, path);
 	if (isHistoryIgnoredPath(normalizedPath)) {
 		return;
 	}
 	if (!turn.files.has(normalizedPath)) {
 		turn.files.set(normalizedPath, {
-			before: snapshotCurrentFile(turn.cwd, normalizedPath),
+			before: snapshotCurrentFile(turn.root, normalizedPath),
 		});
 	}
 }
 
 function snapshotAfter(path: string) {
 	assertOk(turn, "No active turn");
-	const normalizedPath = normalizePath(turn.cwd, path);
+	const normalizedPath = normalizePath(turn.root, turn.cwd, path);
 	if (isHistoryIgnoredPath(normalizedPath)) {
 		return;
 	}
 	const current = turn.files.get(normalizedPath) || {
-		before: snapshotCurrentFile(turn.cwd, normalizedPath),
+		before: snapshotCurrentFile(turn.root, normalizedPath),
 	};
-	current.after = snapshotCurrentFile(turn.cwd, normalizedPath);
+	current.after = snapshotCurrentFile(turn.root, normalizedPath);
 	turn.files.set(normalizedPath, current);
 }
 
@@ -228,19 +243,20 @@ function recordGitChanges() {
 		return;
 	}
 	const dirtyNow = gitStatusPaths(turn.gitRoot);
-	for (const path of dirtyNow) {
-		const normalizedPath = normalizeGitPath(turn.cwd, turn.gitRoot, path);
-		if (!normalizedPath || isHistoryIgnoredPath(normalizedPath)) {
+	const observedPaths = new Set([...turn.dirtyAtStart, ...dirtyNow]);
+	for (const normalizedPath of observedPaths) {
+		if (isHistoryIgnoredPath(normalizedPath)) {
 			continue;
 		}
 		if (!turn.files.has(normalizedPath)) {
 			turn.files.set(normalizedPath, {
-				before: turn.dirtyAtStart.has(path)
-					? snapshotCurrentFile(turn.cwd, normalizedPath)
-					: snapshotGitHead(turn.gitRoot, turn.cwd, normalizedPath),
+				before: turn.dirtyAtStart.has(normalizedPath)
+					? snapshotCurrentFile(turn.root, normalizedPath)
+					: snapshotGitHead(turn.gitRoot, normalizedPath),
 			});
 		}
-		snapshotAfter(normalizedPath);
+		const current = turn.files.get(normalizedPath)!;
+		current.after = snapshotCurrentFile(turn.root, normalizedPath);
 	}
 }
 
@@ -298,15 +314,34 @@ function restoreBlob(blob: string, path: string) {
 	writeFileSync(path, output);
 }
 
-function restoreState(cwd: string, path: string, state: SnapshotState) {
-	const filePath = absolutePath(cwd, path);
+function removeCurrentPath(path: string) {
+	let stats;
+	try {
+		stats = lstatSync(path);
+	} catch {
+		return;
+	}
+	if (stats.isDirectory() && !stats.isSymbolicLink()) {
+		rmdirSync(path);
+	} else {
+		unlinkSync(path);
+	}
+}
+
+function restoreState(root: string, path: string, state: SnapshotState) {
+	const filePath = absolutePath(root, path);
 	if (state.kind === "missing") {
-		if (existsSync(filePath)) {
-			unlinkSync(filePath);
-		}
+		removeCurrentPath(filePath);
+		return;
+	}
+	mkdirSync(dirname(filePath), { recursive: true });
+	removeCurrentPath(filePath);
+	if (state.kind === "symlink") {
+		symlinkSync(state.target, filePath);
 		return;
 	}
 	restoreBlob(state.blob, filePath);
+	chmodSync(filePath, state.mode);
 }
 
 function restorePlan(records: TurnRecord[]) {
@@ -327,10 +362,10 @@ function restorePlan(records: TurnRecord[]) {
 	return Array.from(planned.values());
 }
 
-function validateCurrentState(cwd: string, files: FileRecord[]) {
+function validateCurrentState(root: string, files: FileRecord[]) {
 	const conflicts = [];
 	for (const file of files) {
-		const current = snapshotCurrentFile(cwd, file.path);
+		const current = snapshotCurrentFile(root, file.path);
 		if (!sameState(current, file.after)) {
 			conflicts.push(file.path);
 		}
@@ -340,6 +375,16 @@ function validateCurrentState(cwd: string, files: FileRecord[]) {
 
 async function revertAfter(ctx: ExtensionCommandContext, targetId: string | null) {
 	const sessionFile = ctx.sessionManager.getSessionFile();
+	const workspace = workspaceForContext(ctx.cwd, sessionFile);
+	if (!workspace) {
+		ctx.ui.notify("No task workspace is associated with this session; conversation history changed without file rollback.", "info");
+		return true;
+	}
+	if (!existsSync(workspace.worktreePath)) {
+		ctx.ui.notify(`The associated workspace is unavailable: ${workspace.worktreePath}`, "error");
+		return false;
+	}
+	const root = workspace.worktreePath;
 	const branch = ctx.sessionManager.getBranch();
 	const afterIds = branchIdsAfter(branch, targetId);
 	const records = readRecords(sessionFile).filter((record) => {
@@ -351,13 +396,13 @@ async function revertAfter(ctx: ExtensionCommandContext, targetId: string | null
 		return true;
 	}
 	ctx.ui.notify(`Reverting ${files.length} file(s)…`, "info");
-	const conflicts = validateCurrentState(ctx.cwd, files);
+	const conflicts = validateCurrentState(root, files);
 	if (conflicts.length > 0) {
 		ctx.ui.notify(`Rollback blocked; files changed since the agent turn:\n${conflicts.join("\n")}`, "error");
 		return false;
 	}
 	for (const file of files) {
-		restoreState(ctx.cwd, file.path, file.before);
+		restoreState(root, file.path, file.before);
 	}
 	ctx.ui.notify(`Reverted ${files.length} file(s).`, "info");
 	return true;
@@ -385,25 +430,29 @@ async function pickUserMessage(ctx: ExtensionCommandContext) {
 
 export default function historyExtension(pi: ExtensionAPI) {
 	pi.on("turn_start", (_event, ctx) => {
-		const gitRoot = getGitRoot(ctx.cwd);
+		turn = undefined;
+		const workspace = workspaceForContext(ctx.cwd, ctx.sessionManager.getSessionFile());
+		if (!workspace || !existsSync(workspace.worktreePath)) {
+			return;
+		}
 		turn = {
 			baseEntryId: ctx.sessionManager.getLeafId(),
 			cwd: ctx.cwd,
-			gitRoot,
-			dirtyAtStart: gitStatusPaths(gitRoot),
+			root: workspace.worktreePath,
+			gitRoot: workspace.worktreePath,
+			dirtyAtStart: gitStatusPaths(workspace.worktreePath),
 			files: new Map(),
 		};
 
 		const snapshotPaths: string[] = [];
 		let snapshotBytes = 0;
 		for (const path of turn.dirtyAtStart) {
-			const normalizedPath = normalizeGitPath(ctx.cwd, gitRoot, path);
-			if (!normalizedPath || isHistoryIgnoredPath(normalizedPath)) {
+			if (isHistoryIgnoredPath(path)) {
 				continue;
 			}
-			snapshotPaths.push(normalizedPath);
+			snapshotPaths.push(path);
 			try {
-				const stats = statSync(absolutePath(ctx.cwd, normalizedPath));
+				const stats = lstatSync(absolutePath(turn.root, path));
 				if (stats.isFile()) {
 					snapshotBytes += stats.size;
 				}
@@ -420,7 +469,9 @@ export default function historyExtension(pi: ExtensionAPI) {
 			);
 		}
 		for (const path of snapshotPaths) {
-			snapshotBefore(path);
+			if (!turn.files.has(path)) {
+				turn.files.set(path, { before: snapshotCurrentFile(turn.root, path) });
+			}
 		}
 	});
 
@@ -454,7 +505,7 @@ export default function historyExtension(pi: ExtensionAPI) {
 			if (isHistoryIgnoredPath(path)) {
 				continue;
 			}
-			const after = state.after || snapshotCurrentFile(turn.cwd, path);
+			const after = state.after || snapshotCurrentFile(turn.root, path);
 			if (!sameState(state.before, after)) {
 				files.push({ path, before: state.before, after });
 			}

@@ -34,6 +34,13 @@ function M.new()
 		activity_timer = nil,
 		access_mode = "readonly",
 		pending_access_mode = nil,
+		workspace = {
+			name = "Local checkout",
+			path = vim.fn.getcwd(),
+			cwd = vim.fn.getcwd(),
+			lifecycle = "local",
+			localCheckout = true,
+		},
 		current_message_started = false,
 		current_thinking_rendered = false,
 		assistant_block_open = false,

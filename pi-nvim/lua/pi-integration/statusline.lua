@@ -99,6 +99,16 @@ local function mode_statusline_label(mode)
 	return tostring(mode or "--")
 end
 
+local function workspace_statusline_label(state)
+	local workspace = state.workspace or {}
+	local name = type(workspace.name) == "string" and workspace.name ~= "" and workspace.name or "Local checkout"
+	if workspace.localCheckout == true then
+		return name
+	end
+	local branch = type(workspace.branch) == "string" and workspace.branch ~= "" and workspace.branch or nil
+	return branch and (name .. "@" .. branch) or name
+end
+
 local function current_model_statusline_label(ctx)
 	local model = ctx.state.model_id or ctx.config.model
 	local provider = ctx.state.provider or ctx.config.provider
@@ -182,6 +192,7 @@ function M.render(ctx)
 	local status_delimiter = "·"
 	local notification_label = state.notification_status and notification_statusline_label(state.notification_status) or ""
 	local notification_segment_label = notification_label ~= "" and (status_delimiter .. notification_label) or ""
+	local workspace_label = status_delimiter .. workspace_statusline_label(state)
 	local model_label = status_delimiter .. current_model_statusline_label(ctx)
 	local thinking_level = current_thinking_level_label(state)
 	local thinking_label = thinking_level and (" [" .. thinking_level .. "]") or ""
@@ -192,11 +203,12 @@ function M.render(ctx)
 	local width = vim.api.nvim_win_get_width(statusline_win)
 	local mode_width = vim.fn.strdisplaywidth(mode_label)
 	local notification_width = vim.fn.strdisplaywidth(notification_segment_label)
+	local workspace_width = vim.fn.strdisplaywidth(workspace_label)
 	local model_width = vim.fn.strdisplaywidth(model_label)
 	local thinking_width = vim.fn.strdisplaywidth(thinking_label)
 	local activity_width = vim.fn.strdisplaywidth(activity_label)
 	local spawn_width = vim.fn.strdisplaywidth(spawn_label)
-	local left_width = mode_width + notification_width + model_width + thinking_width + activity_width + spawn_width
+	local left_width = mode_width + notification_width + workspace_width + model_width + thinking_width + activity_width + spawn_width
 	local stats_width = vim.fn.strdisplaywidth(stats_label)
 	local show_stats = width >= (left_width + stats_width + 3)
 	local mode_highlight = mode_statusline_highlight(mode)
@@ -223,7 +235,7 @@ function M.render(ctx)
 	if width <= left_width then
 		return left_label
 			.. "%#PiUsageStats#"
-			.. statusline_escape(truncate_plain_to_width(notification_segment_label .. model_label .. thinking_label .. activity_label .. spawn_label, width - mode_width))
+			.. statusline_escape(truncate_plain_to_width(notification_segment_label .. workspace_label .. model_label .. thinking_label .. activity_label .. spawn_label, width - mode_width))
 			.. "%*"
 	end
 
@@ -234,7 +246,7 @@ function M.render(ctx)
 			.. statusline_escape(notification_label)
 			.. "%#PiUsageStats#"
 	end
-	left_label = left_label .. statusline_escape(model_label)
+	left_label = left_label .. statusline_escape(workspace_label) .. statusline_escape(model_label)
 	if thinking_label ~= "" then
 		left_label = left_label
 			.. thinking_statusline_highlight(thinking_level)

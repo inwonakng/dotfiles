@@ -200,7 +200,7 @@ function maskShellQuotedContent(command: string): string {
   return output;
 }
 
-function readonlyBashBlockReason(command: string): string | undefined {
+export function readonlyBashBlockReason(command: string): string | undefined {
   const normalized = normalizeCommand(command);
   if (!normalized) {
     return "empty command";
@@ -219,6 +219,10 @@ function readonlyBashBlockReason(command: string): string | undefined {
   const denylistCommand = maskShellQuotedContent(normalized);
   const blocked = READONLY_BASH_DENYLIST.find(({ pattern }) => pattern.test(denylistCommand));
   return blocked?.reason;
+}
+
+export function bashMayMutate(command: string): boolean {
+  return readonlyBashBlockReason(command) !== undefined;
 }
 
 function bashPermission(input: Record<string, unknown>): PermissionDecision {

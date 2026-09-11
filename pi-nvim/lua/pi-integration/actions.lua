@@ -176,6 +176,7 @@ function M.new_session(ctx)
 					if state_event.success and state_event.data then
 						ctx.session.apply_state(state_event.data)
 						ctx.actions.refresh_session_stats()
+						ctx.rpc.send({ type = "prompt", message = "/pi-workspace-publish" })
 					end
 				end)
 			end

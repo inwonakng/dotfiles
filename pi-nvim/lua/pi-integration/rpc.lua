@@ -188,6 +188,7 @@ function M.start(ctx)
 			state.pending_session_file = nil
 			ctx.session.apply_state(event.data)
 			ctx.actions.refresh_session_stats()
+			M.send(ctx, { type = "prompt", message = "/pi-workspace-publish" })
 		end
 	end)
 	if state.pending_access_mode then

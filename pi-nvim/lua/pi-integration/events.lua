@@ -428,6 +428,63 @@ local function update_spawn_runs_from_status(ctx, text)
 	ctx.transcript.refresh_ui()
 end
 
+local function modified_buffers_under(path)
+	if type(path) ~= "string" or path == "" then
+		return 0
+	end
+	local prefix = vim.fs.normalize(path) .. "/"
+	local count = 0
+	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+		local name = vim.api.nvim_buf_get_name(buf)
+		if name ~= "" and vim.bo[buf].modified and (vim.fs.normalize(name) .. "/"):sub(1, #prefix) == prefix then
+			count = count + 1
+		end
+	end
+	return count
+end
+
+local function update_workspace_from_status(ctx, text)
+	local payload = type(text) == "string" and json.decode_object(text) or nil
+	if type(payload) ~= "table" or type(payload.cwd) ~= "string" or payload.cwd == "" then
+		return
+	end
+	local state = ctx.state
+	local previous = state.workspace or {}
+	local cwd_changed = previous.cwd ~= payload.cwd
+	local session_changed = type(payload.sessionFile) == "string" and payload.sessionFile ~= state.session_file
+	if cwd_changed then
+		local modified = modified_buffers_under(previous.path)
+		local ok, error_message = pcall(vim.api.nvim_set_current_dir, payload.cwd)
+		if not ok then
+			ctx.logs.add("error", "Could not change Neovim cwd for Pi workspace", error_message)
+			ctx.ui.notify("Could not enter Pi workspace cwd: " .. tostring(error_message), vim.log.levels.ERROR)
+			return
+		end
+		if modified > 0 then
+			ctx.ui.notify(
+				string.format("Pi changed workspace; %d modified buffer(s) remain attached to their original checkout paths.", modified),
+				vim.log.levels.WARN
+			)
+		end
+	end
+	state.workspace = payload
+	if session_changed then
+		state.session_file = payload.sessionFile
+		state.pending_session_file = nil
+		state.tree_leaf_id = nil
+		vim.defer_fn(function()
+			ctx.rpc.send({ type = "get_state" }, function(event)
+				if event.success and event.data then
+					ctx.session.apply_state(event.data)
+					ctx.actions.refresh_messages()
+					ctx.actions.refresh_session_stats()
+				end
+			end)
+		end, 20)
+	end
+	ctx.transcript.refresh_ui()
+end
+
 function M.handle_extension_ui_request(ctx, event)
 	local state = ctx.state
 	if event.method == "set_editor_text" and type(event.text) == "string" and ctx.buffer.valid(state.input_buf) then
@@ -458,6 +515,8 @@ function M.handle_extension_ui_request(ctx, event)
 			ctx.transcript.refresh_ui()
 		elseif event.statusKey == "pi-spawn-runs" then
 			update_spawn_runs_from_status(ctx, event.statusText)
+		elseif event.statusKey == "pi-workspace" then
+			update_workspace_from_status(ctx, event.statusText)
 		end
 	elseif event.method == "setTitle" and type(event.title) == "string" then
 		vim.opt.titlestring = event.title

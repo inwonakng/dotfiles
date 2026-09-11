@@ -15,7 +15,10 @@ Use this skill when the user explicitly asks for code or file changes.
 4. For bugs, test failures, or unexpected behavior, use the `debug` skill before changing code.
 5. For code changes, use the `write-good-code` skill.
 6. Use `todowrite` for non-trivial work with several distinct steps.
-7. If the user asks for subagents, load `subagent-delegation` before using them.
+7. Before the first implementation edit or mutating shell command, call the `workspace` tool with `action=enter`. Wait for the linked continuation session to enter its task worktree. Reuse an associated task or child workspace instead of nesting another worktree.
+8. If the user asks for subagents, load `subagent-delegation` before using them.
+
+Do not create a workspace for discussion, explanation, planning, or read-only research. If an expected workspace is missing, stop editing and inspect it with `workspace` status rather than falling back to the original checkout.
 
 ## Execution
 
@@ -25,6 +28,7 @@ Use this skill when the user explicitly asks for code or file changes.
 - Do not add speculative abstractions, dependencies, options, or compatibility behavior.
 - Explain before proceeding if current evidence requires a change to an approved public interface, persisted data, dependency, security property, or architecture.
 - Add or update a behavior test when a suitable test location exists and the test would catch regression of the requested behavior.
+- Run implementation checks inside the associated workspace.
 
 For each independently verifiable change:
 
@@ -39,4 +43,4 @@ If implementation reveals a blocking design decision, stop and ask rather than s
 
 ## Completion
 
-Before claiming completion, use the `verify` skill and report only what fresh evidence proves.
+Before claiming completion, use the `verify` skill and report only what fresh evidence proves. Report the active workspace and ask for explicit approval before top-level integration. Never integrate automatically on completion or session exit.
