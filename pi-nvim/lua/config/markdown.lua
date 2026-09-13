@@ -4,6 +4,12 @@ require("latex_renderer").setup({
 
 require("render-markdown").setup({
 	debounce = 0,
+	pipe_table = {
+		enabled = false,
+	},
+	quote = {
+		enabled = false,
+	},
 	ignore = function(buf)
 		return vim.api.nvim_buf_get_name(buf):match("pi://input$") ~= nil
 	end,
@@ -47,4 +53,10 @@ require("render-markdown").setup({
 			rendered = 2,
 		},
 	},
+})
+
+require("markdown_table_renderer").setup({
+	max_width_ratio = 0.95,
+	min_col_width = 6,
+	max_col_width = 40,
 })

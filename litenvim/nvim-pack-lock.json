@@ -68,6 +68,10 @@
       "rev": "a923f5fc5ba36a3b17e289dc35dc17f66d0548ee",
       "src": "https://github.com/iamcco/markdown-preview.nvim"
     },
+    "markdown-table-wrap.nvim": {
+      "rev": "a5b676360946c7bce48c0b717ab05929761b88c8",
+      "src": "https://github.com/ice345/markdown-table-wrap.nvim"
+    },
     "mason.nvim": {
       "rev": "2a6940af80375532e5e9e7c1f2fc6319a1b7a69d",
       "src": "https://github.com/williamboman/mason.nvim"
