@@ -77,6 +77,109 @@ local function read_candidate(path)
 	return candidate
 end
 
+local function canonical_session_path(path)
+	if type(path) ~= "string" or path == "" then
+		return nil
+	end
+	return vim.fn.resolve(vim.fn.fnamemodify(vim.fn.expand(path), ":p"))
+end
+
+local function read_session_history(path)
+	local ok, lines = pcall(vim.fn.readfile, path)
+	if not ok then
+		return nil
+	end
+	local header = decode_record(lines[1] or "")
+	if not header or header.type ~= "session" or type(header.id) ~= "string" then
+		return nil
+	end
+	local entries = {}
+	for index = 2, #lines do
+		if vim.trim(lines[index]) ~= "" then
+			local entry = decode_record(lines[index])
+			if not entry or type(entry.id) ~= "string" or entries[entry.id] then
+				return nil
+			end
+			-- Renaming an old session does not create independent conversation history.
+			if entry.type ~= "session_info" then
+				entries[entry.id] = entry
+			end
+		end
+	end
+	return { parent = canonical_session_path(header.parentSession), entries = entries }
+end
+
+local function has_new_activity(previous, successor)
+	for id, entry in pairs(successor.entries) do
+		if not previous.entries[id] then
+			if entry.type == "custom_message" and entry.customType == "workspace-continuation" then
+				return true
+			end
+			local message = entry.type == "message" and entry.message
+			if type(message) == "table" and (message.role == "user" or message.role == "assistant") then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+local function filter_workspace_sessions(session_candidates)
+	-- Match the workspace extension's storage location, including environment overrides.
+	local root = vim.env.PI_WORKSPACE_ROOT
+		or ((vim.env.XDG_STATE_HOME or (vim.fn.expand("~") .. "/.local/state")) .. "/pi/workspaces")
+	local records_dir = vim.fn.fnamemodify(root, ":p") .. "/records"
+	local by_path = {}
+	for _, candidate in ipairs(session_candidates) do
+		by_path[canonical_session_path(candidate.path)] = candidate
+	end
+	local histories = {}
+	local hidden = {}
+	local function history(path)
+		if histories[path] == nil then
+			histories[path] = read_session_history(path) or false
+		end
+		return histories[path]
+	end
+	local function supersede(source, target, returned)
+		source, target = canonical_session_path(source), canonical_session_path(target)
+		if not source or not target or source == target or not by_path[source] or not by_path[target] then
+			return
+		end
+		local previous, successor = history(source), history(target)
+		if not previous or not successor or successor.parent ~= source then
+			return
+		end
+		-- The file is forked before switching. Its existence alone does not prove entry succeeded.
+		if not returned and not has_new_activity(previous, successor) then
+			return
+		end
+		for id, entry in pairs(previous.entries) do
+			if not vim.deep_equal(entry, successor.entries[id]) then
+				return
+			end
+		end
+		hidden[source] = true
+	end
+
+	for _, path in ipairs(vim.fn.globpath(records_dir, "*.json", false, true)) do
+		local ok, lines = pcall(vim.fn.readfile, path)
+		local record = ok and decode_record(table.concat(lines, "\n"))
+		if record and record.version == 1 and record.kind == "task" then
+			supersede(record.sourceSessionFile, record.targetSessionFile, false)
+			-- Task integration finishes after switching back. Discard/cleanup can also happen
+			-- from another session, so those states require activity in the continuation.
+			if record.lifecycle == "integrated" or record.lifecycle == "discarded" or record.lifecycle == "cleanup_failed" then
+				supersede(record.targetSessionFile, record.continuationSessionFile, record.lifecycle == "integrated")
+			end
+		end
+	end
+
+	return vim.tbl_filter(function(candidate)
+		return not hidden[canonical_session_path(candidate.path)]
+	end, session_candidates)
+end
+
 local function candidates(ctx)
 	local dirs = {}
 	local seen_dirs = {}
@@ -119,6 +222,7 @@ local function candidates(ctx)
 		end
 	end
 
+	result = filter_workspace_sessions(result)
 	table.sort(result, function(a, b)
 		return a.mtime > b.mtime
 	end)
