@@ -212,7 +212,7 @@ function M.apply_quote_highlights(ctx)
 				priority = 250,
 			})
 			vim.api.nvim_buf_set_extmark(state.transcript_buf, quote_ns, index - 1, 0, {
-				virt_text = { { "▋", highlight } },
+				virt_text = { { "▋", "PiQuoteBar" } },
 				virt_text_pos = "overlay",
 				priority = 300,
 			})

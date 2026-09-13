@@ -25,16 +25,20 @@ local function format_count(value)
 	return tostring(value)
 end
 
+local function statusline_escape(text)
+	return tostring(text or ""):gsub("%%", "%%%%")
+end
+
 local function format_session_stats(state)
 	local stats = state.session_stats
 	if not stats then
-		return "tokens: --"
+		return "tokens: --", statusline_escape("tokens: --")
 	end
 
 	local tokens = stats.tokens or {}
 	local parts = {
-		"↑" .. format_count(tokens.input),
-		"↓" .. format_count(tokens.output),
+		{ text = "↑" .. format_count(tokens.input), highlight = "PiUsageInput" },
+		{ text = "↓" .. format_count(tokens.output), highlight = "PiUsageOutput" },
 	}
 
 	-- Pi core currently reports cacheRead/cacheWrite as cumulative per-request
@@ -43,26 +47,28 @@ local function format_session_stats(state)
 	local cache_read = tonumber(tokens.sessionCacheRead or tokens.cacheRead) or 0
 	local cache_write = tonumber(tokens.sessionCacheWrite or tokens.cacheWrite) or 0
 	if cache_read > 0 or cache_write > 0 then
-		table.insert(parts, "R" .. format_count(cache_read))
-		table.insert(parts, "W" .. format_count(cache_write))
+		table.insert(parts, { text = "R" .. format_count(cache_read), highlight = "PiUsageStats" })
+		table.insert(parts, { text = "W" .. format_count(cache_write), highlight = "PiUsageStats" })
 	end
 
 	local context = stats.contextUsage
 	if context then
 		local context_tokens = non_null(context.tokens) and format_count(context.tokens) or "?"
 		local context_window = non_null(context.contextWindow) and format_count(context.contextWindow) or "?"
-		table.insert(parts, "ctx " .. context_tokens .. "/" .. context_window)
+		table.insert(parts, { text = "ctx " .. context_tokens .. "/" .. context_window, highlight = "PiUsageContext" })
 	end
 
 	if non_null(stats.cost) then
-		table.insert(parts, string.format("$%.2f", stats.cost))
+		table.insert(parts, { text = string.format("$%.2f", stats.cost), highlight = "PiUsageCost" })
 	end
 
-	return table.concat(parts, "·")
-end
-
-local function statusline_escape(text)
-	return tostring(text or ""):gsub("%%", "%%%%")
+	local plain_parts = {}
+	local statusline_parts = {}
+	for _, part in ipairs(parts) do
+		table.insert(plain_parts, part.text)
+		table.insert(statusline_parts, "%#" .. part.highlight .. "#" .. statusline_escape(part.text))
+	end
+	return table.concat(plain_parts, "·"), table.concat(statusline_parts, "%#PiUsageStats#·")
 end
 
 local function truncate_plain_to_width(text, width)
@@ -214,7 +220,8 @@ function M.render(ctx)
 	local thinking_label = thinking_level and (" [" .. thinking_level .. "]") or ""
 	local activity_label = activity_statusline_label(state)
 	local spawn_label = spawn_statusline_label(state)
-	local stats_label = " " .. format_session_stats(state) .. " "
+	local stats_text, stats_statusline = format_session_stats(state)
+	local stats_label = " " .. stats_text .. " "
 	local statusline_win = tonumber(vim.g.statusline_winid) or ctx.state.transcript_win or 0
 	local width = vim.api.nvim_win_get_width(statusline_win)
 	local mode_width = vim.fn.strdisplaywidth(mode_label)
@@ -280,7 +287,7 @@ function M.render(ctx)
 	if spawn_label ~= "" then
 		left_label = left_label .. "%#PiUsageStats#" .. statusline_escape(spawn_label)
 	end
-	local right_label = show_stats and ("%#PiUsageStats#" .. statusline_escape(stats_label)) or ""
+	local right_label = show_stats and ("%#PiUsageStats# " .. stats_statusline .. "%#PiUsageStats# ") or ""
 	return left_label .. "%#PiPaneBorder#%=" .. right_label .. "%*"
 end
 
