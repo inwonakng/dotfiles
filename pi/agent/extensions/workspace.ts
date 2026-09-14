@@ -6,9 +6,8 @@ import {
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
 import { spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync, rmSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bashMayMutate } from "./access-mode";
@@ -43,7 +42,6 @@ const TRANSITION_ACTIONS = new Set<WorkspaceAction>(["enter", "integrate", "disc
 const REVIEW_ACTION = "Review / modify";
 const INTEGRATE_ACTION = "Integrate and return";
 const RETURN_ACTION = "Not yet — return to conversation";
-const SIDE_BY_SIDE_WIDTH_THRESHOLD = 160;
 const REVIEW_SCRIPT = resolve(dirname(fileURLToPath(import.meta.url)), "../scripts/review-workspace.sh");
 
 type ProcessResult = {
@@ -78,39 +76,15 @@ function tmuxPane(): string | undefined {
   return result.status === 0 && result.stdout.trim() === pane ? pane : undefined;
 }
 
-async function waitForTmuxPane(pane: string): Promise<void> {
-  while (true) {
-    const result = runProcess("tmux", ["display-message", "-p", "-t", pane, "#{pane_dead}"]);
-    if (result.status !== 0) {
-      return;
-    }
-    if (result.stdout.trim() === "1") {
-      runProcess("tmux", ["kill-pane", "-t", pane]);
-      return;
-    }
-    await new Promise<void>((resolvePromise) => setTimeout(resolvePromise, 200));
-  }
-}
-
-async function launchWorkspaceReview(record: WorkspaceRecord): Promise<{ launched: boolean; reason?: string }> {
+function launchWorkspaceReview(record: WorkspaceRecord): { launched: boolean; reason?: string } {
   const sourcePane = tmuxPane();
   if (!sourcePane) {
     return { launched: false };
   }
 
-  const widthResult = runProcess("tmux", ["display-message", "-p", "-t", sourcePane, "#{pane_width}"]);
-  const width = Number.parseInt(widthResult.stdout.trim(), 10);
-  if (widthResult.status !== 0 || !Number.isFinite(width)) {
-    return { launched: false, reason: widthResult.stderr.trim() || "could not determine the current pane width" };
-  }
-
-  const statusPath = join(tmpdir(), `pi-workspace-review-${randomUUID()}.status`);
-  const reviewer = reviewCommand(record);
-  const reviewerWithStatus = `${reviewer}; status=$?; printf '%s\\n' "$status" > ${shellQuote(statusPath)}; exit "$status"`;
-  const direction = width > SIDE_BY_SIDE_WIDTH_THRESHOLD ? "-h" : "-v";
   const splitResult = runProcess("tmux", [
     "split-window",
-    direction,
+    "-h",
     "-P",
     "-F",
     "#{pane_id}",
@@ -118,7 +92,7 @@ async function launchWorkspaceReview(record: WorkspaceRecord): Promise<{ launche
     sourcePane,
     "-c",
     record.worktreePath,
-    reviewerWithStatus,
+    reviewCommand(record),
   ]);
   const reviewPane = splitResult.stdout.trim();
   if (splitResult.status !== 0 || !reviewPane.startsWith("%")) {
@@ -126,24 +100,7 @@ async function launchWorkspaceReview(record: WorkspaceRecord): Promise<{ launche
   }
 
   runProcess("tmux", ["select-pane", "-t", reviewPane]);
-  await waitForTmuxPane(reviewPane);
-  runProcess("tmux", ["select-pane", "-t", sourcePane]);
-
-  try {
-    if (!existsSync(statusPath)) {
-      return { launched: false, reason: "reviewer pane closed without reporting its exit status" };
-    }
-    const statusText = readFileSync(statusPath, "utf8").trim();
-    if (!/^\d+$/.test(statusText)) {
-      return { launched: false, reason: "reviewer reported an invalid exit status" };
-    }
-    const status = Number.parseInt(statusText, 10);
-    return status === 0
-      ? { launched: true }
-      : { launched: false, reason: `reviewer exited with status ${status}` };
-  } finally {
-    rmSync(statusPath, { force: true });
-  }
+  return { launched: true };
 }
 
 function retainedForManualReview(record: WorkspaceRecord, reason?: string) {
@@ -608,7 +565,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
             if (decision !== REVIEW_ACTION) {
               break;
             }
-            const review = await launchWorkspaceReview(selected);
+            const review = launchWorkspaceReview(selected);
             if (!review.launched) {
               return retainedForManualReview(selected, review.reason);
             }
