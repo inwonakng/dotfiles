@@ -5,9 +5,12 @@ import {
 } from "@earendil-works/pi-coding-agent";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { Type } from "typebox";
-import { existsSync } from "node:fs";
-import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
+import { existsSync, readFileSync, rmSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   createWorkspace,
   findGitRoot,
@@ -34,6 +37,124 @@ import {
 
 const WORKSPACE_ACTIONS = ["enter", "status", "list", "integrate", "discard"] as const;
 type WorkspaceAction = (typeof WORKSPACE_ACTIONS)[number];
+
+const REVIEW_ACTION = "Review / modify";
+const INTEGRATE_ACTION = "Integrate and return";
+const RETURN_ACTION = "Not yet — return to conversation";
+const SIDE_BY_SIDE_WIDTH_THRESHOLD = 160;
+const REVIEW_SCRIPT = resolve(dirname(fileURLToPath(import.meta.url)), "../scripts/review-workspace.sh");
+
+type ProcessResult = {
+  status: number;
+  stdout: string;
+  stderr: string;
+};
+
+function runProcess(command: string, args: string[]): ProcessResult {
+  const result = spawnSync(command, args, { encoding: "utf8" });
+  return {
+    status: result.status ?? -1,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? result.error?.message ?? "",
+  };
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function reviewCommand(record: WorkspaceRecord): string {
+  return ["bash", shellQuote(REVIEW_SCRIPT), shellQuote(record.worktreePath), shellQuote(record.baselineCommit)].join(" ");
+}
+
+function tmuxPane(): string | undefined {
+  const pane = process.env.TMUX_PANE;
+  if (!process.env.TMUX || !pane) {
+    return undefined;
+  }
+  const result = runProcess("tmux", ["display-message", "-p", "-t", pane, "#{pane_id}"]);
+  return result.status === 0 && result.stdout.trim() === pane ? pane : undefined;
+}
+
+async function waitForTmuxPane(pane: string): Promise<void> {
+  while (true) {
+    const result = runProcess("tmux", ["display-message", "-p", "-t", pane, "#{pane_dead}"]);
+    if (result.status !== 0) {
+      return;
+    }
+    if (result.stdout.trim() === "1") {
+      runProcess("tmux", ["kill-pane", "-t", pane]);
+      return;
+    }
+    await new Promise<void>((resolvePromise) => setTimeout(resolvePromise, 200));
+  }
+}
+
+async function launchWorkspaceReview(record: WorkspaceRecord): Promise<{ launched: boolean; reason?: string }> {
+  const sourcePane = tmuxPane();
+  if (!sourcePane) {
+    return { launched: false };
+  }
+
+  const widthResult = runProcess("tmux", ["display-message", "-p", "-t", sourcePane, "#{pane_width}"]);
+  const width = Number.parseInt(widthResult.stdout.trim(), 10);
+  if (widthResult.status !== 0 || !Number.isFinite(width)) {
+    return { launched: false, reason: widthResult.stderr.trim() || "could not determine the current pane width" };
+  }
+
+  const statusPath = join(tmpdir(), `pi-workspace-review-${randomUUID()}.status`);
+  const reviewer = reviewCommand(record);
+  const reviewerWithStatus = `${reviewer}; status=$?; printf '%s\\n' "$status" > ${shellQuote(statusPath)}; exit "$status"`;
+  const direction = width > SIDE_BY_SIDE_WIDTH_THRESHOLD ? "-h" : "-v";
+  const splitResult = runProcess("tmux", [
+    "split-window",
+    direction,
+    "-P",
+    "-F",
+    "#{pane_id}",
+    "-t",
+    sourcePane,
+    "-c",
+    record.worktreePath,
+    reviewerWithStatus,
+  ]);
+  const reviewPane = splitResult.stdout.trim();
+  if (splitResult.status !== 0 || !reviewPane.startsWith("%")) {
+    return { launched: false, reason: splitResult.stderr.trim() || "tmux did not return the reviewer pane id" };
+  }
+
+  runProcess("tmux", ["select-pane", "-t", reviewPane]);
+  await waitForTmuxPane(reviewPane);
+  runProcess("tmux", ["select-pane", "-t", sourcePane]);
+
+  try {
+    if (!existsSync(statusPath)) {
+      return { launched: false, reason: "reviewer pane closed without reporting its exit status" };
+    }
+    const statusText = readFileSync(statusPath, "utf8").trim();
+    if (!/^\d+$/.test(statusText)) {
+      return { launched: false, reason: "reviewer reported an invalid exit status" };
+    }
+    const status = Number.parseInt(statusText, 10);
+    return status === 0
+      ? { launched: true }
+      : { launched: false, reason: `reviewer exited with status ${status}` };
+  } finally {
+    rmSync(statusPath, { force: true });
+  }
+}
+
+function retainedForManualReview(record: WorkspaceRecord, reason?: string) {
+  const prefix = reason ? `Could not open a tmux reviewer: ${reason}\n\n` : "";
+  return {
+    content: [{
+      type: "text" as const,
+      text: `${prefix}Workspace retained without integration. Review it from another terminal with:\n\n\`\`\`sh\n${reviewCommand(record)}\n\`\`\`\n\nRequest integration again when the review is complete.`,
+    }],
+    details: record,
+    terminate: true,
+  };
+}
 
 function sessionFile(ctx: ExtensionContext): string | undefined {
   return ctx.sessionManager.getSessionFile();
@@ -390,14 +511,24 @@ export default function workspaceExtension(pi: ExtensionAPI) {
         if (!active || active.id !== selected.id) {
           throw new Error(`Enter task workspace ${selected.id} before integrating it so the linked conversation can return safely.`);
         }
-        const decision = ctx.hasUI
-          ? await ctx.ui.select(
-            `Apply ${selected.label} to ${selected.destinationRoot}?`,
-            ["Integrate and return", "Keep workspace"],
-            { signal: ctx.signal },
-          )
-          : params.approved === true ? "Integrate and return" : "Keep workspace";
-        if (decision !== "Integrate and return") {
+        let decision = params.approved === true ? INTEGRATE_ACTION : RETURN_ACTION;
+        if (ctx.hasUI) {
+          while (true) {
+            decision = await ctx.ui.select(
+              `Apply ${selected.label} to ${selected.destinationRoot}?`,
+              [INTEGRATE_ACTION, REVIEW_ACTION, RETURN_ACTION],
+              { signal: ctx.signal },
+            ) ?? RETURN_ACTION;
+            if (decision !== REVIEW_ACTION) {
+              break;
+            }
+            const review = await launchWorkspaceReview(selected);
+            if (!review.launched) {
+              return retainedForManualReview(selected, review.reason);
+            }
+          }
+        }
+        if (decision !== INTEGRATE_ACTION) {
           return {
             content: [{ type: "text", text: "Workspace retained without integration." }],
             details: selected,
