@@ -397,8 +397,8 @@ export function setPendingWorkspace(id: string | undefined): void {
   globalState.pendingWorkspaceId = id;
 }
 
-export function getPendingWorkspace(): WorkspaceRecord | undefined {
-  return globalState.pendingWorkspaceId ? loadWorkspace(globalState.pendingWorkspaceId) : undefined;
+export function getPendingWorkspaceId(): string | undefined {
+  return globalState.pendingWorkspaceId;
 }
 
 export function setExpectedWorkspaceMissing(id: string | undefined): void {

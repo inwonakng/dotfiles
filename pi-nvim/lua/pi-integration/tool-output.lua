@@ -291,7 +291,27 @@ local function command_preview(command)
 	return truncated and (preview .. " ...") or preview
 end
 
-local function display_for_call(name, args)
+local function path_for_display(state, path)
+	if type(path) ~= "string" or path == "" then
+		return path
+	end
+	local candidate = path:sub(1, 1) == "@" and path:sub(2) or path
+	local is_absolute = candidate:sub(1, 1) == "/"
+		or candidate:match("^%a:[/\\]")
+		or candidate:sub(1, 2) == "\\\\"
+	if not is_absolute then
+		return path
+	end
+	local workspace = type(state) == "table" and type(state.workspace) == "table" and state.workspace or nil
+	local root = workspace and (workspace.path or workspace.cwd) or nil
+	if type(root) ~= "string" or root == "" then
+		return path
+	end
+	local ok, relative = pcall(vim.fs.relpath, root, candidate)
+	return ok and relative or path
+end
+
+local function display_for_call(state, name, args)
 	if name == "bash" and type(args) == "table" and type(args.command) == "string" and args.command ~= "" then
 		return {
 			kind = "bash",
@@ -303,7 +323,7 @@ local function display_for_call(name, args)
 		if type(path) == "string" and path ~= "" then
 			return {
 				kind = "file",
-				path = path,
+				path = path_for_display(state, path),
 			}
 		end
 	end
@@ -468,7 +488,7 @@ function M.record_calls(state, message)
 				local call = state.tool_calls[id] or {}
 				call.name = name
 				call.args = args or call.args
-				call.display = display_for_call(name, call.args) or call.display
+				call.display = display_for_call(state, name, call.args) or call.display
 				state.tool_calls[id] = call
 			end
 		end
@@ -492,7 +512,7 @@ function M.record_execution_call(state, tool_name, tool_call_id, args)
 	local call = state.tool_calls[tool_call_id] or {}
 	call.name = tool_name or call.name
 	call.args = type(args) == "table" and args or call.args
-	call.display = display_for_call(call.name, call.args) or call.display
+	call.display = display_for_call(state, call.name, call.args) or call.display
 	state.tool_calls[tool_call_id] = call
 end
 
@@ -854,7 +874,7 @@ function M.summary_lines(state, output_id)
 	elseif output.display and output.display.kind == "file" and output.display.path then
 		label = label .. ": " .. markdown_code_span(output.display.path)
 	elseif (output.name == "edit" or output.name == "write") and output_path(output) then
-		label = label .. ": " .. markdown_code_span(output_path(output))
+		label = label .. ": " .. markdown_code_span(path_for_display(state, output_path(output)))
 	end
 	local artifact_label = output.spawn and " · artifacts" or ""
 	local edit_label = output.name == "edit" and edit_change_label(output.args) or nil
@@ -894,7 +914,7 @@ function M.open_float(ctx, output_id)
 	local content_lines = vim.split(rendered_text or "", "\n", { plain = true })
 	local path = output_path(output)
 	if path and (output.name == "edit" or output.name == "write") then
-		local rendered = { "Path: " .. path, "" }
+		local rendered = { "Path: " .. path_for_display(state, path), "" }
 		vim.list_extend(rendered, content_lines)
 		content_lines = rendered
 	elseif output.display and output.display.kind == "bash" and output.display.command then
