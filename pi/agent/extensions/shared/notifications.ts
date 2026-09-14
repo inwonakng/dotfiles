@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
@@ -20,6 +20,7 @@ const DISABLED_SOUND_VALUES = new Set(["0", "false", "no", "none", "off", "silen
 
 type NotificationState = {
 	desktopNotificationsEnabled: boolean;
+	missingAlerterWarned?: boolean;
 };
 
 const notificationStateKey = Symbol.for("pi.extensions.notifications.state");
@@ -129,12 +130,11 @@ export function readableCwd(cwd: string, maxLength = 48): string {
 	return `${shortenedPrefix}${finalDir.slice(0, available)}...`;
 }
 
-export function notificationBody(pi: ExtensionAPI, ctx: ExtensionContext): string {
-	return `${pi.getSessionName() || basename(ctx.cwd)}\n${readableCwd(ctx.cwd)}`;
+export function notificationBody(ctx: ExtensionContext): string {
+	return `${ctx.sessionManager.getSessionName() || basename(ctx.cwd)}\n${readableCwd(ctx.cwd)}`;
 }
 
 export function sendAlerterNotification(
-	pi: ExtensionAPI,
 	ctx: ExtensionContext,
 	options: AlerterNotificationOptions,
 ): boolean {
@@ -143,7 +143,7 @@ export function sendAlerterNotification(
 		return false;
 	}
 
-	const args = ["--title", options.title, "--message", notificationBody(pi, ctx), "--group", options.group];
+	const args = ["--title", options.title, "--message", notificationBody(ctx), "--group", options.group];
 	const iconPath = notificationIconPath();
 	if (iconPath) {
 		args.push("--app-icon", iconPath);
@@ -166,4 +166,27 @@ export function sendAlerterNotification(
 	});
 	child.unref();
 	return true;
+}
+
+export function notifyPiFinished(ctx: ExtensionContext, force = false): boolean {
+	if (!notificationsEnabled() && !force) {
+		return false;
+	}
+
+	const notified = sendAlerterNotification(ctx, {
+		title: "Pi finished",
+		group: "pi-coding-agent",
+		soundEnv: "PI_COMPLETION_SOUND",
+		defaultSound: "Glass",
+		timeoutEnv: "PI_COMPLETION_NOTIFICATION_TIMEOUT",
+		defaultTimeoutSeconds: 8,
+		onError: (error) => {
+			ctx.ui.notify(`Could not send Pi notification: ${error.message}`, "warning");
+		},
+	});
+	if (!notified && !notificationState.missingAlerterWarned) {
+		notificationState.missingAlerterWarned = true;
+		ctx.ui.notify("Pi notifications are on, but alerter was not found.", "warning");
+	}
+	return notified;
 }
