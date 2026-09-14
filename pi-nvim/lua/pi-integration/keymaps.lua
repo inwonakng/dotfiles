@@ -31,7 +31,7 @@ M.specs = {
 		{
 			lhs = "<CR>",
 			action = "open_transcript_item",
-			desc = "Open tool/thinking/skill output",
+			desc = "Open tool/thinking/skill/compaction output",
 		},
 	},
 }
@@ -112,7 +112,7 @@ function M.help_key_lines()
 		table.insert(lines, "- `" .. spec.lhs .. "` " .. spec.desc .. ".")
 	end
 	vim.list_extend(lines, {
-		"- `<CR>` open the current tool/thinking/skill output.",
+		"- `<CR>` open the current tool/thinking/skill/compaction output.",
 		"- `<Esc><Esc>` abort Pi.",
 		"- `q` or `<Esc>` close this help.",
 	})

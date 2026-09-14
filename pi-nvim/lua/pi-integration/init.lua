@@ -161,6 +161,7 @@ end
 
 local pi_tool_output = require("pi-integration.tool-output")
 local pi_thinking_output = require("pi-integration.thinking-output")
+local pi_compaction_output = require("pi-integration.compaction-output")
 local pi_skills = require("pi-integration.skills")
 local pi_pickers
 local extract_text
@@ -280,6 +281,8 @@ local function open_transcript_item_under_cursor()
 		return pi_thinking_output.open_float(tool_output_ctx(), item.output_id)
 	elseif item.kind == "skill" then
 		return pi_skills.open_float(tool_output_ctx(), item.output_id)
+	elseif item.kind == "compaction" then
+		return pi_compaction_output.open_float(tool_output_ctx(), item)
 	end
 	return false
 end

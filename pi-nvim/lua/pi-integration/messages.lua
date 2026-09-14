@@ -180,8 +180,9 @@ local function format_integer(value)
 	return result
 end
 
-local function append_compaction_summary(lines, message, has_body)
+local function append_compaction_summary(lines, items, message, has_body)
 	add_message_separator(lines, has_body)
+	local marker_line = #lines + 1
 	local parts = { "󰗨 Session compacted here" }
 	local tokens = format_integer(message.tokensBefore)
 	if tokens then
@@ -194,6 +195,12 @@ local function append_compaction_summary(lines, message, has_body)
 		table.insert(parts, message.timestamp)
 	end
 	vim.list_extend(lines, { "> " .. table.concat(parts, " · "), "" })
+	table.insert(items, {
+		kind = "compaction",
+		start_line = marker_line,
+		end_line = marker_line,
+		summary = message.summary,
+	})
 	return true, "compaction"
 end
 
@@ -495,7 +502,7 @@ function M.collect_message_lines(ctx, messages)
 			end
 		elseif role == "compactionSummary" then
 			close_assistant_block()
-			appended, rendered_kind = append_compaction_summary(lines, message, has_body)
+			appended, rendered_kind = append_compaction_summary(lines, items, message, has_body)
 		elseif role == "assistant" then
 			ctx.tools.record_calls(message)
 			local skill_loads = pi_skills.collect_loads(ctx.state, message)
