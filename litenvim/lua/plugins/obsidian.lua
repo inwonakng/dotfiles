@@ -1,17 +1,27 @@
+local configured_workspaces = {
+	{
+		name = "personal",
+		path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal",
+	},
+	{
+		name = "work",
+		path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/work",
+	},
+}
+
+local workspaces = vim.tbl_filter(function(workspace)
+	return vim.fn.isdirectory(workspace.path) == 1
+end, configured_workspaces)
+
+if vim.tbl_isempty(workspaces) then
+	return
+end
+
 vim.pack.add({ "https://github.com/obsidian-nvim/obsidian.nvim" })
 
 require("obsidian").setup({
 	legacy_commands = false,
-	workspaces = {
-		{
-			name = "personal",
-			path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal",
-		},
-		{
-			name = "work",
-			path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/work",
-		},
-	},
+	workspaces = workspaces,
 	daily_notes = {
 		folder = "daily",
 		date_format = "%Y-%m-%d",
