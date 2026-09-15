@@ -14,6 +14,32 @@ local function line_count_text(text)
 	return count + 1
 end
 
+local function markdown_title(line)
+	local title = line:match("^%s*%*%*(.-)%*%*%s*$") or line:match("^%s*__(.-)__%s*$")
+	if not title then
+		title = line:match("^%s*#+%s+(.+)%s*$")
+		if title then
+			title = title:gsub("%s+#+%s*$", "")
+		end
+	end
+	if not title then
+		return nil
+	end
+	title = vim.trim(title)
+	return title ~= "" and title or nil
+end
+
+local function thinking_titles(text)
+	local titles = {}
+	for line in tostring(text or ""):gmatch("[^\r\n]+") do
+		local title = markdown_title(line)
+		if title then
+			table.insert(titles, title)
+		end
+	end
+	return titles
+end
+
 function M.reset(state)
 	state.thinking_outputs = {}
 	state.next_thinking_output_id = 0
@@ -48,6 +74,12 @@ function M.summary_lines(state, output_id, streaming)
 	local output = state.thinking_outputs[output_id]
 	if not output then
 		return { "> Thinking unavailable." }
+	end
+	local titles = thinking_titles(output.text)
+	if #titles > 0 then
+		return {
+			"> 󰔛 " .. table.concat(titles, " · "),
+		}
 	end
 	local line_label
 	if streaming then

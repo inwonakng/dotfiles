@@ -11,7 +11,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bashMayMutate } from "./access-mode";
-import { notifyPiFinished } from "./shared/notifications";
+import { notifyPiFinished, suppressNextInputNotification } from "./shared/notifications";
 import {
   createWorkspace,
   findGitRoot,
@@ -571,6 +571,8 @@ export default function workspaceExtension(pi: ExtensionAPI) {
             if (!review.launched) {
               return retainedForManualReview(selected, review.reason);
             }
+            // The loop immediately reopens the same picker after Review; only its first appearance should ping.
+            suppressNextInputNotification();
           }
         }
         if (decision !== INTEGRATE_ACTION) {

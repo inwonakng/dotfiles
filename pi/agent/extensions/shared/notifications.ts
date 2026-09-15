@@ -21,13 +21,16 @@ const DISABLED_SOUND_VALUES = new Set(["0", "false", "no", "none", "off", "silen
 type NotificationState = {
 	desktopNotificationsEnabled: boolean;
 	missingAlerterWarned?: boolean;
+	suppressedInputNotifications: number;
 };
 
 const notificationStateKey = Symbol.for("pi.extensions.notifications.state");
 const notificationStateHost = globalThis as Record<PropertyKey, unknown>;
 const notificationState = (notificationStateHost[notificationStateKey] ??= {
 	desktopNotificationsEnabled: false,
+	suppressedInputNotifications: 0,
 }) as NotificationState;
+notificationState.suppressedInputNotifications ??= 0;
 
 export function notificationsEnabled(): boolean {
 	return notificationState.desktopNotificationsEnabled;
@@ -40,6 +43,10 @@ export function setNotificationsEnabled(enabled: boolean): void {
 export function toggleNotificationsEnabled(): boolean {
 	notificationState.desktopNotificationsEnabled = !notificationState.desktopNotificationsEnabled;
 	return notificationState.desktopNotificationsEnabled;
+}
+
+export function suppressNextInputNotification(): void {
+	notificationState.suppressedInputNotifications++;
 }
 
 export function parseNotificationMode(input: string | undefined): boolean | "toggle" | undefined {
@@ -168,12 +175,42 @@ export function sendAlerterNotification(
 	return true;
 }
 
+function reportNotificationResult(ctx: ExtensionContext, notified: boolean): boolean {
+	if (!notified && !notificationState.missingAlerterWarned) {
+		notificationState.missingAlerterWarned = true;
+		ctx.ui.notify("Pi notifications are on, but alerter was not found.", "warning");
+	}
+	return notified;
+}
+
+export function notifyPiNeedsInput(ctx: ExtensionContext): boolean {
+	if (notificationState.suppressedInputNotifications > 0) {
+		notificationState.suppressedInputNotifications--;
+		return false;
+	}
+	if (!notificationsEnabled()) {
+		return false;
+	}
+
+	return reportNotificationResult(ctx, sendAlerterNotification(ctx, {
+		title: "Pi needs input",
+		group: "pi-coding-agent-input",
+		soundEnv: "PI_PERMISSION_SOUND",
+		defaultSound: "Ping",
+		timeoutEnv: "PI_PERMISSION_NOTIFICATION_TIMEOUT",
+		defaultTimeoutSeconds: 15,
+		onError: (error) => {
+			ctx.ui.notify(`Could not send Pi notification: ${error.message}`, "warning");
+		},
+	}));
+}
+
 export function notifyPiFinished(ctx: ExtensionContext, force = false): boolean {
 	if (!notificationsEnabled() && !force) {
 		return false;
 	}
 
-	const notified = sendAlerterNotification(ctx, {
+	return reportNotificationResult(ctx, sendAlerterNotification(ctx, {
 		title: "Pi finished",
 		group: "pi-coding-agent",
 		soundEnv: "PI_COMPLETION_SOUND",
@@ -183,10 +220,5 @@ export function notifyPiFinished(ctx: ExtensionContext, force = false): boolean 
 		onError: (error) => {
 			ctx.ui.notify(`Could not send Pi notification: ${error.message}`, "warning");
 		},
-	});
-	if (!notified && !notificationState.missingAlerterWarned) {
-		notificationState.missingAlerterWarned = true;
-		ctx.ui.notify("Pi notifications are on, but alerter was not found.", "warning");
-	}
-	return notified;
+	}));
 }

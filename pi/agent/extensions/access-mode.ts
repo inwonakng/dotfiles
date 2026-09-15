@@ -1,7 +1,12 @@
-import type {
-  ExtensionAPI,
-  ExtensionContext,
+import {
+  generateUnifiedPatch,
+  type ExtensionAPI,
+  type ExtensionContext,
+  type ToolCallEvent,
 } from "@earendil-works/pi-coding-agent";
+import assert from "node:assert";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { getAccessMode, parseAccessMode, setAccessMode } from "./shared/access-state";
 
 const MUTATING_FILE_COMMANDS =
@@ -203,6 +208,110 @@ export function bashMayMutate(command: string): boolean {
   return readonlyBashBlockReason(command) !== undefined;
 }
 
+function jsonPreview(value: unknown): string {
+  return JSON.stringify(value, null, 2) ?? String(value);
+}
+
+function assertEdit(value: unknown): asserts value is { oldText: string; newText: string } {
+  assert(typeof value === "object" && value !== null, "invalid edit object");
+  const edit = value as Record<string, unknown>;
+  assert(typeof edit.oldText === "string", "edit.oldText must be a string");
+  assert(edit.oldText.length > 0, "edit.oldText must not be empty");
+  assert(typeof edit.newText === "string", "edit.newText must be a string");
+}
+
+function exactEditPreview(cwd: string, input: Record<string, unknown>): string {
+  const path = input.path;
+  const edits = input.edits;
+  if (typeof path !== "string" || !Array.isArray(edits)) {
+    return jsonPreview(input);
+  }
+
+  const original = readFileSync(resolve(cwd, path), "utf-8");
+  const replacements: Array<{ index: number; oldText: string; newText: string }> = [];
+  for (const edit of edits) {
+    assertEdit(edit);
+    const index = original.indexOf(edit.oldText);
+    const matches = original.split(edit.oldText).length - 1;
+    assert(matches === 1, `Cannot preview edit for ${path}: oldText matched ${matches} times.`);
+    replacements.push({ index, oldText: edit.oldText, newText: edit.newText });
+  }
+
+  replacements.sort((left, right) => right.index - left.index);
+  for (let index = 0; index < replacements.length - 1; index++) {
+    const current = replacements[index];
+    const next = replacements[index + 1];
+    assert(next.index + next.oldText.length <= current.index, `Cannot preview edit for ${path}: edits overlap.`);
+  }
+
+  let nextContent = original;
+  for (const replacement of replacements) {
+    nextContent =
+      nextContent.slice(0, replacement.index) +
+      replacement.newText +
+      nextContent.slice(replacement.index + replacement.oldText.length);
+  }
+  return generateUnifiedPatch(path, original, nextContent);
+}
+
+function writePreview(cwd: string, input: Record<string, unknown>): { text: string; filetype: string } {
+  const path = input.path;
+  const content = input.content;
+  if (typeof path !== "string" || typeof content !== "string") {
+    return { text: jsonPreview(input), filetype: "json" };
+  }
+
+  const absolutePath = resolve(cwd, path);
+  if (!existsSync(absolutePath)) {
+    return {
+      text: `# New file: ${path}\n# Directory: ${dirname(absolutePath)}\n\n${content}`,
+      filetype: "text",
+    };
+  }
+  const original = readFileSync(absolutePath, "utf-8");
+  return { text: generateUnifiedPatch(path, original, content), filetype: "diff" };
+}
+
+function previewForTool(event: ToolCallEvent, ctx: ExtensionContext): { text: string; filetype: string } {
+  const input = event.input as Record<string, unknown>;
+  if (event.toolName === "bash") {
+    const command = typeof input.command === "string" ? input.command : jsonPreview(input);
+    return {
+      filetype: "sh",
+      text: `# cwd: ${ctx.cwd}\n# mode: ${getAccessMode()}\n\n${command}`,
+    };
+  }
+  if (event.toolName === "edit") {
+    return { text: exactEditPreview(ctx.cwd, input), filetype: "diff" };
+  }
+  if (event.toolName === "write") {
+    return writePreview(ctx.cwd, input);
+  }
+  return { text: jsonPreview(input), filetype: "json" };
+}
+
+function approvalPayload(event: ToolCallEvent, ctx: ExtensionContext): string {
+  const preview = previewForTool(event, ctx);
+  const input = event.input as Record<string, unknown>;
+  const summary = event.toolName === "bash" && typeof input.command === "string"
+    ? input.command
+    : typeof input.path === "string"
+      ? input.path
+      : JSON.stringify(input);
+  return JSON.stringify({
+    kind: "pi_approval_preview",
+    tool: event.toolName,
+    mode: getAccessMode(),
+    summary,
+    preview_filetype: preview.filetype,
+    preview: preview.text,
+  });
+}
+
+function workspaceManagesApproval(input: Record<string, unknown>): boolean {
+  return input.action === "integrate" || input.action === "discard";
+}
+
 function readonlyToolBlockReason(
   toolName: string,
   input: Record<string, unknown>,
@@ -253,23 +362,51 @@ export default function accessModeExtension(pi: ExtensionAPI) {
     setStatus(ctx);
   });
 
-  pi.on("tool_call", (event, ctx) => {
+  pi.on("tool_call", async (event, ctx) => {
     setStatus(ctx);
 
     if (getAccessMode() === "write") {
       return undefined;
     }
 
-    const reason = readonlyToolBlockReason(
-      event.toolName,
-      event.input as Record<string, unknown>,
+    const input = event.input as Record<string, unknown>;
+    if (event.toolName === "workspace" && workspaceManagesApproval(input)) {
+      return undefined;
+    }
+
+    const reason = readonlyToolBlockReason(event.toolName, input);
+    if (!reason) {
+      return undefined;
+    }
+
+    if (
+      event.toolName === "spawn"
+      && (input.accessMode === "write" || input.isolation === "worktree")
+    ) {
+      return {
+        block: true,
+        reason: "Spawning write-capable or isolated subagents requires parent access mode write. Run /pi-mode write before delegating write work.",
+      };
+    }
+
+    if (process.env.PI_SPAWN_AGENT === "1" || !ctx.hasUI) {
+      const context = process.env.PI_SPAWN_AGENT === "1"
+        ? "this spawned subagent is in readonly mode"
+        : "no UI is available";
+      return {
+        block: true,
+        reason: `Tool "${event.toolName}" requires approval (${reason}), but ${context}.`,
+      };
+    }
+
+    const confirmed = await ctx.ui.confirm(
+      `Allow ${event.toolName}?`,
+      approvalPayload(event, ctx),
+      { signal: ctx.signal },
     );
-    return reason
-      ? {
-          block: true,
-          reason: `Tool "${event.toolName}" blocked in readonly mode: ${reason}. Run /pi-mode write to allow mutating tools.`,
-        }
-      : undefined;
+    return confirmed
+      ? undefined
+      : { block: true, reason: `Tool "${event.toolName}" blocked by user.` };
   });
 
   pi.registerCommand("pi-mode", {

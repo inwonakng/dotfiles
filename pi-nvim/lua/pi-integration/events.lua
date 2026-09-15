@@ -558,9 +558,16 @@ function M.handle_message_update(ctx, event)
 	local state = ctx.state
 	local update = event.assistantMessageEvent or {}
 
-	local function render_active_thinking_if_visible(streaming)
+	local function render_active_thinking_if_visible(streaming, refresh)
 		local output_id = state.active_thinking_output_id
-		if not output_id or state.active_thinking_line then
+		if not output_id then
+			return
+		end
+		if state.active_thinking_line then
+			if refresh then
+				local summary = ctx.thinking.summary_lines(output_id, streaming)[1]
+				ctx.transcript.set_line(state.active_thinking_line, summary)
+			end
 			return
 		end
 		local text = ctx.thinking.text(output_id) or ""
@@ -595,8 +602,10 @@ function M.handle_message_update(ctx, event)
 		state.active_thinking_line = nil
 	elseif update.type == "thinking_delta" and ctx.config.show_thinking then
 		if state.active_thinking_output_id then
-			ctx.thinking.append_output(state.active_thinking_output_id, update.delta or "")
-			render_active_thinking_if_visible(true)
+			local delta = update.delta or ""
+			ctx.thinking.append_output(state.active_thinking_output_id, delta)
+			local title_may_have_changed = delta:find("[\r\n*#_]") ~= nil
+			render_active_thinking_if_visible(true, title_may_have_changed)
 		end
 	elseif update.type == "thinking_end" and ctx.config.show_thinking then
 		if state.active_thinking_output_id then
@@ -605,11 +614,7 @@ function M.handle_message_update(ctx, event)
 			if vim.trim(text) == "" and vim.trim(final_content) ~= "" then
 				ctx.thinking.append_output(state.active_thinking_output_id, final_content)
 			end
-			render_active_thinking_if_visible(false)
-			if state.active_thinking_line then
-				local summary = ctx.thinking.summary_lines(state.active_thinking_output_id, false)[1]
-				ctx.transcript.set_line(state.active_thinking_line, summary)
-			end
+			render_active_thinking_if_visible(false, true)
 		end
 		state.active_thinking_output_id = nil
 		state.active_thinking_line = nil

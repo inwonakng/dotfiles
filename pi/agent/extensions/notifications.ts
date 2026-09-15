@@ -3,6 +3,7 @@ import {
 	alerterPath,
 	notificationsEnabled,
 	notifyPiFinished,
+	notifyPiNeedsInput,
 	parseNotificationMode,
 	setNotificationsEnabled,
 	toggleNotificationsEnabled,
@@ -34,6 +35,12 @@ export default function notificationsExtension(pi: ExtensionAPI) {
 		finalStopReason = lastAssistantMessage(event.messages || [])?.stopReason;
 	});
 
+	pi.on("ui_prompt_start", (_event, ctx) => {
+		if (!ctx.isIdle()) {
+			notifyPiNeedsInput(ctx);
+		}
+	});
+
 	pi.on("agent_settled", (_event, ctx) => {
 		const stopReason = finalStopReason;
 		finalStopReason = undefined;
@@ -44,7 +51,7 @@ export default function notificationsExtension(pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("pi-notify", {
-		description: "Toggle desktop notifications for Pi completion and permission requests: /pi-notify [on|off|toggle|test]",
+		description: "Toggle desktop notifications for Pi completion and requests for user input: /pi-notify [on|off|toggle|test]",
 		handler: async (args, ctx) => {
 			if (args.trim().toLowerCase() === "test") {
 				if (notifyPiFinished(ctx, true)) {
