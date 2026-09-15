@@ -19,6 +19,7 @@ vim.schedule(function()
 end)
 
 vim.opt.number = true
+vim.opt.relativenumber = true
 vim.opt.mouse = "a"
 vim.opt.breakindent = true
 vim.opt.undofile = true
