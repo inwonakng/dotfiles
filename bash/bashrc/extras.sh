@@ -86,6 +86,10 @@ fi
 [ -f "$HOME/.cargo/env" ] && source "$HOME/.cargo/env"
 [ -f "$HOME/.config/ripgrep/config" ] && export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/config"
 
+if [[ -d "$HOME/.cargo" ]]; then
+    export PATH="$HOME/.cargo/bin:$PATH"
+fi
+
 if [[ -d "$HOME/.pixi" ]]; then
     export PATH="$HOME/.pixi/bin:$PATH"
 fi
@@ -243,15 +247,15 @@ if command -v "zoxide" >/dev/null 2>&1; then
         local previous status should_stack=1
         previous=$PWD
 
-        if (( $# == 0 )) || { (( $# == 1 )) && [[ $1 == "-" ]]; }; then
+        if (($# == 0)) || { (($# == 1)) && [[ $1 == "-" ]]; }; then
             should_stack=0
         fi
 
         __zoxide_z "$@"
         status=$?
-        (( status == 0 )) || return "$status"
+        ((status == 0)) || return "$status"
 
-        if (( should_stack )) && [[ $PWD != "$previous" ]]; then
+        if ((should_stack)) && [[ $PWD != "$previous" ]]; then
             builtin pushd -n -- "$previous" >/dev/null
         fi
     }
@@ -265,9 +269,9 @@ if command -v "zoxide" >/dev/null 2>&1; then
 else
     # Fall back to pushd when zoxide is unavailable.
     cd() {
-        if (( $# == 0 )); then
+        if (($# == 0)); then
             builtin cd "$HOME"
-        elif (( $# == 1 )) && [[ $1 == "-" ]]; then
+        elif (($# == 1)) && [[ $1 == "-" ]]; then
             builtin cd "$OLDPWD"
         else
             builtin pushd -- "$1" >/dev/null
@@ -341,7 +345,6 @@ fzf_cd_pushd() {
 }
 bind -x '"\C-k": "fzf_cd_pushd"'
 bind -m vi-insert -x '"\C-k": "fzf_cd_pushd"'
-
 
 ###################
 ## CUSTOM PROMPT ##
