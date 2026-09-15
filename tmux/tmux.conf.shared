@@ -228,7 +228,7 @@ bind c run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-calc.sh"
 TMUX_FZF_OPTIONS="-p -w 80% -h 80% -m --layout=reverse --preview-window=top:70%,nowrap"
 # this overrides the built-in selectors.
 bind s run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/session.sh switch"
-bind w run-shell -b "$HOME/.config/tmux/plugins/tmux-fzf/scripts/window.sh switch"
+bind w run-shell -b "bash $HOME/.config/tmux/scripts/select-window.sh"
 TMUX_FZF_LAUNCH_KEY="C-f"
 
 # reload config file (keybind + command prompt alias)
