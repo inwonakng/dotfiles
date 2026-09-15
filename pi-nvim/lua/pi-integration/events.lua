@@ -417,6 +417,17 @@ local function update_access_mode_from_status(ctx, text)
 	end
 end
 
+local function update_integration_mode_from_status(ctx, text)
+	if type(text) ~= "string" then
+		return
+	end
+	local mode = text:match("Integration:%s*(%w+)")
+	if mode and ctx.integration.is_mode(mode) then
+		ctx.state.integration_mode = mode
+		ctx.transcript.refresh_ui()
+	end
+end
+
 local function update_spawn_runs_from_status(ctx, text)
 	local payload = type(text) == "string" and json.decode_object(text) or nil
 	if type(payload) ~= "table" then
@@ -500,6 +511,8 @@ function M.handle_extension_ui_request(ctx, event)
 	elseif event.method == "setStatus" then
 		if event.statusKey == "pi-access-mode" then
 			update_access_mode_from_status(ctx, event.statusText)
+		elseif event.statusKey == "pi-integration-mode" then
+			update_integration_mode_from_status(ctx, event.statusText)
 		elseif event.statusKey == "pi-history-changed" then
 			ctx.actions.refresh_messages()
 		elseif event.statusKey == "pi-session-title" then

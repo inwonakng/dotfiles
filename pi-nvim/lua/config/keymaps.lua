@@ -79,11 +79,6 @@ map("n", "<leader>yt", ":YankThisLocation<CR>", { noremap = true, silent = true 
 map("x", "<leader>yT", ":YankThisAbsoluteLocation<CR>", { noremap = true, silent = true })
 map("x", "<leader>yt", ":YankThisLocation<CR>", { noremap = true, silent = true })
 
--- Add keymap for some quick insertions
-map("n", "<leader>id", function()
-	vim.cmd("normal! a" .. os.date("%Y-%m-%d"))
-end, { desc = "Insert Date", noremap = true, silent = true })
-
 -- Window modes (resize / move)
 local win_modes = require("utils.window-modes")
 map("n", "<leader>wr", win_modes.enter_resize, { desc = "Window: resize mode" })

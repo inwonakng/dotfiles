@@ -11,6 +11,12 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bashMayMutate } from "./access-mode";
+import {
+  getIntegrationMode,
+  parseIntegrationMode,
+  setIntegrationMode,
+  type IntegrationMode,
+} from "./shared/integration-state";
 import { notifyPiFinished, suppressNextInputNotification } from "./shared/notifications";
 import {
   createWorkspace,
@@ -43,6 +49,11 @@ const TRANSITION_ACTIONS = new Set<WorkspaceAction>(["enter", "integrate", "disc
 const REVIEW_ACTION = "Review / modify";
 const INTEGRATE_ACTION = "Integrate and return";
 const RETURN_ACTION = "Not yet — return to conversation";
+const INTEGRATION_ICONS: Record<IntegrationMode, string> = {
+  ask: "?",
+  allowed: "✓",
+  denied: "×",
+};
 const REVIEW_SCRIPT = resolve(dirname(fileURLToPath(import.meta.url)), "../scripts/review-workspace.sh");
 
 type ProcessResult = {
@@ -130,6 +141,14 @@ function publishWorkspaceState(ctx: ExtensionContext): void {
   ctx.ui.setStatus(
     "pi-workspace",
     ctx.mode === "rpc" ? JSON.stringify(state) : `Workspace: ${displayLabel(state)}`,
+  );
+}
+
+function publishIntegrationMode(ctx: ExtensionContext): void {
+  const mode = getIntegrationMode();
+  ctx.ui.setStatus(
+    "pi-integration-mode",
+    ctx.mode === "rpc" ? `Integration: ${mode}` : INTEGRATION_ICONS[mode],
   );
 }
 
@@ -281,9 +300,28 @@ export default function workspaceExtension(pi: ExtensionAPI) {
       setExpectedWorkspaceMissing(missing);
     }
     publishWorkspaceState(ctx);
+    publishIntegrationMode(ctx);
+  });
+
+  pi.on("before_agent_start", (event) => {
+    const mode = getIntegrationMode();
+    const guidance = mode === "allowed"
+      ? "Top-level workspace integration mode is allowed. After completing and verifying requested work, call workspace with action=integrate; no user confirmation is required."
+      : mode === "denied"
+        ? "Top-level workspace integration mode is denied. Do not call workspace with action=integrate; leave the task workspace retained for the user."
+        : "Top-level workspace integration mode is ask. After completing and verifying requested work, call workspace with action=integrate; Pi will request user confirmation before applying it.";
+    return { systemPrompt: `${event.systemPrompt}\n\n${guidance}` };
   });
 
   pi.on("tool_call", (event, ctx) => {
+    const input = event.input as Record<string, unknown>;
+    if (event.toolName === "workspace" && input.action === "integrate" && getIntegrationMode() === "denied") {
+      return {
+        block: true,
+        reason: "Top-level workspace integration is denied. Change /pi-integration-mode before integrating.",
+        terminate: true,
+      };
+    }
     if (hasMixedWorkspaceTransition(ctx)) {
       return {
         block: true,
@@ -441,6 +479,22 @@ export default function workspaceExtension(pi: ExtensionAPI) {
     },
   });
 
+  pi.registerCommand("pi-integration-mode", {
+    description: "Set top-level workspace integration mode: /pi-integration-mode ask|allowed|denied",
+    handler: async (args, ctx) => {
+      const requestedMode = parseIntegrationMode(args);
+      if (!requestedMode) {
+        ctx.ui.notify("Usage: /pi-integration-mode ask|allowed|denied", "warning");
+        publishIntegrationMode(ctx);
+        return;
+      }
+
+      setIntegrationMode(requestedMode);
+      publishIntegrationMode(ctx);
+      ctx.ui.notify(`Integration mode: ${getIntegrationMode()}`, "info");
+    },
+  });
+
   pi.registerCommand("pi-workspace", {
     description: "Show Pi workspace status or list retained workspaces",
     handler: async (args, ctx) => {
@@ -462,12 +516,13 @@ export default function workspaceExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "workspace",
     label: "Workspace",
-    description: "Create/reuse a task worktree, inspect workspace state, explicitly integrate a completed task, or discard retained work. Top-level integration is never automatic. Status includes full workspace paths.",
-    promptSnippet: "Manage the current task's isolated Git worktree and explicit integration lifecycle.",
+    description: "Create/reuse a task worktree, inspect workspace state, integrate a completed task according to the active integration mode, or discard retained work. Status includes full workspace paths.",
+    promptSnippet: "Manage the current task's isolated Git worktree and integration lifecycle.",
     promptGuidelines: [
       "Call workspace with action=enter as the only tool call in that assistant response before modifying repository files, unless the current session is already in an associated workspace. Wait for the linked continuation session before using more tools.",
       "Temporary probes, scripts, and generated artifacts may be created under $TMPDIR without entering a workspace; keep them outside the repository and remove them when finished.",
       "Call workspace with action=status when the expected workspace is missing or its lifecycle is unclear.",
+      "Top-level workspace integration follows the active integration mode: ask requests confirmation, allowed is pre-authorized, and denied blocks integration.",
       "Call workspace with action=integrate or action=discard as the only tool call in that assistant response when the action will leave the active workspace. Wait for the linked continuation session before using more tools.",
     ],
     parameters: Type.Object({
@@ -556,8 +611,14 @@ export default function workspaceExtension(pi: ExtensionAPI) {
         if (!active || active.id !== selected.id) {
           throw new Error(`Enter task workspace ${selected.id} before integrating it so the linked conversation can return safely.`);
         }
-        let decision = params.approved === true ? INTEGRATE_ACTION : RETURN_ACTION;
-        if (ctx.hasUI) {
+        const integrationMode = getIntegrationMode();
+        if (integrationMode === "denied") {
+          throw new Error("Top-level workspace integration is denied. Change /pi-integration-mode before integrating.");
+        }
+        let decision = integrationMode === "allowed" || params.approved === true
+          ? INTEGRATE_ACTION
+          : RETURN_ACTION;
+        if (integrationMode === "ask" && ctx.hasUI) {
           while (true) {
             decision = await ctx.ui.select(
               `Apply ${selected.label} to ${selected.destinationRoot}?`,

@@ -8,6 +8,7 @@ M.specs = {
 	},
 	shared = {
 		{ lhs = "<leader>a", action = "cycle_access_mode", desc = "Cycle access mode" },
+		{ lhs = "<leader>i", action = "cycle_integration_mode", desc = "Cycle integration mode" },
 		{ lhs = "<leader>?", action = "show_help", desc = "Pi help" },
 		{ lhs = "<leader>/", action = "pick_command", desc = "Pick Pi command" },
 		{ lhs = "<leader>pi", action = "show_input", desc = "Show Pi input" },

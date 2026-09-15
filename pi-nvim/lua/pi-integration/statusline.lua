@@ -185,6 +185,28 @@ local function thinking_statusline_highlight(level)
 	return "%#PiUsageStats#"
 end
 
+local function integration_statusline_label(mode)
+	if mode == "ask" then
+		return "?"
+	elseif mode == "allowed" then
+		return "✓"
+	elseif mode == "denied" then
+		return "×"
+	end
+	return "?"
+end
+
+local function integration_statusline_highlight(mode)
+	if mode == "ask" then
+		return "%#PiIntegrationAsk#"
+	elseif mode == "allowed" then
+		return "%#PiIntegrationAllowed#"
+	elseif mode == "denied" then
+		return "%#PiIntegrationDenied#"
+	end
+	return "%#PiModeUnknown#"
+end
+
 local function notification_statusline_label(status)
 	if status == "notify on" then
 		return "󰂞 "
@@ -211,6 +233,9 @@ function M.render(ctx)
 	local mode_suffix = ""
 	local mode_label = mode_prefix .. mode_text .. mode_suffix
 	local status_delimiter = "·"
+	local integration_mode = state.integration_mode or "ask"
+	local integration_label = integration_statusline_label(integration_mode)
+	local integration_segment_label = status_delimiter .. integration_label
 	local notification_label = state.notification_status and notification_statusline_label(state.notification_status) or ""
 	local notification_segment_label = notification_label ~= "" and (status_delimiter .. notification_label) or ""
 	local workspace_text = workspace_statusline_label(state)
@@ -225,13 +250,14 @@ function M.render(ctx)
 	local statusline_win = tonumber(vim.g.statusline_winid) or ctx.state.transcript_win or 0
 	local width = vim.api.nvim_win_get_width(statusline_win)
 	local mode_width = vim.fn.strdisplaywidth(mode_label)
+	local integration_width = vim.fn.strdisplaywidth(integration_segment_label)
 	local notification_width = vim.fn.strdisplaywidth(notification_segment_label)
 	local workspace_width = vim.fn.strdisplaywidth(workspace_label)
 	local model_width = vim.fn.strdisplaywidth(model_label)
 	local thinking_width = vim.fn.strdisplaywidth(thinking_label)
 	local activity_width = vim.fn.strdisplaywidth(activity_label)
 	local spawn_width = vim.fn.strdisplaywidth(spawn_label)
-	local left_width = mode_width + notification_width + workspace_width + model_width + thinking_width + activity_width + spawn_width
+	local left_width = mode_width + integration_width + notification_width + workspace_width + model_width + thinking_width + activity_width + spawn_width
 	local stats_width = vim.fn.strdisplaywidth(stats_label)
 	local show_stats = width >= (left_width + stats_width + 3)
 	local mode_highlight = mode_statusline_highlight(mode)
@@ -258,10 +284,15 @@ function M.render(ctx)
 	if width <= left_width then
 		return left_label
 			.. "%#PiUsageStats#"
-			.. statusline_escape(truncate_plain_to_width(notification_segment_label .. workspace_label .. model_label .. thinking_label .. activity_label .. spawn_label, width - mode_width))
+			.. statusline_escape(truncate_plain_to_width(integration_segment_label .. notification_segment_label .. workspace_label .. model_label .. thinking_label .. activity_label .. spawn_label, width - mode_width))
 			.. "%*"
 	end
 
+	left_label = left_label
+		.. statusline_escape(status_delimiter)
+		.. integration_statusline_highlight(integration_mode)
+		.. statusline_escape(integration_label)
+		.. "%#PiUsageStats#"
 	if notification_label ~= "" then
 		left_label = left_label
 			.. statusline_escape(status_delimiter)

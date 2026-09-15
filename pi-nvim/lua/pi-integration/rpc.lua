@@ -202,6 +202,16 @@ function M.start(ctx)
 			end
 		end)
 	end
+	if state.pending_integration_mode then
+		local mode = state.pending_integration_mode
+		M.send(ctx, { type = "prompt", message = "/pi-integration-mode " .. mode }, function(event)
+			if event.success then
+				state.pending_integration_mode = nil
+			else
+				ctx.ui.notify(event.error or "Could not set integration mode", vim.log.levels.ERROR)
+			end
+		end)
+	end
 end
 
 function M.send(ctx, cmd, callback)
@@ -242,6 +252,9 @@ function M.restart(ctx)
 	end
 	if state.access_mode and state.access_mode ~= "" then
 		state.pending_access_mode = state.access_mode
+	end
+	if state.integration_mode and state.integration_mode ~= "" then
+		state.pending_integration_mode = state.integration_mode
 	end
 	state.callbacks = {}
 	state.stdout_pending = ""

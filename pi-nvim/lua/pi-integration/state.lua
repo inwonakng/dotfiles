@@ -34,6 +34,8 @@ function M.new()
 		activity_timer = nil,
 		access_mode = "readonly",
 		pending_access_mode = nil,
+		integration_mode = "ask",
+		pending_integration_mode = nil,
 		workspace = {
 			name = "Local checkout",
 			path = vim.fn.getcwd(),

@@ -1,12 +1,32 @@
 local M = {}
 
-function M.is_access_mode(ctx, mode)
-	for _, candidate in ipairs(ctx.config.access_modes or {}) do
-		if candidate == mode then
+local function contains(values, value)
+	for _, candidate in ipairs(values or {}) do
+		if candidate == value then
 			return true
 		end
 	end
 	return false
+end
+
+local function next_mode(modes, selected)
+	if #modes == 0 then
+		return nil
+	end
+	for index, mode in ipairs(modes) do
+		if mode == selected then
+			return modes[(index % #modes) + 1]
+		end
+	end
+	return modes[1]
+end
+
+function M.is_access_mode(ctx, mode)
+	return contains(ctx.config.access_modes, mode)
+end
+
+function M.is_integration_mode(ctx, mode)
+	return contains(ctx.config.integration_modes, mode)
 end
 
 local function model_label(model)
@@ -63,24 +83,33 @@ function M.pick_access_mode(ctx)
 end
 
 function M.cycle_access_mode(ctx)
-	local modes = ctx.config.access_modes or {}
-	if #modes == 0 then
+	local mode = next_mode(ctx.config.access_modes or {}, ctx.state.access_mode)
+	if mode then
+		M.set_access_mode(ctx, mode)
+	end
+end
+
+function M.set_integration_mode(ctx, mode)
+	assert(M.is_integration_mode(ctx, mode), "invalid integration mode: " .. tostring(mode))
+	ctx.state.integration_mode = mode
+	ctx.transcript.refresh_ui()
+	if not (ctx.state.job and ctx.state.job > 0) then
+		ctx.state.pending_integration_mode = mode
+		ctx.ui.notify("Integration mode will be applied when Pi starts: " .. mode)
 		return
 	end
-
-	local current = 1
-	for index, mode in ipairs(modes) do
-		if mode == ctx.state.access_mode then
-			current = index
-			break
+	ctx.rpc.send({ type = "prompt", message = "/pi-integration-mode " .. mode }, function(event)
+		if not event.success then
+			ctx.ui.notify(event.error or "Could not set integration mode", vim.log.levels.ERROR)
 		end
-	end
+	end)
+end
 
-	local next_index = current + 1
-	if next_index > #modes then
-		next_index = 1
+function M.cycle_integration_mode(ctx)
+	local mode = next_mode(ctx.config.integration_modes or {}, ctx.state.integration_mode)
+	if mode then
+		M.set_integration_mode(ctx, mode)
 	end
-	M.set_access_mode(ctx, modes[next_index])
 end
 
 function M.pick_thinking(ctx)

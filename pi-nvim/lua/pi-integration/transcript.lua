@@ -29,6 +29,7 @@ function M.metadata_lines(ctx)
 		"provider: " .. yaml_value(state.provider or ctx.config.provider),
 		"thinking: " .. yaml_value(state.thinking_level),
 		"access: " .. yaml_value(state.access_mode),
+		"integration: " .. yaml_value(state.integration_mode),
 		"session: " .. yaml_value(session_label(state)),
 		"cwd: " .. yaml_value(vim.fn.getcwd()),
 		"last_updated: " .. yaml_value(state.last_updated),

@@ -4,7 +4,6 @@ which_key.setup({})
 which_key.add({
 	{ "<leader><tab>", group = "tabs" },
 	{ "<leader>b", group = "buffers" },
-	{ "<leader>i", group = "insert" },
 	{ "<leader>p", group = "pi" },
 	{ "<leader>u", group = "ui" },
 	{ "<leader>w", group = "windows" },
