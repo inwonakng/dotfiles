@@ -6,6 +6,7 @@ cursor-style = block
 macos-titlebar-style = hidden
 font-thicken = true
 font-style = Light
+confirm-close-surface = false
 
 # theme stuff
 palette = 0=#494d64
