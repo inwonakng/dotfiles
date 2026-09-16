@@ -17,6 +17,7 @@ import { getAccessMode } from "./shared/access-state";
 import {
   createWorkspace,
   integrateWorkspace,
+  isWorkspaceFinalized,
   loadWorkspace,
   prepareWorkspaceDiscard,
   removeWorkspace,
@@ -1346,8 +1347,16 @@ export default function spawnExtension(pi: ExtensionAPI) {
       if (accessMode === "write" && isolation !== "worktree") {
         throw new Error("write-mode spawned subagents must use worktree isolation");
       }
-      if (isolation === "worktree" && !workspaceForContext(ctx.cwd, ctx.sessionManager.getSessionFile())) {
-        throw new Error("Isolated writing subagents require an active parent task workspace. Call workspace with action=enter first.");
+      if (isolation === "worktree") {
+        const parentWorkspace = workspaceForContext(ctx.cwd, ctx.sessionManager.getSessionFile());
+        if (!parentWorkspace) {
+          throw new Error("Isolated writing subagents require an active parent task workspace. Call workspace with action=enter first.");
+        }
+        if (isWorkspaceFinalized(parentWorkspace)) {
+          throw new Error(
+            `Workspace ${parentWorkspace.id} has a finalized contribution and cannot host writing subagents.`,
+          );
+        }
       }
 
       const run = createRun({

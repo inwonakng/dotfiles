@@ -204,10 +204,6 @@ export function readonlyBashBlockReason(command: string): string | undefined {
   return blocked?.reason;
 }
 
-export function bashMayMutate(command: string): boolean {
-  return readonlyBashBlockReason(command) !== undefined;
-}
-
 function jsonPreview(value: unknown): string {
   return JSON.stringify(value, null, 2) ?? String(value);
 }

@@ -10,7 +10,6 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { bashMayMutate } from "./access-mode";
 import {
   getIntegrationMode,
   parseIntegrationMode,
@@ -123,7 +122,6 @@ function retainedForManualReview(record: WorkspaceRecord, reason?: string) {
       text: `${prefix}Workspace retained without integration. Review it from another terminal with:\n\n\`\`\`sh\n${reviewCommand(record)}\n\`\`\`\n\nRequest integration again when the review is complete.`,
     }],
     details: record,
-    terminate: true,
   };
 }
 
@@ -225,31 +223,24 @@ function hasMixedWorkspaceTransition(ctx: ExtensionContext): boolean {
   return false;
 }
 
-function shouldBlockMutation(
+function workspaceBlockReason(
   toolName: string,
   input: Record<string, unknown>,
   ctx: ExtensionContext,
 ): string | undefined {
-  let mutating = false;
+  let repositoryEdit = false;
   let mutationPath: string | undefined;
-  let bashCommand: string | undefined;
   if (toolName === "edit" || toolName === "write") {
     const gitRoot = findGitRoot(ctx.cwd);
     mutationPath = typeof input.path === "string" ? resolveToolPath(input.path, ctx.cwd) : undefined;
-    mutating = !mutationPath
+    repositoryEdit = !mutationPath
       || (!!gitRoot && pathInside(gitRoot, mutationPath))
       || managedRepositoryPath(mutationPath);
   }
-  if (toolName === "bash") {
-    bashCommand = typeof input.command === "string" ? input.command : undefined;
-    mutating = !bashCommand || bashMayMutate(bashCommand);
-  }
-  if (toolName === "spawn") {
-    mutating = input.accessMode === "write" || input.isolation === "worktree";
-  }
-  if (!mutating) {
+  if (!repositoryEdit) {
     return undefined;
   }
+
   const active = workspaceForContext(ctx.cwd, sessionFile(ctx));
   if (active && existsSync(active.worktreePath)) {
     if (isWorkspaceFinalized(active)) {
@@ -258,21 +249,14 @@ function shouldBlockMutation(
     if (mutationPath && !pathInside(active.worktreePath, mutationPath)) {
       return `Repository mutations for workspace ${active.id} must target its worktree. Use a path relative to ${active.workspaceCwd}.`;
     }
-    if (bashCommand && listWorkspaces().some((record) =>
-      record.retained
-      && ((!pathInside(active.worktreePath, record.destinationRoot)
-        && bashCommand.includes(record.destinationRoot))
-        || (record.id !== active.id && bashCommand.includes(record.worktreePath)))
-    )) {
-      return `Mutating bash commands for workspace ${active.id} must not reference another managed checkout.`;
-    }
     return undefined;
   }
+
   const missing = getExpectedWorkspaceMissing();
   if (missing) {
     return `Expected Pi workspace ${missing} is missing. Inspect or discard the retained workspace record before editing.`;
   }
-  return "Implementation edits require an active task workspace. Call workspace with action=enter as the only tool call, then wait for the linked continuation session.";
+  return undefined;
 }
 
 async function confirmDestructive(
@@ -319,14 +303,12 @@ export default function workspaceExtension(pi: ExtensionAPI) {
       return {
         block: true,
         reason: "Top-level workspace integration is denied. Change /pi-integration-mode before integrating.",
-        terminate: true,
       };
     }
     if (hasMixedWorkspaceTransition(ctx)) {
       return {
         block: true,
         reason: "Workspace transition actions must be the only tool call in their assistant response. Retry the transition by itself.",
-        terminate: true,
       };
     }
     const pendingWorkspaceId = getPendingWorkspaceId();
@@ -337,8 +319,8 @@ export default function workspaceExtension(pi: ExtensionAPI) {
         terminate: true,
       };
     }
-    const reason = shouldBlockMutation(event.toolName, event.input as Record<string, unknown>, ctx);
-    return reason ? { block: true, reason, terminate: true } : undefined;
+    const reason = workspaceBlockReason(event.toolName, input, ctx);
+    return reason ? { block: true, reason } : undefined;
   });
 
   pi.registerCommand("pi-workspace-enter", {
@@ -519,7 +501,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
     description: "Create/reuse a task worktree, inspect workspace state, integrate a completed task according to the active integration mode, or discard retained work. Status includes full workspace paths.",
     promptSnippet: "Manage the current task's isolated Git worktree and integration lifecycle.",
     promptGuidelines: [
-      "Call workspace with action=enter as the only tool call in that assistant response before modifying repository files, unless the current session is already in an associated workspace. Wait for the linked continuation session before using more tools.",
+      "Call workspace with action=enter as the only tool call in that assistant response before making implementation changes with edit or write, unless the current session is already in an associated workspace. Wait for the linked continuation session before using more tools.",
       "Temporary probes, scripts, and generated artifacts may be created under $TMPDIR without entering a workspace; keep them outside the repository and remove them when finished.",
       "Call workspace with action=status when the expected workspace is missing or its lifecycle is unclear.",
       "Top-level workspace integration follows the active integration mode: ask requests confirmation, allowed is pre-authorized, and denied blocks integration.",
@@ -640,7 +622,6 @@ export default function workspaceExtension(pi: ExtensionAPI) {
           return {
             content: [{ type: "text", text: "Workspace retained without integration." }],
             details: selected,
-            terminate: true,
           };
         }
         const integrated = await integrateWorkspace(selected.id);
