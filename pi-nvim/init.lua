@@ -4,6 +4,7 @@ if config_root then
 end
 
 require("config.options")
+require("config.autocmds")
 require("config.plugins")
 require("config.theme")
 require("config.which-key")
