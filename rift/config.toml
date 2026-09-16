@@ -577,11 +577,7 @@ AltCtrl = "Alt + Ctrl"
 
 "AltShift + F" = "toggle_window_floating"
 "Alt + Z" = "toggle_fullscreen"
-"Alt + F" = { exec = [
-  "sh",
-  "-lc",
-  "exec bash \"$HOME/.config/rift/scripts/toggle-floating-window-workspace.sh\"",
-] }
+"Alt + F" = "toggle_focus_floating"
 
 # smartly resize windows
 "AltShift + Equal" = "resize_window_grow"
