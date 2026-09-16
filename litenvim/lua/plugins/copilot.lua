@@ -6,23 +6,17 @@ end
 
 vim.pack.add({ "https://github.com/zbirenbaum/copilot.lua" })
 
--- run `:Copilot auth` after first install
-vim.api.nvim_create_autocmd("InsertEnter", {
-	once = true,
-	callback = function()
-		require("copilot").setup({
-			suggestion = {
-				enabled = true,
-				auto_trigger = true,
-				keymap = { accept = "<C-a>" },
-			},
-			panel = {
-				enabled = false,
-			},
-			filetypes = {
-				markdown = true,
-				help = true,
-			},
-		})
-	end,
+require("copilot").setup({
+	suggestion = {
+		enabled = true,
+		auto_trigger = true,
+		keymap = { accept = "<C-a>" },
+	},
+	panel = {
+		enabled = false,
+	},
+	filetypes = {
+		markdown = true,
+		help = true,
+	},
 })
