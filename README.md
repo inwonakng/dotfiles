@@ -80,3 +80,14 @@ so that the binaries under `.local/bin` are found before anything.
 
 Install these in the `(base)` environment, and then create a symlink to the
 appropriate `~/.local/bin/$ARCH$` folder
+
+### Prerequisites
+
+**Neovim**
+
+- node (use `./scripts/setup/node.sh` to install using nvm)
+- cargo/rustup (install using conda if no sudo)
+- fd (symlink fdfind to `~/.local/bin/fd`)
+- ripgrep
+- tree-sitter-cli (may need to use npm or cargo. apt is very out of date)
+- python3-dev (on top of python3)
