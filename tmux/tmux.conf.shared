@@ -1,4 +1,4 @@
-# This is the shared utilities for tmux conf. 
+# This is the shared utilities for tmux conf.
 
 # Plugins
 set -g @plugin 'tmux-plugins/tpm'
@@ -8,6 +8,7 @@ set -g @plugin 'sainnhe/tmux-fzf'
 set -g @scroll-speed-num-lines-per-scroll 5
 set -g @sidebar-tree-command 'tree -C'
 set -g @plugin 'tmux-plugins/tmux-resurrect'
+set -g @plugin 'tmux-plugins/tmux-continuum'
 
 # add script path
 setenv -g PATH "$HOME/.config/tmux/scripts:$PATH"
@@ -19,6 +20,12 @@ set -g @resurrect-hook-post-save-layout 'bash $HOME/dotfiles/tmux/scripts/filter
 # Enable mouse mode (tmux 2.1 and above)
 set -g mouse on
 
+###==================###
+### Continuum Config ###
+###==================###
+
+set -g @continuum-restore 'on'
+set -g @continuum-save-interval '10'
 
 ###===================###
 ### Pane Manipulation ###

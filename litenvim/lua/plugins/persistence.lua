@@ -4,8 +4,15 @@ if vim.fn.argc() > 0 then
 end
 
 vim.pack.add({ "https://github.com/folke/persistence.nvim" })
-require("persistence").setup()
+local persistence = require("persistence")
+persistence.setup()
+
+vim.fn.timer_start(5 * 60 * 1000, function()
+	if persistence.active() then
+		persistence.save()
+	end
+end, { ["repeat"] = -1 })
 
 vim.keymap.set("n", "<leader>qs", function()
-	require("persistence").load()
+	persistence.load()
 end)
