@@ -622,6 +622,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
           return {
             content: [{ type: "text", text: "Workspace retained without integration." }],
             details: selected,
+            terminate: true,
           };
         }
         const integrated = await integrateWorkspace(selected.id);
