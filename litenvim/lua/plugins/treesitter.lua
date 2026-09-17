@@ -44,7 +44,7 @@ vim.api.nvim_create_autocmd("FileType", {
 			return
 		end
 
-		if language ~= "latex" then
+		if language ~= "latex" and language ~= "ledger" then
 			vim.treesitter.start(args.buf, language)
 		end
 
