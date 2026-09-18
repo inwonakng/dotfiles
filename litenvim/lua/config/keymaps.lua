@@ -22,6 +22,8 @@ map("n", "<leader><tab><tab>", "<cmd>tabnew<cr>", { desc = "New tab" })
 map("n", "<leader><tab><cr>", "<cmd>tab sp<cr>", { desc = "Open in new tab" })
 map("n", "<leader><tab>o", "<cmd>tabonly<cr>", { desc = "Close other tabs" })
 map("n", "<leader><tab>d", "<cmd>tabclose<cr>", { desc = "Close tab" })
+map("n", "<leader><tab>,", "<cmd>silent! tabmove -1<cr>", { desc = "Move tab left" })
+map("n", "<leader><tab>.", "<cmd>silent! tabmove +1<cr>", { desc = "Move tab right" })
 
 -- indentation with >> and <<
 map("v", "<", "<gv")
