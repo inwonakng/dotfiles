@@ -114,6 +114,14 @@ function M.history(ctx)
 	end)
 end
 
+function M.show_workspace_diff(ctx)
+	ctx.rpc.send({ type = "prompt", message = "/pi-workspace-review" }, function(event)
+		if not event.success then
+			ctx.ui.notify(event.error or "Could not open workspace diff", vim.log.levels.ERROR)
+		end
+	end)
+end
+
 function M.toggle_notifications(ctx)
 	ctx.rpc.send({ type = "prompt", message = "/pi-notify toggle" }, function(event)
 		if not event.success then

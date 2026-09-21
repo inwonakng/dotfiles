@@ -461,6 +461,30 @@ export default function workspaceExtension(pi: ExtensionAPI) {
     },
   });
 
+  pi.registerCommand("pi-workspace-review", {
+    description: "Review the current session's workspace diff",
+    handler: async (_args, ctx) => {
+      const record = workspaceForContext(ctx.cwd, sessionFile(ctx));
+      if (!record) {
+        ctx.ui.notify("No workspace is available for the current session.", "warning");
+        return;
+      }
+      if (!existsSync(record.worktreePath)) {
+        ctx.ui.notify(`Workspace path is missing: ${record.worktreePath}`, "warning");
+        return;
+      }
+
+      const review = launchWorkspaceReview(record);
+      if (!review.launched) {
+        const prefix = review.reason ? `Could not open a tmux reviewer: ${review.reason}\n\n` : "";
+        ctx.ui.notify(
+          `${prefix}Review the workspace from another terminal with:\n\n${reviewCommand(record)}`,
+          review.reason ? "warning" : "info",
+        );
+      }
+    },
+  });
+
   pi.registerCommand("pi-integration-mode", {
     description: "Set top-level workspace integration mode: /pi-integration-mode ask|allowed|denied",
     handler: async (args, ctx) => {

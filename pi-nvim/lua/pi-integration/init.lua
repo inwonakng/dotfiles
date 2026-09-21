@@ -587,6 +587,10 @@ function M.history()
 	pi_actions.history(integration_ctx())
 end
 
+function M.show_workspace_diff()
+	pi_actions.show_workspace_diff(integration_ctx())
+end
+
 function M.toggle_notifications()
 	pi_actions.toggle_notifications(integration_ctx())
 end
