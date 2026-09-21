@@ -160,7 +160,12 @@ fzf.setup({
 			child_prefix = false,
 		},
 		code_actions = {
-			previewer = vim.fn.executable("delta") == 1 and "codeaction_native" or nil,
+			previewer = "codeaction_native",
+			winopts = {
+				preview = {
+					wrap = true,
+				},
+			},
 		},
 	},
 	git = {
