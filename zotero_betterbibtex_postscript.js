@@ -18,13 +18,3 @@ if (isICLR(zotero)) {
   }
 }
 
-if (isArxiv(zotero)) {
-  // if it's an arxive document, just re-build the whole thing. We want it to be an article type where the
-  Zotero.debug('its arxiv')
-  tex.entrytype = 'article'
-  tex.add({name: 'journal', value: 'arXiv preprint ' + zotero.number})
-  tex.remove("number")
-  tex.remove("eprint")
-  tex.remove("doi")
-  tex.remove("publisher")
-}
