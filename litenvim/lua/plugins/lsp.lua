@@ -3,7 +3,7 @@ vim.pack.add({
 	"https://github.com/j-hui/fidget.nvim",
 })
 
-opts = {
+local opts = {
 	ensure_installed = {
 		"ruff",
 		"black",
