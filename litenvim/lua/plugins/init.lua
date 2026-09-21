@@ -37,6 +37,7 @@ require("plugins.treesitter")
 require("plugins.vimtex")
 require("plugins.which-key")
 require("plugins.latex-renderer")
+require("plugins.diffview")
 
 -- add the rest here
 vim.pack.add({
@@ -46,7 +47,6 @@ vim.pack.add({
 	"https://github.com/nvim-tree/nvim-web-devicons",
 	"https://github.com/folke/trouble.nvim",
 	"https://github.com/ledger/vim-ledger",
-	"https://github.com/sindrets/diffview.nvim",
 	{ src = "https://github.com/catppuccin/nvim", name = "catppuccin" },
 	"https://github.com/hedyhli/outline.nvim",
 	"https://github.com/nvim-treesitter/nvim-treesitter-context",
@@ -77,9 +77,6 @@ vim.keymap.set("n", "<leader>sr", "<cmd>GrugFar<cr>", { desc = "Find files with 
 
 vim.keymap.set("n", "<leader>ow", "<cmd>OverseerToggle<cr>", { desc = "Task list" })
 vim.keymap.set("n", "<leader>or", "<cmd>OverseerRun<cr>", { desc = "Run task" })
-
-vim.keymap.set("n", "<leader>gh", "<cmd>DiffviewFileHistory %<cr>", { desc = "Git file history (Diffview)" })
-vim.keymap.set("n", "<leader>gv", "<cmd>DiffviewOpen<cr>", { desc = "Open Diffview" })
 
 vim.keymap.set("n", "<leader>cs", "<cmd>Outline<CR>", { desc = "Code Symbols" })
 
