@@ -153,6 +153,12 @@ function M.toggle(ctx)
 	floats.close_on_win_leave(buf, close_usage_win, { win = state.usage_win })
 	vim.keymap.set("n", "q", close_usage_win, { buffer = buf, desc = "Close usage" })
 	vim.keymap.set("n", "<Esc>", close_usage_win, { buffer = buf, desc = "Close usage" })
+
+	ctx.rpc.send({ type = "prompt", message = "/pi-codex-usage-refresh" }, function(event)
+		if not event.success then
+			ctx.ui.notify(event.error or "Could not refresh Codex usage", vim.log.levels.ERROR)
+		end
+	end)
 end
 
 return M

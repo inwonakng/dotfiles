@@ -96,6 +96,7 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 	let sessionContext: ExtensionContext | undefined;
 
 	function publish(ctx: ExtensionContext, payload?: UsagePayload): void {
+		if (!sessionContext) return;
 		ctx.ui.setStatus(STATUS_KEY, payload ? JSON.stringify(payload) : "");
 	}
 
@@ -180,5 +181,12 @@ export default function codexUsageExtension(pi: ExtensionAPI) {
 		if (interval) clearInterval(interval);
 		interval = undefined;
 		sessionContext = undefined;
+	});
+
+	pi.registerCommand("pi-codex-usage-refresh", {
+		description: "Refresh OpenAI Codex usage limits",
+		handler: async (_args, ctx) => {
+			await refresh(ctx);
+		},
 	});
 }
