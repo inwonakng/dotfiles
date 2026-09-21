@@ -136,10 +136,36 @@ local function current_model_statusline_label(ctx)
 	if type(model) ~= "string" or model == "" then
 		return "--"
 	end
+	if model:find("openai-codex/", 1, true) == 1 then
+		return "codex/" .. model:sub(#"openai-codex/" + 1)
+	end
+	if provider == "openai-codex" then
+		provider = "codex"
+	end
 	if type(provider) == "string" and provider ~= "" and not model:find("/", 1, true) then
 		return provider .. "/" .. model
 	end
 	return model
+end
+
+local function codex_limits_statusline_label(state)
+	if state.provider ~= "openai-codex" or type(state.codex_usage) ~= "table" then
+		return ""
+	end
+	local windows = state.codex_usage.windows
+	if type(windows) ~= "table" then
+		return ""
+	end
+
+	local parts = {}
+	for _, item in ipairs({ { "5h", windows.fiveHour }, { "wk", windows.weekly } }) do
+		local used = type(item[2]) == "table" and tonumber(item[2].usedPercent) or nil
+		if used then
+			local remaining = math.max(0, math.min(100, 100 - used))
+			table.insert(parts, string.format("%s %.0f%%", item[1], remaining))
+		end
+	end
+	return table.concat(parts, "·")
 end
 
 local function current_thinking_level_label(state)
@@ -245,8 +271,8 @@ function M.render(ctx)
 	local thinking_label = thinking_level and (" [" .. thinking_level .. "]") or ""
 	local activity_label = activity_statusline_label(state)
 	local spawn_label = spawn_statusline_label(state)
+	local limits_text = codex_limits_statusline_label(state)
 	local stats_text, stats_statusline = format_session_stats(state)
-	local stats_label = " " .. stats_text .. " "
 	local statusline_win = tonumber(vim.g.statusline_winid) or ctx.state.transcript_win or 0
 	local width = vim.api.nvim_win_get_width(statusline_win)
 	local mode_width = vim.fn.strdisplaywidth(mode_label)
@@ -258,8 +284,22 @@ function M.render(ctx)
 	local activity_width = vim.fn.strdisplaywidth(activity_label)
 	local spawn_width = vim.fn.strdisplaywidth(spawn_label)
 	local left_width = mode_width + integration_width + notification_width + workspace_width + model_width + thinking_width + activity_width + spawn_width
-	local stats_width = vim.fn.strdisplaywidth(stats_label)
-	local show_stats = width >= (left_width + stats_width + 3)
+	local available_right_width = width - left_width - 3
+	local stats_plain = " " .. stats_text .. " "
+	local limits_plain = limits_text ~= "" and (" " .. limits_text .. " ") or ""
+	local both_plain = limits_text ~= "" and (" " .. limits_text .. " · " .. stats_text .. " ") or ""
+	local right_label = ""
+	if both_plain ~= "" and vim.fn.strdisplaywidth(both_plain) <= available_right_width then
+		right_label = "%#PiUsageStats# "
+			.. statusline_escape(limits_text)
+			.. " · "
+			.. stats_statusline
+			.. "%#PiUsageStats# "
+	elseif limits_plain ~= "" and vim.fn.strdisplaywidth(limits_plain) <= available_right_width then
+		right_label = "%#PiUsageStats# " .. statusline_escape(limits_text) .. " "
+	elseif vim.fn.strdisplaywidth(stats_plain) <= available_right_width then
+		right_label = "%#PiUsageStats# " .. stats_statusline .. "%#PiUsageStats# "
+	end
 	local mode_highlight = mode_statusline_highlight(mode)
 
 	if width <= mode_width then
@@ -318,7 +358,6 @@ function M.render(ctx)
 	if spawn_label ~= "" then
 		left_label = left_label .. "%#PiUsageStats#" .. statusline_escape(spawn_label)
 	end
-	local right_label = show_stats and ("%#PiUsageStats# " .. stats_statusline .. "%#PiUsageStats# ") or ""
 	return left_label .. "%#PiPaneBorder#%=" .. right_label .. "%*"
 end
 

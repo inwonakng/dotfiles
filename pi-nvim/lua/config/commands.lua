@@ -53,3 +53,7 @@ end, { desc = "Restart Pi" })
 vim.api.nvim_create_user_command("PiLogs", function()
 	require("pi-integration").show_logs()
 end, { desc = "Show pi-nvim runtime logs" })
+
+vim.api.nvim_create_user_command("PiUsage", function()
+	require("pi-integration").show_usage()
+end, { desc = "Show OpenAI Codex usage limits" })

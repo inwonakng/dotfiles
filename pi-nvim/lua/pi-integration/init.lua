@@ -419,6 +419,7 @@ local render_messages
 local pi_keymaps = require("pi-integration.keymaps")
 local pi_help = require("pi-integration.help")
 local pi_statusline = require("pi-integration.statusline")
+local pi_usage = require("pi-integration.usage")
 local pi_tree = require("pi-integration.tree")
 local pi_sessions = require("pi-integration.sessions")
 local pi_spawn = require("pi-integration.spawn")
@@ -716,6 +717,10 @@ end
 
 function M.show_logs()
 	pi_logs.show(integration_ctx())
+end
+
+function M.show_usage()
+	pi_usage.toggle(integration_ctx())
 end
 
 function M.pick_thinking()

@@ -3,6 +3,7 @@ local M = {}
 local json = require("pi-integration.utils.json")
 local message_utils = require("pi-integration.utils.message")
 local pi_skills = require("pi-integration.skills")
+local pi_usage = require("pi-integration.usage")
 
 local function partial_result_text(partial_result)
 	if type(partial_result) ~= "table" then
@@ -439,6 +440,12 @@ local function update_spawn_runs_from_status(ctx, text)
 	ctx.transcript.refresh_ui()
 end
 
+local function update_codex_usage_from_status(ctx, text)
+	ctx.state.codex_usage = type(text) == "string" and text ~= "" and json.decode_object(text) or nil
+	pi_usage.refresh(ctx)
+	ctx.transcript.refresh_ui()
+end
+
 local function modified_buffers_under(path)
 	if type(path) ~= "string" or path == "" then
 		return 0
@@ -528,6 +535,8 @@ function M.handle_extension_ui_request(ctx, event)
 			ctx.transcript.refresh_ui()
 		elseif event.statusKey == "pi-spawn-runs" then
 			update_spawn_runs_from_status(ctx, event.statusText)
+		elseif event.statusKey == "pi-codex-usage" then
+			update_codex_usage_from_status(ctx, event.statusText)
 		elseif event.statusKey == "pi-workspace" then
 			update_workspace_from_status(ctx, event.statusText)
 		end

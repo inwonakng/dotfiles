@@ -63,6 +63,16 @@
           "supportsOpenAIGrammarTools": true,
           "supportsToolSearch": true,
           "supportsMidConvoSystemMessages": true
+        },
+        "inputLimits": {
+          "images": {
+            "resize": {
+              "maxWidth": 2000,
+              "maxHeight": 2000,
+              "maxBytes": 4718592,
+              "jpegQuality": 80
+            }
+          }
         }
       },
       {
@@ -103,6 +113,16 @@
           "supportsAdditionalTools": true,
           "supportsToolSearch": true,
           "supportsMidConvoSystemMessages": true
+        },
+        "inputLimits": {
+          "images": {
+            "resize": {
+              "maxWidth": 2000,
+              "maxHeight": 2000,
+              "maxBytes": 4718592,
+              "jpegQuality": 80
+            }
+          }
         }
       },
       {
@@ -143,6 +163,16 @@
           "supportsAdditionalTools": true,
           "supportsToolSearch": true,
           "supportsMidConvoSystemMessages": true
+        },
+        "inputLimits": {
+          "images": {
+            "resize": {
+              "maxWidth": 2000,
+              "maxHeight": 2000,
+              "maxBytes": 4718592,
+              "jpegQuality": 80
+            }
+          }
         }
       },
       {
@@ -183,6 +213,16 @@
           "supportsAdditionalTools": true,
           "supportsToolSearch": true,
           "supportsMidConvoSystemMessages": true
+        },
+        "inputLimits": {
+          "images": {
+            "resize": {
+              "maxWidth": 2000,
+              "maxHeight": 2000,
+              "maxBytes": 4718592,
+              "jpegQuality": 80
+            }
+          }
         }
       },
       {
@@ -227,12 +267,22 @@
           "supportsAdditionalTools": true,
           "supportsToolSearch": true,
           "supportsMidConvoSystemMessages": true
+        },
+        "inputLimits": {
+          "images": {
+            "resize": {
+              "maxWidth": 2000,
+              "maxHeight": 2000,
+              "maxBytes": 4718592,
+              "jpegQuality": 80
+            }
+          }
         }
       }
     ],
-    "checkedAt": 1789949901535,
-    "lastModified": 1789648056000,
-    "etag": "W/\"611b646eb8fe726a315a1544235fa980\""
+    "checkedAt": 1790005647329,
+    "lastModified": 1789986588000,
+    "etag": "W/\"b77f14c4e92d579ef47bdd13a1cc6d04\""
   },
   "google": {
     "models": [
