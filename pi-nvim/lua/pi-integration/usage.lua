@@ -19,12 +19,12 @@ end
 local function format_usage_bar(remaining)
 	remaining = tonumber(remaining)
 	if not remaining then
-		return "[" .. string.rep("░", USAGE_BAR_WIDTH) .. "]"
+		return string.rep("░", USAGE_BAR_WIDTH)
 	end
 
 	local filled = math.floor((remaining / 100) * USAGE_BAR_WIDTH + 0.5)
 	filled = math.max(0, math.min(USAGE_BAR_WIDTH, filled))
-	return "[" .. string.rep("█", filled) .. string.rep("░", USAGE_BAR_WIDTH - filled) .. "]"
+	return string.rep("█", filled) .. string.rep("░", USAGE_BAR_WIDTH - filled)
 end
 
 local function format_duration(seconds)
