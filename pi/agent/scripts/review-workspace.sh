@@ -22,4 +22,4 @@ cd "$worktree"
 unset NVIM NVIM_LISTEN_ADDRESS NVIM_APPNAME
 export PI_WORKSPACE_BASELINE=$baseline_commit
 export PI_WORKSPACE_REVIEW_LUA="$script_dir/review-workspace.lua"
-nvim -c "lua dofile(vim.env.PI_WORKSPACE_REVIEW_LUA)"
+NVIM_NO_PERSISTENCE=1 nvim -c "lua dofile(vim.env.PI_WORKSPACE_REVIEW_LUA)"
