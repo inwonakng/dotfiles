@@ -189,6 +189,7 @@ function M.start(ctx)
 			ctx.session.apply_state(event.data)
 			ctx.actions.refresh_messages()
 			ctx.actions.refresh_session_stats()
+			ctx.actions.maybe_prompt_session_archive()
 			M.send(ctx, { type = "prompt", message = "/pi-workspace-publish" })
 		end
 	end)

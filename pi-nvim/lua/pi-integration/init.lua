@@ -750,6 +750,10 @@ function M.pick_session()
 	pi_sessions.pick(integration_ctx())
 end
 
+function M.maybe_prompt_session_archive()
+	pi_sessions.maybe_prompt_archive(integration_ctx())
+end
+
 function M.pick_spawn()
 	pi_spawn.pick(integration_ctx())
 end
