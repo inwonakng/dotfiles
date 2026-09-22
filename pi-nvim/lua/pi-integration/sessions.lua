@@ -11,10 +11,91 @@ local pi_transcript = require("pi-integration.transcript")
 local M = {}
 
 local ARCHIVED_SUFFIX = ".archived"
-local ARCHIVE_AFTER_DAYS = 180
+local DEFAULT_ARCHIVE_AFTER_DAYS = 180
 local ARCHIVE_REMINDER_DAYS = 30
 local DAY_SECONDS = 24 * 60 * 60
+local PICKER_CACHE_VERSION = 1
 local reminder_checked = false
+local picker_cache
+local picker_cache_dirty = false
+
+local function picker_cache_path()
+	return vim.fn.stdpath("cache") .. "/pi-nvim/session-picker.json"
+end
+
+local function empty_picker_cache()
+	return {
+		version = PICKER_CACHE_VERSION,
+		candidates = {},
+		relations = {},
+	}
+end
+
+local function load_picker_cache()
+	if picker_cache then
+		return picker_cache
+	end
+	local ok, lines = pcall(vim.fn.readfile, picker_cache_path())
+	local decoded = ok and json.decode_object(table.concat(lines, "\n")) or nil
+	if
+		type(decoded) ~= "table"
+		or decoded.version ~= PICKER_CACHE_VERSION
+		or type(decoded.candidates) ~= "table"
+		or type(decoded.relations) ~= "table"
+	then
+		picker_cache = empty_picker_cache()
+	else
+		picker_cache = decoded
+	end
+	return picker_cache
+end
+
+local function save_picker_cache()
+	if not picker_cache_dirty or not picker_cache then
+		return
+	end
+	local path = picker_cache_path()
+	local directory = vim.fn.fnamemodify(path, ":h")
+	local temporary_path = string.format("%s.%d.tmp", path, (vim.uv or vim.loop).os_getpid())
+	local ok = pcall(function()
+		if vim.fn.mkdir(directory, "p") == 0 and vim.fn.isdirectory(directory) == 0 then
+			error("could not create cache directory")
+		end
+		if vim.fn.writefile({ json.encode(picker_cache) }, temporary_path) ~= 0 then
+			error("could not write picker cache")
+		end
+		local renamed, err = (vim.uv or vim.loop).fs_rename(temporary_path, path)
+		if not renamed then
+			error(err or "could not replace picker cache")
+		end
+	end)
+	if vim.fn.filereadable(temporary_path) == 1 then
+		vim.fn.delete(temporary_path)
+	end
+	if ok then
+		picker_cache_dirty = false
+	end
+end
+
+local function file_fingerprint(path)
+	local stat = (vim.uv or vim.loop).fs_stat(path)
+	if not stat then
+		return nil
+	end
+	return {
+		size = stat.size,
+		mtime_sec = stat.mtime.sec,
+		mtime_nsec = stat.mtime.nsec or 0,
+	}
+end
+
+local function same_fingerprint(left, right)
+	return type(left) == "table"
+		and type(right) == "table"
+		and left.size == right.size
+		and left.mtime_sec == right.mtime_sec
+		and left.mtime_nsec == right.mtime_nsec
+end
 
 local function dirname(path)
 	if not path or path == "" then
@@ -94,6 +175,55 @@ local function canonical_session_path(path)
 		return nil
 	end
 	return vim.fn.resolve(vim.fn.fnamemodify(vim.fn.expand(path), ":p"))
+end
+
+local function cached_candidate(path)
+	local fingerprint = file_fingerprint(path)
+	local key = canonical_session_path(path)
+	local cache = load_picker_cache()
+	local cached = key and cache.candidates[key]
+	if fingerprint and cached and same_fingerprint(cached.fingerprint, fingerprint) then
+		return {
+			path = path,
+			mtime = fingerprint.mtime_sec,
+			title = cached.title,
+			cwd = cached.cwd,
+		}
+	end
+
+	local candidate = read_candidate(path)
+	if key and fingerprint then
+		cache.candidates[key] = {
+			fingerprint = fingerprint,
+			title = candidate.title,
+			cwd = candidate.cwd,
+		}
+		picker_cache_dirty = true
+	end
+	return candidate
+end
+
+local function move_cached_candidate(source, target)
+	local cache = load_picker_cache()
+	local source_key = canonical_session_path(source)
+	local target_key = canonical_session_path(target)
+	local cached = source_key and cache.candidates[source_key]
+	if source_key then
+		cache.candidates[source_key] = nil
+	end
+	if target_key and cached then
+		cached.fingerprint = file_fingerprint(target) or cached.fingerprint
+		cache.candidates[target_key] = cached
+	end
+	picker_cache_dirty = true
+end
+
+local function remove_cached_candidate(path)
+	local key = canonical_session_path(path)
+	if key then
+		load_picker_cache().candidates[key] = nil
+		picker_cache_dirty = true
+	end
 end
 
 local function regular_session_path(path)
@@ -183,20 +313,48 @@ local function filter_workspace_sessions(session_candidates)
 		if not source or not target or source == target or not by_path[source] or not by_path[target] then
 			return
 		end
+
+		local source_fingerprint = file_fingerprint(source)
+		local target_fingerprint = file_fingerprint(target)
+		local relation_key = vim.fn.sha256(table.concat({ source, target, returned and "returned" or "entered" }, "\n"))
+		local cache = load_picker_cache()
+		local cached = cache.relations[relation_key]
+		if
+			cached
+			and same_fingerprint(cached.source, source_fingerprint)
+			and same_fingerprint(cached.target, target_fingerprint)
+		then
+			if cached.superseded then
+				hidden[source] = true
+			end
+			return
+		end
+
+		local superseded = false
 		local previous, successor = history(source), history(target)
-		if not previous or not successor or successor.parent ~= source then
-			return
-		end
-		-- The file is forked before switching. Its existence alone does not prove entry succeeded.
-		if not returned and not has_new_activity(previous, successor) then
-			return
-		end
-		for id, entry in pairs(previous.entries) do
-			if not vim.deep_equal(entry, successor.entries[id]) then
-				return
+		if previous and successor and successor.parent == source then
+			-- The file is forked before switching. Its existence alone does not prove entry succeeded.
+			superseded = returned or has_new_activity(previous, successor)
+			if superseded then
+				for id, entry in pairs(previous.entries) do
+					if not vim.deep_equal(entry, successor.entries[id]) then
+						superseded = false
+						break
+					end
+				end
 			end
 		end
-		hidden[source] = true
+		if source_fingerprint and target_fingerprint then
+			cache.relations[relation_key] = {
+				source = source_fingerprint,
+				target = target_fingerprint,
+				superseded = superseded,
+			}
+			picker_cache_dirty = true
+		end
+		if superseded then
+			hidden[source] = true
+		end
 	end
 
 	for _, record in ipairs(workspace_records()) do
@@ -276,7 +434,7 @@ local function candidates(ctx, opts)
 	local result = {}
 	for _, path in ipairs(session_paths(ctx, opts.archived)) do
 		if not allowed_paths or allowed_paths[canonical_session_path(path)] then
-			table.insert(result, read_candidate(path))
+			table.insert(result, cached_candidate(path))
 		end
 	end
 
@@ -286,6 +444,7 @@ local function candidates(ctx, opts)
 	table.sort(result, function(a, b)
 		return a.mtime > b.mtime
 	end)
+	save_picker_cache()
 	return result
 end
 
@@ -380,8 +539,10 @@ local function rename_sessions(selected, archive)
 		if vim.fn.filereadable(target) == 1 then
 			table.insert(failed, string.format("%s: destination already exists", item_title(candidate)))
 		else
-			local ok, err = (vim.uv or vim.loop).fs_rename(candidate.path, target)
+			local source = candidate.path
+			local ok, err = (vim.uv or vim.loop).fs_rename(source, target)
 			if ok then
+				move_cached_candidate(source, target)
 				candidate.path = target
 				table.insert(succeeded, candidate)
 			else
@@ -389,6 +550,7 @@ local function rename_sessions(selected, archive)
 			end
 		end
 	end
+	save_picker_cache()
 	return succeeded, failed
 end
 
@@ -402,31 +564,43 @@ local function trash_command()
 	return nil
 end
 
-local function delete_sessions(selected, command)
-	local failed = {}
+local function delete_sessions(selected, command, callback)
 	if command then
 		local args = vim.deepcopy(command)
 		for _, candidate in ipairs(selected) do
 			table.insert(args, candidate.path)
 		end
-		local result = vim.system(args, { text = true }):wait()
-		if result.code ~= 0 then
-			local detail = vim.trim(result.stderr or "")
-			for _, candidate in ipairs(selected) do
-				if vim.fn.filereadable(candidate.path) == 1 then
-					table.insert(failed, string.format("%s: %s", item_title(candidate), detail ~= "" and detail or "trash command failed"))
+		vim.system(args, { text = true }, function(result)
+			vim.schedule(function()
+				local failed = {}
+				local detail = vim.trim(result.stderr or "")
+				for _, candidate in ipairs(selected) do
+					if result.code ~= 0 and vim.fn.filereadable(candidate.path) == 1 then
+						table.insert(
+							failed,
+							string.format("%s: %s", item_title(candidate), detail ~= "" and detail or "trash command failed")
+						)
+					else
+						remove_cached_candidate(candidate.path)
+					end
 				end
-			end
-		end
-		return failed
+				save_picker_cache()
+				callback(failed)
+			end)
+		end)
+		return
 	end
 
+	local failed = {}
 	for _, candidate in ipairs(selected) do
 		if vim.fn.delete(candidate.path) ~= 0 then
 			table.insert(failed, item_title(candidate) .. ": delete failed")
+		else
+			remove_cached_candidate(candidate.path)
 		end
 	end
-	return failed
+	save_picker_cache()
+	callback(failed)
 end
 
 local function notify_failures(ctx, failures)
@@ -573,6 +747,7 @@ local function session_preview_context(ctx, candidate)
 end
 
 local function session_previewer(ctx, by_id)
+	local preview_entries = {}
 	return {
 		_ctor = function()
 			local previewer = require("fzf-lua.previewer.builtin").buffer_or_file:extend()
@@ -583,14 +758,19 @@ local function session_previewer(ctx, by_id)
 				if not candidate then
 					return {}
 				end
+				if preview_entries[candidate.path] then
+					return preview_entries[candidate.path]
+				end
 				local preview_ctx = session_preview_context(ctx, candidate)
 				local messages = pi_messages.load_session_messages_from_file(preview_ctx, candidate.path)
 				local lines = pi_messages.collect_message_lines(preview_ctx, messages)
-				return {
+				local preview_entry = {
+					cache_key = candidate.path,
 					content = lines,
 					filetype = "markdown",
-					do_not_cache = true,
 				}
+				preview_entries[candidate.path] = preview_entry
+				return preview_entry
 			end
 			function previewer:update_render_markdown()
 				update_render_markdown(self)
@@ -707,13 +887,14 @@ function M.pick(ctx, opts)
 				reopen_current()
 				return
 			end
-			local failures = delete_sessions(allowed, command)
-			local deleted = #allowed - #failures
-			if deleted > 0 then
-				ctx.ui.notify(string.format("%s %d session(s).", command and "Trashed" or "Deleted", deleted))
-			end
-			notify_failures(ctx, failures)
-			reopen_current()
+			delete_sessions(allowed, command, function(failures)
+				local deleted = #allowed - #failures
+				if deleted > 0 then
+					ctx.ui.notify(string.format("%s %d session(s).", command and "Trashed" or "Deleted", deleted))
+				end
+				notify_failures(ctx, failures)
+				reopen_current()
+			end)
 		end)
 	end
 	local function select_session(items)
@@ -788,8 +969,16 @@ local function write_reminder_state(timestamp)
 	return ok, err
 end
 
+local function archive_after_days(ctx)
+	local configured = ctx.config.archive_after_days
+	if type(configured) == "number" and configured > 0 and configured == math.floor(configured) then
+		return configured
+	end
+	return DEFAULT_ARCHIVE_AFTER_DAYS
+end
+
 local function stale_session_paths(ctx, timestamp)
-	local stale_before = timestamp - (ARCHIVE_AFTER_DAYS * DAY_SECONDS)
+	local stale_before = timestamp - (archive_after_days(ctx) * DAY_SECONDS)
 	local protected = protected_session_paths(ctx)
 	local stale = {}
 	for _, path in ipairs(session_paths(ctx, false)) do
@@ -822,7 +1011,7 @@ function M.maybe_prompt_archive(ctx)
 		ctx.ui.notify("Could not save the Pi session archive reminder: " .. tostring(err), vim.log.levels.WARN)
 		return
 	end
-	confirm(string.format("Review %d Pi session(s) inactive for over %d days for archiving?", #stale, ARCHIVE_AFTER_DAYS), function(confirmed)
+	confirm(string.format("Review %d Pi session(s) inactive for over %d days for archiving?", #stale, archive_after_days(ctx)), function(confirmed)
 		if not confirmed then
 			return
 		end

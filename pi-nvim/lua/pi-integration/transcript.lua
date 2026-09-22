@@ -259,7 +259,11 @@ function M.update_bottom_padding(ctx)
 	end
 
 	vim.api.nvim_buf_set_extmark(state.transcript_buf, padding_ns, line_count - 1, 0, {
-		virt_lines = { { { " ", "Normal" } } },
+		virt_lines = {
+			{ { " ", "Normal" } },
+			{ { " ", "Normal" } },
+			{ { " ", "Normal" } },
+		},
 		virt_lines_above = false,
 		virt_lines_leftcol = true,
 		priority = 1,
@@ -302,6 +306,9 @@ function M.scroll_to_bottom_unless_focused(ctx)
 	local state = ctx.state
 	if M.win_valid(ctx) and not M.is_focused(ctx) then
 		vim.api.nvim_win_set_cursor(state.transcript_win, { vim.api.nvim_buf_line_count(state.transcript_buf), 0 })
+		M.with_win(ctx, function()
+			vim.cmd("normal! zb")
+		end)
 	end
 end
 

@@ -11,6 +11,7 @@ M.config = {
 	provider = nil,
 	model = nil,
 	session_dir = nil,
+	archive_after_days = 180,
 	show_thinking = true,
 	show_stderr = false,
 	log_max_entries = 1000,
@@ -544,12 +545,22 @@ update_transcript_statusline = function()
 	pi_statusline.update(integration_ctx())
 end
 
+local function schedule_status_footer_update()
+	vim.schedule(update_transcript_statusline)
+end
+
 function M.setup(opts)
 	M.config = vim.tbl_deep_extend("force", M.config, opts or {})
 	state.access_mode = "readonly"
 	state.integration_mode = "ask"
 	set_model_metadata(M.config.provider, M.config.model)
 	pi_statusline.setup(integration_ctx())
+	local footer_group = vim.api.nvim_create_augroup("PiNvimStatusFooter", { clear = true })
+	vim.api.nvim_create_autocmd({ "VimResized", "WinResized" }, {
+		group = footer_group,
+		desc = "Keep the pi-nvim status footer aligned with the transcript",
+		callback = schedule_status_footer_update,
+	})
 end
 
 function M.open()
@@ -559,6 +570,7 @@ end
 
 function M.show_input()
 	pi_layout.show_input(integration_ctx())
+	update_transcript_statusline()
 end
 
 function M.show_transcript()
