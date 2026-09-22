@@ -219,13 +219,23 @@ local function compact_text(text)
 	return (text:gsub("\r\n", "\n"):gsub("\r", "\n"):gsub("\n", " ⏎ "):gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
-local function truncate_text(text, max_len)
+local function truncate_spawn_text(text, max_len)
 	text = compact_text(text)
 	max_len = max_len or 120
 	if #text <= max_len then
 		return text
 	end
-	return text:sub(1, math.max(1, max_len - 1)) .. "…"
+
+	local truncated = text:sub(1, math.max(1, max_len - 1))
+	local open_ticks
+	for ticks in truncated:gmatch("`+") do
+		if not open_ticks then
+			open_ticks = ticks
+		elseif #ticks == #open_ticks then
+			open_ticks = nil
+		end
+	end
+	return truncated .. (open_ticks or "") .. "…"
 end
 
 local function short_run_id(id)
@@ -841,7 +851,7 @@ function M.summary_lines(state, output_id)
 			and type(output.text) == "string"
 			and output.text:find("Spawned subagent", 1, true) ~= nil
 		local progress_source = type(details.progress) == "string" and details.progress or output.text or ""
-		local progress = truncate_text(progress_source, is_spawn_ack and 80 or 120)
+		local progress = truncate_spawn_text(progress_source, is_spawn_ack and 80 or 120)
 		if is_spawn_ack then
 			status = "spawned"
 			progress = short_run_id(run_id) and ("id: " .. short_run_id(run_id)) or ""
