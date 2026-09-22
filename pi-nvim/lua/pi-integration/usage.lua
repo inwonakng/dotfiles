@@ -2,6 +2,8 @@ local floats = require("pi-integration.floats")
 
 local M = {}
 
+local USAGE_BAR_WIDTH = 20
+
 local function valid_win(win)
 	return win and vim.api.nvim_win_is_valid(win)
 end
@@ -12,6 +14,17 @@ local function format_percent(value)
 		return "--"
 	end
 	return string.format("%.0f%%", value)
+end
+
+local function format_usage_bar(remaining)
+	remaining = tonumber(remaining)
+	if not remaining then
+		return "[" .. string.rep("░", USAGE_BAR_WIDTH) .. "]"
+	end
+
+	local filled = math.floor((remaining / 100) * USAGE_BAR_WIDTH + 0.5)
+	filled = math.max(0, math.min(USAGE_BAR_WIDTH, filled))
+	return "[" .. string.rep("█", filled) .. string.rep("░", USAGE_BAR_WIDTH - filled) .. "]"
 end
 
 local function format_duration(seconds)
@@ -42,12 +55,12 @@ local function append_window(lines, title, window)
 	end
 
 	local used = tonumber(window.usedPercent)
-	local remaining = used and math.max(0, 100 - used) or nil
+	local remaining = used and math.max(0, math.min(100, 100 - used)) or nil
 	vim.list_extend(lines, {
 		"## " .. title,
 		"",
-		"- Used: **" .. format_percent(used) .. "**",
-		"- Remaining: **" .. format_percent(remaining) .. "**",
+		"Remaining: **" .. format_percent(remaining) .. "**",
+		"`" .. format_usage_bar(remaining) .. "`",
 	})
 
 	local resets_at = tonumber(window.resetsAt)
