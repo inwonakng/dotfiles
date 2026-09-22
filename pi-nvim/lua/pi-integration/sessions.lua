@@ -1,6 +1,12 @@
 local guard = require("pi-integration.utils.guard")
 local json = require("pi-integration.utils.json")
 local message_utils = require("pi-integration.utils.message")
+local pi_messages = require("pi-integration.messages")
+local pi_skills = require("pi-integration.skills")
+local pi_state = require("pi-integration.state")
+local pi_thinking_output = require("pi-integration.thinking-output")
+local pi_tool_output = require("pi-integration.tool-output")
+local pi_transcript = require("pi-integration.transcript")
 
 local M = {}
 
@@ -485,17 +491,110 @@ local function decode_selection(items, by_id)
 	return selected
 end
 
-local function session_previewer(by_id)
+local function session_preview_context(ctx, candidate)
+	local state = pi_state.new()
+	state.session_file = candidate.path
+	state.session_name = candidate.title
+	state.last_updated = os.date("%Y-%m-%d %H:%M:%S %z", candidate.mtime)
+	state.access_mode = ctx.state.access_mode
+	state.integration_mode = ctx.state.integration_mode
+	state.workspace = vim.deepcopy(ctx.state.workspace or state.workspace)
+
+	local preview_ctx
+	preview_ctx = {
+		state = state,
+		config = ctx.config,
+		notices = ctx.notices,
+		messages = {
+			extract_text = message_utils.extract_text,
+		},
+		transcript = {
+			metadata_lines = function()
+				return pi_transcript.metadata_lines(preview_ctx)
+			end,
+		},
+		tools = {
+			record_calls = function(message)
+				return pi_tool_output.record_calls(state, message)
+			end,
+			record_execution_call = function(tool_name, tool_call_id, args)
+				return pi_tool_output.record_execution_call(state, tool_name, tool_call_id, args)
+			end,
+			store_output = function(tool_name, text, filetype, details, message)
+				local tool_call_id = message_utils.tool_call_id(message)
+				local display = pi_tool_output.display_for_result(state, message)
+				return pi_tool_output.store(state, tool_name, text, filetype, details, display, tool_call_id)
+			end,
+			store_or_update_spawn_run_output = function(run, text)
+				return pi_tool_output.store_or_update_spawn_run(state, run, text)
+			end,
+			bind_spawn_run = function(run, output_id, line)
+				return pi_tool_output.bind_spawn_run(state, run, output_id, line)
+			end,
+			summary_lines = function(output_id)
+				return pi_tool_output.summary_lines(state, output_id)
+			end,
+		},
+		thinking = {
+			store_output = function(text)
+				return pi_thinking_output.store(state, text)
+			end,
+			summary_lines = function(output_id, streaming)
+				return pi_thinking_output.summary_lines(state, output_id, streaming)
+			end,
+		},
+		skills = {
+			store_prompt = function(load)
+				return pi_skills.store_load(state, load)
+			end,
+			summary_lines = function(output_id)
+				return pi_skills.summary_lines(state, output_id)
+			end,
+			apply_tool_result = function(message)
+				return pi_skills.apply_tool_result(state, message, message_utils.extract_text(message))
+			end,
+		},
+		session = {
+			set_model_metadata = function(provider, model)
+				local model_id = model
+				if type(model) == "table" then
+					provider = provider or model.provider or model.providerName or model.providerId
+					model_id = model.modelId or model.id or model.name
+				end
+				if not provider and type(model_id) == "string" and model_id:find("/", 1, true) then
+					provider, model_id = model_id:match("^([^/]+)/(.+)$")
+				end
+				state.provider = provider or state.provider
+				state.model_id = model_id or state.model_id
+			end,
+		},
+	}
+	return preview_ctx
+end
+
+local function session_previewer(ctx, by_id)
 	return {
 		_ctor = function()
 			local previewer = require("fzf-lua.previewer.builtin").buffer_or_file:extend()
-			function previewer:entry_to_file(entry)
+			local update_render_markdown = previewer.update_render_markdown
+			function previewer:parse_entry(entry)
 				local id = entry and entry:match("^(%d+)\t")
 				local candidate = id and by_id[id]
 				if not candidate then
 					return {}
 				end
-				return { path = candidate.path, filetype = "json" }
+				local preview_ctx = session_preview_context(ctx, candidate)
+				local messages = pi_messages.load_session_messages_from_file(preview_ctx, candidate.path)
+				local lines = pi_messages.collect_message_lines(preview_ctx, messages)
+				return {
+					content = lines,
+					filetype = "markdown",
+					do_not_cache = true,
+				}
+			end
+			function previewer:update_render_markdown()
+				update_render_markdown(self)
+				pi_transcript.apply_quote_highlights_to_buffer(self.preview_bufnr)
 			end
 			return previewer
 		end,
@@ -642,7 +741,7 @@ function M.pick(ctx, opts)
 	require("fzf-lua").fzf_exec(entries, {
 		prompt = archived and "Archived > " or "Sessions > ",
 		winopts = { title = picker_title(view, opts.paths ~= nil), title_pos = "left" },
-		previewer = session_previewer(by_id),
+		previewer = session_previewer(ctx, by_id),
 		fzf_opts = {
 			["--multi"] = true,
 			["--delimiter"] = "[\t]",

@@ -189,14 +189,13 @@ local function apply_edit_stat_highlights(buf, line_index, line)
 	})
 end
 
-function M.apply_quote_highlights(ctx)
-	local state = ctx.state
-	if not ctx.buffer.valid(state.transcript_buf) then
+function M.apply_quote_highlights_to_buffer(buf)
+	if type(buf) ~= "number" or not vim.api.nvim_buf_is_valid(buf) then
 		return
 	end
 
-	vim.api.nvim_buf_clear_namespace(state.transcript_buf, quote_ns, 0, -1)
-	local lines = vim.api.nvim_buf_get_lines(state.transcript_buf, 0, -1, false)
+	vim.api.nvim_buf_clear_namespace(buf, quote_ns, 0, -1)
+	local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 	for index, line in ipairs(lines) do
 		local highlight = tool_quote_highlight(line)
 		if not highlight and line:find("> 󰔛 ", 1, true) == 1 then
@@ -207,19 +206,27 @@ function M.apply_quote_highlights(ctx)
 			highlight = "PiSkillQuote"
 		end
 		if highlight then
-			vim.api.nvim_buf_set_extmark(state.transcript_buf, quote_ns, index - 1, 0, {
+			vim.api.nvim_buf_set_extmark(buf, quote_ns, index - 1, 0, {
 				end_col = #line,
 				hl_group = highlight,
 				priority = 250,
 			})
-			vim.api.nvim_buf_set_extmark(state.transcript_buf, quote_ns, index - 1, 0, {
+			vim.api.nvim_buf_set_extmark(buf, quote_ns, index - 1, 0, {
 				virt_text = { { "▋", "PiQuoteBar" } },
 				virt_text_pos = "overlay",
 				priority = 300,
 			})
-			apply_edit_stat_highlights(state.transcript_buf, index, line)
+			apply_edit_stat_highlights(buf, index, line)
 		end
 	end
+end
+
+function M.apply_quote_highlights(ctx)
+	local state = ctx.state
+	if not ctx.buffer.valid(state.transcript_buf) then
+		return
+	end
+	M.apply_quote_highlights_to_buffer(state.transcript_buf)
 end
 
 function M.render(ctx)
