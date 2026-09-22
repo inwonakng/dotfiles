@@ -1,7 +1,11 @@
 # Shared settings for our custom Pi extensions. Use dash-case for all keys.
 # Install dependencies with: npm ci --prefix pi/agent
-# Changes are read on the next title request; no restart is needed.
+# Extension changes are read on demand. Restart pi-nvim after changing its settings.
 # Credentials remain in Pi's auth.json or provider environment variables.
+
+session-picker:
+  # Prompt to review sessions after this many days without file activity.
+  archive-after-days: 180
 
 auto-title:
   # Model IDs are resolved within the active provider; no cross-provider fallback.
