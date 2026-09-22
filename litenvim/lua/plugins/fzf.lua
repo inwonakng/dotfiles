@@ -81,6 +81,7 @@ local fzf_winopts = {
 local fzf = require("fzf-lua")
 local config = fzf.config
 local actions = fzf.actions
+local codeaction_previewer = require("ui.fzf_codeaction").previewer
 
 -- Quickfix
 config.defaults.keymap.fzf["ctrl-a"] = "toggle-all"
@@ -126,6 +127,10 @@ fzf.setup({
 	},
 	previewers = {
 		builtin = {
+			treesitter = {
+        -- disable these since they use their specific plugins instead of treesitter for highlights.
+				disabled = { "latex", "ledger" },
+			},
 			extensions = {
 				["png"] = img_previewer,
 				["jpg"] = img_previewer,
@@ -160,12 +165,7 @@ fzf.setup({
 			child_prefix = false,
 		},
 		code_actions = {
-			previewer = "codeaction_native",
-			winopts = {
-				preview = {
-					wrap = true,
-				},
-			},
+			previewer = codeaction_previewer,
 		},
 	},
 	git = {

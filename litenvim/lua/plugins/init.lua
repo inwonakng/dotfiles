@@ -53,6 +53,21 @@ vim.pack.add({
 })
 
 require("catppuccin").setup({
+	custom_highlights = function(colors)
+		local color_utils = require("catppuccin.utils.colors")
+		local add_background = color_utils.darken(colors.green, 0.42, colors.base)
+		local delete_background = color_utils.darken(colors.red, 0.42, colors.base)
+
+		return {
+			FzfLuaCodeActionAddText = { bg = add_background },
+			FzfLuaCodeActionDeleteText = { bg = delete_background },
+			GitSignsAddInline = { bg = add_background },
+			GitSignsChangeInline = { bg = add_background },
+			GitSignsDeleteInline = { bg = delete_background },
+			DiffviewDiffAddText = { bg = add_background },
+			DiffviewDiffDeleteText = { bg = delete_background },
+		}
+	end,
 	color_overrides = {
 		mocha = {
 			base = "#14161b",
