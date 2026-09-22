@@ -9,6 +9,7 @@ return {
 			userDictPath = "",
 			fileDictPath = "",
 			linters = {
+				CommaFixes = false,
 				SpellCheck = true,
 				SpelledNumbers = false,
 				AnA = true,
@@ -17,7 +18,7 @@ return {
 				WrongQuotes = false,
 				LongSentences = false,
 				RepeatedWords = true,
-				Spaces = true,
+				Spaces = false,
 				Matcher = true,
 				CorrectNumberSuffix = true,
 			},

@@ -129,7 +129,7 @@ fzf.setup({
 		builtin = {
 			treesitter = {
         -- disable these since they use their specific plugins instead of treesitter for highlights.
-				disabled = { "latex", "ledger" },
+				disabled = { "tex", "ledger" },
 			},
 			extensions = {
 				["png"] = img_previewer,

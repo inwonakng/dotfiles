@@ -126,6 +126,29 @@ map("n", "<leader>on", function()
 	end
 end, { desc = "Open Project Notes", noremap = true, silent = true })
 
+-- Toggle harper-ls spell checking
+map("n", "<leader>cp", function()
+	local bufnr = vim.api.nvim_get_current_buf()
+	local clients = vim.lsp.get_clients({ bufnr = bufnr, name = "harper_ls" })
+
+	if #clients > 0 then
+		-- Harper is running, stop it
+		for _, client in ipairs(clients) do
+      client:stop()
+			-- vim.lsp.stop_client(client.id)
+		end
+		vim.notify("Harper-LS disabled", vim.log.levels.INFO)
+	else
+		-- Harper is not running, start it
+		vim.lsp.start({
+			name = "harper_ls",
+			cmd = { "harper-ls", "--stdio" },
+			root_dir = vim.fs.root(bufnr, { ".git" }) or vim.fn.getcwd(),
+		})
+		vim.notify("Harper-LS enabled", vim.log.levels.INFO)
+	end
+end, { desc = "Toggle Harper spell check", noremap = true, silent = true })
+
 -- Window modes (resize / move)
 local win_modes = require("utils.window-modes")
 map("n", "<leader>wr", win_modes.enter_resize, { desc = "Window: resize mode" })
