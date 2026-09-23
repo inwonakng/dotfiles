@@ -1,6 +1,7 @@
 local M = {}
 
 local footer_ns = vim.api.nvim_create_namespace("pi-nvim-status-footer")
+local footer_height = 1
 
 local activity_spinner_frames = {
 	"⠖",
@@ -284,7 +285,7 @@ function M.render(ctx)
 	local activity_label = activity_statusline_label(state, "primary")
 	local limits_text = codex_limits_statusline_label(state)
 	local stats_text, stats_statusline = format_session_stats(state)
-	local width = vim.api.nvim_win_get_width(state.transcript_win)
+	local width = vim.api.nvim_win_get_width(state.status_win)
 	local mode_width = vim.fn.strdisplaywidth(mode_label)
 	local integration_width = vim.fn.strdisplaywidth(integration_segment_label)
 	local notification_width = vim.fn.strdisplaywidth(notification_segment_label)
@@ -375,7 +376,7 @@ function M.render_secondary(ctx)
 	local _, _, stats_text, stats_statusline = format_session_stats(state)
 	local right_plain = stats_text ~= "" and (" " .. stats_text .. " ") or ""
 	local right_width = vim.fn.strdisplaywidth(right_plain)
-	local width = vim.api.nvim_win_get_width(state.transcript_win)
+	local width = vim.api.nvim_win_get_width(state.status_win)
 
 	if right_width >= width then
 		return "%#PiUsageStats#" .. statusline_escape(truncate_plain_to_width(right_plain, width)) .. "%*"
@@ -394,7 +395,7 @@ end
 
 local function close_footer(state)
 	if state.status_win and vim.api.nvim_win_is_valid(state.status_win) then
-		vim.api.nvim_win_close(state.status_win, true)
+		pcall(vim.api.nvim_win_close, state.status_win, true)
 	end
 	state.status_win = nil
 end
@@ -413,29 +414,61 @@ local function ensure_footer_buffer(state)
 	return buf
 end
 
-local function footer_config(transcript_win, width)
-	local position = vim.api.nvim_win_get_position(transcript_win)
-	local height = vim.api.nvim_win_get_height(transcript_win)
-	return {
-		relative = "editor",
-		row = math.max(position[1], position[1] + height - 3),
-		col = position[2],
-		width = width,
-		height = 4,
-		focusable = false,
-		style = "minimal",
-		zindex = 10,
-	}
+local function footer_is_bottom(state)
+	local tab = vim.api.nvim_win_get_tabpage(state.status_win)
+	local tab_number = vim.api.nvim_tabpage_get_number(tab)
+	local layout = vim.fn.winlayout(tab_number)
+	if layout[1] ~= "col" then
+		return false
+	end
+	local children = layout[2]
+	local bottom = children[#children]
+	return bottom and bottom[1] == "leaf" and bottom[2] == state.status_win
 end
 
-local function ensure_footer_window(state, buf, config)
+local function normalize_footer_window(state)
+	local transcript_tab = vim.api.nvim_win_get_tabpage(state.transcript_win)
+	if vim.api.nvim_get_current_tabpage() == transcript_tab then
+		local footer_tab = vim.api.nvim_win_get_tabpage(state.status_win)
+		if footer_tab ~= transcript_tab or not footer_is_bottom(state) then
+			pcall(vim.api.nvim_win_set_config, state.status_win, { split = "below", win = -1 })
+		end
+	end
+	if vim.api.nvim_win_get_height(state.status_win) ~= footer_height then
+		pcall(vim.api.nvim_win_set_height, state.status_win, footer_height)
+	end
+end
+
+local function apply_footer_window_options(win)
+	vim.api.nvim_set_option_value("wrap", false, { win = win })
+	vim.api.nvim_set_option_value("winbar", "", { win = win })
+	vim.api.nvim_set_option_value("fillchars", "stl: ,stlnc: ", { win = win })
+	vim.api.nvim_set_option_value("statusline", "", { win = win })
+	vim.api.nvim_set_option_value("winfixheight", true, { win = win })
+	vim.api.nvim_set_option_value("winfixbuf", true, { win = win })
+	vim.api.nvim_set_option_value("winhl", "Normal:PiStatusFooterNormal,EndOfBuffer:PiStatusFooterNormal", { win = win })
+end
+
+local function ensure_footer_window(state, buf)
 	if state.status_win and vim.api.nvim_win_is_valid(state.status_win) then
-		vim.api.nvim_win_set_config(state.status_win, config)
+		normalize_footer_window(state)
 		return state.status_win
 	end
-	local win = vim.api.nvim_open_win(buf, false, config)
-	vim.api.nvim_set_option_value("wrap", false, { win = win })
-	vim.api.nvim_set_option_value("winhl", "Normal:Normal", { win = win })
+	if vim.api.nvim_get_current_tabpage() ~= vim.api.nvim_win_get_tabpage(state.transcript_win) then
+		return nil
+	end
+	local opened, win = pcall(vim.api.nvim_open_win, buf, false, {
+		split = "below",
+		win = -1,
+		height = footer_height,
+		focusable = false,
+		style = "minimal",
+	})
+	if not opened then
+		return nil
+	end
+	apply_footer_window_options(win)
+	pcall(vim.api.nvim_win_set_height, win, footer_height)
 	state.status_win = win
 	return win
 end
@@ -456,7 +489,7 @@ local function apply_evaluated_highlights(buf, row, evaluated)
 		if item.start < end_col then
 			vim.api.nvim_buf_set_extmark(buf, footer_ns, row, item.start, {
 				end_col = end_col,
-				hl_group = item.group,
+				hl_group = { item.group, "PiStatusFooter" },
 				priority = 100,
 			})
 		end
@@ -464,25 +497,61 @@ local function apply_evaluated_highlights(buf, row, evaluated)
 end
 
 local function render_footer(ctx, buf, width)
-	local primary = evaluate_statusline(M.render(ctx), ctx.state.transcript_win, width)
-	local secondary = evaluate_statusline(M.render_secondary(ctx), ctx.state.transcript_win, width)
-	local border = string.rep("─", width)
+	local primary = evaluate_statusline(M.render(ctx), ctx.state.status_win, width)
 	vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { border, primary.str, secondary.str, border })
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { primary.str })
 	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 	vim.api.nvim_buf_clear_namespace(buf, footer_ns, 0, -1)
-	for _, row in ipairs({ 0, 3 }) do
-		vim.api.nvim_buf_set_extmark(buf, footer_ns, row, 0, {
-			end_col = #border,
-			hl_group = "PiPaneBorder",
-			priority = 100,
-		})
-	end
-	apply_evaluated_highlights(buf, 1, primary)
-	apply_evaluated_highlights(buf, 2, secondary)
+	apply_evaluated_highlights(buf, 0, primary)
+	vim.api.nvim_set_option_value("statusline", M.render_secondary(ctx), { win = ctx.state.status_win })
 end
 
-function M.setup(_) end
+function M.setup(ctx)
+	local update_scheduled = false
+	local function schedule_update()
+		if update_scheduled then
+			return
+		end
+		update_scheduled = true
+		vim.schedule(function()
+			update_scheduled = false
+			M.update(ctx)
+		end)
+	end
+
+	local footer_group = vim.api.nvim_create_augroup("PiNvimStatusFooter", { clear = true })
+	vim.api.nvim_create_autocmd({ "VimResized", "WinResized", "WinNew", "WinClosed", "TabEnter" }, {
+		group = footer_group,
+		desc = "Keep the pi-nvim status footer at the bottom",
+		callback = schedule_update,
+	})
+	vim.api.nvim_create_autocmd("WinEnter", {
+		group = footer_group,
+		desc = "Keep focus out of the pi-nvim status footer",
+		callback = function()
+			local state = ctx.state
+			if not state.status_win or vim.api.nvim_get_current_win() ~= state.status_win then
+				return
+			end
+			local previous_win = vim.fn.win_getid(vim.fn.winnr("#"))
+			if previous_win ~= state.status_win and vim.api.nvim_win_is_valid(previous_win) then
+				vim.api.nvim_set_current_win(previous_win)
+			elseif ctx.transcript.win_valid() then
+				vim.api.nvim_set_current_win(state.transcript_win)
+			end
+		end,
+	})
+	vim.api.nvim_create_autocmd("SafeState", {
+		group = footer_group,
+		desc = "Restore the pi-nvim status footer after window commands",
+		callback = function()
+			local state = ctx.state
+			if ctx.transcript.win_valid() and state.status_win and vim.api.nvim_win_is_valid(state.status_win) then
+				normalize_footer_window(state)
+			end
+		end,
+	})
+end
 
 function M.update(ctx)
 	local state = ctx.state
@@ -490,14 +559,16 @@ function M.update(ctx)
 		close_footer(state)
 		return
 	end
-	local width = vim.api.nvim_win_get_width(state.transcript_win)
+	local buf = ensure_footer_buffer(state)
+	local win = ensure_footer_window(state, buf)
+	if not win then
+		return
+	end
+	local width = vim.api.nvim_win_get_width(win)
 	if width < 1 then
 		close_footer(state)
 		return
 	end
-	vim.api.nvim_set_option_value("statusline", "%#PiPaneBorder#%=", { win = state.transcript_win })
-	local buf = ensure_footer_buffer(state)
-	ensure_footer_window(state, buf, footer_config(state.transcript_win, width))
 	render_footer(ctx, buf, width)
 	vim.cmd("redraw")
 end

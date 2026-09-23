@@ -133,10 +133,6 @@ local function transcript_line_count()
 	return pi_transcript.line_count(transcript_ctx())
 end
 
-local function update_transcript_bottom_padding()
-	return pi_transcript.update_bottom_padding(transcript_ctx())
-end
-
 local function transcript_win_valid()
 	return pi_transcript.win_valid(transcript_ctx())
 end
@@ -542,11 +538,9 @@ setup_keymaps = function()
 end
 
 update_transcript_statusline = function()
-	pi_statusline.update(integration_ctx())
-end
-
-local function schedule_status_footer_update()
-	vim.schedule(update_transcript_statusline)
+	local ctx = integration_ctx()
+	pi_statusline.update(ctx)
+	pi_layout.update_input_sidebar(ctx)
 end
 
 function M.setup(opts)
@@ -555,12 +549,6 @@ function M.setup(opts)
 	state.integration_mode = "ask"
 	set_model_metadata(M.config.provider, M.config.model)
 	pi_statusline.setup(integration_ctx())
-	local footer_group = vim.api.nvim_create_augroup("PiNvimStatusFooter", { clear = true })
-	vim.api.nvim_create_autocmd({ "VimResized", "WinResized" }, {
-		group = footer_group,
-		desc = "Keep the pi-nvim status footer aligned with the transcript",
-		callback = schedule_status_footer_update,
-	})
 end
 
 function M.open()
@@ -578,6 +566,10 @@ function M.show_transcript()
 	if state.session_file or state.pending_session_file or (state.job and state.job > 0) then
 		M.refresh_messages()
 	end
+end
+
+function M.restore_status_footer()
+	update_transcript_statusline()
 end
 
 function M.start()
@@ -661,7 +653,6 @@ render_messages = function(messages)
 		set_buffer_lines(state.transcript_buf, lines, false)
 	end)
 	apply_collected_transcript_items(items)
-	update_transcript_bottom_padding()
 	update_transcript_statusline()
 	render_transcript()
 	if not preserve_view then

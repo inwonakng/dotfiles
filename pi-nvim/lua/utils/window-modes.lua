@@ -69,21 +69,26 @@ function M.enter_resize()
 	})
 end
 
+local function move_window(direction)
+	vim.cmd("wincmd " .. direction)
+	require("pi-integration").restore_status_footer()
+end
+
 function M.enter_move()
 	enter_mode("move", {
 		-- wincmd H/J/K/L moves the window but keeps focus in it,
 		-- so WinLeave does not fire and buffer-local keymaps stay valid.
 		h = function()
-			vim.cmd("wincmd H")
+			move_window("H")
 		end,
 		j = function()
-			vim.cmd("wincmd J")
+			move_window("J")
 		end,
 		k = function()
-			vim.cmd("wincmd K")
+			move_window("K")
 		end,
 		l = function()
-			vim.cmd("wincmd L")
+			move_window("L")
 		end,
 	})
 end

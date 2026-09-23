@@ -123,7 +123,6 @@ local function transcript_ctx(state)
 end
 
 local function render_transcript_ui(state)
-	pi_transcript.update_bottom_padding(transcript_ctx(state))
 	pi_transcript.render(transcript_ctx(state))
 end
 

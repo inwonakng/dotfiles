@@ -2,7 +2,6 @@ local markdown_render = require("pi-integration.markdown-render")
 
 local M = {}
 
-local padding_ns = vim.api.nvim_create_namespace("pi-nvim-transcript-padding")
 local quote_ns = vim.api.nvim_create_namespace("pi-nvim-transcript-quotes")
 
 local function yaml_value(value)
@@ -246,37 +245,12 @@ function M.render(ctx)
 	end)
 end
 
-function M.update_bottom_padding(ctx)
-	local state = ctx.state
-	if not ctx.buffer.valid(state.transcript_buf) then
-		return
-	end
-
-	vim.api.nvim_buf_clear_namespace(state.transcript_buf, padding_ns, 0, -1)
-	local line_count = vim.api.nvim_buf_line_count(state.transcript_buf)
-	if line_count < 1 then
-		return
-	end
-
-	vim.api.nvim_buf_set_extmark(state.transcript_buf, padding_ns, line_count - 1, 0, {
-		virt_lines = {
-			{ { " ", "Normal" } },
-			{ { " ", "Normal" } },
-			{ { " ", "Normal" } },
-		},
-		virt_lines_above = false,
-		virt_lines_leftcol = true,
-		priority = 1,
-	})
-end
-
 function M.touch(ctx)
 	ctx.state.last_updated = os.date("%Y-%m-%d %H:%M:%S %z")
 end
 
 function M.refresh_ui(ctx)
 	M.update_metadata(ctx)
-	M.update_bottom_padding(ctx)
 	ctx.transcript.update_statusline()
 	M.render(ctx)
 end
@@ -342,7 +316,6 @@ function M.append_lines(ctx, lines)
 		end
 		ctx.buffer.set_modifiable(state.transcript_buf, false)
 	end)
-	M.update_bottom_padding(ctx)
 	M.scroll_to_bottom_unless_focused(ctx)
 	M.schedule_refresh(ctx)
 end
@@ -377,7 +350,6 @@ function M.append_text(ctx, text)
 
 		ctx.buffer.set_modifiable(state.transcript_buf, false)
 	end)
-	M.update_bottom_padding(ctx)
 	M.scroll_to_bottom_unless_focused(ctx)
 	M.schedule_refresh(ctx)
 end
@@ -437,7 +409,6 @@ function M.remove_status(ctx, text)
 		end
 		ctx.buffer.set_modifiable(state.transcript_buf, false)
 	end)
-	M.update_bottom_padding(ctx)
 	M.schedule_refresh(ctx)
 end
 
@@ -455,7 +426,6 @@ function M.set_line(ctx, line, text)
 		vim.api.nvim_buf_set_lines(state.transcript_buf, line - 1, line, false, { text or "" })
 		ctx.buffer.set_modifiable(state.transcript_buf, false)
 	end)
-	M.update_bottom_padding(ctx)
 	M.schedule_refresh(ctx)
 end
 
@@ -530,7 +500,6 @@ function M.append_transcript_item_separator(ctx)
 		ctx.buffer.set_modifiable(state.transcript_buf, false)
 	end)
 	state.pending_transcript_item_separator = true
-	M.update_bottom_padding(ctx)
 	M.schedule_refresh(ctx)
 end
 
@@ -573,7 +542,6 @@ function M.set_placeholder_line(ctx, text)
 		vim.api.nvim_buf_set_lines(state.transcript_buf, state.placeholder_line - 1, state.placeholder_line, false, { text })
 		ctx.buffer.set_modifiable(state.transcript_buf, false)
 	end)
-	M.update_bottom_padding(ctx)
 	M.schedule_refresh(ctx)
 end
 
@@ -600,7 +568,6 @@ function M.clear_assistant_placeholder(ctx)
 	end)
 	state.placeholder_start_line = nil
 	state.placeholder_line = nil
-	M.update_bottom_padding(ctx)
 	M.schedule_refresh(ctx)
 end
 
@@ -625,7 +592,6 @@ function M.clear_assistant_placeholder_spinner(ctx)
 	end)
 	state.placeholder_start_line = nil
 	state.placeholder_line = nil
-	M.update_bottom_padding(ctx)
 	M.schedule_refresh(ctx)
 end
 

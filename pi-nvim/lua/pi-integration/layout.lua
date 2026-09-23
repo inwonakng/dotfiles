@@ -23,14 +23,37 @@ function M.apply_window_padding(_, win)
 	vim.api.nvim_set_option_value("winbar", " ", { win = win })
 	vim.api.nvim_set_option_value("fillchars", "stl:─,stlnc:─", { win = win })
 	vim.api.nvim_set_option_value("statusline", "%#PiPaneBorder#%=", { win = win })
+	vim.api.nvim_set_option_value("statuscolumn", "", { win = win })
+	vim.api.nvim_set_option_value("winhl", "", { win = win })
 	vim.api.nvim_set_option_value("signcolumn", "yes:1", { win = win })
 	vim.api.nvim_set_option_value("scrolloff", 1, { win = win })
 	vim.api.nvim_set_option_value("sidescrolloff", 2, { win = win })
 end
 
+local function input_sidebar_highlight(mode)
+	if mode == "readonly" then
+		return "PiInputSidebarReadonly"
+	elseif mode == "write" then
+		return "PiInputSidebarWrite"
+	end
+	return "PiInputSidebarUnknown"
+end
+
+function M.update_input_sidebar(ctx)
+	local win = ctx.state.input_win
+	if not win or not vim.api.nvim_win_is_valid(win) then
+		return
+	end
+	local highlight = input_sidebar_highlight(ctx.state.access_mode)
+	vim.api.nvim_set_option_value("fillchars", "stl:─,stlnc:─,eob:▌", { win = win })
+	vim.api.nvim_set_option_value("statuscolumn", "%#" .. highlight .. "#▌%#SignColumn# ", { win = win })
+	vim.api.nvim_set_option_value("winhl", "EndOfBuffer:" .. highlight, { win = win })
+end
+
 function M.apply_input_window_options(ctx, win)
 	M.apply_window_padding(ctx, win)
-	vim.api.nvim_set_option_value("statusline", "%#PiInputTitle# Pi input %#PiPaneBorder#%=", { win = win })
+	vim.api.nvim_set_option_value("winbar", "", { win = win })
+	M.update_input_sidebar(ctx)
 end
 
 function M.apply_transcript_window_options(ctx, win)
