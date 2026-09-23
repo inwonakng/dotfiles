@@ -863,7 +863,7 @@ function M.summary_lines(state, output_id)
 			table.insert(parts, status)
 		end
 		if progress ~= "" then
-			table.insert(parts, progress)
+			table.insert(parts, markdown_code_span(progress))
 		elseif not output.spawn then
 			table.insert(parts, line_label)
 		end
