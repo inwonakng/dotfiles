@@ -185,16 +185,12 @@ function M.start(ctx)
 		return
 	end
 
-	M.send(ctx, { type = "get_state" }, function(event)
-		if event.success and event.data then
-			state.pending_session_file = nil
-			ctx.session.apply_state(event.data)
-			ctx.actions.refresh_messages()
-			ctx.actions.refresh_session_stats()
+	ctx.session.sync({
+		publish_workspace = true,
+		on_success = function()
 			ctx.actions.maybe_prompt_session_archive()
-			M.send(ctx, { type = "prompt", message = "/pi-workspace-publish" })
-		end
-	end)
+		end,
+	})
 	if state.pending_access_mode then
 		local mode = state.pending_access_mode
 		M.send(ctx, { type = "prompt", message = "/pi-mode " .. mode }, function(event)

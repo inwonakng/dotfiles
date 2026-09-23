@@ -488,18 +488,8 @@ local function update_workspace_from_status(ctx, text)
 	end
 	state.workspace = payload
 	if session_changed then
-		state.session_file = payload.sessionFile
-		state.pending_session_file = nil
-		state.tree_leaf_id = nil
-		require("pi-integration.runtime").publish()
 		vim.defer_fn(function()
-			ctx.rpc.send({ type = "get_state" }, function(event)
-				if event.success and event.data then
-					ctx.session.apply_state(event.data)
-					ctx.actions.refresh_messages()
-					ctx.actions.refresh_session_stats()
-				end
-			end)
+			ctx.session.sync()
 		end, 20)
 	end
 	ctx.transcript.refresh_ui()

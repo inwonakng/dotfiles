@@ -104,30 +104,6 @@ local function touch_transcript()
 	return pi_transcript.touch(transcript_ctx())
 end
 
-local function apply_session_state(data)
-	local session_changed = data.sessionFile ~= state.session_file
-	if session_changed then
-		state.pending_ui_requests = {}
-		state.tree_leaf_id = nil
-		state.spawn_runs = {}
-		state.spawn_running_count = 0
-		state.spawn_run_lines = {}
-		state.spawn_run_output_by_id = {}
-		state.is_retrying = false
-		state.pending_retry_error = nil
-		state.assistant_block_open = false
-	end
-	state.session_file = data.sessionFile
-	state.session_name = data.sessionName
-	state.message_count = data.messageCount or state.message_count
-	state.is_streaming = data.isStreaming or false
-	state.is_compacting = data.isCompacting or false
-	state.thinking_level = data.thinkingLevel or data.thinking_level or state.thinking_level
-	set_model_metadata(data.provider or data.providerId or data.providerName, data.model or data.modelId)
-	refresh_transcript_ui()
-	require("pi-integration.runtime").publish()
-end
-
 local function is_agent_active()
 	return state.is_streaming or state.is_retrying
 end
@@ -422,6 +398,7 @@ local pi_statusline = require("pi-integration.statusline")
 local pi_usage = require("pi-integration.usage")
 local pi_tree = require("pi-integration.tree")
 local pi_sessions = require("pi-integration.sessions")
+local pi_session = require("pi-integration.session-controller")
 local pi_spawn = require("pi-integration.spawn")
 local pi_messages = require("pi-integration.messages")
 pi_transcript = require("pi-integration.transcript")
@@ -507,7 +484,16 @@ local integration_context = {
 	session = {
 		set_model_metadata = set_model_metadata,
 		set_input_text = set_input_text,
-		apply_state = apply_session_state,
+		reset_outputs = reset_transcript_outputs,
+		apply_state = function(data, new_session)
+			return pi_session.apply_state(integration_ctx(), data, new_session)
+		end,
+		sync = function(options)
+			return pi_session.sync(integration_ctx(), options)
+		end,
+		switch_session = function(path)
+			return pi_session.switch_session(integration_ctx(), path)
+		end,
 		is_agent_active = is_agent_active,
 	},
 	access = {},
@@ -612,7 +598,7 @@ function M.rename_session()
 end
 
 function M.new_session()
-	pi_actions.new_session(integration_ctx())
+	pi_session.new_session(integration_ctx())
 end
 
 local function normalize_leaf_id(value)

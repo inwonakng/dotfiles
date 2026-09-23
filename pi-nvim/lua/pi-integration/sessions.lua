@@ -1,4 +1,3 @@
-local guard = require("pi-integration.utils.guard")
 local json = require("pi-integration.utils.json")
 local message_utils = require("pi-integration.utils.message")
 local pi_messages = require("pi-integration.messages")
@@ -737,41 +736,7 @@ local function attach_session(ctx, choice)
 		end
 		return
 	end
-	local state = ctx.state
-	local function refresh_attached_session(message)
-		state.is_retrying = false
-		state.pending_retry_error = nil
-		state.session_file = choice.path
-		state.session_name = choice.title
-		state.tree_leaf_id = nil
-		runtime.publish()
-		ctx.rpc.send({ type = "get_state" }, function(state_event)
-			if state_event.success and state_event.data then
-				ctx.session.apply_state(state_event.data)
-				ctx.actions.refresh_session_stats()
-				ctx.rpc.send({ type = "prompt", message = "/pi-workspace-publish" })
-			end
-			ctx.actions.refresh_messages()
-			ctx.ui.notify(message)
-		end)
-	end
-
-	local function proceed()
-		if not (state.job and state.job > 0) then
-			state.pending_session_file = choice.path
-			refresh_attached_session("Attached session")
-			return
-		end
-		ctx.rpc.send({ type = "switch_session", sessionPath = choice.path }, function(event)
-			if event.success and not (event.data and event.data.cancelled) then
-				refresh_attached_session("Switched session")
-			else
-				ctx.ui.notify("Session switch cancelled or failed", vim.log.levels.ERROR)
-			end
-		end)
-	end
-
-	guard.confirm_abort_active_run(ctx, "Switching sessions", proceed)
+	ctx.session.switch_session(choice.path)
 end
 
 local function decode_selection(items, by_id)
