@@ -105,7 +105,7 @@ function M.launch(launcher, cwd, path)
 	if path then
 		shell_command = shell_command .. " --session " .. vim.fn.shellescape(path)
 	end
-	local target, err = command({ "new-window", "-d", "-P", "-F", "#{pane_id}\t#{pane_pid}", "-t", "=agents:", "-c", cwd, shell_command })
+	local target, err = command({ "new-window", "-d", "-P", "-F", "#{pane_id}\t#{pane_pid}", "-t", "=agents:", "-n", "pi", "-c", cwd, shell_command })
 	if not target then
 		return nil, err
 	end

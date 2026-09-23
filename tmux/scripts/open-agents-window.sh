@@ -16,7 +16,7 @@ current_path=$(tmux display-message -p -t "$pane_id" '#{pane_current_path}')
 current_session=$(tmux display-message -p -t "$pane_id" '#{session_name}')
 
 bash "$script_dir/open-agents-overview.sh" --ensure "$pane_id" "$client_name" >/dev/null
-tmux new-window -t '=agents:' -c "$current_path" bash "$launcher"
+tmux new-window -t '=agents:' -n pi -c "$current_path" bash "$launcher"
 
 if [ "$current_session" != "agents" ]; then
     if [ -n "$client_name" ]; then
