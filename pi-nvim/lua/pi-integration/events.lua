@@ -408,6 +408,108 @@ local function confirm_with_preview(ctx, event)
 	return true
 end
 
+local function select_bash_approval(ctx, event)
+	local payload = decode_approval_payload(event.title)
+	if not payload or payload.tool ~= "bash" then
+		return false
+	end
+
+	local responded = false
+	local function respond_once(response)
+		if responded then
+			return
+		end
+		responded = true
+		send_extension_ui_response(ctx, event.id, response)
+	end
+
+	local ok, err = pcall(vim.ui.select, event.options or {}, {
+		prompt = "Allow bash?",
+		kind = "pi_approval",
+		no_hide = true,
+		on_close = function()
+			vim.defer_fn(function()
+				respond_once({ cancelled = true })
+			end, 50)
+		end,
+		preview_item = function()
+			return approval_preview_item(payload)
+		end,
+	}, function(choice)
+		if choice then
+			respond_once({ value = choice })
+		else
+			respond_once({ cancelled = true })
+		end
+	end)
+	if not ok then
+		ctx.logs.add("error", "Approval picker failed", tostring(err))
+		respond_once({ cancelled = true })
+	end
+	return true
+end
+
+local function remember_note_float(ctx, event)
+	local payload = type(event.title) == "string" and json.decode_object(event.title)
+	if not payload or payload.kind ~= "pi_remember_note" then
+		return false
+	end
+
+	local buf = vim.api.nvim_create_buf(false, true)
+	vim.bo[buf].buftype = "nofile"
+	vim.bo[buf].bufhidden = "wipe"
+	vim.bo[buf].swapfile = false
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "" })
+	local width = math.max(1, math.min(80, vim.o.columns - 4))
+	local win = vim.api.nvim_open_win(buf, true, {
+		relative = "editor",
+		width = width,
+		height = 1,
+		row = math.max(0, math.floor((vim.o.lines - 1) / 2)),
+		col = math.floor((vim.o.columns - width) / 2),
+		style = "minimal",
+		border = "rounded",
+		title = " Optional note (Enter to save, Esc to skip) ",
+		title_pos = "center",
+	})
+	local responded = false
+	local function finish(note)
+		if responded then
+			return
+		end
+		responded = true
+		if note then
+			send_extension_ui_response(ctx, event.id, { value = note })
+		else
+			send_extension_ui_response(ctx, event.id, { cancelled = true })
+		end
+		if vim.api.nvim_win_is_valid(win) then
+			vim.api.nvim_win_close(win, true)
+		end
+	end
+	vim.api.nvim_create_autocmd("WinClosed", {
+		pattern = tostring(win),
+		once = true,
+		callback = function()
+			finish(nil)
+		end,
+	})
+	vim.api.nvim_create_autocmd({ "WinLeave", "BufLeave" }, {
+		buffer = buf,
+		once = true,
+		callback = function()
+			vim.schedule(function() finish(nil) end)
+		end,
+	})
+	vim.keymap.set({ "i", "n" }, "<CR>", function()
+		finish(vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] or "")
+	end, { buffer = buf, nowait = true })
+	vim.keymap.set({ "i", "n" }, "<Esc>", function() finish(nil) end, { buffer = buf, nowait = true })
+	vim.keymap.set("n", "q", function() finish(nil) end, { buffer = buf, nowait = true })
+	vim.cmd.startinsert()
+	return true
+end
+
 local function update_access_mode_from_status(ctx, text)
 	if type(text) ~= "string" then
 		return
@@ -542,6 +644,9 @@ function M.handle_extension_ui_request(ctx, event)
 		vim.opt.titlestring = event.title
 		vim.opt.title = true
 	elseif event.method == "select" then
+		if select_bash_approval(ctx, event) then
+			return
+		end
 		vim.ui.select(event.options or {}, { prompt = event.title or "Pi select" }, function(choice)
 			if choice then
 				send_extension_ui_response(ctx, event.id, { value = choice })
@@ -561,6 +666,9 @@ function M.handle_extension_ui_request(ctx, event)
 			send_extension_ui_response(ctx, event.id, { confirmed = choice == "Yes" })
 		end)
 	elseif event.method == "input" then
+		if remember_note_float(ctx, event) then
+			return
+		end
 		vim.ui.input({ prompt = event.title or "Pi input", default = event.placeholder or "" }, function(value)
 			if value then
 				send_extension_ui_response(ctx, event.id, { value = value })

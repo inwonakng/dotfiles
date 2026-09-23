@@ -8,201 +8,15 @@ import assert from "node:assert";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { getAccessMode, parseAccessMode, setAccessMode } from "./shared/access-state";
+import {
+  isTrustedCommand, rememberCommand, reviewCommand, readonlyBashBlockReason, savedCommands,
+} from "./shared/bash-access";
 
-const MUTATING_FILE_COMMANDS =
-  "rm|rmdir|mv|cp|mkdir|touch|chmod|chown|chgrp|ln|tee|truncate|dd|shred";
-const COMMAND_START = String.raw`(?:^|[;&|]\s*)(?:\w+=\S+\s+)*`;
+export { readonlyBashBlockReason } from "./shared/bash-access";
+
 const READONLY_TOOLS = new Set(["read", "grep", "find", "ls", "web_search", "web_fetch"]);
 const READONLY_WORKSPACE_ACTIONS = new Set(["status", "list"]);
 const READONLY_SPAWN_CONTROL_ACTIONS = new Set(["list", "status", "join", "join_all"]);
-
-const READONLY_BASH_DENYLIST: Array<{ pattern: RegExp; reason: string }> = [
-  {
-    pattern: commandPattern(MUTATING_FILE_COMMANDS),
-    reason: "file mutation command",
-  },
-  {
-    pattern: commandPattern("vim?|nvim|nano|emacs|code|subl"),
-    reason: "interactive editor can modify files",
-  },
-  {
-    pattern: /\bfind\b[^;&|]*\s-delete\b/i,
-    reason: "find -delete mutates files",
-  },
-  {
-    pattern: new RegExp(
-      String.raw`\bfind\b[^;&|]*\s-exec(?:dir)?\s+(?:${MUTATING_FILE_COMMANDS}|bash|sh|zsh|fish|osascript|python|python3|node|ruby|perl)\b`,
-      "i",
-    ),
-    reason: "find -exec mutation command",
-  },
-  {
-    pattern: new RegExp(
-      String.raw`\bxargs\b(?:\s+(?:-[A-Za-z0-9{}]+|--[A-Za-z0-9-]+(?:=\S+)?))*\s+(?:${MUTATING_FILE_COMMANDS}|bash|sh|zsh|fish|osascript|python|python3|node|ruby|perl)\b`,
-      "i",
-    ),
-    reason: "xargs mutation command",
-  },
-  { pattern: /\bsed\b[^;&|]*\s-i(?:\s|$)/i, reason: "in-place sed edit" },
-  { pattern: /\bperl\b[^;&|]*\s-p?i(?:\s|$)/i, reason: "in-place perl edit" },
-  {
-    pattern: new RegExp(
-      String.raw`${COMMAND_START}git\s+(?:-C\s+(?:"[^"]+"|'[^']+'|\S+)\s+|--no-pager\s+)*(?:add|am|apply|bisect|branch|checkout|cherry-pick|clean|clone|commit|fetch|format-patch|init|merge|mv|pull|push|rebase|reset|restore|revert|rm|stash|submodule|switch|tag|worktree)\b`,
-      "i",
-    ),
-    reason: "mutating git command",
-  },
-  {
-    pattern: /\bgit\b[^;&|]*\s--(?:output|ext-diff|external-diff)(?:=|\s|$)/i,
-    reason: "git option can write files or run external commands",
-  },
-  {
-    pattern:
-      /(?:^|[;&|]\s*)(?:npm|yarn|pnpm|bun)\s+(?:install|uninstall|update|add|remove|ci|link|publish|version|upgrade)\b/i,
-    reason: "package manager mutation",
-  },
-  {
-    pattern: /(?:^|[;&|]\s*)(?:pip|pipx|uv(?:\s+pip)?)\s+(?:install|uninstall|sync|add|remove|lock)\b/i,
-    reason: "Python environment mutation",
-  },
-  {
-    pattern:
-      /(?:^|[;&|]\s*)(?:brew|apt|apt-get|dnf|yum|pacman)\s+(?:install|uninstall|remove|purge|update|upgrade|add)\b/i,
-    reason: "system package mutation",
-  },
-  {
-    pattern: /(?:^|[;&|]\s*)(?:curl|wget)\b[^;&|]*(?:\s-o\s|\s-O(?:\s|$)|--output(?:=|\s)|--output-document(?:=|\s))/i,
-    reason: "download command writes to a file",
-  },
-  {
-    pattern: /(?:^|[;&|]\s*)tar\b[^;&|]*\s-(?:[^\s-]*x|-[^;&|]*(?:extract|get))/i,
-    reason: "archive extraction writes files",
-  },
-  {
-    pattern: commandPattern("unzip|gunzip"),
-    reason: "archive extraction writes files",
-  },
-  {
-    pattern: commandPattern("sudo|su|kill|pkill|killall|reboot|shutdown"),
-    reason: "privileged or process-control command",
-  },
-  {
-    pattern:
-      /(?:^|[;&|]\s*)(?:systemctl|service|launchctl)\s+(?:start|stop|restart|enable|disable|load|unload|kickstart|bootout)\b/i,
-    reason: "service mutation",
-  },
-  {
-    pattern: /(?:^|[;&|]\s*)(?:bash|sh|zsh|fish|osascript|python|python3|node|ruby|perl)\s+(?:-c|-e)\b/i,
-    reason: "inline interpreter can hide side effects",
-  },
-];
-
-function commandPattern(commands: string): RegExp {
-  return new RegExp(`${COMMAND_START}(?:${commands})\\b`, "i");
-}
-
-function normalizeCommand(command: string): string {
-  return command.trim().replace(/\s+/g, " ");
-}
-
-function fileDescriptorDuplicationEnd(command: string, index: number): number | undefined {
-  const match = command.slice(index).match(/^[<>]&\s*(?:\d+|-)(?=$|[\s;&|()<>])/);
-  return match ? index + match[0].length : undefined;
-}
-
-function hasUnquotedShellWriteSyntax(command: string): boolean {
-  let quote: "'" | '"' | undefined;
-  for (let index = 0; index < command.length; index++) {
-    const char = command[index];
-    if (quote) {
-      if (char === quote) {
-        quote = undefined;
-      } else if (quote === '"' && char === "\\") {
-        index++;
-      }
-      continue;
-    }
-    if (char === "'" || char === '"') {
-      quote = char;
-      continue;
-    }
-    if (char === "\\") {
-      index++;
-      continue;
-    }
-    if (char === "<" || char === ">") {
-      const duplicationEnd = fileDescriptorDuplicationEnd(command, index);
-      if (duplicationEnd !== undefined) {
-        index = duplicationEnd - 1;
-        continue;
-      }
-      return true;
-    }
-    if (char === "&" && command[index - 1] !== "&" && command[index + 1] !== "&") {
-      return true;
-    }
-  }
-  return false;
-}
-
-function maskShellQuotedContent(command: string): string {
-  let output = "";
-  let quote: "'" | '"' | undefined;
-  for (let index = 0; index < command.length; index++) {
-    const char = command[index];
-    if (quote) {
-      if (char === quote) {
-        quote = undefined;
-        output += char;
-      } else if (quote === '"' && char === "\\") {
-        output += " ";
-        index++;
-        if (index < command.length) {
-          output += " ";
-        }
-      } else {
-        output += " ";
-      }
-      continue;
-    }
-    if (char === "'" || char === '"') {
-      quote = char;
-      output += char;
-      continue;
-    }
-    if (char === "\\") {
-      output += " ";
-      index++;
-      if (index < command.length) {
-        output += " ";
-      }
-      continue;
-    }
-    output += char;
-  }
-  return output;
-}
-
-export function readonlyBashBlockReason(command: string): string | undefined {
-  const normalized = normalizeCommand(command);
-  if (!normalized) {
-    return "empty command";
-  }
-
-  // Sending stderr to /dev/null is common for read-only probes and does not
-  // mutate project files. Keep other redirections and background jobs blocked.
-  const withoutBenignStderr = normalized.replace(/(^|\s)2>\s*\/dev\/null(?=\s|$)/g, " ");
-  if (hasUnquotedShellWriteSyntax(withoutBenignStderr)) {
-    return "shell redirection or background execution";
-  }
-  if (/[`]/.test(normalized) || normalized.includes("$(")) {
-    return "command substitution can hide side effects";
-  }
-
-  const denylistCommand = maskShellQuotedContent(normalized);
-  const blocked = READONLY_BASH_DENYLIST.find(({ pattern }) => pattern.test(denylistCommand));
-  return blocked?.reason;
-}
 
 function jsonPreview(value: unknown): string {
   return JSON.stringify(value, null, 2) ?? String(value);
@@ -308,43 +122,27 @@ function workspaceManagesApproval(input: Record<string, unknown>): boolean {
   return input.action === "integrate" || input.action === "discard";
 }
 
-function readonlyToolBlockReason(
-  toolName: string,
-  input: Record<string, unknown>,
-): string | undefined {
-  if (READONLY_TOOLS.has(toolName)) {
-    return undefined;
-  }
-
+function readonlyToolBlockReason(toolName: string, input: Record<string, unknown>, cwd: string): string | undefined {
+  if (READONLY_TOOLS.has(toolName)) return undefined;
   if (toolName === "bash") {
-    if (typeof input.command !== "string") {
-      return "bash requires a command that can be classified as read-only";
-    }
+    if (typeof input.command !== "string") return "bash requires a command that can be classified as read-only";
     const reason = readonlyBashBlockReason(input.command);
-    return reason ? `bash command is not read-only: ${reason}` : undefined;
+    if (!reason) return undefined;
+    return isTrustedCommand(input.command, cwd) ? undefined : `bash command is not read-only: ${reason}`;
   }
-
   if (toolName === "workspace") {
     return typeof input.action === "string" && READONLY_WORKSPACE_ACTIONS.has(input.action)
-      ? undefined
-      : "workspace action is not whitelisted as read-only";
+      ? undefined : "workspace action is not whitelisted as read-only";
   }
-
   if (toolName === "spawn") {
-    if (input.accessMode !== "readonly") {
-      return "spawn requires explicit accessMode=readonly";
-    }
+    if (input.accessMode !== "readonly") return "spawn requires explicit accessMode=readonly";
     return input.isolation === undefined || input.isolation === "none"
-      ? undefined
-      : "spawn worktree isolation is not read-only";
+      ? undefined : "spawn worktree isolation is not read-only";
   }
-
   if (toolName === "spawn_control") {
     return typeof input.action === "string" && READONLY_SPAWN_CONTROL_ACTIONS.has(input.action)
-      ? undefined
-      : "spawn_control action is not whitelisted as read-only";
+      ? undefined : "spawn_control action is not whitelisted as read-only";
   }
-
   return `tool "${toolName}" is not whitelisted as read-only`;
 }
 
@@ -360,57 +158,94 @@ export default function accessModeExtension(pi: ExtensionAPI) {
 
   pi.on("tool_call", async (event, ctx) => {
     setStatus(ctx);
-
     const mode = getAccessMode();
-    if (mode === "edit") {
-      return undefined;
-    }
+    if (mode === "edit") return undefined;
 
     const input = event.input as Record<string, unknown>;
-    if (event.toolName === "workspace" && workspaceManagesApproval(input)) {
-      return undefined;
-    }
+    if (event.toolName === "workspace" && workspaceManagesApproval(input)) return undefined;
 
-    const reason = readonlyToolBlockReason(event.toolName, input);
-    if (!reason) {
-      return undefined;
+    let reason: string | undefined;
+    try {
+      reason = readonlyToolBlockReason(event.toolName, input, ctx.cwd);
+    } catch (error) {
+      // A corrupt/unreadable trust store must never make an unknown command automatic.
+      reason = `could not read bash access store: ${String(error)}`;
     }
+    if (!reason) return undefined;
 
-    if (
-      event.toolName === "spawn"
-      && (input.accessMode === "edit" || input.isolation === "worktree")
-    ) {
+    if (event.toolName === "spawn" && (input.accessMode === "edit" || input.isolation === "worktree")) {
       return {
         block: true,
         reason: "Spawning edit-mode or isolated subagents requires parent access mode edit. Run /pi-mode edit before delegating edit work.",
       };
     }
-
-    if (mode === "readonly") {
-      return {
-        block: true,
-        reason: `Tool "${event.toolName}" is blocked in readonly mode (${reason}).`,
-      };
-    }
-
+    if (mode === "readonly") return { block: true, reason: `Tool "${event.toolName}" is blocked in readonly mode (${reason}).` };
     if (process.env.PI_SPAWN_AGENT === "1" || !ctx.hasUI) {
-      const context = process.env.PI_SPAWN_AGENT === "1"
-        ? "spawned subagents cannot request approval"
-        : "no UI is available";
-      return {
-        block: true,
-        reason: `Tool "${event.toolName}" requires approval (${reason}), but ${context}.`,
-      };
+      const context = process.env.PI_SPAWN_AGENT === "1" ? "spawned subagents cannot request approval" : "no UI is available";
+      return { block: true, reason: `Tool "${event.toolName}" requires approval (${reason}), but ${context}.` };
     }
 
-    const confirmed = await ctx.ui.confirm(
-      `Allow ${event.toolName}?`,
-      approvalPayload(event, ctx),
-      { signal: ctx.signal },
-    );
-    return confirmed
-      ? undefined
-      : { block: true, reason: `Tool "${event.toolName}" blocked by user.` };
+    // Bash uses a three-way selection so Remember can never execute the command.
+    if (event.toolName === "bash" && typeof input.command === "string") {
+      const title = ctx.mode === "rpc" ? approvalPayload(event, ctx) : `Allow bash? ${input.command}`;
+      const choice = await ctx.ui.select(title, ["Allow once", "Remember", "Deny"]);
+      if (choice === "Allow once") return undefined;
+      if (choice === "Remember") {
+        const noteTitle = ctx.mode === "rpc"
+          ? JSON.stringify({ kind: "pi_remember_note" })
+          : "Optional reason for remembering command";
+        const note = await ctx.ui.input(noteTitle);
+        try {
+          rememberCommand(input.command, ctx.cwd, note ?? "");
+          ctx.ui.notify("Command remembered for review; not executed.", "info");
+        } catch (error) {
+          return { block: true, reason: `Could not remember bash command: ${String(error)}` };
+        }
+      }
+      return { block: true, reason: `Tool "${event.toolName}" blocked by user.` };
+    }
+
+    const confirmed = await ctx.ui.confirm(`Allow ${event.toolName}?`, approvalPayload(event, ctx), { signal: ctx.signal });
+    return confirmed ? undefined : { block: true, reason: `Tool "${event.toolName}" blocked by user.` };
+  });
+
+  pi.registerCommand("pi-bash-review", {
+    description: "Review remembered bash commands and optionally trust an exact command in its directory",
+    handler: async (_args, ctx) => {
+      try {
+        const store = savedCommands();
+        const entries = [
+          ...store.remembered.map((entry) => ({ entry, trusted: false })),
+          ...store.trusted.map((entry) => ({ entry, trusted: true })),
+        ];
+        if (!entries.length) {
+          ctx.ui.notify("No saved bash commands", "info");
+          return;
+        }
+        const labels = entries.map(({ entry, trusted }, index) =>
+          `${index + 1}. ${trusted ? "Trusted" : "Remembered"}: ${entry.command} (${entry.cwd})${entry.note ? ` — ${entry.note}` : ""}`,
+        );
+        const selected = await ctx.ui.select("Saved bash commands", labels);
+        const index = labels.indexOf(selected ?? "");
+        if (index < 0) return;
+        const { entry, trusted } = entries[index];
+        const choice = await ctx.ui.select(
+          `Review bash command #${index + 1}`,
+          trusted ? ["Keep trusted", "Revoke trust"] : ["Keep for later", "Trust exact command here", "Forget"],
+        );
+        if (choice === "Trust exact command here") {
+          const confirmed = await ctx.ui.select("Auto-allow this exact command here on future runs?", ["Trust", "Cancel"]);
+          if (confirmed !== "Trust") return;
+          reviewCommand(entry, "trust");
+          ctx.ui.notify("Exact command trusted in this directory", "info");
+        } else if (choice === "Forget" || choice === "Revoke trust") {
+          reviewCommand(entry, choice === "Forget" ? "forget" : "revoke");
+          ctx.ui.notify(choice === "Forget" ? "Remembered command removed" : "Trust revoked", "info");
+        }
+      } catch (error) {
+        ctx.ui.notify(`Could not review bash commands: ${String(error)}`, "error");
+      }
+    },
   });
 
   pi.registerCommand("pi-mode", {
@@ -422,7 +257,6 @@ export default function accessModeExtension(pi: ExtensionAPI) {
         setStatus(ctx);
         return;
       }
-
       setAccessMode(requestedMode);
       setStatus(ctx);
       ctx.ui.notify(`Access mode: ${getAccessMode()}`, "info");
