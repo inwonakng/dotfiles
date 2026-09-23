@@ -132,22 +132,24 @@ end, {})
 
 -- functionality for editing file from lazygit
 -- these are used by the lazygit setting
-function EditLineFromLazygit(file_path, line)
-	local path = vim.fn.expand("%:p")
-	if path == file_path then
-		vim.cmd(tostring(line))
-	else
-		vim.cmd("e " .. file_path)
-		vim.cmd(tostring(line))
+local function open_from_lazygit(file_path)
+	local bufnr = vim.fn.bufnr(file_path)
+	for _, tab in ipairs(vim.api.nvim_list_tabpages()) do
+		for _, win in ipairs(vim.api.nvim_tabpage_list_wins(tab)) do
+			if vim.api.nvim_win_get_buf(win) == bufnr then
+				vim.api.nvim_set_current_win(win)
+				return
+			end
+		end
 	end
+	vim.cmd("tabedit " .. vim.fn.fnameescape(file_path))
+end
+
+function EditLineFromLazygit(file_path, line)
+	open_from_lazygit(file_path)
+	vim.cmd(tostring(line))
 end
 
 function EditFromLazygit(file_path)
-	local path = vim.fn.expand("%:p")
-	vim.cmd("e " .. file_path)
-	if path == file_path then
-		return
-	else
-		vim.cmd("e " .. file_path)
-	end
+	open_from_lazygit(file_path)
 end
