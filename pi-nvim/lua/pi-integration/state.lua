@@ -30,6 +30,8 @@ function M.new()
 		tree_filter_mode = "default",
 		is_streaming = false,
 		is_retrying = false,
+		is_compacting = false,
+		pending_ui_requests = {},
 		pending_retry_error = nil,
 		awaiting_agent_output = false,
 		activity_label = nil,

@@ -330,6 +330,7 @@ function M.render_message(ctx, message)
 end
 
 local function send_extension_ui_response(ctx, id, response)
+	ctx.state.pending_ui_requests[id] = nil
 	response.type = "extension_ui_response"
 	response.id = id
 	ctx.rpc.send(response)
@@ -490,6 +491,7 @@ local function update_workspace_from_status(ctx, text)
 		state.session_file = payload.sessionFile
 		state.pending_session_file = nil
 		state.tree_leaf_id = nil
+		require("pi-integration.runtime").publish()
 		vim.defer_fn(function()
 			ctx.rpc.send({ type = "get_state" }, function(event)
 				if event.success and event.data then
@@ -505,6 +507,12 @@ end
 
 function M.handle_extension_ui_request(ctx, event)
 	local state = ctx.state
+	if event.id and (event.method == "select" or event.method == "confirm" or event.method == "input") then
+		state.pending_ui_requests[event.id] = {
+			title = event.title or "Pi input requested",
+			expires = type(event.timeout) == "number" and (vim.uv.now() + event.timeout) or nil,
+		}
+	end
 	if event.method == "set_editor_text" and type(event.text) == "string" and ctx.buffer.valid(state.input_buf) then
 		vim.api.nvim_buf_set_lines(state.input_buf, 0, -1, false, vim.split(event.text, "\n", { plain = true }))
 	elseif event.method == "notify" then
@@ -750,7 +758,10 @@ function M.handle_event(ctx, event)
 			ctx.transcript.touch()
 			ctx.transcript.refresh_ui()
 		end
+	elseif event.type == "compaction_start" then
+		state.is_compacting = true
 	elseif event.type == "compaction_end" then
+		state.is_compacting = false
 		if not event.aborted and not event.willRetry then
 			schedule_transcript_refresh(ctx)
 		end

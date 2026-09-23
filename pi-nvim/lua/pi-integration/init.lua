@@ -107,6 +107,7 @@ end
 local function apply_session_state(data)
 	local session_changed = data.sessionFile ~= state.session_file
 	if session_changed then
+		state.pending_ui_requests = {}
 		state.tree_leaf_id = nil
 		state.spawn_runs = {}
 		state.spawn_running_count = 0
@@ -120,9 +121,11 @@ local function apply_session_state(data)
 	state.session_name = data.sessionName
 	state.message_count = data.messageCount or state.message_count
 	state.is_streaming = data.isStreaming or false
+	state.is_compacting = data.isCompacting or false
 	state.thinking_level = data.thinkingLevel or data.thinking_level or state.thinking_level
 	set_model_metadata(data.provider or data.providerId or data.providerName, data.model or data.modelId)
 	refresh_transcript_ui()
+	require("pi-integration.runtime").publish()
 end
 
 local function is_agent_active()
@@ -551,8 +554,12 @@ function M.setup(opts)
 	pi_statusline.setup(integration_ctx())
 end
 
-function M.open()
+function M.open(session_file)
+	if session_file then
+		state.pending_session_file = require("pi-integration.runtime").canonical_path(session_file)
+	end
 	pi_layout.open(integration_ctx())
+	require("pi-integration.runtime").start(state)
 	pi_rpc.start(integration_ctx())
 end
 

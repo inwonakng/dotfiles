@@ -7,6 +7,7 @@ local pi_state = require("pi-integration.state")
 local pi_thinking_output = require("pi-integration.thinking-output")
 local pi_tool_output = require("pi-integration.tool-output")
 local pi_transcript = require("pi-integration.transcript")
+local runtime = require("pi-integration.runtime")
 
 local M = {}
 
@@ -471,6 +472,14 @@ local function protected_session_paths(ctx)
 
 	add(ctx.state.session_file)
 	add(ctx.state.pending_session_file)
+	local instances, err = runtime.list()
+	if not instances then
+		ctx.ui.notify("Could not check open sessions; leaving session files unchanged: " .. tostring(err), vim.log.levels.WARN)
+		return nil
+	end
+	for _, instance in ipairs(instances) do
+		add(instance.path)
+	end
 	for _, record in ipairs(workspace_records()) do
 		if record.retained == true then
 			add(record.sourceSessionFile)
@@ -483,6 +492,9 @@ end
 
 local function partition_protected(ctx, selected)
 	local protected_paths = protected_session_paths(ctx)
+	if not protected_paths then
+		return {}, selected
+	end
 	local allowed = {}
 	local skipped = {}
 	for _, candidate in ipairs(selected) do
@@ -615,6 +627,22 @@ local function notify_failures(ctx, failures)
 end
 
 local function attach_session(ctx, choice)
+	if ctx.session.open_candidate then
+		ctx.session.open_candidate(choice)
+		return
+	end
+	local existing, err = runtime.find_session(choice.path)
+	if err then
+		ctx.ui.notify("Could not check open sessions: " .. err, vim.log.levels.WARN)
+		return
+	end
+	if existing then
+		local focused, focus_err = runtime.focus(existing.id)
+		if not focused then
+			ctx.ui.notify(focus_err, vim.log.levels.WARN)
+		end
+		return
+	end
 	local state = ctx.state
 	local function refresh_attached_session(message)
 		state.is_retrying = false
@@ -622,6 +650,7 @@ local function attach_session(ctx, choice)
 		state.session_file = choice.path
 		state.session_name = choice.title
 		state.tree_leaf_id = nil
+		runtime.publish()
 		ctx.rpc.send({ type = "get_state" }, function(state_event)
 			if state_event.success and state_event.data then
 				ctx.session.apply_state(state_event.data)
@@ -856,6 +885,15 @@ function M.pick(ctx, opts)
 				reopen_current()
 				return
 			end
+			-- A conversation may have opened while the confirmation was visible.
+			allowed, skipped = partition_protected(ctx, allowed)
+			if #skipped > 0 then
+				ctx.ui.notify("Some sessions became active; those files were left unchanged.", vim.log.levels.WARN)
+			end
+			if #allowed == 0 then
+				reopen_current()
+				return
+			end
 			local succeeded, failures = rename_sessions(allowed, not archived)
 			if #succeeded > 0 then
 				ctx.ui.notify(string.format("%s %d session(s).", archived and "Unarchived" or "Archived", #succeeded))
@@ -884,6 +922,14 @@ function M.pick(ctx, opts)
 		local noun = #allowed == 1 and "session" or "sessions"
 		confirm(string.format("%s %d %s%s?%s", action, #allowed, noun, destination, selected_title(allowed)), function(confirmed)
 			if not confirmed then
+				reopen_current()
+				return
+			end
+			allowed, skipped = partition_protected(ctx, allowed)
+			if #skipped > 0 then
+				ctx.ui.notify("Some sessions became active; those files were left unchanged.", vim.log.levels.WARN)
+			end
+			if #allowed == 0 then
 				reopen_current()
 				return
 			end
@@ -980,6 +1026,9 @@ end
 local function stale_session_paths(ctx, timestamp)
 	local stale_before = timestamp - (archive_after_days(ctx) * DAY_SECONDS)
 	local protected = protected_session_paths(ctx)
+	if not protected then
+		return {}
+	end
 	local stale = {}
 	for _, path in ipairs(session_paths(ctx, false)) do
 		local canonical = canonical_session_path(path)

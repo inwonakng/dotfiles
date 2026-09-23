@@ -170,6 +170,7 @@ function M.new_session(ctx)
 			state.pending_session_file = nil
 			state.session_file = nil
 			reset_session_transcript_state(ctx)
+			require("pi-integration.runtime").publish()
 			return
 		end
 

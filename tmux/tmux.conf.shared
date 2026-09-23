@@ -225,9 +225,11 @@ bind V run-shell "edit-in-vim.sh"
 ###==================###
 
 # general popup window
-bind g run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-agents.sh"
+bind g run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-agents.sh '#{pane_id}' '#{client_name}'"
 # open a new agents window rooted in the current pane's directory
-bind G run-shell "bash $HOME/.config/tmux/scripts/open-agents-window.sh '#{pane_id}'"
+bind G run-shell "bash $HOME/.config/tmux/scripts/open-agents-window.sh '#{pane_id}' '#{client_name}'"
+# select the persistent overview, opening the agents popup when needed
+bind o run-shell "bash $HOME/.config/tmux/scripts/open-agents-overview.sh '#{pane_id}' '#{client_name}'"
 # special popup window with midnight commander
 bind e run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-mc.sh"
 # freehand calculator popup

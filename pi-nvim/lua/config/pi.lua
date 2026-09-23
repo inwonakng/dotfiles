@@ -38,7 +38,14 @@ local function archive_after_days()
 	return nil
 end
 
-require("pi-integration").setup({
+local integration = require("pi-integration")
+local overview = vim.env.PI_NVIM_OVERVIEW == "1"
+local session_file = vim.env.PI_NVIM_SESSION
+-- Startup choices must not leak into tools or subsequently launched editors.
+vim.env.PI_NVIM_OVERVIEW = nil
+vim.env.PI_NVIM_SESSION = nil
+vim.g.pi_overview = overview
+local config = vim.tbl_deep_extend("force", integration.config, {
 	binary = vim.env.PI_BINARY or "pi",
 	agent_dir = agent_dir,
 	provider = vim.env.PI_PROVIDER,
@@ -46,11 +53,20 @@ require("pi-integration").setup({
 	session_dir = vim.env.PI_SESSION_DIR,
 	archive_after_days = archive_after_days(),
 	show_thinking = true,
+	launcher = dotfiles_root .. "/scripts/pi-nvim.sh",
 })
+
+if not overview then
+	integration.setup(config)
+end
 
 vim.api.nvim_create_autocmd("VimEnter", {
 	once = true,
 	callback = function()
-		require("pi-integration").open()
+		if overview then
+			require("pi-integration.overview").open(config)
+		else
+			integration.open(session_file)
+		end
 	end,
 })

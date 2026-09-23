@@ -42,6 +42,10 @@ vim.api.nvim_create_user_command("YankThisAbsoluteLocation", function(opts)
 	})
 end, { range = true })
 
+if vim.g.pi_overview then
+	return
+end
+
 vim.api.nvim_create_user_command("PiCommand", function()
 	require("pi-integration").pick_command()
 end, { desc = "Pick a Pi slash command/template/skill" })
