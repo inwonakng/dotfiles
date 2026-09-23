@@ -296,13 +296,19 @@ local function has_new_activity(previous, successor)
 	return false
 end
 
-local function filter_workspace_sessions(session_candidates)
-	local by_path = {}
+local function workspace_conversations(session_candidates)
+	local by_path, groups_by_path = {}, {}
 	for _, candidate in ipairs(session_candidates) do
-		by_path[canonical_session_path(candidate.path)] = candidate
+		local key = canonical_session_path(regular_session_path(candidate.path))
+		local group = groups_by_path[key]
+		if not group then
+			group = { members = {} }
+			groups_by_path[key] = group
+		end
+		table.insert(group.members, candidate)
+		by_path[key] = by_path[key] or candidate
 	end
-	local histories = {}
-	local hidden = {}
+	local histories, hidden = {}, {}
 	local function history(path)
 		if histories[path] == nil then
 			histories[path] = read_session_history(path) or false
@@ -315,46 +321,56 @@ local function filter_workspace_sessions(session_candidates)
 			return
 		end
 
-		local source_fingerprint = file_fingerprint(source)
-		local target_fingerprint = file_fingerprint(target)
-		local relation_key = vim.fn.sha256(table.concat({ source, target, returned and "returned" or "entered" }, "\n"))
+		local source_file, target_file = by_path[source].path, by_path[target].path
+		local source_fingerprint = file_fingerprint(source_file)
+		local target_fingerprint = file_fingerprint(target_file)
+		local relation_key = vim.fn.sha256(table.concat({
+			source_file,
+			target_file,
+			returned and "returned" or "entered",
+		}, "\n"))
 		local cache = load_picker_cache()
 		local cached = cache.relations[relation_key]
+		local superseded
 		if
 			cached
 			and same_fingerprint(cached.source, source_fingerprint)
 			and same_fingerprint(cached.target, target_fingerprint)
 		then
-			if cached.superseded then
-				hidden[source] = true
-			end
-			return
-		end
-
-		local superseded = false
-		local previous, successor = history(source), history(target)
-		if previous and successor and successor.parent == source then
-			-- The file is forked before switching. Its existence alone does not prove entry succeeded.
-			superseded = returned or has_new_activity(previous, successor)
-			if superseded then
-				for id, entry in pairs(previous.entries) do
-					if not vim.deep_equal(entry, successor.entries[id]) then
-						superseded = false
-						break
+			superseded = cached.superseded
+		else
+			superseded = false
+			local previous, successor = history(source_file), history(target_file)
+			if previous and successor and successor.parent == source then
+				-- A fork made before switching is not a continuation until it has new activity.
+				superseded = returned or has_new_activity(previous, successor)
+				if superseded then
+					for id, entry in pairs(previous.entries) do
+						if not vim.deep_equal(entry, successor.entries[id]) then
+							superseded = false
+							break
+						end
 					end
 				end
 			end
-		end
-		if source_fingerprint and target_fingerprint then
-			cache.relations[relation_key] = {
-				source = source_fingerprint,
-				target = target_fingerprint,
-				superseded = superseded,
-			}
-			picker_cache_dirty = true
+			if source_fingerprint and target_fingerprint then
+				cache.relations[relation_key] = {
+					source = source_fingerprint,
+					target = target_fingerprint,
+					superseded = superseded,
+				}
+				picker_cache_dirty = true
+			end
 		end
 		if superseded then
 			hidden[source] = true
+			local from, to = groups_by_path[source], groups_by_path[target]
+			if from ~= to then
+				for _, member in ipairs(from.members) do
+					table.insert(to.members, member)
+					groups_by_path[canonical_session_path(regular_session_path(member.path))] = to
+				end
+			end
 		end
 	end
 
@@ -369,9 +385,25 @@ local function filter_workspace_sessions(session_candidates)
 		end
 	end
 
-	return vim.tbl_filter(function(candidate)
-		return not hidden[canonical_session_path(candidate.path)]
-	end, session_candidates)
+	local result, seen = {}, {}
+	for _, candidate in ipairs(session_candidates) do
+		local group = groups_by_path[canonical_session_path(regular_session_path(candidate.path))]
+		if not seen[group] then
+			seen[group] = true
+			for _, member in ipairs(group.members) do
+				local key = canonical_session_path(regular_session_path(member.path))
+				if not hidden[key] and (not group.head or member.mtime > group.head.mtime) then
+					group.head = member
+				end
+			end
+			group.head = group.head or group.members[1]
+			table.insert(result, group)
+		end
+	end
+	table.sort(result, function(a, b)
+		return a.head.mtime > b.head.mtime
+	end)
+	return result
 end
 
 local function session_dirs(ctx)
@@ -422,7 +454,19 @@ local function session_paths(ctx, archived)
 	return paths
 end
 
-local function candidates(ctx, opts)
+local function all_conversations(ctx)
+	local all = {}
+	for _, archived in ipairs({ false, true }) do
+		for _, path in ipairs(session_paths(ctx, archived)) do
+			table.insert(all, cached_candidate(path))
+		end
+	end
+	local groups = workspace_conversations(all)
+	save_picker_cache()
+	return groups
+end
+
+local function conversations(ctx, opts)
 	opts = opts or {}
 	local allowed_paths = nil
 	if opts.paths then
@@ -431,22 +475,44 @@ local function candidates(ctx, opts)
 			allowed_paths[canonical_session_path(path)] = true
 		end
 	end
+	return vim.tbl_filter(function(group)
+		local head = group.head
+		return (opts.archived == (head.path:sub(-#ARCHIVED_SUFFIX) == ARCHIVED_SUFFIX))
+			and (not allowed_paths or allowed_paths[canonical_session_path(head.path)])
+	end, all_conversations(ctx))
+end
 
-	local result = {}
-	for _, path in ipairs(session_paths(ctx, opts.archived)) do
-		if not allowed_paths or allowed_paths[canonical_session_path(path)] then
-			table.insert(result, cached_candidate(path))
+local function refresh_selection(ctx, selected)
+	local by_path = {}
+	for _, group in ipairs(all_conversations(ctx)) do
+		for _, member in ipairs(group.members) do
+			by_path[canonical_session_path(member.path)] = group
 		end
 	end
-
-	if not opts.archived and not opts.include_superseded then
-		result = filter_workspace_sessions(result)
+	local refreshed, seen, changed = {}, {}, 0
+	for _, group in ipairs(selected) do
+		local current = by_path[canonical_session_path(group.head.path)]
+		local original_files = {}
+		for _, member in ipairs(group.members) do
+			original_files[canonical_session_path(member.path)] = true
+		end
+		local same_files = current and #current.members == #group.members
+		if same_files then
+			for _, member in ipairs(current.members) do
+				if not original_files[canonical_session_path(member.path)] then
+					same_files = false
+					break
+				end
+			end
+		end
+		if not same_files then
+			changed = changed + 1
+		elseif not seen[current] then
+			seen[current] = true
+			table.insert(refreshed, current)
+		end
 	end
-	table.sort(result, function(a, b)
-		return a.mtime > b.mtime
-	end)
-	save_picker_cache()
-	return result
+	return refreshed, changed
 end
 
 local function item_title(candidate)
@@ -497,20 +563,31 @@ local function partition_protected(ctx, selected)
 	end
 	local allowed = {}
 	local skipped = {}
-	for _, candidate in ipairs(selected) do
-		local path = canonical_session_path(regular_session_path(candidate.path))
-		if path and protected_paths[path] then
-			table.insert(skipped, candidate)
-		else
-			table.insert(allowed, candidate)
+	for _, group in ipairs(selected) do
+		local is_protected = false
+		for _, candidate in ipairs(group.members) do
+			local path = canonical_session_path(regular_session_path(candidate.path))
+			if path and protected_paths[path] then
+				is_protected = true
+				break
+			end
 		end
+		table.insert(is_protected and skipped or allowed, group)
 	end
 	return allowed, skipped
 end
 
+local function session_files(groups)
+	local files = {}
+	for _, group in ipairs(groups) do
+		vim.list_extend(files, group.members)
+	end
+	return files
+end
+
 local function selected_title(selected)
 	if #selected == 1 then
-		return " " .. item_title(selected[1])
+		return " " .. item_title(selected[1].head)
 	end
 	return ""
 end
@@ -543,27 +620,42 @@ local function confirm(prompt, callback)
 	end)
 end
 
-local function rename_sessions(selected, archive)
-	local succeeded = {}
-	local failed = {}
-	for _, candidate in ipairs(selected) do
+local function rename_sessions(group, archive)
+	local changes = {}
+	for _, candidate in ipairs(group.members) do
 		local target = archive and archived_session_path(candidate.path) or regular_session_path(candidate.path)
-		if vim.fn.filereadable(target) == 1 then
-			table.insert(failed, string.format("%s: destination already exists", item_title(candidate)))
-		else
-			local source = candidate.path
-			local ok, err = (vim.uv or vim.loop).fs_rename(source, target)
-			if ok then
-				move_cached_candidate(source, target)
-				candidate.path = target
-				table.insert(succeeded, candidate)
-			else
-				table.insert(failed, string.format("%s: %s", item_title(candidate), err or "rename failed"))
+		if candidate.path ~= target then
+			if vim.fn.filereadable(target) == 1 then
+				return false, { string.format("%s: destination already exists", item_title(candidate)) }
 			end
+			table.insert(changes, { candidate = candidate, source = candidate.path, target = target })
 		end
 	end
+
+	local moved = {}
+	for _, change in ipairs(changes) do
+		local ok, err = (vim.uv or vim.loop).fs_rename(change.source, change.target)
+		if not ok then
+			local failures = { string.format("%s: %s", item_title(change.candidate), err or "rename failed") }
+			for index = #moved, 1, -1 do
+				local previous = moved[index]
+				local restored, restore_err = (vim.uv or vim.loop).fs_rename(previous.target, previous.source)
+				if restored then
+					move_cached_candidate(previous.target, previous.source)
+					previous.candidate.path = previous.source
+				else
+					table.insert(failures, string.format("%s: could not undo rename: %s", item_title(previous.candidate), restore_err))
+				end
+			end
+			save_picker_cache()
+			return false, failures
+		end
+		move_cached_candidate(change.source, change.target)
+		change.candidate.path = change.target
+		table.insert(moved, change)
+	end
 	save_picker_cache()
-	return succeeded, failed
+	return true, {}
 end
 
 local function trash_command()
@@ -584,35 +676,37 @@ local function delete_sessions(selected, command, callback)
 		end
 		vim.system(args, { text = true }, function(result)
 			vim.schedule(function()
-				local failed = {}
+				local succeeded, failed = 0, {}
 				local detail = vim.trim(result.stderr or "")
 				for _, candidate in ipairs(selected) do
-					if result.code ~= 0 and vim.fn.filereadable(candidate.path) == 1 then
+					if vim.fn.filereadable(candidate.path) == 1 then
 						table.insert(
 							failed,
-							string.format("%s: %s", item_title(candidate), detail ~= "" and detail or "trash command failed")
+							string.format("%s: %s", item_title(candidate), detail ~= "" and detail or "trash command left file in place")
 						)
 					else
 						remove_cached_candidate(candidate.path)
+						succeeded = succeeded + 1
 					end
 				end
 				save_picker_cache()
-				callback(failed)
+				callback(succeeded, failed)
 			end)
 		end)
 		return
 	end
 
-	local failed = {}
+	local succeeded, failed = 0, {}
 	for _, candidate in ipairs(selected) do
 		if vim.fn.delete(candidate.path) ~= 0 then
 			table.insert(failed, item_title(candidate) .. ": delete failed")
 		else
 			remove_cached_candidate(candidate.path)
+			succeeded = succeeded + 1
 		end
 	end
 	save_picker_cache()
-	callback(failed)
+	callback(succeeded, failed)
 end
 
 local function notify_failures(ctx, failures)
@@ -827,91 +921,86 @@ function M.pick(ctx, opts)
 	opts = opts or {}
 	local view = opts.view == "archived" and "archived" or "regular"
 	local archived = view == "archived"
-	local session_candidates = candidates(ctx, {
-		archived = archived,
-		paths = opts.paths,
-		include_superseded = opts.include_superseded,
-	})
-	if #session_candidates == 0 then
-		if not opts.paths and not archived and #session_paths(ctx, true) > 0 then
-			ctx.ui.notify("No regular Pi sessions found; showing archived sessions.")
-			M.pick(ctx, { view = "archived" })
+	local session_groups = conversations(ctx, { archived = archived, paths = opts.paths })
+	if #session_groups == 0 then
+		if not opts.paths and #conversations(ctx, { archived = not archived }) > 0 then
+			ctx.ui.notify(archived and "No archived Pi sessions found; showing regular sessions."
+				or "No regular Pi sessions found; showing archived sessions.")
+			M.pick(ctx, { view = archived and "regular" or "archived" })
 			return
 		end
-		if not opts.paths and archived and #session_paths(ctx, false) > 0 then
-			ctx.ui.notify("No archived Pi sessions found; showing regular sessions.")
-			M.pick(ctx, { view = "regular" })
-			return
-		end
-		local message = archived and "No archived Pi sessions found." or "No Pi session files found."
-		ctx.ui.notify(message, vim.log.levels.WARN)
+		ctx.ui.notify(archived and "No archived Pi sessions found." or "No Pi session files found.", vim.log.levels.WARN)
 		return
 	end
 
-	local entries = {}
-	local by_id = {}
-	for index, candidate in ipairs(session_candidates) do
+	local entries, by_id, group_by_path = {}, {}, {}
+	for index, group in ipairs(session_groups) do
+		local candidate = group.head
 		local id = string.format("%06d", index)
 		by_id[id] = candidate
+		group_by_path[candidate.path] = group
 		table.insert(entries, id .. "\t" .. item_label(candidate))
 	end
 
 	local reopen_opts = vim.deepcopy(opts)
 	reopen_opts.view = view
-	local function selected_candidates(items)
-		return decode_selection(items, by_id)
+	local function selected_groups(items)
+		local selected = {}
+		for _, candidate in ipairs(decode_selection(items, by_id)) do
+			table.insert(selected, group_by_path[candidate.path])
+		end
+		return selected
 	end
 	local function reopen_current()
 		reopen(ctx, reopen_opts)
 	end
-	local function archive_or_restore(items)
-		local selected = selected_candidates(items)
-		if #selected == 0 then
-			reopen_current()
-			return
+	local function eligible(selected, refresh)
+		if refresh then
+			local changed
+			selected, changed = refresh_selection(ctx, selected)
+			if changed > 0 then
+				ctx.ui.notify(string.format("Skipped %d conversation(s) whose files changed while confirming.", changed), vim.log.levels.WARN)
+			end
 		end
 		local allowed, skipped = partition_protected(ctx, selected)
 		if #skipped > 0 then
-			ctx.ui.notify(string.format("Skipped %d active or workspace-linked session(s).", #skipped), vim.log.levels.WARN)
+			ctx.ui.notify(string.format("Skipped %d active or workspace-linked conversation(s).", #skipped), vim.log.levels.WARN)
 		end
+		return allowed
+	end
+	local function archive_or_restore(items)
+		local allowed = eligible(selected_groups(items))
 		if #allowed == 0 then
 			reopen_current()
 			return
 		end
 		local verb = archived and "Unarchive" or "Archive"
-		local noun = #allowed == 1 and "session" or "sessions"
-		confirm(string.format("%s %d %s?%s", verb, #allowed, noun, selected_title(allowed)), function(confirmed)
+		local noun = #allowed == 1 and "conversation" or "conversations"
+		local prompt = string.format("%s %d %s (%d files)?%s", verb, #allowed, noun, #session_files(allowed), selected_title(allowed))
+		confirm(prompt, function(confirmed)
 			if not confirmed then
 				reopen_current()
 				return
 			end
-			-- A conversation may have opened while the confirmation was visible.
-			allowed, skipped = partition_protected(ctx, allowed)
-			if #skipped > 0 then
-				ctx.ui.notify("Some sessions became active; those files were left unchanged.", vim.log.levels.WARN)
+			allowed = eligible(allowed, true)
+			local succeeded, failures = 0, {}
+			for _, group in ipairs(allowed) do
+				local ok, errors = rename_sessions(group, not archived)
+				if ok then
+					succeeded = succeeded + 1
+				else
+					vim.list_extend(failures, errors)
+				end
 			end
-			if #allowed == 0 then
-				reopen_current()
-				return
-			end
-			local succeeded, failures = rename_sessions(allowed, not archived)
-			if #succeeded > 0 then
-				ctx.ui.notify(string.format("%s %d session(s).", archived and "Unarchived" or "Archived", #succeeded))
+			if succeeded > 0 then
+				ctx.ui.notify(string.format("%s %d conversation(s).", archived and "Unarchived" or "Archived", succeeded))
 			end
 			notify_failures(ctx, failures)
 			reopen_current()
 		end)
 	end
 	local function delete_selected(items)
-		local selected = selected_candidates(items)
-		if #selected == 0 then
-			reopen_current()
-			return
-		end
-		local allowed, skipped = partition_protected(ctx, selected)
-		if #skipped > 0 then
-			ctx.ui.notify(string.format("Skipped %d active or workspace-linked session(s).", #skipped), vim.log.levels.WARN)
-		end
+		local allowed = eligible(selected_groups(items))
 		if #allowed == 0 then
 			reopen_current()
 			return
@@ -919,24 +1008,34 @@ function M.pick(ctx, opts)
 		local command = trash_command()
 		local action = command and "Move" or "Permanently delete"
 		local destination = command and " to trash" or ""
-		local noun = #allowed == 1 and "session" or "sessions"
-		confirm(string.format("%s %d %s%s?%s", action, #allowed, noun, destination, selected_title(allowed)), function(confirmed)
+		local noun = #allowed == 1 and "conversation" or "conversations"
+		local prompt = string.format("%s %d %s (%d files)%s?%s", action, #allowed, noun, #session_files(allowed), destination, selected_title(allowed))
+		confirm(prompt, function(confirmed)
 			if not confirmed then
 				reopen_current()
 				return
 			end
-			allowed, skipped = partition_protected(ctx, allowed)
-			if #skipped > 0 then
-				ctx.ui.notify("Some sessions became active; those files were left unchanged.", vim.log.levels.WARN)
-			end
+			allowed = eligible(allowed, true)
 			if #allowed == 0 then
 				reopen_current()
 				return
 			end
-			delete_sessions(allowed, command, function(failures)
-				local deleted = #allowed - #failures
+			delete_sessions(session_files(allowed), command, function(deleted, failures)
 				if deleted > 0 then
-					ctx.ui.notify(string.format("%s %d session(s).", command and "Trashed" or "Deleted", deleted))
+					local fully_deleted = 0
+					for _, group in ipairs(allowed) do
+						local remaining = false
+						for _, member in ipairs(group.members) do
+							if vim.fn.filereadable(member.path) == 1 then
+								remaining = true
+								break
+							end
+						end
+						if not remaining then
+							fully_deleted = fully_deleted + 1
+						end
+					end
+					ctx.ui.notify(string.format("%s %d conversation(s) (%d files).", command and "Trashed" or "Deleted", fully_deleted, deleted))
 				end
 				notify_failures(ctx, failures)
 				reopen_current()
@@ -944,17 +1043,23 @@ function M.pick(ctx, opts)
 		end)
 	end
 	local function select_session(items)
-		local choice = selected_candidates(items)[1]
-		if not choice then
+		local group = selected_groups(items)[1]
+		if not group then
 			return
 		end
 		if not archived then
-			attach_session(ctx, choice)
+			attach_session(ctx, group.head)
 			return
 		end
-		local succeeded, failures = rename_sessions({ choice }, false)
-		if #succeeded == 1 then
-			attach_session(ctx, succeeded[1])
+		local selected = eligible({ group }, true)
+		if #selected == 0 then
+			reopen_current()
+			return
+		end
+		group = selected[1]
+		local ok, failures = rename_sessions(group, false)
+		if ok then
+			attach_session(ctx, group.head)
 		else
 			notify_failures(ctx, failures)
 			reopen_current()
@@ -1025,16 +1130,11 @@ end
 
 local function stale_session_paths(ctx, timestamp)
 	local stale_before = timestamp - (archive_after_days(ctx) * DAY_SECONDS)
-	local protected = protected_session_paths(ctx)
-	if not protected then
-		return {}
-	end
 	local stale = {}
-	for _, path in ipairs(session_paths(ctx, false)) do
-		local canonical = canonical_session_path(path)
-		local mtime = vim.fn.getftime(path)
-		if mtime >= 0 and mtime < stale_before and not protected[canonical] then
-			table.insert(stale, path)
+	local allowed = partition_protected(ctx, conversations(ctx, { archived = false }))
+	for _, group in ipairs(allowed) do
+		if group.head.mtime >= 0 and group.head.mtime < stale_before then
+			table.insert(stale, group.head.path)
 		end
 	end
 	return stale
@@ -1067,7 +1167,6 @@ function M.maybe_prompt_archive(ctx)
 		M.pick(ctx, {
 			view = "regular",
 			paths = stale,
-			include_superseded = true,
 			select_all = true,
 		})
 	end)
