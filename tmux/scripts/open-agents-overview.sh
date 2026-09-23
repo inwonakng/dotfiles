@@ -36,9 +36,9 @@ fi
 
 if [ -z "$overview_id" ]; then
     if tmux has-session -t '=agents' 2>/dev/null; then
-        overview_id=$(tmux new-window -d -P -F '#{window_id}' -t '=agents:' -n Overview -c "$current_path" bash "$launcher" --overview)
+        overview_id=$(tmux new-window -d -P -F '#{window_id}' -t '=agents:' -n Pi-Overview -c "$current_path" bash "$launcher" --overview)
     else
-        overview_id=$(tmux new-session -d -P -F '#{window_id}' -s agents -n Overview -c "$current_path" bash "$launcher" --overview)
+        overview_id=$(tmux new-session -d -P -F '#{window_id}' -s agents -n Pi-Overview -c "$current_path" bash "$launcher" --overview)
     fi
     overview_pane=$(tmux display-message -p -t "$overview_id" '#{pane_id}')
     tmux set-option -w -t "$overview_id" @pi_overview 1
