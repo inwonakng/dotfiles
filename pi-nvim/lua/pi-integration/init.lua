@@ -15,8 +15,8 @@ M.config = {
 	show_thinking = true,
 	show_stderr = false,
 	log_max_entries = 1000,
-	access_modes = { "readonly", "write" },
-	integration_modes = { "ask", "allowed", "denied" },
+	access_modes = { "readonly", "ask", "edit" },
+	integration_modes = { "ask", "allowed" },
 	session_dirs = {
 		"~/.pi/agent/sessions",
 		"~/.pi/sessions",
@@ -548,7 +548,7 @@ end
 
 function M.setup(opts)
 	M.config = vim.tbl_deep_extend("force", M.config, opts or {})
-	state.access_mode = "readonly"
+	state.access_mode = "ask"
 	state.integration_mode = "ask"
 	set_model_metadata(M.config.provider, M.config.model)
 	pi_statusline.setup(integration_ctx())
@@ -715,6 +715,10 @@ end
 
 function M.set_integration_mode(mode)
 	pi_pickers.set_integration_mode(integration_ctx(), mode)
+end
+
+function M.pick_integration_mode()
+	pi_pickers.pick_integration_mode(integration_ctx())
 end
 
 function M.cycle_integration_mode()

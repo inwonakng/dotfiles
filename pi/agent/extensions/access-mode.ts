@@ -361,7 +361,8 @@ export default function accessModeExtension(pi: ExtensionAPI) {
   pi.on("tool_call", async (event, ctx) => {
     setStatus(ctx);
 
-    if (getAccessMode() === "write") {
+    const mode = getAccessMode();
+    if (mode === "edit") {
       return undefined;
     }
 
@@ -377,17 +378,24 @@ export default function accessModeExtension(pi: ExtensionAPI) {
 
     if (
       event.toolName === "spawn"
-      && (input.accessMode === "write" || input.isolation === "worktree")
+      && (input.accessMode === "edit" || input.isolation === "worktree")
     ) {
       return {
         block: true,
-        reason: "Spawning write-capable or isolated subagents requires parent access mode write. Run /pi-mode write before delegating write work.",
+        reason: "Spawning edit-mode or isolated subagents requires parent access mode edit. Run /pi-mode edit before delegating edit work.",
+      };
+    }
+
+    if (mode === "readonly") {
+      return {
+        block: true,
+        reason: `Tool "${event.toolName}" is blocked in readonly mode (${reason}).`,
       };
     }
 
     if (process.env.PI_SPAWN_AGENT === "1" || !ctx.hasUI) {
       const context = process.env.PI_SPAWN_AGENT === "1"
-        ? "this spawned subagent is in readonly mode"
+        ? "spawned subagents cannot request approval"
         : "no UI is available";
       return {
         block: true,
@@ -406,11 +414,11 @@ export default function accessModeExtension(pi: ExtensionAPI) {
   });
 
   pi.registerCommand("pi-mode", {
-    description: "Set access mode: /pi-mode readonly|write",
+    description: "Set access mode: /pi-mode readonly|ask|edit",
     handler: async (args, ctx) => {
       const requestedMode = parseAccessMode(args);
       if (!requestedMode) {
-        ctx.ui.notify("Usage: /pi-mode readonly|write", "warning");
+        ctx.ui.notify("Usage: /pi-mode readonly|ask|edit", "warning");
         setStatus(ctx);
         return;
       }

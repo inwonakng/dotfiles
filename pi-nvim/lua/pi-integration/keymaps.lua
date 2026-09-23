@@ -19,6 +19,7 @@ M.specs = {
 		{ lhs = "<leader>pu", action = "show_usage", desc = "Show Codex usage" },
 		{ lhs = "<leader>ps", action = "pick_spawn", desc = "Show subagents" },
 		{ lhs = "<leader>A", action = "pick_access_mode", desc = "Pick access mode" },
+		{ lhs = "<leader>I", action = "pick_integration_mode", desc = "Pick integration mode" },
 		{ lhs = "<leader>m", action = "pick_model", desc = "Pick model" },
 		{ lhs = "<leader>t", action = "pick_thinking", desc = "Pick thinking level" },
 		{ lhs = "<leader>s", action = "pick_session", desc = "Pick session" },

@@ -17,13 +17,13 @@ Delegate work that has a clear goal and can return a useful result without ownin
 - verification of a named claim
 - approved implementation with exact, non-overlapping file scope
 
-Do not delegate tiny tasks, vague work, or overlapping write tasks.
+Do not delegate tiny tasks, vague work, or overlapping edit tasks.
 
 ## Access
 
 Use `readonly` for research, planning, investigation, review, and verification.
 
-Use `write` only when:
+Use `edit` only when:
 
 - the user approved implementation,
 - the files or directory are exact,
@@ -45,7 +45,7 @@ Ask the subagent to return `DONE`, `BLOCKED`, or `NEEDS_CONTEXT`, followed by co
 
 ## Workspace Rules
 
-- Writing subagents use the isolated child workspace assigned by `spawn`; they must not create another worktree when they load the implementation skill.
+- Edit-mode subagents use the isolated child workspace assigned by `spawn`; they must not create another worktree when they load the implementation skill.
 - Child workspaces inherit the immediate parent's tracked working state and non-ignored untracked files, including additions and deletions.
 - Join integrates the child's contribution relative to that inherited baseline. Compatible parent changes are preserved; conflicts retain the child worktree and recovery artifacts without changing the parent.
 - Treat `integration=needs_parent` or `integration=failed` as unresolved. Inspect the reported workspace, result patch, and conflict diagnostics instead of applying a blind patch.

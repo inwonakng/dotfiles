@@ -98,19 +98,23 @@ local function truncate_plain_to_width(text, width)
 end
 
 local function mode_statusline_highlight(mode)
-	if mode == "readonly" then
+	if mode == "edit" then
+		return "%#PiModeEdit#"
+	elseif mode == "ask" then
+		return "%#PiModeAsk#"
+	elseif mode == "readonly" then
 		return "%#PiModeReadonly#"
-	elseif mode == "write" then
-		return "%#PiModeWrite#"
 	end
 	return "%#PiModeUnknown#"
 end
 
 local function mode_statusline_label(mode)
-	if mode == "readonly" then
-		return " "
-	elseif mode == "write" then
+	if mode == "edit" then
 		return "󱇧 "
+	elseif mode == "ask" then
+		return "󰋗 "
+	elseif mode == "readonly" then
+		return " "
 	end
 	return tostring(mode or "--")
 end
@@ -225,12 +229,8 @@ local function thinking_statusline_highlight(level)
 end
 
 local function integration_statusline_label(mode)
-	if mode == "ask" then
-		return "?"
-	elseif mode == "allowed" then
+	if mode == "allowed" then
 		return "✓"
-	elseif mode == "denied" then
-		return "×"
 	end
 	return "?"
 end
@@ -240,8 +240,6 @@ local function integration_statusline_highlight(mode)
 		return "%#PiIntegrationAsk#"
 	elseif mode == "allowed" then
 		return "%#PiIntegrationAllowed#"
-	elseif mode == "denied" then
-		return "%#PiIntegrationDenied#"
 	end
 	return "%#PiModeUnknown#"
 end

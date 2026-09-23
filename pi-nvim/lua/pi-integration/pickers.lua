@@ -105,6 +105,15 @@ function M.set_integration_mode(ctx, mode)
 	end)
 end
 
+function M.pick_integration_mode(ctx)
+	vim.ui.select(ctx.config.integration_modes or {}, { prompt = "Pi integration mode" }, function(choice)
+		if not choice then
+			return
+		end
+		M.set_integration_mode(ctx, choice)
+	end)
+end
+
 function M.cycle_integration_mode(ctx)
 	local mode = next_mode(ctx.config.integration_modes or {}, ctx.state.integration_mode)
 	if mode then

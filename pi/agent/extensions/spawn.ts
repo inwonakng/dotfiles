@@ -26,7 +26,7 @@ import {
   workspaceStorageRoot,
 } from "./shared/workspace";
 
-const ACCESS_MODES = ["readonly", "write"] as const;
+const ACCESS_MODES = ["readonly", "ask", "edit"] as const;
 type AccessMode = (typeof ACCESS_MODES)[number];
 
 const SPAWN_MODES = ["background", "foreground"] as const;
@@ -378,7 +378,7 @@ function parseCsv(value: string | undefined): string[] | undefined {
 
 function parseAccessMode(value: string | undefined): AccessMode | undefined {
   const trimmed = value?.trim();
-  return trimmed === "readonly" || trimmed === "write" ? trimmed : undefined;
+  return ACCESS_MODES.find((mode) => mode === trimmed);
 }
 
 function parseSpawnMode(value: unknown): SpawnMode {
@@ -389,7 +389,7 @@ function parseIsolationMode(value: unknown, accessMode: AccessMode): IsolationMo
   if (value === "none" || value === "worktree") {
     return value;
   }
-  return accessMode === "write" ? "worktree" : "none";
+  return accessMode === "edit" ? "worktree" : "none";
 }
 
 function isDirectory(path: string): boolean {
@@ -545,6 +545,7 @@ Instructions:
 - Keep exploration targeted.
 - Do not ask the parent for permission. If access is blocked or information is missing, stop and report BLOCKED.
 - If access mode is readonly, do not attempt to modify files.
+- If access mode is ask, approval-required actions will be blocked because spawned subagents cannot prompt the parent.
 - Return a concise final report with one of these statuses: DONE, BLOCKED, or NEEDS_CONTEXT.
 - Include key evidence: files inspected, commands run, findings, and any artifact paths.
 
@@ -713,9 +714,9 @@ async function applyWorktreeChanges(run: SpawnRun): Promise<void> {
     writeStatus(run);
     return;
   }
-  if (getAccessMode() !== "write") {
+  if (getAccessMode() !== "edit") {
     worktree.integration = "needs_parent";
-    worktree.integrationReason = "parent access mode is readonly; not applying isolated worktree changes";
+    worktree.integrationReason = `parent access mode is ${getAccessMode()}; not applying isolated worktree changes`;
     writeStatus(run);
     return;
   }
@@ -803,7 +804,7 @@ function restoredRun(statusPath: string, parentSessionFile: string | undefined):
     prompt: typeof data.prompt === "string" ? data.prompt : existsSync(briefPath) ? readFileSync(briefPath, "utf8") : "",
     role: typeof data.role === "string" ? data.role : undefined,
     requestedAgent: typeof data.agent === "string" ? data.agent : undefined,
-    accessMode: data.accessMode === "write" ? "write" : "readonly",
+    accessMode: parseAccessMode(typeof data.accessMode === "string" ? data.accessMode : undefined) ?? "readonly",
     isolation: data.isolation === "worktree" ? "worktree" : "none",
     status: storedStatus,
     startedAt: typeof data.startedAt === "string" ? data.startedAt : new Date().toISOString(),
@@ -1297,7 +1298,7 @@ export default function spawnExtension(pi: ExtensionAPI) {
       "Use spawn when the user says 'use subagents' or when bounded isolated work would help.",
       "spawn defaults to background. If your response depends on the subagent result, call spawn_control with action=join or join_all before answering.",
       "Prefer named subagent profiles such as researcher, planner, implementer, reviewer, or verifier when they match.",
-      "Use accessMode=readonly for investigation/review/verification. Use accessMode=write only for bounded implementation; write agents default to isolated git worktrees and their changes are reconciled at join.",
+      "Use accessMode=readonly for investigation/review/verification. Use accessMode=edit only for bounded implementation; edit agents default to isolated git worktrees and their changes are reconciled at join.",
     ],
     parameters: Type.Object({
       prompt: Type.String({ description: "The complete bounded prompt/task for the subagent." }),
@@ -1309,12 +1310,13 @@ export default function spawnExtension(pi: ExtensionAPI) {
       ], { description: "Execution mode. Defaults to background. Foreground blocks until the subagent finishes." })),
       accessMode: Type.Optional(Type.Union([
         Type.Literal("readonly"),
-        Type.Literal("write"),
+        Type.Literal("ask"),
+        Type.Literal("edit"),
       ], { description: "Subagent access mode. Defaults to the profile accessMode, otherwise readonly." })),
       isolation: Type.Optional(Type.Union([
         Type.Literal("none"),
         Type.Literal("worktree"),
-      ], { description: "Isolation mode. Defaults to worktree for write access and none for readonly." })),
+      ], { description: "Isolation mode. Defaults to worktree for edit access and none otherwise." })),
       model: Type.Optional(Type.String({ description: "Optional pi --model value for the subagent. Defaults to the profile model, otherwise inherits the parent invocation default." })),
       timeoutSeconds: Type.Optional(Type.Number({ description: "Optional timeout in seconds. Defaults to 1800." })),
     }),
@@ -1340,12 +1342,12 @@ export default function spawnExtension(pi: ExtensionAPI) {
       if (!ACCESS_MODES.includes(accessMode)) {
         throw new Error(`Invalid accessMode: ${String(params.accessMode)}`);
       }
-      if (accessMode === "write" && getAccessMode() !== "write") {
-        throw new Error("write-mode spawned subagents require parent access mode write. Run /pi-mode write before delegating write work.");
+      if (accessMode === "edit" && getAccessMode() !== "edit") {
+        throw new Error("edit-mode spawned subagents require parent access mode edit. Run /pi-mode edit before delegating edit work.");
       }
       const isolation = parseIsolationMode(params.isolation, accessMode);
-      if (accessMode === "write" && isolation !== "worktree") {
-        throw new Error("write-mode spawned subagents must use worktree isolation");
+      if (accessMode === "edit" && isolation !== "worktree") {
+        throw new Error("edit-mode spawned subagents must use worktree isolation");
       }
       if (isolation === "worktree") {
         const parentWorkspace = workspaceForContext(ctx.cwd, ctx.sessionManager.getSessionFile());
@@ -1398,7 +1400,7 @@ export default function spawnExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "spawn_control",
     label: "Control Subagents",
-    description: "Inspect, join, join_all, or stop background subagents created with spawn. join is a normal blocking tool call. For write agents, join applies isolated worktree changes automatically only when safe; conflicts or overlapping parent changes are returned for parent handling.",
+    description: "Inspect, join, join_all, or stop background subagents created with spawn. join is a normal blocking tool call. For edit agents, join applies isolated worktree changes automatically only when safe; conflicts or overlapping parent changes are returned for parent handling.",
     promptSnippet: "Control spawned subagents: list, status, join, join_all, or stop.",
     promptGuidelines: [
       "Use spawn_control join or join_all before answering if your response depends on background subagent results.",

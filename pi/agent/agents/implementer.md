@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: Use for a bounded, approved implementation slice with clear file scope and verification expectations.
-accessMode: write
+accessMode: edit
 model: inherit
 tools: read,bash,edit,write
 ---

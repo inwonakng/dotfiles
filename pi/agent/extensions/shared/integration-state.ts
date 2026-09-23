@@ -1,6 +1,6 @@
-export type IntegrationMode = "ask" | "allowed" | "denied";
+export type IntegrationMode = "ask" | "allowed";
 
-const INTEGRATION_MODES: IntegrationMode[] = ["ask", "allowed", "denied"];
+const INTEGRATION_MODES: IntegrationMode[] = ["ask", "allowed"];
 
 export function parseIntegrationMode(input: string | undefined): IntegrationMode | undefined {
   if (!input) {
@@ -19,9 +19,11 @@ const globalIntegrationState = globalThis as typeof globalThis & Record<symbol, 
 
 // Session replacement reloads extension entrypoints. Keep the selected mode in
 // a process-global slot so it survives workspace transitions and /reload.
-const state = globalIntegrationState[INTEGRATION_STATE_KEY] ??= {
-  integrationMode: "ask",
-};
+const existingState = globalIntegrationState[INTEGRATION_STATE_KEY];
+const state: IntegrationState = existingState && parseIntegrationMode(existingState.integrationMode)
+  ? existingState
+  : { integrationMode: "ask" };
+globalIntegrationState[INTEGRATION_STATE_KEY] = state;
 
 export function getIntegrationMode(): IntegrationMode {
   return state.integrationMode;

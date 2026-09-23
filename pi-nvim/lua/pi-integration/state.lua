@@ -38,7 +38,7 @@ function M.new()
 		activity_tool_call_id = nil,
 		activity_spinner_tick = 1,
 		activity_timer = nil,
-		access_mode = "readonly",
+		access_mode = "ask",
 		pending_access_mode = nil,
 		integration_mode = "ask",
 		pending_integration_mode = nil,

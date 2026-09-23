@@ -31,10 +31,12 @@ function M.apply_window_padding(_, win)
 end
 
 local function input_sidebar_highlight(mode)
-	if mode == "readonly" then
+	if mode == "edit" then
+		return "PiInputSidebarEdit"
+	elseif mode == "ask" then
+		return "PiInputSidebarAsk"
+	elseif mode == "readonly" then
 		return "PiInputSidebarReadonly"
-	elseif mode == "write" then
-		return "PiInputSidebarWrite"
 	end
 	return "PiInputSidebarUnknown"
 end

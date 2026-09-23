@@ -51,7 +51,6 @@ const RETURN_ACTION = "Not yet — return to conversation";
 const INTEGRATION_ICONS: Record<IntegrationMode, string> = {
   ask: "?",
   allowed: "✓",
-  denied: "×",
 };
 const REVIEW_SCRIPT = resolve(dirname(fileURLToPath(import.meta.url)), "../scripts/review-workspace.sh");
 
@@ -288,23 +287,14 @@ export default function workspaceExtension(pi: ExtensionAPI) {
   });
 
   pi.on("before_agent_start", (event) => {
-    const mode = getIntegrationMode();
-    const guidance = mode === "allowed"
+    const guidance = getIntegrationMode() === "allowed"
       ? "Top-level workspace integration mode is allowed. After completing and verifying requested work, call workspace with action=integrate; no user confirmation is required."
-      : mode === "denied"
-        ? "Top-level workspace integration mode is denied. Do not call workspace with action=integrate; leave the task workspace retained for the user."
-        : "Top-level workspace integration mode is ask. After completing and verifying requested work, call workspace with action=integrate; Pi will request user confirmation before applying it.";
+      : "Top-level workspace integration mode is ask. After completing and verifying requested work, call workspace with action=integrate; Pi will request user confirmation before applying it.";
     return { systemPrompt: `${event.systemPrompt}\n\n${guidance}` };
   });
 
   pi.on("tool_call", (event, ctx) => {
     const input = event.input as Record<string, unknown>;
-    if (event.toolName === "workspace" && input.action === "integrate" && getIntegrationMode() === "denied") {
-      return {
-        block: true,
-        reason: "Top-level workspace integration is denied. Change /pi-integration-mode before integrating.",
-      };
-    }
     if (hasMixedWorkspaceTransition(ctx)) {
       return {
         block: true,
@@ -486,11 +476,11 @@ export default function workspaceExtension(pi: ExtensionAPI) {
   });
 
   pi.registerCommand("pi-integration-mode", {
-    description: "Set top-level workspace integration mode: /pi-integration-mode ask|allowed|denied",
+    description: "Set top-level workspace integration mode: /pi-integration-mode ask|allowed",
     handler: async (args, ctx) => {
       const requestedMode = parseIntegrationMode(args);
       if (!requestedMode) {
-        ctx.ui.notify("Usage: /pi-integration-mode ask|allowed|denied", "warning");
+        ctx.ui.notify("Usage: /pi-integration-mode ask|allowed", "warning");
         publishIntegrationMode(ctx);
         return;
       }
@@ -528,7 +518,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
       "Call workspace with action=enter as the only tool call in that assistant response before making implementation changes with edit or write, unless the current session is already in an associated workspace. Wait for the linked continuation session before using more tools.",
       "Temporary probes, scripts, and generated artifacts may be created under $TMPDIR without entering a workspace; keep them outside the repository and remove them when finished.",
       "Call workspace with action=status when the expected workspace is missing or its lifecycle is unclear.",
-      "Top-level workspace integration follows the active integration mode: ask requests confirmation, allowed is pre-authorized, and denied blocks integration.",
+      "Top-level workspace integration follows the active integration mode: ask requests confirmation and allowed is pre-authorized.",
       "Call workspace with action=integrate or action=discard as the only tool call in that assistant response when the action will leave the active workspace. Wait for the linked continuation session before using more tools.",
     ],
     parameters: Type.Object({
@@ -618,9 +608,6 @@ export default function workspaceExtension(pi: ExtensionAPI) {
           throw new Error(`Enter task workspace ${selected.id} before integrating it so the linked conversation can return safely.`);
         }
         const integrationMode = getIntegrationMode();
-        if (integrationMode === "denied") {
-          throw new Error("Top-level workspace integration is denied. Change /pi-integration-mode before integrating.");
-        }
         let decision = integrationMode === "allowed" || params.approved === true
           ? INTEGRATE_ACTION
           : RETURN_ACTION;
