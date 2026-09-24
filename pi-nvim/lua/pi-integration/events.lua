@@ -456,56 +456,46 @@ local function remember_note_float(ctx, event)
 	end
 
 	local buf = vim.api.nvim_create_buf(false, true)
-	vim.bo[buf].buftype = "nofile"
+	vim.api.nvim_buf_set_name(buf, "pi://remember-note/" .. tostring(event.id))
+	vim.bo[buf].buftype = "acwrite"
 	vim.bo[buf].bufhidden = "wipe"
 	vim.bo[buf].swapfile = false
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, { "" })
+	vim.bo[buf].filetype = "markdown"
 	local width = math.max(1, math.min(80, vim.o.columns - 4))
+	local height = math.max(1, math.min(8, vim.o.lines - 4))
 	local win = vim.api.nvim_open_win(buf, true, {
 		relative = "editor",
 		width = width,
-		height = 1,
-		row = math.max(0, math.floor((vim.o.lines - 1) / 2)),
+		height = height,
+		row = math.max(0, math.floor((vim.o.lines - height) / 2)),
 		col = math.floor((vim.o.columns - width) / 2),
 		style = "minimal",
 		border = "rounded",
-		title = " Optional note (Enter to save, Esc to skip) ",
+		title = " Remember comment (:wq to save, :q! to return) ",
 		title_pos = "center",
 	})
-	local responded = false
-	local function finish(note)
-		if responded then
-			return
-		end
-		responded = true
-		if note then
-			send_extension_ui_response(ctx, event.id, { value = note })
-		else
-			send_extension_ui_response(ctx, event.id, { cancelled = true })
-		end
-		if vim.api.nvim_win_is_valid(win) then
-			vim.api.nvim_win_close(win, true)
-		end
-	end
+	local saved_note
+	vim.api.nvim_create_autocmd("BufWriteCmd", {
+		buffer = buf,
+		callback = function()
+			saved_note = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
+			vim.bo[buf].modified = false
+		end,
+	})
 	vim.api.nvim_create_autocmd("WinClosed", {
 		pattern = tostring(win),
 		once = true,
 		callback = function()
-			finish(nil)
+			local note = saved_note
+			vim.schedule(function()
+				if note then
+					send_extension_ui_response(ctx, event.id, { value = note })
+				else
+					send_extension_ui_response(ctx, event.id, { cancelled = true })
+				end
+			end)
 		end,
 	})
-	vim.api.nvim_create_autocmd({ "WinLeave", "BufLeave" }, {
-		buffer = buf,
-		once = true,
-		callback = function()
-			vim.schedule(function() finish(nil) end)
-		end,
-	})
-	vim.keymap.set({ "i", "n" }, "<CR>", function()
-		finish(vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1] or "")
-	end, { buffer = buf, nowait = true })
-	vim.keymap.set({ "i", "n" }, "<Esc>", function() finish(nil) end, { buffer = buf, nowait = true })
-	vim.keymap.set("n", "q", function() finish(nil) end, { buffer = buf, nowait = true })
 	vim.cmd.startinsert()
 	return true
 end

@@ -176,26 +176,36 @@ export default function accessModeExtension(pi: ExtensionAPI) {
       return { block: true, reason: `Tool "${event.toolName}" requires approval (${reason}), but ${context}.` };
     }
 
-    // Remember records the command but leaves the execution decision to a second prompt.
     if (event.toolName === "bash" && typeof input.command === "string") {
       const title = ctx.mode === "rpc" ? approvalPayload(event, ctx) : `Allow bash? ${input.command}`;
-      let choice = await ctx.ui.select(title, ["Allow once", "Remember", "Deny"]);
-      if (choice === "Remember") {
-        const noteTitle = ctx.mode === "rpc"
-          ? JSON.stringify({ kind: "pi_remember_note" })
-          : "Optional reason for remembering command";
-        const note = await ctx.ui.input(noteTitle);
+      while (true) {
+        const choice = await ctx.ui.select(title, ["Allow", "Deny", "Remember and allow", "Remember with comment and allow"]);
+        if (choice === "Allow") return undefined;
+        if (choice === "Deny" || !choice) {
+          return { block: true, reason: `Tool "${event.toolName}" blocked by user.` };
+        }
+
+        let note = "";
+        if (choice === "Remember with comment and allow") {
+          const noteTitle = ctx.mode === "rpc"
+            ? JSON.stringify({ kind: "pi_remember_note" })
+            : "Reason for remembering command (cancel to return to approval)";
+          const entered = await ctx.ui.input(noteTitle);
+          if (entered === undefined) continue;
+          if (!entered.trim()) {
+            ctx.ui.notify("Enter a comment to remember, or choose Remember and allow instead.", "warning");
+            continue;
+          }
+          note = entered;
+        }
         try {
-          rememberCommand(input.command, ctx.cwd, note ?? "");
-          ctx.ui.notify("Command remembered for review. Decide whether to run this attempt.", "info");
+          rememberCommand(input.command, ctx.cwd, note);
+          ctx.ui.notify("Command remembered for review and allowed.", "info");
+          return undefined;
         } catch (error) {
           return { block: true, reason: `Could not remember bash command: ${String(error)}` };
         }
-        choice = await ctx.ui.select(title, ["Allow once", "Deny"]);
       }
-      return choice === "Allow once"
-        ? undefined
-        : { block: true, reason: `Tool "${event.toolName}" blocked by user.` };
     }
 
     const confirmed = await ctx.ui.confirm(`Allow ${event.toolName}?`, approvalPayload(event, ctx), { signal: ctx.signal });
