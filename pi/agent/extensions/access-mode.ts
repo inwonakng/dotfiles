@@ -8,9 +8,7 @@ import assert from "node:assert";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { getAccessMode, parseAccessMode, setAccessMode } from "./shared/access-state";
-import {
-  isTrustedCommand, rememberCommand, reviewCommand, readonlyBashBlockReason, savedCommands,
-} from "./shared/bash-access";
+import { rememberCommand, readonlyBashBlockReason } from "./shared/bash-access";
 
 export { readonlyBashBlockReason } from "./shared/bash-access";
 
@@ -122,13 +120,12 @@ function workspaceManagesApproval(input: Record<string, unknown>): boolean {
   return input.action === "integrate" || input.action === "discard";
 }
 
-function readonlyToolBlockReason(toolName: string, input: Record<string, unknown>, cwd: string): string | undefined {
+function readonlyToolBlockReason(toolName: string, input: Record<string, unknown>): string | undefined {
   if (READONLY_TOOLS.has(toolName)) return undefined;
   if (toolName === "bash") {
     if (typeof input.command !== "string") return "bash requires a command that can be classified as read-only";
     const reason = readonlyBashBlockReason(input.command);
-    if (!reason) return undefined;
-    return isTrustedCommand(input.command, cwd) ? undefined : `bash command is not read-only: ${reason}`;
+    return reason ? `bash command is not read-only: ${reason}` : undefined;
   }
   if (toolName === "workspace") {
     return typeof input.action === "string" && READONLY_WORKSPACE_ACTIONS.has(input.action)
@@ -164,13 +161,7 @@ export default function accessModeExtension(pi: ExtensionAPI) {
     const input = event.input as Record<string, unknown>;
     if (event.toolName === "workspace" && workspaceManagesApproval(input)) return undefined;
 
-    let reason: string | undefined;
-    try {
-      reason = readonlyToolBlockReason(event.toolName, input, ctx.cwd);
-    } catch (error) {
-      // A corrupt/unreadable trust store must never make an unknown command automatic.
-      reason = `could not read bash access store: ${String(error)}`;
-    }
+    const reason = readonlyToolBlockReason(event.toolName, input);
     if (!reason) return undefined;
 
     if (event.toolName === "spawn" && (input.accessMode === "edit" || input.isolation === "worktree")) {
@@ -185,11 +176,10 @@ export default function accessModeExtension(pi: ExtensionAPI) {
       return { block: true, reason: `Tool "${event.toolName}" requires approval (${reason}), but ${context}.` };
     }
 
-    // Bash uses a three-way selection so Remember can never execute the command.
+    // Remember records the command but leaves the execution decision to a second prompt.
     if (event.toolName === "bash" && typeof input.command === "string") {
       const title = ctx.mode === "rpc" ? approvalPayload(event, ctx) : `Allow bash? ${input.command}`;
-      const choice = await ctx.ui.select(title, ["Allow once", "Remember", "Deny"]);
-      if (choice === "Allow once") return undefined;
+      let choice = await ctx.ui.select(title, ["Allow once", "Remember", "Deny"]);
       if (choice === "Remember") {
         const noteTitle = ctx.mode === "rpc"
           ? JSON.stringify({ kind: "pi_remember_note" })
@@ -197,55 +187,19 @@ export default function accessModeExtension(pi: ExtensionAPI) {
         const note = await ctx.ui.input(noteTitle);
         try {
           rememberCommand(input.command, ctx.cwd, note ?? "");
-          ctx.ui.notify("Command remembered for review; not executed.", "info");
+          ctx.ui.notify("Command remembered for review. Decide whether to run this attempt.", "info");
         } catch (error) {
           return { block: true, reason: `Could not remember bash command: ${String(error)}` };
         }
+        choice = await ctx.ui.select(title, ["Allow once", "Deny"]);
       }
-      return { block: true, reason: `Tool "${event.toolName}" blocked by user.` };
+      return choice === "Allow once"
+        ? undefined
+        : { block: true, reason: `Tool "${event.toolName}" blocked by user.` };
     }
 
     const confirmed = await ctx.ui.confirm(`Allow ${event.toolName}?`, approvalPayload(event, ctx), { signal: ctx.signal });
     return confirmed ? undefined : { block: true, reason: `Tool "${event.toolName}" blocked by user.` };
-  });
-
-  pi.registerCommand("pi-bash-review", {
-    description: "Review remembered bash commands and optionally trust an exact command in its directory",
-    handler: async (_args, ctx) => {
-      try {
-        const store = savedCommands();
-        const entries = [
-          ...store.remembered.map((entry) => ({ entry, trusted: false })),
-          ...store.trusted.map((entry) => ({ entry, trusted: true })),
-        ];
-        if (!entries.length) {
-          ctx.ui.notify("No saved bash commands", "info");
-          return;
-        }
-        const labels = entries.map(({ entry, trusted }, index) =>
-          `${index + 1}. ${trusted ? "Trusted" : "Remembered"}: ${entry.command} (${entry.cwd})${entry.note ? ` — ${entry.note}` : ""}`,
-        );
-        const selected = await ctx.ui.select("Saved bash commands", labels);
-        const index = labels.indexOf(selected ?? "");
-        if (index < 0) return;
-        const { entry, trusted } = entries[index];
-        const choice = await ctx.ui.select(
-          `Review bash command #${index + 1}`,
-          trusted ? ["Keep trusted", "Revoke trust"] : ["Keep for later", "Trust exact command here", "Forget"],
-        );
-        if (choice === "Trust exact command here") {
-          const confirmed = await ctx.ui.select("Auto-allow this exact command here on future runs?", ["Trust", "Cancel"]);
-          if (confirmed !== "Trust") return;
-          reviewCommand(entry, "trust");
-          ctx.ui.notify("Exact command trusted in this directory", "info");
-        } else if (choice === "Forget" || choice === "Revoke trust") {
-          reviewCommand(entry, choice === "Forget" ? "forget" : "revoke");
-          ctx.ui.notify(choice === "Forget" ? "Remembered command removed" : "Trust revoked", "info");
-        }
-      } catch (error) {
-        ctx.ui.notify(`Could not review bash commands: ${String(error)}`, "error");
-      }
-    },
   });
 
   pi.registerCommand("pi-mode", {

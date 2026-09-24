@@ -9,26 +9,26 @@ export type SavedCommand = {
   savedAt: string;
 };
 
-type CommandStore = { remembered: SavedCommand[]; trusted: SavedCommand[] };
+type CommandStore = { remembered: SavedCommand[] };
 const STORE_PATH = join(getAgentDir(), "bash-access.json");
 
 function readStore(): CommandStore {
   if (!existsSync(STORE_PATH)) {
-    return { remembered: [], trusted: [] };
+    return { remembered: [] };
   }
   const value: unknown = JSON.parse(readFileSync(STORE_PATH, "utf8"));
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Invalid bash access store");
   }
   const store = value as Record<string, unknown>;
-  if (![store.remembered, store.trusted].every((list) => Array.isArray(list) && list.every(
+  if (!Array.isArray(store.remembered) || !store.remembered.every(
     (item) => item && typeof item === "object" && !Array.isArray(item)
       && typeof item.command === "string" && typeof item.cwd === "string"
       && typeof item.note === "string" && typeof item.savedAt === "string",
-  ))) {
+  )) {
     throw new Error("Invalid bash access store entries");
   }
-  return { remembered: store.remembered as SavedCommand[], trusted: store.trusted as SavedCommand[] };
+  return { remembered: store.remembered as SavedCommand[] };
 }
 
 function saveStore(store: CommandStore): void {
@@ -47,31 +47,10 @@ function saveStore(store: CommandStore): void {
   }
 }
 
-export function isTrustedCommand(command: string, cwd: string): boolean {
-  return readStore().trusted.some((entry) => entry.command === command && entry.cwd === cwd);
-}
-
-export function savedCommands(): CommandStore {
-  return readStore();
-}
-
 export function rememberCommand(command: string, cwd: string, note: string): void {
   const store = readStore();
   store.remembered = store.remembered.filter((entry) => entry.command !== command || entry.cwd !== cwd);
   store.remembered.push({ command, cwd, note, savedAt: new Date().toISOString() });
-  saveStore(store);
-}
-
-export function reviewCommand(entry: SavedCommand, action: "trust" | "forget" | "revoke"): void {
-  const store = readStore();
-  const list = action === "revoke" ? store.trusted : store.remembered;
-  const index = list.findIndex((item) => item.command === entry.command && item.cwd === entry.cwd);
-  if (index < 0) throw new Error("Saved command no longer exists");
-  const [saved] = list.splice(index, 1);
-  if (action === "trust") {
-    store.trusted = store.trusted.filter((item) => item.command !== saved.command || item.cwd !== saved.cwd);
-    store.trusted.push(saved);
-  }
   saveStore(store);
 }
 
