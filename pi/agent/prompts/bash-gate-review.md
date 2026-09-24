@@ -17,3 +17,5 @@ State the safety standard and environment assumptions behind your recommendation
 Then propose an update based on the review. Favor general rules with clear boundaries, explaining which commands they would admit and giving contrasting examples that should still require approval. Resolve uncertainty through targeted inspection where possible, and identify any remaining policy choices with their consequences.
 
 Present the complete analysis and recommendation before asking for explicit approval to make changes. Keep this review read-only until approval.
+
+If the user approves the changes and they were made, also offer to clear up the backlog and remove all the entries that were reviewed and addressed.
