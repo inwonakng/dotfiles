@@ -95,6 +95,39 @@ function M.focus(id)
 	return command({ "select-window", "-t", window, ";", "select-pane", "-t", id })
 end
 
+function M.kill(entry)
+	local instances, err = M.list()
+	if not instances then
+		return nil, err
+	end
+	local found = false
+	for _, current in ipairs(instances) do
+		if current.id == entry.id and current.pid == entry.pid then
+			found = true
+			break
+		end
+	end
+	if not found then
+		return nil, "That conversation is no longer open"
+	end
+	local target, target_err = command({ "display-message", "-p", "-t", entry.id, "#{window_id}\t#{pane_dead}" })
+	if not target then
+		return nil, target_err
+	end
+	local window, dead = target:match("^(@%d+)\t(%d)$")
+	if not window or dead ~= "0" then
+		return nil, "That pane is no longer open"
+	end
+	local panes, panes_err = command({ "list-panes", "-t", window, "-F", "#{pane_id}" })
+	if not panes then
+		return nil, panes_err
+	end
+	if panes ~= entry.id then
+		return nil, "Cannot close a tmux window containing other panes"
+	end
+	return command({ "kill-window", "-t", window })
+end
+
 function M.launch(launcher, cwd, path)
 	local ensure_script = vim.fn.fnamemodify(launcher, ":h:h") .. "/tmux/scripts/open-agents-overview.sh"
 	local ensured = vim.system({ "bash", ensure_script, "--ensure", vim.env.TMUX_PANE }, { text = true }):wait(5000)

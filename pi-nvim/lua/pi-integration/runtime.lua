@@ -1,5 +1,5 @@
 -- Session UI depends on this module, not on a particular multiplexer.
--- Backends implement available/list/focus/launch/publish/clear/start_overview.
+-- Backends implement available/list/focus/launch/kill/publish/clear/start_overview.
 -- start_overview registers the overview's location for backend navigation.
 -- list() returns snapshots plus an opaque instance id and a readable location.
 -- Operations return a non-nil value on success, or nil and an error message.
@@ -67,6 +67,33 @@ function M.focus(id)
 	for _, entry in ipairs(instances) do
 		if entry.id == id then
 			return transport.focus(id)
+		end
+	end
+	return nil, "That conversation is no longer open"
+end
+
+function M.kill_needs_confirmation(entry)
+	return entry.status ~= "Idle" and entry.status ~= "Stopped" and entry.status ~= "Error"
+end
+
+function M.kill(entry, confirmed)
+	local transport = backend()
+	if not transport then
+		return nil, "No supported session backend is available"
+	end
+	local instances, err = transport.list()
+	if not instances then
+		return nil, err
+	end
+	for _, current in ipairs(instances) do
+		if current.id == entry.id then
+			if current.pid ~= entry.pid then
+				return nil, "That conversation has changed since it was selected"
+			end
+			if M.kill_needs_confirmation(current) and not confirmed then
+				return nil, "That conversation is now active; press d again to confirm"
+			end
+			return transport.kill(current)
 		end
 	end
 	return nil, "That conversation is no longer open"

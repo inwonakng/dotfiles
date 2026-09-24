@@ -59,7 +59,7 @@ function M.open(config)
 	local list_buf = scratch("pi://overview")
 	local list_win = vim.api.nvim_get_current_win()
 	vim.api.nvim_win_set_buf(list_win, list_buf)
-	window_options(list_win, "%#PiOverviewTitle# Pi Overview%#PiOverviewStatusLine# · Enter: focus · /: filter · n: new · h: history · a: archived · r: refresh ")
+	window_options(list_win, "%#PiOverviewTitle# Pi Overview%#PiOverviewStatusLine# · Enter: focus · d: kill · /: filter · n: new · h: history · a: archived · r: refresh ")
 	vim.wo[list_win].cursorline = true
 	vim.cmd("botright 9split")
 	local detail_win = vim.api.nvim_get_current_win()
@@ -208,6 +208,37 @@ function M.open(config)
 			report(runtime.focus(entry.id))
 		end
 	end, "Focus conversation")
+	map("d", function()
+		local entry = selected()
+		if not entry then
+			return
+		end
+		local entries, err = runtime.list()
+		if not entries then
+			report(nil, err)
+			return
+		end
+		local current
+		for _, candidate in ipairs(entries) do
+			if candidate.id == entry.id and candidate.pid == entry.pid then
+				current = candidate
+				break
+			end
+		end
+		if not current then
+			report(nil, "That conversation is no longer open")
+			return
+		end
+		if runtime.kill_needs_confirmation(current) then
+			vim.ui.select({ "Yes", "No" }, { prompt = "Kill running conversation " .. text(current.title) .. " and close its window?" }, function(choice)
+				if choice == "Yes" then
+					report(runtime.kill(current, true))
+				end
+			end)
+		else
+			report(runtime.kill(current, false))
+		end
+	end, "Kill conversation")
 	map("n", function()
 		vim.ui.input({ prompt = "New conversation directory: ", default = vim.fn.getcwd(), completion = "dir" }, function(cwd)
 			if cwd and vim.trim(cwd) ~= "" then
