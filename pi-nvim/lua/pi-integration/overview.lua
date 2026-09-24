@@ -209,8 +209,7 @@ function M.open(config)
 		end
 	end, "Focus conversation")
 	map("n", function()
-		local entry = selected()
-		vim.ui.input({ prompt = "New conversation directory: ", default = entry and entry.cwd or vim.fn.getcwd(), completion = "dir" }, function(cwd)
+		vim.ui.input({ prompt = "New conversation directory: ", default = vim.fn.getcwd(), completion = "dir" }, function(cwd)
 			if cwd and vim.trim(cwd) ~= "" then
 				report(runtime.launch(config.launcher, vim.fn.fnamemodify(vim.fn.expand(cwd), ":p")))
 			end
