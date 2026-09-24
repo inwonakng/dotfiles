@@ -654,6 +654,12 @@ render_messages = function(messages)
 	end
 end
 
+function M.restore_session_transcript(path, leaf_id)
+	if valid_buf(state.transcript_buf) then
+		render_messages(pi_messages.load_session_messages_from_file(integration_ctx(), path, leaf_id))
+	end
+end
+
 function M.refresh_messages()
 	if is_agent_active() then
 		notify("Pi is active; transcript refresh will run after the current run finishes.", vim.log.levels.WARN)

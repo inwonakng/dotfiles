@@ -3,7 +3,7 @@ local runtime = require("pi-integration.runtime")
 
 local M = {}
 
-local function reset_conversation(ctx)
+local function reset_conversation(ctx, keep_transcript)
 	local state = ctx.state
 	state.pending_ui_requests = {}
 	state.pending_user_message = nil
@@ -24,7 +24,7 @@ local function reset_conversation(ctx)
 	ctx.session.reset_outputs()
 	ctx.transcript.clear_items()
 	ctx.transcript.touch()
-	if ctx.buffer.valid(state.transcript_buf) then
+	if not keep_transcript and ctx.buffer.valid(state.transcript_buf) then
 		for _, win in ipairs(vim.api.nvim_list_wins()) do
 			if vim.api.nvim_win_get_buf(win) == state.transcript_buf then
 				vim.api.nvim_win_set_cursor(win, { 1, 0 })
@@ -36,8 +36,12 @@ end
 
 function M.apply_state(ctx, data, new_session)
 	local state = ctx.state
-	if new_session or data.sessionFile ~= state.session_file then
-		reset_conversation(ctx)
+	local session_changed = data.sessionFile ~= state.session_file
+	local restore_transcript = not new_session and session_changed
+		and type(data.sessionFile) == "string" and vim.fn.filereadable(data.sessionFile) == 1
+	local previous_leaf_id = state.tree_leaf_id
+	if new_session or session_changed then
+		reset_conversation(ctx, restore_transcript)
 	end
 	state.session_file = data.sessionFile
 	state.pending_session_file = nil
@@ -47,6 +51,9 @@ function M.apply_state(ctx, data, new_session)
 	state.is_compacting = data.isCompacting or false
 	state.thinking_level = data.thinkingLevel or data.thinking_level or state.thinking_level
 	ctx.session.set_model_metadata(data.provider or data.providerId or data.providerName, data.model or data.modelId)
+	if restore_transcript then
+		ctx.actions.restore_session_transcript(data.sessionFile, previous_leaf_id)
+	end
 	ctx.transcript.refresh_ui()
 	runtime.publish()
 end
