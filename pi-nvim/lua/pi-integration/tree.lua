@@ -95,6 +95,14 @@ local function record_visible(ctx, record, mode)
 	if mode == "all" then
 		return true
 	end
+	-- Workspace handoff records and empty system updates are not shown in the transcript.
+	if record.type == "custom_message" and record.customType == "workspace-continuation" then
+		return false
+	end
+	if record.type == "message" and record.message and record.message.role == "system"
+		and not message_has_visible_text(ctx, record.message) then
+		return false
+	end
 	if mode == "user-only" then
 		return record.type == "message" and record.message and record.message.role == "user"
 	end
