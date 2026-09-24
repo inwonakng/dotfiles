@@ -18,4 +18,4 @@ Then propose an update based on the review. Favor general rules with clear bound
 
 Present the complete analysis and recommendation before asking for explicit approval to make changes. Keep this review read-only until approval.
 
-If the user approves the changes and they were made, also offer to clear up the backlog and remove all the entries that were reviewed and addressed.
+If the user approves the changes and they were made, also clear up the backlog and remove all the entries that were reviewed and addressed before finalizing the implementation.

@@ -54,11 +54,11 @@ export function rememberCommand(command: string, cwd: string, note: string): voi
   saveStore(store);
 }
 
-type Word = { kind: "word"; value: string; expanded: boolean };
+type Word = { kind: "word"; value: string; expanded: boolean; variable: boolean };
 type Token = Word | { kind: "operator"; value: ";" | "|" | "||" | "2>/dev/null" };
 
-// Only shell syntax explicitly checked below may reach bash. In particular,
-// quoting can protect regex punctuation, but substitutions and escapes cannot.
+// Only shell syntax explicitly checked below may reach bash. Quoting can
+// protect regex punctuation; variable expansion and escapes are narrowly scoped.
 function tokens(command: string): Token[] | undefined {
   if (!command || /[\r\n\t\0]/.test(command)) return undefined;
   const result: Token[] = [];
@@ -66,13 +66,14 @@ function tokens(command: string): Token[] | undefined {
   let started = false;
   let expanded = false;
   let quoted = false;
+  let variable = false;
   let quote: "'" | '"' | undefined;
   const flush = () => {
     if (!started) return true;
     if (expanded && quoted) return false;
-    result.push({ kind: "word", value: word, expanded });
+    result.push({ kind: "word", value: word, expanded, variable });
     word = "";
-    started = expanded = quoted = false;
+    started = expanded = quoted = variable = false;
     return true;
   };
   for (let i = 0; i < command.length; i++) {
@@ -87,6 +88,16 @@ function tokens(command: string): Token[] | undefined {
           i += 5;
           continue;
         }
+        if (quote === '"' && char === "$" && !word) {
+          const name = ["$PI_CODING_AGENT_DIR", "$PI_SESSION_FILE"].find((candidate) =>
+            command.startsWith(`${candidate}"`, i));
+          if (name) {
+            word = name;
+            variable = true;
+            i += name.length - 1;
+            continue;
+          }
+        }
         if (quote === '"' && (char === "$" || char === "`" || char === "\\")) return undefined;
         word += char;
       }
@@ -95,6 +106,9 @@ function tokens(command: string): Token[] | undefined {
       quoted = started = true;
     } else if (char === " ") {
       if (!flush()) return undefined;
+    } else if (char === "\\" && started && command[i + 1] === " ") {
+      word += " ";
+      i++;
     } else if (char === ";" || char === "|") {
       if (!flush()) return undefined;
       const operator = char === "|" && command[i + 1] === "|" ? "||" : char;
@@ -121,9 +135,18 @@ function tokens(command: string): Token[] | undefined {
 // option or expand a pattern/flag argument. Quoted globs are literal strings.
 function pathWord(word: Word): boolean {
   if (!word.expanded) return true;
-  // Every expansion retains a directory prefix, so a match cannot become an option.
-  return /^(?:~\/|\/|[A-Za-z0-9_.][A-Za-z0-9_.-]*\/(?:[A-Za-z0-9_.-]+\/)*)(?:[A-Za-z0-9_.-]+\*?|\*)(?:\/(?:[A-Za-z0-9_.-]+\*?|\*))*$/.test(word.value)
-    || /^(?:~\/|\/|[A-Za-z0-9_.][A-Za-z0-9_.-]*\/(?:[A-Za-z0-9_.-]+\/)*)(?:[A-Za-z0-9_.-]+\/)*\{(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+(?:,(?:[A-Za-z0-9_.-]+\/)*[A-Za-z0-9_.-]+)+\}$/.test(word.value);
+  // Expansion must retain a directory prefix that cannot become an option.
+  const prefix = /^(?:~\/|\/|[A-Za-z0-9_.][A-Za-z0-9_.-]*\/(?:[A-Za-z0-9_.-]+\/)*)/.exec(word.value);
+  if (!prefix || prefix[0].split("/").some((part) => part === "." || part === "..")) return false;
+  const remainder = word.value.slice(prefix[0].length);
+  const globPart = /^(?!\.{1,2}$)(?:[A-Za-z0-9_.-]+|[A-Za-z0-9_.-]*\*[A-Za-z0-9_.-]*)$/;
+  if (remainder.split("/").every((part) => globPart.test(part))) return true;
+
+  const braces = /^((?:[A-Za-z0-9_.@-]+\/)*)\{([^{}]+)\}$/.exec(remainder);
+  if (!braces || braces[1].split("/").some((part) => part === "." || part === "..")) return false;
+  const alternatives = braces[2].split(",");
+  return alternatives.length > 1 && alternatives.every((alternative) =>
+    alternative.split("/").every((part) => globPart.test(part)));
 }
 
 function pathsOnly(args: string[]): boolean {
@@ -144,8 +167,11 @@ function rgArgs(args: Word[], stdinOnly = false): boolean {
     if (options && arg === "--" && !expanded) { options = false; continue; }
     if (options && arg === "--files" && !expanded) { files = true; continue; }
     if (options && !expanded && ["-n", "--line-number", "-i", "--ignore-case", "-l", "--files-with-matches", "-F", "--fixed-strings", "-S", "--smart-case", "-v", "--invert-match", "-w", "--word-regexp", "--hidden"].includes(arg)) continue;
-    if (options && !expanded && ["-g", "--glob"].includes(arg)) {
-      if (!args[++i] || args[i].expanded || args[i].value.startsWith("-")) return false;
+    if (options && !expanded && ["-g", "--glob", "-e", "--regexp"].includes(arg)) {
+      const value = args[++i];
+      if (!value || value.expanded || value.variable
+        || (["-g", "--glob"].includes(arg) && value.value.startsWith("-"))) return false;
+      if (arg === "-e" || arg === "--regexp") pattern = true;
       continue;
     }
     if (options && arg.startsWith("-") && arg !== "-") return false;
@@ -224,7 +250,7 @@ function findArgs(args: Word[]): boolean {
     if (!value || value.expanded || (flag === "-maxdepth" && !/^[0-9]{1,3}$/.test(value.value))
       || (flag === "-type" && !["f", "d", "l"].includes(value.value))
       || (["-name", "-iname"].includes(flag) && value.value.startsWith("-"))
-      || !["-maxdepth", "-type", "-name", "-iname"].includes(flag)) return false;
+      || !["-maxdepth", "-type", "-name", "-iname", "-path"].includes(flag)) return false;
   }
   return true;
 }
@@ -234,9 +260,19 @@ function simple(tokens: Token[]): boolean {
   const parts = redirect ? tokens.slice(0, -1) : tokens;
   if (!parts.length || parts.some((token) => token.kind !== "word")) return false;
   const [program, ...args] = parts as Word[];
-  if (program.expanded || (redirect && !["ls", "rg", "find", "git", "cat", "wc"].includes(program.value))) return false;
+  if (program.expanded || program.variable || (redirect && !["ls", "rg", "find", "git", "cat", "wc"].includes(program.value))) return false;
+  if (args.some((arg) => arg.variable) && program.value !== "printf") return false;
   const rest = args.map((arg) => arg.value);
   if (program.value === "pwd") return !redirect && rest.length === 0;
+  if (program.value === "printf") {
+    const [format, ...values] = args;
+    if (redirect || !format || format.expanded || format.variable || format.value.startsWith("-")) return false;
+    const literal = format.value.replaceAll("%s", "").replaceAll("\\n", "");
+    return /^[A-Za-z0-9_ .:=/-]*$/.test(literal)
+      && values.length === format.value.split("%s").length - 1
+      && values.every((value) => value.variable
+        && ["$PI_CODING_AGENT_DIR", "$PI_SESSION_FILE"].includes(value.value));
+  }
   if (program.value === "ls") return args.every((arg) =>
     (!arg.expanded && /^-[alhRdt1FG]+$/.test(arg.value))
     || (pathWord(arg) && (!arg.value.startsWith("-") || arg.value === "--")));
@@ -248,6 +284,8 @@ function simple(tokens: Token[]): boolean {
   if (program.value === "rg") return rgArgs(args);
   if (program.value === "git") return args.every((arg) => !arg.expanded) && gitArgs(rest);
   if (program.value === "find") return findArgs(args);
+  if (program.value === "readlink") return !redirect && args.length === 1
+    && !args[0].value.startsWith("-") && pathWord(args[0]);
   if (program.value === "which") return !redirect && rest.length === 1 && /^[A-Za-z0-9_.+-]+$/.test(rest[0]);
   if (program.value === "command") return !redirect && rest.length === 2 && rest[0] === "-v"
     && /^[A-Za-z0-9_.+-]+$/.test(rest[1]);
@@ -259,14 +297,22 @@ function inspection(tokens: Token[]): boolean {
   if (conditional !== -1) {
     const left = tokens.slice(0, conditional);
     const right = tokens.slice(conditional + 1);
-    return left[0]?.value === "which" && simple(left)
-      && right.length === 1 && right[0].kind === "word" && right[0].value === "true";
+    return simple(left) && right.length === 1 && right[0].kind === "word"
+      && !right[0].expanded && !right[0].variable
+      && (left[0]?.value === "which" && right[0].value === "true"
+        || left[0]?.value === "readlink" && right[0].value === ":");
   }
   const stages: Token[][] = [[]];
   for (const token of tokens) {
     if (token.kind === "operator" && token.value === "|") stages.push([]);
     else stages.at(-1)!.push(token);
   }
+  // Constrain environment inspection to the names-only PI pipeline.
+  const envNames = ["env", "grep", "-E", "^PI_(AGENT|SESSION|CODING)", "cut", "-d=", "-f1"];
+  if (stages.length === 3 && stages.flat().length === envNames.length
+    && stages.map((stage) => stage.length).join() === "1,3,3"
+    && stages.flat().every((token, i) => token.kind === "word"
+      && !token.expanded && !token.variable && token.value === envNames[i])) return true;
   if (!simple(stages[0])) return false;
   if (stages.length === 1) return true;
   if (stages.length > 3) return false;
@@ -275,8 +321,8 @@ function inspection(tokens: Token[]): boolean {
     if (stage[0]?.value === "rg" && i === 1 && stages.length === 3
       && stage.every((token) => token.kind === "word")
       && rgArgs((stage as Word[]).slice(1), true)) continue;
-    if (i === stages.length - 1 && stage[0]?.value === "head"
-      && stage.every((token) => token.kind === "word") && (stage.length === 1
+    if (i === stages.length - 1 && (stage[0]?.value === "head" || stage[0]?.value === "tail")
+      && stage.every((token) => token.kind === "word" && !token.expanded && !token.variable) && (stage.length === 1
         || stage.length === 2 && /^-[1-9][0-9]{0,3}$/.test(stage[1].value)
           && Number(stage[1].value.slice(1)) <= 1000)) continue;
     return false;
@@ -289,12 +335,14 @@ export function readonlyBashBlockReason(command: string): string | undefined {
   if (!process.env.HOME?.startsWith("/") && (command.includes("~/") || command.includes("$HOME/"))) {
     return "home-relative paths require an absolute HOME";
   }
-  // A file-existence guard with an inspection branch and literal fallback.
+  // Only a file-existence guard with an inspection branch and literal fallback.
   // Do not admit general shell conditionals or variable expansion.
+  // Include the fixed fallback in the delimiter: `; else ` may occur inside a quoted search pattern.
   const guarded = /^if \[ -f "\$HOME\/[A-Za-z0-9_./-]+" \]; then (.+?); else printf '[A-Za-z][A-Za-z0-9 _.]{0,99}\\n'; fi(?:; (.+))?$/.exec(command);
   if (guarded) {
-    const branch = tokens(guarded[1]);
-    return branch && inspection(branch) && (!guarded[2] || !readonlyBashBlockReason(guarded[2]))
+    const [, thenCommand, following] = guarded;
+    const thenTokens = tokens(thenCommand);
+    return thenTokens && inspection(thenTokens) && (!following || !readonlyBashBlockReason(following))
       ? undefined : "not a recognized read-only command form";
   }
   const parsed = tokens(command);
