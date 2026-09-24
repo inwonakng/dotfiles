@@ -8,7 +8,7 @@ import { Type } from "typebox";
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   getIntegrationMode,
@@ -77,6 +77,12 @@ function reviewCommand(record: WorkspaceRecord): string {
   return ["bash", shellQuote(REVIEW_SCRIPT), shellQuote(record.worktreePath), shellQuote(record.baselineCommit)].join(" ");
 }
 
+function ignoredReviewNote(record: WorkspaceRecord): string {
+  return record.includedIgnoredFiles?.length
+    ? `\nIncluded ignored files are not shown in the Git diff; review them directly in the worktree:\n${record.includedIgnoredFiles.map((file) => `- ${join(record.worktreePath, file.path)}`).join("\n")}`
+    : "";
+}
+
 function tmuxPane(): string | undefined {
   const pane = process.env.TMUX_PANE;
   if (!process.env.TMUX || !pane) {
@@ -118,7 +124,7 @@ function retainedForManualReview(record: WorkspaceRecord, reason?: string) {
   return {
     content: [{
       type: "text" as const,
-      text: `${prefix}Workspace retained without integration. Review it from another terminal with:\n\n\`\`\`sh\n${reviewCommand(record)}\n\`\`\`\n\nRequest integration again when the review is complete.`,
+      text: `${prefix}Workspace retained without integration. Review it from another terminal with:\n\n\`\`\`sh\n${reviewCommand(record)}\n\`\`\`${ignoredReviewNote(record)}\n\nRequest integration again when the review is complete.`,
     }],
     details: record,
   };
@@ -159,6 +165,16 @@ function queueCommand(pi: ExtensionAPI, command: string): void {
 function taskForCurrentContext(ctx: ExtensionContext): WorkspaceRecord | undefined {
   const active = workspaceForContext(ctx.cwd, sessionFile(ctx));
   return active?.kind === "task" ? active : undefined;
+}
+
+function checkRequestedIgnoredFiles(record: WorkspaceRecord, paths: string[] | undefined): void {
+  if (!paths?.length) return;
+  const requested = paths.map((path) => relative(record.destinationRoot, resolve(record.destinationCwd, path))).sort();
+  const included = (record.includedIgnoredFiles ?? []).map((file) => file.path).sort();
+  if (paths.some((path) => !path || path.startsWith("/") || path.includes("\0"))
+    || JSON.stringify(requested) !== JSON.stringify(included)) {
+    throw new Error("Ignored files are selected when the workspace is created; this workspace already exists. Resume it without ignoredFiles or discard and enter a new workspace.");
+  }
 }
 
 function formatStatus(ctx: ExtensionContext): string {
@@ -464,11 +480,13 @@ export default function workspaceExtension(pi: ExtensionAPI) {
         return;
       }
 
+      const note = ignoredReviewNote(record);
+      if (note) ctx.ui.notify(note.trim(), "warning");
       const review = launchWorkspaceReview(record);
       if (!review.launched) {
         const prefix = review.reason ? `Could not open a tmux reviewer: ${review.reason}\n\n` : "";
         ctx.ui.notify(
-          `${prefix}Review the workspace from another terminal with:\n\n${reviewCommand(record)}`,
+          `${prefix}Review the workspace from another terminal with:\n\n${reviewCommand(record)}${note}`,
           review.reason ? "warning" : "info",
         );
       }
@@ -512,10 +530,10 @@ export default function workspaceExtension(pi: ExtensionAPI) {
   pi.registerTool({
     name: "workspace",
     label: "Workspace",
-    description: "Create/reuse a task worktree, inspect workspace state, integrate a completed task according to the active integration mode, or discard retained work. Status includes full workspace paths.",
+    description: "Create/reuse a task worktree, optionally copying named ignored files on entry, inspect workspace state, integrate or discard. Status includes full workspace paths.",
     promptSnippet: "Manage the current task's isolated Git worktree and integration lifecycle.",
     promptGuidelines: [
-      "Call workspace with action=enter as the only tool call in that assistant response before making implementation changes with edit or write, unless the current session is already in an associated workspace. Wait for the linked continuation session before using more tools.",
+      "Call workspace with action=enter as the only tool call in that assistant response before making implementation changes with edit or write, unless the current session is already in an associated workspace. To edit existing ignored files, provide their paths relative to the original cwd in ignoredFiles on the first enter call; only those files are copied and later integrated. Wait for the linked continuation session before using more tools.",
       "Temporary probes, scripts, and generated artifacts may be created under $TMPDIR without entering a workspace; keep them outside the repository and remove them when finished.",
       "Call workspace with action=status when the expected workspace is missing or its lifecycle is unclear.",
       "Top-level workspace integration follows the active integration mode: ask requests confirmation and allowed is pre-authorized.",
@@ -524,6 +542,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
     parameters: Type.Object({
       action: StringEnum(WORKSPACE_ACTIONS, { description: "Workspace lifecycle action." }),
       id: Type.Optional(Type.String({ description: "Workspace id for enter, status, integration, or discard; defaults to the linked or active workspace." })),
+      ignoredFiles: Type.Optional(Type.Array(Type.String(), { description: "Existing ignored file paths relative to the original cwd, copied into a new task worktree on enter and copied back on integration." })),
       approved: Type.Optional(Type.Boolean({ description: "Required for destructive operations when no interactive UI is available." })),
     }),
     executionMode: "sequential",
@@ -542,9 +561,13 @@ export default function workspaceExtension(pi: ExtensionAPI) {
           details: { records },
         };
       }
+      if (params.ignoredFiles !== undefined && action !== "enter") {
+        throw new Error("ignoredFiles only applies to action=enter.");
+      }
       if (action === "enter") {
         const active = taskForCurrentContext(ctx);
         if (active && existsSync(active.worktreePath)) {
+          checkRequestedIgnoredFiles(active, params.ignoredFiles);
           if (isWorkspaceFinalized(active)) {
             throw new Error(
               `Workspace ${active.id} has a finalized contribution and is retained only for cleanup; it cannot be re-entered.`,
@@ -564,6 +587,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
         if (record && record.kind !== "task") {
           throw new Error(`Workspace ${record.id} is a child workspace; resume it through spawn_control.`);
         }
+        if (record) checkRequestedIgnoredFiles(record, params.ignoredFiles);
         if (record && isWorkspaceFinalized(record)) {
           throw new Error(
             `Workspace ${record.id} has a finalized contribution and is retained only for cleanup; it cannot be re-entered.`,
@@ -577,6 +601,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
             kind: "task",
             destinationCwd: ctx.cwd,
             sourceSessionFile: source,
+            ignoredFiles: params.ignoredFiles,
           });
         }
         if (!existsSync(record.worktreePath)) {
@@ -614,7 +639,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
         if (integrationMode === "ask" && ctx.hasUI) {
           while (true) {
             decision = await ctx.ui.select(
-              `Apply ${selected.label} to ${selected.destinationRoot}?`,
+              `Apply ${selected.label} to ${selected.destinationRoot}?${ignoredReviewNote(selected)}`,
               [INTEGRATE_ACTION, REVIEW_ACTION, RETURN_ACTION],
               { signal: ctx.signal },
             ) ?? RETURN_ACTION;
@@ -657,13 +682,16 @@ export default function workspaceExtension(pi: ExtensionAPI) {
 
       const prepared = prepareWorkspaceDiscard(selected.id);
       const changed = prepared.changedFiles.length > 0 ? prepared.changedFiles.join("\n") : "(no changed files)";
+      const included = prepared.includedIgnoredFiles?.length
+        ? `\n\nIncluded ignored files (not in the recovery patch):\n${prepared.includedIgnoredFiles.map((file) => file.path).join("\n")}`
+        : "";
       const unpreserved = prepared.unpreservedFiles && prepared.unpreservedFiles.length > 0
         ? `\n\nIgnored untracked files not included in the recovery patch:\n${prepared.unpreservedFiles.join("\n")}`
         : "";
       const confirmed = await confirmDestructive(
         ctx,
         "Discard workspace?",
-        `Discard ${prepared.label} and remove its worktree?\n\nWorkspace changes:\n${changed}${unpreserved}\n\nRecovery patch: ${prepared.resultPatchPath}`,
+        `Discard ${prepared.label} and remove its worktree?\n\nWorkspace changes:\n${changed}${included}${unpreserved}\n\nRecovery patch: ${prepared.resultPatchPath}`,
         params.approved,
       );
       if (!confirmed) {

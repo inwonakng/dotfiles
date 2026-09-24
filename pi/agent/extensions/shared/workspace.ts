@@ -2,10 +2,14 @@ import { withFileMutationQueue } from "@earendil-works/pi-coding-agent";
 import { spawnSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import {
+  closeSync,
   copyFileSync,
   existsSync,
   mkdirSync,
+  lstatSync,
+  openSync,
   readFileSync,
+  readSync,
   readdirSync,
   realpathSync,
   renameSync,
@@ -53,6 +57,7 @@ export type WorkspaceRecord = {
   integration: WorkspaceIntegration;
   integrationReason?: string;
   changedFiles: string[];
+  includedIgnoredFiles?: { path: string; originalHash: string }[];
   unpreservedFiles?: string[];
   resultPatchPath: string;
   applicationPatchPath: string;
@@ -176,6 +181,45 @@ function fingerprint(path: string): string {
     return "missing";
   }
   return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function regularFileHash(root: string, path: string): string {
+  const absolute = join(root, path);
+  if (!pathInside(root, absolute) || !lstatSync(absolute).isFile()) {
+    throw new Error(`Expected a regular file inside ${root}: ${path}`);
+  }
+  const hash = createHash("sha256");
+  const handle = openSync(absolute, "r");
+  const buffer = Buffer.allocUnsafe(64 * 1024);
+  try {
+    let bytesRead: number;
+    while ((bytesRead = readSync(handle, buffer, 0, buffer.length, null)) > 0) {
+      hash.update(buffer.subarray(0, bytesRead));
+    }
+    return hash.digest("hex");
+  } finally {
+    closeSync(handle);
+  }
+}
+
+function ignoredFilePaths(root: string, cwd: string, paths: string[]): string[] {
+  const result = new Set<string>();
+  for (const path of paths) {
+    if (!path || path.includes("\0") || path.startsWith("/") || resolve(cwd, path) === resolve(root)) {
+      throw new Error(`Expected a relative ignored file path: ${path}`);
+    }
+    const absolute = resolve(cwd, path);
+    if (!pathInside(root, absolute) || !lstatSync(absolute).isFile()) {
+      throw new Error(`Expected a regular file inside the repository: ${path}`);
+    }
+    const relativePath = relative(root, absolute);
+    if (gitBuffer(root, ["ls-files", "--cached", "-z", "--", relativePath]).length > 0
+      || gitResult(root, ["check-ignore", "-q", "--", relativePath]).status !== 0) {
+      throw new Error(`File is not ignored and untracked: ${path}`);
+    }
+    result.add(relativePath);
+  }
+  return [...result];
 }
 
 function safeRefSegment(value: string): string {
@@ -305,6 +349,7 @@ export function createWorkspace(input: {
   parentWorkspaceId?: string;
   runId?: string;
   label?: string;
+  ignoredFiles?: string[];
 }): WorkspaceRecord {
   const destinationRoot = findGitRoot(input.destinationCwd);
   if (!destinationRoot) {
@@ -317,6 +362,7 @@ export function createWorkspace(input: {
   if (pathInside(destinationRoot, WORKSPACE_ROOT)) {
     throw new Error(`Pi workspace storage must be outside the destination repository. Set PI_WORKSPACE_ROOT to an external path (current: ${WORKSPACE_ROOT}).`);
   }
+  const includedPaths = ignoredFilePaths(destinationRoot, destinationCwd, input.ignoredFiles ?? []);
   const id = `${input.kind}-${new Date().toISOString().replace(/[:.]/g, "-")}-${randomUUID().slice(0, 8)}`;
   const baseline = captureSnapshot(destinationRoot, id, "baseline");
   const requestedWorktreePath = join(TREES_DIR, id);
@@ -326,6 +372,32 @@ export function createWorkspace(input: {
   const workspaceCwd = relativeCwd ? join(worktreePath, relativeCwd) : worktreePath;
   const artifactDir = join(ARTIFACTS_DIR, id);
   mkdirSync(artifactDir, { recursive: true });
+  const includedIgnoredFiles: NonNullable<WorkspaceRecord["includedIgnoredFiles"]> = [];
+  try {
+    for (const path of includedPaths) {
+      const originalHash = regularFileHash(destinationRoot, path);
+      const target = join(worktreePath, path);
+      if (!pathInside(worktreePath, target) || existsSync(target)) {
+        throw new Error(`Cannot copy ignored file into worktree: ${path}`);
+      }
+      mkdirSync(dirname(target), { recursive: true });
+      if (!pathInside(worktreePath, target)) {
+        throw new Error(`Ignored file would escape the worktree: ${path}`);
+      }
+      copyFileSync(join(destinationRoot, path), target);
+      if (regularFileHash(worktreePath, path) !== originalHash || regularFileHash(destinationRoot, path) !== originalHash) {
+        throw new Error(`Ignored file changed while entering the workspace: ${path}`);
+      }
+      includedIgnoredFiles.push({ path, originalHash });
+    }
+  } catch (error) {
+    const removed = gitResult(destinationRoot, ["worktree", "remove", "--force", worktreePath]);
+    if (removed.status !== 0) {
+      throw new Error(`Could not copy ignored files; worktree retained at ${worktreePath}: ${removed.stderr.toString("utf8").trim()}`, { cause: error });
+    }
+    deleteRef(destinationRoot, baseline.ref);
+    throw error;
+  }
   const now = new Date().toISOString();
   const record: WorkspaceRecord = {
     version: 1,
@@ -346,6 +418,7 @@ export function createWorkspace(input: {
     runId: input.runId,
     integration: "pending",
     changedFiles: [],
+    includedIgnoredFiles,
     resultPatchPath: join(artifactDir, "result.patch"),
     applicationPatchPath: join(artifactDir, "application.patch"),
     conflictPath: join(artifactDir, "conflict.txt"),
@@ -421,7 +494,9 @@ function snapshotWorkspaceResult(record: WorkspaceRecord): WorkspaceRecord {
   const patch = gitBuffer(record.worktreePath, ["diff", "--binary", "--full-index", record.baselineTree, result.tree]);
   writeFileSync(record.resultPatchPath, patch);
   record.changedFiles = splitNul(gitBuffer(record.worktreePath, ["diff", "--no-renames", "--name-only", "-z", record.baselineTree, result.tree]));
-  record.unpreservedFiles = splitNul(gitBuffer(record.worktreePath, ["ls-files", "--others", "--ignored", "--exclude-standard", "-z"]));
+  const included = new Set((record.includedIgnoredFiles ?? []).map((file) => file.path));
+  record.unpreservedFiles = splitNul(gitBuffer(record.worktreePath, ["ls-files", "--others", "--ignored", "--exclude-standard", "-z"]))
+    .filter((path) => !included.has(path));
   saveWorkspace(record);
   return record;
 }
@@ -537,6 +612,27 @@ function realIndexFingerprint(gitRoot: string): string {
   return fingerprint(indexPath);
 }
 
+function changedIgnoredFiles(record: WorkspaceRecord): { path: string; hash: string }[] {
+  const changed: { path: string; hash: string }[] = [];
+  for (const file of record.includedIgnoredFiles ?? []) {
+    if (record.resultTree && gitBuffer(record.worktreePath, ["ls-tree", "-r", "-z", record.resultTree, "--", file.path]).length > 0) {
+      throw new Error(`Included ignored file became tracked in the workspace: ${file.path}`);
+    }
+    const hash = regularFileHash(record.worktreePath, file.path);
+    if (hash === file.originalHash) continue;
+    const destinationHash = regularFileHash(record.destinationRoot, file.path);
+    if (gitBuffer(record.destinationRoot, ["ls-files", "--cached", "-z", "--", file.path]).length > 0
+      || gitResult(record.destinationRoot, ["check-ignore", "-q", "--", file.path]).status !== 0) {
+      throw new Error(`Included file is no longer ignored and untracked: ${file.path}`);
+    }
+    if (destinationHash !== file.originalHash && destinationHash !== hash) {
+      throw new Error(`Ignored file changed in the original checkout; refusing to overwrite: ${file.path}`);
+    }
+    changed.push({ path: file.path, hash });
+  }
+  return changed;
+}
+
 export async function integrateWorkspace(id: string): Promise<WorkspaceRecord> {
   const initial = loadWorkspace(id);
   if (!initial) {
@@ -553,6 +649,7 @@ export async function integrateWorkspace(id: string): Promise<WorkspaceRecord> {
         throw new Error(`Workspace record disappeared: ${id}`);
       }
       record = snapshotWorkspaceResult(record);
+      changedIgnoredFiles(record);
       const destination = captureSnapshot(record.destinationRoot, record.id, `destination-${randomUUID()}`);
       const merge = mergeTree(record, destination);
       if (!merge.mergedTree) {
@@ -583,13 +680,17 @@ export async function integrateWorkspace(id: string): Promise<WorkspaceRecord> {
         merge.mergedTree,
       ]));
       const absoluteAffected = affected.map((path) => join(record.destinationRoot, path));
+      const ignoredAffected = (record.includedIgnoredFiles ?? []).map((file) => join(record.destinationRoot, file.path));
+      let changedIncludedFile = false;
 
-      await withMutationQueues(absoluteAffected, async () => {
+      await withMutationQueues([...absoluteAffected, ...ignoredAffected], async () => {
         const recheck = captureSnapshot(record.destinationRoot, record.id, `recheck-${randomUUID()}`);
         try {
           if (recheck.tree !== destination.tree || recheck.indexFingerprint !== destination.indexFingerprint) {
             throw new Error("Destination changed while integration was being prepared; retry integration.");
           }
+          const ignoredChanges = changedIgnoredFiles(record);
+          changedIncludedFile = ignoredChanges.length > 0;
           if (applicationPatch.length > 0) {
             gitBuffer(record.destinationRoot, ["apply", "--check", "--binary", "--whitespace=nowarn", record.applicationPatchPath]);
             const indexBefore = realIndexFingerprint(record.destinationRoot);
@@ -599,12 +700,26 @@ export async function integrateWorkspace(id: string): Promise<WorkspaceRecord> {
               throw new Error("Destination index changed during integration.");
             }
           }
+          for (const file of ignoredChanges) {
+            const destinationPath = join(record.destinationRoot, file.path);
+            if (regularFileHash(record.destinationRoot, file.path) === file.hash) continue;
+            const temporary = `${destinationPath}.pi-${randomUUID()}.tmp`;
+            try {
+              copyFileSync(join(record.worktreePath, file.path), temporary);
+              if (regularFileHash(record.destinationRoot, relative(record.destinationRoot, temporary)) !== file.hash) {
+                throw new Error(`Ignored file changed while copying: ${file.path}`);
+              }
+              renameSync(temporary, destinationPath);
+            } finally {
+              rmSync(temporary, { force: true });
+            }
+          }
         } finally {
           deleteRef(record.destinationRoot, recheck.ref);
         }
       });
 
-      record.integration = applicationPatch.length > 0 ? "applied" : "none";
+      record.integration = applicationPatch.length > 0 || changedIncludedFile ? "applied" : "none";
       record.integrationReason = undefined;
       record.lifecycle = "integration_pending";
       saveWorkspace(record);
@@ -720,6 +835,9 @@ export function formatWorkspaceRecord(record: WorkspaceRecord): string {
   if (record.targetSessionFile) lines.push(`- session: ${record.targetSessionFile}`);
   if (record.continuationSessionFile) lines.push(`- continuation: ${record.continuationSessionFile}`);
   if (record.changedFiles.length > 0) lines.push(`- changed files: ${record.changedFiles.join(", ")}`);
+  if (record.includedIgnoredFiles?.length) {
+    lines.push(`- included ignored files (outside Git patch): ${record.includedIgnoredFiles.map((file) => file.path).join(", ")}`);
+  }
   if (record.unpreservedFiles && record.unpreservedFiles.length > 0) {
     lines.push(`- ignored untracked files (not in patch): ${record.unpreservedFiles.join(", ")}`);
   }
