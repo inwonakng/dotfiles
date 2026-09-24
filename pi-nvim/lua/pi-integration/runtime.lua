@@ -132,6 +132,8 @@ local function snapshot(state)
 		path = path,
 		title = state.session_name or (path and vim.fn.fnamemodify(path, ":t")) or "New conversation",
 		cwd = (state.workspace and state.workspace.cwd) or vim.fn.getcwd(),
+		directory = (state.workspace and state.workspace.directory) or (state.workspace and state.workspace.cwd) or vim.fn.getcwd(),
+		workspace_id = state.workspace and state.workspace.id,
 		status = status,
 		activity = waiting or state.activity_label or "",
 		model = state.model_id,

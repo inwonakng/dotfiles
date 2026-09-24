@@ -19,6 +19,15 @@ local function column(value, width)
 	return value .. string.rep(" ", math.max(0, width - vim.fn.strdisplaywidth(value)))
 end
 
+local function directory(entry)
+	return type(entry.directory) == "string" and entry.directory ~= "" and entry.directory or entry.cwd
+end
+
+local function workspace_hash(entry)
+	local id = type(entry.workspace_id) == "string" and entry.workspace_id or ""
+	return id:match("([%x]+)$") or "—"
+end
+
 local function set_lines(buf, lines)
 	if not vim.deep_equal(vim.api.nvim_buf_get_lines(buf, 0, -1, false), lines) then
 		vim.bo[buf].modifiable = true
@@ -37,7 +46,7 @@ local function scratch(name)
 end
 
 local function window_options(win, statusline)
-	for name, value in pairs({ number = false, relativenumber = false, signcolumn = "no", wrap = false, spell = false, statusline = statusline }) do
+	for name, value in pairs({ number = false, relativenumber = false, signcolumn = "no", wrap = false, spell = false, fillchars = "stl:─,stlnc:─", statusline = statusline .. "%#PiPaneBorder#%=" }) do
 		vim.api.nvim_set_option_value(name, value, { win = win })
 	end
 end
@@ -50,13 +59,14 @@ function M.open(config)
 	local list_buf = scratch("pi://overview")
 	local list_win = vim.api.nvim_get_current_win()
 	vim.api.nvim_win_set_buf(list_win, list_buf)
-	window_options(list_win, "%#PiOverviewStatusLine# Pi overview · Enter: focus · /: filter · n: new · h: history · a: archived · r: refresh ")
+	window_options(list_win, "%#PiOverviewTitle# Pi Overview%#PiOverviewStatusLine# · Enter: focus · /: filter · n: new · h: history · a: archived · r: refresh ")
 	vim.wo[list_win].cursorline = true
 	vim.cmd("botright 9split")
 	local detail_win = vim.api.nvim_get_current_win()
 	local detail_buf = scratch("pi://overview-details")
 	vim.api.nvim_win_set_buf(detail_win, detail_buf)
 	window_options(detail_win, "%#PiOverviewStatusLine# Selected conversation ")
+	vim.wo[detail_win].cursorline = false
 	vim.wo[detail_win].wrap = true
 	vim.wo[detail_win].winfixheight = true
 	vim.api.nvim_set_current_win(list_win)
@@ -82,17 +92,21 @@ function M.open(config)
 				" " .. text(entry.title),
 				"",
 				" Status:    " .. text(entry.status) .. (entry.activity and entry.activity ~= "" and (" · " .. text(entry.activity)) or ""),
-				" Directory: " .. text(entry.cwd),
+				" Directory: " .. text(directory(entry)),
+				" Workspace: " .. workspace_hash(entry),
 				" Location:  " .. text(entry.location),
 				" Model:     " .. (text(entry.model) ~= "" and text(entry.model) or "—"),
 				" Subagents: " .. tostring(tonumber(entry.subagents) or 0),
 				" Session:   " .. (text(entry.path) ~= "" and text(entry.path) or "Not saved yet"),
 			}
+			if workspace_hash(entry) ~= "—" then
+				table.insert(lines, 6, " Working:   " .. text(entry.cwd))
+			end
 		end
 		set_lines(detail_buf, lines)
 		vim.api.nvim_buf_clear_namespace(detail_buf, ns, 0, -1)
 		if entry then
-			vim.api.nvim_buf_set_extmark(detail_buf, ns, 0, 1, { end_col = #lines[1], hl_group = "PiOverviewTitle" })
+			vim.api.nvim_buf_set_extmark(detail_buf, ns, 0, 1, { end_col = #lines[1], hl_group = "PiOverviewDetailTitle" })
 			for row = 3, #lines do
 				local _, value_start = lines[row]:find(":%s*")
 				if value_start then
@@ -116,22 +130,22 @@ function M.open(config)
 		end
 		rows = {}
 		for _, entry in ipairs(entries) do
-			local searchable = (text(entry.title) .. " " .. text(entry.cwd) .. " " .. text(entry.status)):lower()
+			local searchable = (text(entry.title) .. " " .. text(directory(entry)) .. " " .. text(entry.cwd) .. " " .. workspace_hash(entry) .. " " .. text(entry.status)):lower()
 			if query == "" or searchable:find(query:lower(), 1, true) then
 				table.insert(rows, entry)
 			end
 		end
 		local lines = {
 			" Pi sessions · " .. #entries .. " open",
-			query == "" and " / Filter    n New    h History    a Archived" or (" Filter: " .. query .. "    c Clear"),
+			query == "" and "" or (" Filter: " .. query),
 			"",
-			" " .. column("Status", 13) .. "  " .. column("Project", 20) .. "  Title",
+			" " .. column("Status", 13) .. "  " .. column("Directory", 20) .. "  " .. column("Workspace", 10) .. "  Title",
 		}
 		local cursor = math.max(first_row, math.min(view.lnum, first_row + #rows - 1))
-		local title_prefix = " " .. column("", 13) .. "  " .. column("", 20) .. "  "
+		local title_prefix = " " .. column("", 13) .. "  " .. column("", 20) .. "  " .. column("", 10) .. "  "
 		for index, entry in ipairs(rows) do
-			local project = vim.fn.fnamemodify(entry.cwd, ":t")
-			table.insert(lines, " " .. column(entry.status, 13) .. "  " .. column(project, 20) .. "  " .. text(entry.title))
+			local name = vim.fn.fnamemodify(directory(entry), ":t")
+			table.insert(lines, " " .. column(entry.status, 13) .. "  " .. column(name, 20) .. "  " .. column(workspace_hash(entry), 10) .. "  " .. text(entry.title))
 			if previous and previous.id == entry.id then
 				cursor = first_row + index - 1
 			end

@@ -69,6 +69,7 @@ export type WorkspaceDisplayState = {
   branch?: string;
   path: string;
   cwd: string;
+  directory: string;
   sessionFile?: string;
   lifecycle: WorkspaceLifecycle | "local" | "external";
   localCheckout: boolean;
@@ -671,6 +672,7 @@ export function workspaceDisplayState(cwd: string, sessionFile?: string): Worksp
       branch: branchAt(record.worktreePath),
       path: record.worktreePath,
       cwd: canonicalPath(cwd),
+      directory: record.destinationCwd,
       sessionFile,
       lifecycle: record.lifecycle,
       localCheckout: false,
@@ -682,6 +684,7 @@ export function workspaceDisplayState(cwd: string, sessionFile?: string): Worksp
       name: "Local checkout",
       path: canonicalPath(cwd),
       cwd: canonicalPath(cwd),
+      directory: canonicalPath(cwd),
       sessionFile,
       lifecycle: "local",
       localCheckout: true,
@@ -695,6 +698,7 @@ export function workspaceDisplayState(cwd: string, sessionFile?: string): Worksp
     branch: branchAt(gitRoot),
     path: gitRoot,
     cwd: canonicalPath(cwd),
+    directory: canonicalPath(cwd),
     sessionFile,
     lifecycle: externalWorktree ? "external" : "local",
     localCheckout: !externalWorktree,
