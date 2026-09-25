@@ -101,27 +101,6 @@ local function is_cursor(raw)
 	return raw.record.type == "custom" and raw.record.customType == "pi-workspace-cursor"
 end
 
--- Cursor entries are persistence bookmarks. Only a cursor with conversation
--- descendants represents a branch that belongs in the logical tree.
-local function branch_has_conversation(raw)
-	if is_workspace_location(raw.record) then
-		return true
-	end
-	local kind = boundary_kind(raw.record)
-	if kind and kind ~= "meta" then
-		return true
-	end
-	if group_is_assistant_activity({ raw }) then
-		return true
-	end
-	for _, child in ipairs(raw.children) do
-		if branch_has_conversation(child) then
-			return true
-		end
-	end
-	return false
-end
-
 local function project_raw(model, raw, parent)
 	local kind = boundary_kind(raw.record)
 	if kind then
@@ -142,9 +121,9 @@ local function project_raw(model, raw, parent)
 		local cursor_branches = {}
 		for _, child in ipairs(current.children) do
 			if is_cursor(child) then
-				if branch_has_conversation(child) then
-					table.insert(cursor_branches, child)
-				end
+				-- Cursors stay hidden, but still stop aggregation from following a
+				-- sibling branch and representing that sibling as the active leaf.
+				table.insert(cursor_branches, child)
 			else
 				table.insert(progression, child)
 			end

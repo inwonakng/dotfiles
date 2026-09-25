@@ -168,6 +168,11 @@ function taskForCurrentContext(ctx: ExtensionContext): WorkspaceRecord | undefin
   return active?.kind === "task" && active.sourceSessionFile === sessionFile(ctx) ? active : undefined;
 }
 
+function returnPending(record: WorkspaceRecord | undefined): record is WorkspaceRecord {
+  return record?.kind === "task"
+    && (record.lifecycle === "integration_pending" || record.lifecycle === "discard_pending");
+}
+
 function checkRequestedIgnoredFiles(record: WorkspaceRecord, paths: string[] | undefined): void {
   if (!paths?.length) return;
   const requested = paths.map((path) => relative(record.destinationRoot, resolve(record.destinationCwd, path))).sort();
@@ -290,7 +295,7 @@ async function confirmDestructive(
 }
 
 export default function workspaceExtension(pi: ExtensionAPI) {
-  pi.on("session_start", (_event, ctx) => {
+  pi.on("session_start", (event, ctx) => {
     const envWorkspaceId = process.env.PI_WORKSPACE_ID;
     if (envWorkspaceId) {
       const record = loadWorkspace(envWorkspaceId);
@@ -298,17 +303,26 @@ export default function workspaceExtension(pi: ExtensionAPI) {
       setExpectedWorkspaceMissing(missing ? envWorkspaceId : undefined);
     } else {
       setExpectedWorkspaceMissing(undefined);
-      if (!getPendingWorkspaceId()) {
-        try {
-          const location = activeLocation(ctx);
-          if (location.cwd !== ctx.cwd) {
-            setPendingWorkspace(location.workspace?.id ?? "restore");
-            queueCommand(pi, "/pi-workspace-restore");
-          }
-        } catch (error) {
-          ctx.ui.notify(error instanceof Error ? error.message : String(error), "warning");
-          setExpectedWorkspaceMissing("unavailable");
+      try {
+        const location = activeLocation(ctx);
+        const pendingId = getPendingWorkspaceId();
+        const recoveringReturn = (event.reason === "startup" || event.reason === "resume")
+          && returnPending(location.workspace)
+          && location.workspace.sourceSessionFile === sessionFile(ctx)
+          && location.cwd === ctx.cwd;
+        if (recoveringReturn && (!pendingId || pendingId === location.workspace.id)) {
+          const workspaceId = location.workspace.id;
+          setPendingWorkspace(workspaceId);
+          // A restore switch emits session_start before its replacement callback returns.
+          // Defer the return so it does not start a nested session replacement.
+          setTimeout(() => queueCommand(pi, `/pi-workspace-return ${workspaceId}`), 0);
+        } else if (!pendingId && location.cwd !== ctx.cwd) {
+          setPendingWorkspace(location.workspace?.id ?? "restore");
+          queueCommand(pi, "/pi-workspace-restore");
         }
+      } catch (error) {
+        ctx.ui.notify(error instanceof Error ? error.message : String(error), "warning");
+        setExpectedWorkspaceMissing("unavailable");
       }
     }
     publishWorkspaceState(ctx);

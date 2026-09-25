@@ -1,6 +1,14 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { locationForEntry, moveToLocation } from "./shared/workspace-navigation";
+import {
+	loadWorkspace,
+	prepareWorkspaceDiscard,
+	removeWorkspace,
+	retainedChildWorkspaces,
+	type WorkspaceRecord,
+} from "./shared/workspace";
 import { hasRunningSubagents } from "./spawn";
 
 type JsonRecord = Record<string, unknown>;
@@ -85,17 +93,56 @@ function collectDeletedIds(records: JsonRecord[], targetId: string): Set<string>
 	return deleted;
 }
 
-function shouldDropForDeletedReference(record: JsonRecord, deletedIds: Set<string>): boolean {
-	if (record.type === "label" && typeof record.targetId === "string" && deletedIds.has(record.targetId)) {
-		return true;
+function locationWorkspaceId(record: JsonRecord): string | undefined {
+	if (record.type !== "custom" || record.customType !== "pi-workspace-location"
+		|| !record.data || typeof record.data !== "object") {
+		return undefined;
 	}
-	if (record.type === "branch_summary" && typeof record.fromId === "string" && deletedIds.has(record.fromId)) {
-		return true;
+	const workspaceId = (record.data as Record<string, unknown>).workspaceId;
+	return typeof workspaceId === "string" && workspaceId !== "" ? workspaceId : undefined;
+}
+
+function workspacesRemovedWithSubtree(
+	records: JsonRecord[],
+	deletedIds: Set<string>,
+	sessionFile: string,
+): WorkspaceRecord[] {
+	const deletedWorkspaceIds = new Set<string>();
+	const survivingWorkspaceIds = new Set<string>();
+	for (const record of records) {
+		const workspaceId = locationWorkspaceId(record);
+		const id = recordId(record);
+		if (!workspaceId || !id) continue;
+		(deletedIds.has(id) ? deletedWorkspaceIds : survivingWorkspaceIds).add(workspaceId);
 	}
-	if (record.type === "compaction" && typeof record.firstKeptEntryId === "string" && deletedIds.has(record.firstKeptEntryId)) {
-		return true;
+	return [...deletedWorkspaceIds]
+		.filter((id) => !survivingWorkspaceIds.has(id))
+		.map(loadWorkspace)
+		.filter((record): record is WorkspaceRecord => !!record
+			&& record.kind === "task"
+			&& record.retained
+			&& record.sourceSessionFile === sessionFile);
+}
+
+function deletionConfirmation(entryId: string, deleteCount: number, workspaces: WorkspaceRecord[]): string {
+	const descendants = deleteCount - 1;
+	const lines = [
+		`Delete entry ${entryId} and ${descendants} descendant entr${descendants === 1 ? "y" : "ies"}?`,
+	];
+	if (workspaces.length === 0) return lines[0]!;
+	lines.push("", "The following worktrees will also be removed. Unintegrated changes will be discarded; existing destination changes will not be reverted:");
+	for (const record of workspaces) {
+		lines.push(`- ${record.label} (${record.lifecycle}): ${record.worktreePath}`);
+		lines.push(`  changed files: ${record.changedFiles.length > 0 ? record.changedFiles.join(", ") : "(none)"}`);
+		lines.push(`  recovery patch: ${record.resultPatchPath}`);
+		if (record.includedIgnoredFiles?.length) {
+			lines.push(`  included ignored files (not in patch): ${record.includedIgnoredFiles.map((file) => file.path).join(", ")}`);
+		}
+		if (record.unpreservedFiles?.length) {
+			lines.push(`  ignored untracked files (not in patch): ${record.unpreservedFiles.join(", ")}`);
+		}
 	}
-	return false;
+	return lines.join("\n");
 }
 
 function makeId(existingIds: Set<string>): string {
@@ -137,14 +184,19 @@ function rewriteSessionWithoutSubtree(sessionFile: string, targetId: string, cur
 
 	const kept = records.filter((record) => {
 		const id = recordId(record);
-		if (id && deletedIds.has(id)) {
-			return false;
-		}
-		return !shouldDropForDeletedReference(record, deletedIds);
+		return !id || !deletedIds.has(id);
 	});
 
-	const removedCount = records.length - kept.length;
 	const keptEntryIds = new Set(kept.map(recordId).filter((id): id is string => typeof id === "string"));
+	const orphan = kept.find((record) => {
+		const parent = parentId(record);
+		return typeof parent === "string" && !keptEntryIds.has(parent);
+	});
+	if (orphan) {
+		throw new Error(`Deletion would orphan retained entry ${recordId(orphan) ?? "unknown"}.`);
+	}
+
+	const removedCount = deletedIds.size;
 	if (desiredLeafParentId !== null && !keptEntryIds.has(desiredLeafParentId)) {
 		desiredLeafParentId = null;
 	}
@@ -154,7 +206,13 @@ function rewriteSessionWithoutSubtree(sessionFile: string, targetId: string, cur
 		markerId = appendLeafMarker(kept, desiredLeafParentId);
 	}
 
-	writeFileSync(sessionFile, kept.map((record) => JSON.stringify(record)).join("\n") + "\n", "utf8");
+	const temporary = `${sessionFile}.${process.pid}.${randomUUID()}.tmp`;
+	try {
+		writeFileSync(temporary, kept.map((record) => JSON.stringify(record)).join("\n") + "\n", "utf8");
+		renameSync(temporary, sessionFile);
+	} finally {
+		rmSync(temporary, { force: true });
+	}
 
 	return {
 		deletedCount: removedCount,
@@ -228,21 +286,34 @@ export default function treeExtension(pi: ExtensionAPI) {
 				ctx.ui.notify(`Unknown tree entry: ${entryId}`, "error");
 				return;
 			}
-			const deleteCount = collectDeletedIds(records, entryId).size;
-			if (!yes) {
-				const confirmed = await ctx.ui.confirm(
-					"Delete session history?",
-					`Delete entry ${entryId} and ${deleteCount - 1} descendant entr${deleteCount === 2 ? "y" : "ies"}?`,
-				);
-				if (!confirmed) {
+			const removedIds = collectDeletedIds(records, entryId);
+			const currentLeafId = ctx.sessionManager.getLeafId();
+			const expectedLeaf = currentLeafId && !removedIds.has(currentLeafId) ? currentLeafId : parentId(target) ?? null;
+			let location: ReturnType<typeof locationForEntry>;
+			let removedWorkspaces: WorkspaceRecord[];
+			try {
+				location = locationForEntry(ctx, expectedLeaf);
+				const affected = workspacesRemovedWithSubtree(records, removedIds, sessionFile);
+				const blocked = affected.find((record) => retainedChildWorkspaces(record.id).length > 0);
+				if (blocked) {
+					ctx.ui.notify(`Join or discard child workspaces before deleting ${blocked.label}.`, "warning");
 					return;
 				}
+				removedWorkspaces = affected.map((record) => prepareWorkspaceDiscard(record.id));
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				ctx.ui.notify(`Could not prepare tree deletion: ${message}`, "error");
+				return;
 			}
 
-			const currentLeafId = ctx.sessionManager.getLeafId();
-			const removedIds = collectDeletedIds(records, entryId);
-			const expectedLeaf = currentLeafId && !removedIds.has(currentLeafId) ? currentLeafId : parentId(target) ?? null;
-			const location = locationForEntry(ctx, expectedLeaf);
+			if (!yes) {
+				const confirmed = await ctx.ui.confirm(
+					removedWorkspaces.length > 0 ? "Delete session history and workspaces?" : "Delete session history?",
+					deletionConfirmation(entryId, removedIds.size, removedWorkspaces),
+				);
+				if (!confirmed) return;
+			}
+
 			let result: ReturnType<typeof rewriteSessionWithoutSubtree>;
 			try {
 				result = rewriteSessionWithoutSubtree(sessionFile, entryId, currentLeafId);
@@ -255,6 +326,15 @@ export default function treeExtension(pi: ExtensionAPI) {
 			const switched = await moveToLocation(ctx, location.cwd, result.desiredLeafId, {
 				reload: true,
 				onArrival: (nextCtx) => {
+					for (const record of removedWorkspaces) {
+						const lifecycle = record.integration === "applied" || record.integration === "none"
+							? "integrated"
+							: "discarded";
+						const cleaned = removeWorkspace(record.id, lifecycle);
+						if (cleaned.lifecycle === "cleanup_failed") {
+							nextCtx.ui.notify(`Could not remove ${record.label}: ${cleaned.integrationReason ?? cleaned.worktreePath}`, "warning");
+						}
+					}
 					nextCtx.ui.setStatus("pi-tree-leaf", nextCtx.sessionManager.getLeafId() ?? "");
 					nextCtx.ui.setStatus("pi-history-changed", new Date().toISOString());
 				},

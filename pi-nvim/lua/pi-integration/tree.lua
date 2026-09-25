@@ -39,7 +39,7 @@ local function node_visible(ctx, node)
 end
 
 local function cycle_filter_mode(ctx)
-	local modes = ctx.config.tree_filter_modes or { "default", "no-tools", "user-only", "all" }
+	local modes = ctx.config.tree_filter_modes or { "default", "user-only", "all" }
 	local current = ctx.state.tree_filter_mode or modes[1]
 	for index, mode in ipairs(modes) do
 		if mode == current then
@@ -611,7 +611,7 @@ local function delete_node(ctx)
 	position.view = save_tree_view(ctx)
 	local entry_id = node.start_id
 
-	ctx.rpc.send({ type = "prompt", message = "/pi-tree-delete " .. entry_id .. " --yes" }, function(event)
+	ctx.rpc.send({ type = "prompt", message = "/pi-tree-delete " .. entry_id }, function(event)
 		if not event.success then
 			ctx.ui.notify(event.error or "Could not delete session tree entry", vim.log.levels.ERROR)
 			return

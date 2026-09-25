@@ -31,7 +31,7 @@ M.config = {
 		thinking_level_change = true,
 		label = true,
 	},
-	tree_filter_modes = { "default", "no-tools", "user-only", "all" },
+	tree_filter_modes = { "default", "user-only", "all" },
 }
 
 local function notify(msg, level)
