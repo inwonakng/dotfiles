@@ -30,6 +30,14 @@ function M.render(buf, win, opts)
 			win = win,
 			event = opts.event or "PiNvim",
 		})
+		-- render-markdown applies its extmarks on the next scheduled callback.
+		-- Redraw after that callback so inactive transcript windows do not keep
+		-- stale layout until the cursor enters them.
+		vim.schedule(function()
+			if valid_buf(buf) and vim.api.nvim_win_is_valid(win) then
+				vim.cmd("redraw")
+			end
+		end)
 	end
 
 	if not opts.latex then

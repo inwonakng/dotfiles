@@ -508,11 +508,29 @@ function M.begin_trace_item(ctx)
 		return true
 	end
 	local last_line = last_buffer_line(ctx)
-	if last_line ~= nil and last_line ~= "" then
+	if last_line == nil then
+		return false
+	end
+	if last_line ~= "" then
 		M.append_lines(ctx, { "" })
 		return true
 	end
-	return false
+
+	local state = ctx.state
+	local line_count = vim.api.nvim_buf_line_count(state.transcript_buf)
+	if line_count < 2 then
+		return false
+	end
+	local previous_line = vim.api.nvim_buf_get_lines(state.transcript_buf, line_count - 2, line_count - 1, false)[1]
+	if previous_line ~= "" then
+		return false
+	end
+	M.preserve_focused_view(ctx, function()
+		ctx.buffer.set_modifiable(state.transcript_buf, true)
+		vim.api.nvim_buf_set_lines(state.transcript_buf, line_count - 1, line_count, false, {})
+		ctx.buffer.set_modifiable(state.transcript_buf, false)
+	end)
+	return true
 end
 
 function M.end_trace_item(ctx)
