@@ -17,7 +17,9 @@ import {
 import { appendFile } from "fs/promises";
 import { dirname, join, relative, resolve, sep } from "path";
 import { createHash } from "crypto";
-import { workspaceForContext } from "./shared/workspace";
+import { listWorkspaces, loadWorkspace, prepareWorkspaceDiscard, removeWorkspace, retainedChildWorkspaces, workspaceForContext } from "./shared/workspace";
+import { locationForEntry, locationEntry, moveToLocation, workspaceIdAt } from "./shared/workspace-navigation";
+import { hasRunningSubagents } from "./spawn";
 
 type SnapshotState =
   | { kind: "missing" }
@@ -34,6 +36,7 @@ type TurnRecord = {
 	version: 1;
 	sessionFile: string | undefined;
 	baseEntryId: string | null;
+	workspaceId: string;
 	timestamp: string;
 	files: FileRecord[];
 };
@@ -45,6 +48,7 @@ type FileState = {
 
 type TurnState = {
 	baseEntryId: string | null;
+	workspaceId: string;
 	cwd: string;
 	root: string;
 	gitRoot: string;
@@ -373,39 +377,83 @@ function validateCurrentState(root: string, files: FileRecord[]) {
 	return conflicts;
 }
 
-async function revertAfter(ctx: ExtensionCommandContext, targetId: string | null) {
+async function revertAfter(ctx: ExtensionCommandContext, targetId: string | null, navigateTo?: string): Promise<"same" | "switched" | false> {
 	const sessionFile = ctx.sessionManager.getSessionFile();
-	const workspace = workspaceForContext(ctx.cwd, sessionFile);
-	if (!workspace) {
-		ctx.ui.notify("No task workspace is associated with this session; conversation history changed without file rollback.", "info");
-		return true;
-	}
-	if (!existsSync(workspace.worktreePath)) {
-		ctx.ui.notify(`The associated workspace is unavailable: ${workspace.worktreePath}`, "error");
-		return false;
-	}
-	const root = workspace.worktreePath;
 	const branch = ctx.sessionManager.getBranch();
 	const afterIds = branchIdsAfter(branch, targetId);
-	const records = readRecords(sessionFile).filter((record) => {
-		return record.baseEntryId !== null && afterIds.has(record.baseEntryId);
-	});
-	const files = restorePlan(records);
-	if (files.length === 0) {
-		ctx.ui.notify("No recorded file changes to revert.", "info");
-		return true;
-	}
-	ctx.ui.notify(`Reverting ${files.length} file(s)…`, "info");
-	const conflicts = validateCurrentState(root, files);
-	if (conflicts.length > 0) {
-		ctx.ui.notify(`Rollback blocked; files changed since the agent turn:\n${conflicts.join("\n")}`, "error");
+	const beforeIds = new Set(branch.filter((entry) => !afterIds.has(entry.id)).map((entry) => entry.id));
+	const retainedBefore = new Set(branch.filter((entry) => beforeIds.has(entry.id) && locationEntry(entry))
+		.map((entry) => (entry.data as { workspaceId?: string } | undefined)?.workspaceId));
+	const discardedIds = new Set(branch.filter((entry) => afterIds.has(entry.id) && locationEntry(entry))
+		.map((entry) => (entry.data as { workspaceId?: string } | undefined)?.workspaceId)
+		.filter((id): id is string => !!id && !retainedBefore.has(id)));
+	const referenced = listWorkspaces().filter((record) => discardedIds.has(record.id));
+	if (referenced.length !== discardedIds.size) throw new Error("Cannot roll back: a workspace record is missing.");
+	if (referenced.some((record) => record.integration === "applied")) {
+		ctx.ui.notify("Cannot roll back an already integrated workspace; its changes were applied to the destination checkout.", "error");
 		return false;
 	}
-	for (const file of files) {
-		restoreState(root, file.path, file.before);
+	const discarded = referenced.filter((record) => record.retained);
+	if (discarded.some((record) => retainedChildWorkspaces(record.id).length)) {
+		ctx.ui.notify("Join or discard child workspaces before rolling back their parent worktree.", "warning");
+		return false;
 	}
-	ctx.ui.notify(`Reverted ${files.length} file(s).`, "info");
-	return true;
+	if (hasRunningSubagents() && discarded.length) {
+		ctx.ui.notify("Join or stop running subagents before discarding their parent workspace.", "warning");
+		return false;
+	}
+	const targetWorkspaceId = workspaceIdAt(ctx, targetId);
+	const targetWorkspace = targetWorkspaceId ? loadWorkspace(targetWorkspaceId) : undefined;
+	if (targetWorkspaceId && (!targetWorkspace?.retained || !existsSync(targetWorkspace.worktreePath))) {
+		ctx.ui.notify(`Destination workspace ${targetWorkspaceId} is unavailable.`, "error");
+		return false;
+	}
+	const files = targetWorkspace ? restorePlan(readRecords(sessionFile).filter((record) =>
+		record.workspaceId === targetWorkspace.id && record.baseEntryId !== null && afterIds.has(record.baseEntryId),
+	)) : [];
+	if (targetWorkspace && files.length) {
+		const conflicts = validateCurrentState(targetWorkspace.worktreePath, files);
+		if (conflicts.length) {
+			ctx.ui.notify(`Rollback blocked; files changed since the agent turn:\n${conflicts.join("\n")}`, "error");
+			return false;
+		}
+	}
+	const target = locationForEntry(ctx, targetId);
+	if (discarded.length || target.cwd !== ctx.cwd) {
+		if (hasRunningSubagents()) {
+			ctx.ui.notify("Join or stop running subagents before switching workspaces during rollback.", "warning");
+			return false;
+		}
+		if (!navigateTo) {
+			ctx.ui.notify("Cross-workspace rollback requires selecting a message through /pi-history.", "warning");
+			return false;
+		}
+		const patches = discarded.map((record) => prepareWorkspaceDiscard(record.id));
+		const approved = await ctx.ui.confirm("Change workspace during rollback?",
+			`Switch to ${target.cwd}?${patches.length ? `\nThe following worktrees will be discarded (recovery patches remain):\n${patches.map((record) => `- ${record.label}: ${record.worktreePath}\n  ${record.resultPatchPath}`).join("\n")}` : "\nNo worktree will be discarded."}\n${files.length ? `${files.length} recorded file change(s) in the destination workspace will be rolled back.` : "Destination files will remain at their current state."} Proceed?`);
+		if (!approved) return false;
+	}
+	for (const file of files) restoreState(targetWorkspace!.worktreePath, file.path, file.before);
+	if (!discarded.length && target.cwd === ctx.cwd) {
+		if (files.length) ctx.ui.notify(`Reverted ${files.length} file(s).`, "info");
+		return "same";
+	}
+	const moved = await moveToLocation(ctx, target.cwd, ctx.sessionManager.getLeafId(), {
+		navigateTo,
+		onArrival: (nextCtx) => {
+			for (const record of discarded) {
+				const cleaned = removeWorkspace(record.id, "discarded");
+				if (cleaned.lifecycle === "cleanup_failed") nextCtx.ui.notify(`Could not remove ${record.label}: ${cleaned.integrationReason}`, "warning");
+			}
+			if (navigateTo) {
+				const selected = nextCtx.sessionManager.getEntry(navigateTo);
+				if (selected) nextCtx.ui.setEditorText(messageText(selected));
+			}
+			nextCtx.ui.setStatus("pi-tree-leaf", nextCtx.sessionManager.getLeafId() ?? "");
+			markHistoryChanged(nextCtx);
+		},
+	});
+	return moved ? "switched" : false;
 }
 
 async function pickUserMessage(ctx: ExtensionCommandContext) {
@@ -437,6 +485,7 @@ export default function historyExtension(pi: ExtensionAPI) {
 		}
 		turn = {
 			baseEntryId: ctx.sessionManager.getLeafId(),
+			workspaceId: workspace.id,
 			cwd: ctx.cwd,
 			root: workspace.worktreePath,
 			gitRoot: workspace.worktreePath,
@@ -515,6 +564,7 @@ export default function historyExtension(pi: ExtensionAPI) {
 				version: 1,
 				sessionFile: ctx.sessionManager.getSessionFile(),
 				baseEntryId: turn.baseEntryId,
+				workspaceId: turn.workspaceId,
 				timestamp: new Date().toISOString(),
 				files,
 			});
@@ -540,16 +590,15 @@ export default function historyExtension(pi: ExtensionAPI) {
 					},
 				});
 			} else if (action === "Revert (undoes related file changes)") {
-				const reverted = await revertAfter(ctx, entry.parentId);
-				if (!reverted) {
-					return;
+				const reverted = await revertAfter(ctx, entry.parentId, entry.id);
+				if (!reverted) return;
+				if (reverted === "same") {
+					const result = await ctx.navigateTree(entry.id);
+					if (result.cancelled) return;
+					ctx.sessionManager.appendCustomEntry("pi-workspace-cursor", {});
+					markHistoryChanged(ctx);
+					ctx.ui.setEditorText(messageText(entry));
 				}
-				const result = await ctx.navigateTree(entry.id);
-				if (result.cancelled) {
-					return;
-				}
-				ctx.ui.setEditorText(messageText(entry));
-				markHistoryChanged(ctx);
 			}
 		},
 	});

@@ -579,7 +579,7 @@ local function update_workspace_from_status(ctx, text)
 		end
 	end
 	state.workspace = payload
-	if session_changed then
+	if session_changed or cwd_changed then
 		vim.defer_fn(function()
 			ctx.session.sync()
 		end, 20)

@@ -1,5 +1,4 @@
 import {
-  SessionManager,
   type ExtensionAPI,
   type ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
@@ -16,7 +15,8 @@ import {
   setIntegrationMode,
   type IntegrationMode,
 } from "./shared/integration-state";
-import { notifyPiFinished, suppressNextInputNotification } from "./shared/notifications";
+import { suppressNextInputNotification } from "./shared/notifications";
+import { activeLocation, moveToLocation } from "./shared/workspace-navigation";
 import {
   createWorkspace,
   findGitRoot,
@@ -25,12 +25,13 @@ import {
   getPendingWorkspaceId,
   integrateWorkspace,
   isWorkspaceFinalized,
-  linkedTaskForSession,
+  taskWorkspacesForSession,
   listWorkspaces,
   loadWorkspace,
   pathInside,
   prepareWorkspaceDiscard,
   removeWorkspace,
+  retainedChildWorkspaces,
   saveWorkspace,
   setExpectedWorkspaceMissing,
   setPendingWorkspace,
@@ -164,7 +165,7 @@ function queueCommand(pi: ExtensionAPI, command: string): void {
 
 function taskForCurrentContext(ctx: ExtensionContext): WorkspaceRecord | undefined {
   const active = workspaceForContext(ctx.cwd, sessionFile(ctx));
-  return active?.kind === "task" ? active : undefined;
+  return active?.kind === "task" && active.sourceSessionFile === sessionFile(ctx) ? active : undefined;
 }
 
 function checkRequestedIgnoredFiles(record: WorkspaceRecord, paths: string[] | undefined): void {
@@ -188,10 +189,9 @@ function formatStatus(ctx: ExtensionContext): string {
     `- storage: ${workspaceStorageRoot()}`,
   ];
   if (state.id) lines.push(`- id: ${state.id}`);
-  const linked = linkedTaskForSession(sessionFile(ctx));
-  if (linked && linked.id !== state.id) {
-    lines.push(`- linked task: ${linked.id} (${linked.lifecycle})`);
-    lines.push(`- linked worktree: ${linked.worktreePath}`);
+  for (const linked of taskWorkspacesForSession(sessionFile(ctx))) {
+    if (linked.id === state.id) continue;
+    lines.push(`- retained task: ${linked.id} (${linked.lifecycle}) at ${linked.worktreePath}`);
   }
   const pendingWorkspaceId = getPendingWorkspaceId();
   if (pendingWorkspaceId) lines.push(`- transition queued: ${pendingWorkspaceId}`);
@@ -258,6 +258,9 @@ function workspaceBlockReason(
 
   const active = workspaceForContext(ctx.cwd, sessionFile(ctx));
   if (active && existsSync(active.worktreePath)) {
+    if (active.kind === "task" && active.sourceSessionFile !== sessionFile(ctx)) {
+      return `Workspace ${active.id} belongs to a different Pi session; edits in this worktree are blocked.`;
+    }
     if (isWorkspaceFinalized(active)) {
       return `Workspace ${active.id} has a finalized contribution and is retained only for cleanup; it cannot be edited.`;
     }
@@ -294,12 +297,28 @@ export default function workspaceExtension(pi: ExtensionAPI) {
       const missing = !record || !record.retained || !existsSync(record.worktreePath);
       setExpectedWorkspaceMissing(missing ? envWorkspaceId : undefined);
     } else {
-      const linked = linkedTaskForSession(sessionFile(ctx));
-      const missing = linked && (!existsSync(linked.worktreePath) || !linked.retained) ? linked.id : undefined;
-      setExpectedWorkspaceMissing(missing);
+      setExpectedWorkspaceMissing(undefined);
+      if (!getPendingWorkspaceId()) {
+        try {
+          const location = activeLocation(ctx);
+          if (location.cwd !== ctx.cwd) {
+            setPendingWorkspace(location.workspace?.id ?? "restore");
+            queueCommand(pi, "/pi-workspace-restore");
+          }
+        } catch (error) {
+          ctx.ui.notify(error instanceof Error ? error.message : String(error), "warning");
+          setExpectedWorkspaceMissing("unavailable");
+        }
+      }
     }
     publishWorkspaceState(ctx);
     publishIntegrationMode(ctx);
+  });
+
+  pi.on("session_before_fork", (_event, ctx) => {
+    if (!workspaceForContext(ctx.cwd, sessionFile(ctx))) return;
+    ctx.ui.notify("A workspace belongs to one conversation. Use the tree for another branch, or return to the origin checkout before forking.", "warning");
+    return { cancel: true };
   });
 
   pi.on("before_agent_start", (event) => {
@@ -321,7 +340,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
     if (pendingWorkspaceId) {
       return {
         block: true,
-        reason: `Workspace transition to ${pendingWorkspaceId} is queued. Wait for the linked continuation session before using more tools.`,
+        reason: `Workspace transition to ${pendingWorkspaceId} is queued. Wait for the cwd switch before using more tools.`,
         terminate: true,
       };
     }
@@ -330,130 +349,93 @@ export default function workspaceExtension(pi: ExtensionAPI) {
   });
 
   pi.registerCommand("pi-workspace-enter", {
-    description: "Internal command that moves the active conversation into a task workspace",
+    description: "Internal command that moves the current session into its task worktree",
     handler: async (args, ctx) => {
-      const id = args.trim();
-      const record = loadWorkspace(id);
-      if (!record || record.kind !== "task") {
+      const record = loadWorkspace(args.trim());
+      if (!record || record.kind !== "task" || !record.retained || isWorkspaceFinalized(record)
+        || record.sourceSessionFile !== sessionFile(ctx)) {
         setPendingWorkspace(undefined);
-        publishWorkspaceState(ctx);
-        throw new Error(`Unknown task workspace: ${id}`);
+        throw new Error(`Task workspace is unavailable: ${args.trim()}`);
       }
-      if (isWorkspaceFinalized(record)) {
-        setPendingWorkspace(undefined);
-        publishWorkspaceState(ctx);
-        throw new Error(
-          `Workspace ${record.id} has a finalized contribution and is retained only for cleanup; it cannot be re-entered.`,
-        );
-      }
-      let workspaceSessionStarted = false;
       try {
         await ctx.waitForIdle();
-        let targetSessionFile = record.targetSessionFile;
-        if (!targetSessionFile || !existsSync(targetSessionFile)) {
-          const source = ctx.sessionManager.getSessionFile();
-          if (!source || !existsSync(source)) {
-            throw new Error("Workspace entry requires a persisted source session.");
-          }
-          const target = SessionManager.forkFrom(source, record.workspaceCwd);
-          targetSessionFile = target.getSessionFile();
-          if (!targetSessionFile) {
-            throw new Error("Could not create the workspace continuation session.");
-          }
-          record.sourceSessionFile = record.sourceSessionFile ?? source;
-          record.targetSessionFile = targetSessionFile;
-          saveWorkspace(record);
-        }
-        const result = await ctx.switchSession(targetSessionFile, {
-          withSession: async (nextCtx) => {
-            workspaceSessionStarted = true;
+        const moved = await moveToLocation(ctx, record.workspaceCwd, ctx.sessionManager.getLeafId(), {
+          markLocation: true,
+          workspaceId: record.id,
+          workspaceLabel: record.label,
+          continueWith: "Continue the task in the new workspace.",
+          onArrival: (nextCtx) => {
             setPendingWorkspace(undefined);
             setExpectedWorkspaceMissing(undefined);
             publishWorkspaceState(nextCtx);
             nextCtx.ui.notify(`Entered workspace ${record.label}.`, "info");
-            await nextCtx.sendMessage(
-              {
-                customType: "workspace-continuation",
-                content: "continue",
-                display: false,
-              },
-              { triggerTurn: true },
-            );
           },
         });
-        if (result.cancelled) {
-          throw new Error("Workspace session switch was cancelled.");
-        }
+        if (!moved) throw new Error("Workspace switch was cancelled.");
       } catch (error) {
         setPendingWorkspace(undefined);
         record.lifecycle = "retained";
         record.integrationReason = error instanceof Error ? error.message : String(error);
         saveWorkspace(record);
-        if (!workspaceSessionStarted) {
-          publishWorkspaceState(ctx);
-        }
         throw error;
       }
     },
   });
 
+  pi.registerCommand("pi-workspace-restore", {
+    description: "Restore the current branch's execution workspace after resuming Pi",
+    handler: async (_args, ctx) => {
+      try {
+        await ctx.waitForIdle();
+        const location = activeLocation(ctx);
+        if (location.cwd !== ctx.cwd) {
+          const moved = await moveToLocation(ctx, location.cwd, ctx.sessionManager.getLeafId(), {
+            saveCursor: false,
+            onArrival: (nextCtx) => publishWorkspaceState(nextCtx),
+          });
+          if (!moved) throw new Error("Workspace restoration was cancelled.");
+        }
+      } finally {
+        setPendingWorkspace(undefined);
+      }
+    },
+  });
+
   pi.registerCommand("pi-workspace-return", {
-    description: "Internal command that returns a completed task conversation to its origin checkout",
+    description: "Internal command that returns this session to its origin checkout",
     handler: async (args, ctx) => {
       const id = args.trim();
-      let returnSessionStarted = false;
       try {
         const record = loadWorkspace(id);
-        if (!record || record.kind !== "task") {
-          throw new Error(`Unknown task workspace: ${id}`);
+        if (!record || record.kind !== "task" || record.sourceSessionFile !== sessionFile(ctx)
+          || (record.lifecycle !== "integration_pending" && record.lifecycle !== "discard_pending")
+          || taskForCurrentContext(ctx)?.id !== id) {
+          throw new Error(`No completed return transition for task workspace: ${id}`);
         }
         await ctx.waitForIdle();
-        const source = ctx.sessionManager.getSessionFile();
-        if (!source || !existsSync(source)) {
-          throw new Error("Workspace return requires a persisted workspace session.");
-        }
-        const continuation = SessionManager.forkFrom(source, record.destinationCwd);
-        const continuationFile = continuation.getSessionFile();
-        if (!continuationFile) {
-          throw new Error("Could not create the origin continuation session.");
-        }
-        record.continuationSessionFile = continuationFile;
-        saveWorkspace(record);
-        const result = await ctx.switchSession(continuationFile, {
-          withSession: async (nextCtx) => {
-            returnSessionStarted = true;
-            const finalLifecycle = record.lifecycle === "discard_pending" ? "discarded" : "integrated";
+        const lifecycle = record.lifecycle === "discard_pending" ? "discarded" : "integrated";
+        const moved = await moveToLocation(ctx, record.destinationCwd, ctx.sessionManager.getLeafId(), {
+          markLocation: true,
+          continueWith: lifecycle === "integrated"
+            ? "Report the integration result, then continue any remaining work in the origin checkout."
+            : "Report that the workspace was discarded and continue only if work remains.",
+          onArrival: (nextCtx) => {
+            const cleaned = removeWorkspace(id, lifecycle);
             setPendingWorkspace(undefined);
-            const cleaned = removeWorkspace(record.id, finalLifecycle);
             publishWorkspaceState(nextCtx);
-            if (cleaned.lifecycle === "cleanup_failed") {
-              nextCtx.ui.notify(
-                `Returned to the origin checkout, but workspace cleanup failed: ${cleaned.integrationReason ?? cleaned.worktreePath}`,
-                "warning",
-              );
-            } else {
-              nextCtx.ui.notify(
-                finalLifecycle === "integrated"
-                  ? `Integrated ${record.label} and returned to the origin checkout.`
-                  : `Discarded ${record.label} and returned to the origin checkout.`,
-                "info",
-              );
-            }
-            notifyPiFinished(nextCtx);
+            nextCtx.ui.notify(cleaned.lifecycle === "cleanup_failed"
+              ? `Returned to the origin checkout, but cleanup failed: ${cleaned.integrationReason ?? cleaned.worktreePath}`
+              : `${lifecycle === "integrated" ? "Integrated" : "Discarded"} ${record.label} and returned to the origin checkout.`,
+              cleaned.lifecycle === "cleanup_failed" ? "warning" : "info");
           },
         });
-        if (result.cancelled) {
-          throw new Error("Return to the origin checkout was cancelled; the workspace was retained.");
-        }
+        if (!moved) throw new Error("Return to the origin checkout was cancelled; the workspace was retained.");
       } catch (error) {
         setPendingWorkspace(undefined);
         const retained = loadWorkspace(id);
         if (retained) {
           retained.integrationReason = error instanceof Error ? error.message : String(error);
           saveWorkspace(retained);
-        }
-        if (!returnSessionStarted) {
-          publishWorkspaceState(ctx);
         }
         throw error;
       }
@@ -533,15 +515,15 @@ export default function workspaceExtension(pi: ExtensionAPI) {
     description: "Create/reuse a task worktree, optionally copying named ignored files on entry, inspect workspace state, integrate or discard. Status includes full workspace paths.",
     promptSnippet: "Manage the current task's isolated Git worktree and integration lifecycle.",
     promptGuidelines: [
-      "Call workspace with action=enter as the only tool call in that assistant response before making implementation changes with edit or write, unless the current session is already in an associated workspace. To edit existing ignored files, provide their paths relative to the original cwd in ignoredFiles on the first enter call; only those files are copied and later integrated. Wait for the linked continuation session before using more tools.",
+      "Call workspace with action=enter as the only tool call in that assistant response before making implementation changes with edit or write, unless the current session is already in an associated workspace. To edit existing ignored files, provide their paths relative to the original cwd in ignoredFiles on the first enter call; only those files are copied and later integrated. Wait for the cwd switch before using more tools.",
       "Temporary probes, scripts, and generated artifacts may be created under $TMPDIR without entering a workspace; keep them outside the repository and remove them when finished.",
       "Call workspace with action=status when the expected workspace is missing or its lifecycle is unclear.",
       "Top-level workspace integration follows the active integration mode: ask requests confirmation and allowed is pre-authorized.",
-      "Call workspace with action=integrate or action=discard as the only tool call in that assistant response when the action will leave the active workspace. Wait for the linked continuation session before using more tools.",
+      "Call workspace with action=integrate or action=discard as the only tool call in that assistant response when the action will leave the active workspace. Wait for the cwd switch before using more tools.",
     ],
     parameters: Type.Object({
       action: StringEnum(WORKSPACE_ACTIONS, { description: "Workspace lifecycle action." }),
-      id: Type.Optional(Type.String({ description: "Workspace id for enter, status, integration, or discard; defaults to the linked or active workspace." })),
+      id: Type.Optional(Type.String({ description: "Workspace id for enter, status, integration, or discard; enter creates a new task workspace unless an id is specified." })),
       ignoredFiles: Type.Optional(Type.Array(Type.String(), { description: "Existing ignored file paths relative to the original cwd, copied into a new task worktree on enter and copied back on integration." })),
       approved: Type.Optional(Type.Boolean({ description: "Required for destructive operations when no interactive UI is available." })),
     }),
@@ -566,6 +548,8 @@ export default function workspaceExtension(pi: ExtensionAPI) {
       }
       if (action === "enter") {
         const active = taskForCurrentContext(ctx);
+        const unrelated = workspaceForContext(ctx.cwd, sessionFile(ctx));
+        if (unrelated && !active) throw new Error(`This worktree belongs to a different conversation: ${unrelated.id}`);
         if (active && existsSync(active.worktreePath)) {
           checkRequestedIgnoredFiles(active, params.ignoredFiles);
           if (isWorkspaceFinalized(active)) {
@@ -580,13 +564,12 @@ export default function workspaceExtension(pi: ExtensionAPI) {
           };
         }
         const source = sessionFile(ctx);
-        let record = params.id ? loadWorkspace(params.id) : linkedTaskForSession(source);
-        if (!params.id && record && isWorkspaceFinalized(record)) {
-          record = undefined;
-        }
+        if (!source) throw new Error("Task workspaces require a persisted Pi session.");
+        let record = params.id ? loadWorkspace(params.id) : undefined;
         if (record && record.kind !== "task") {
           throw new Error(`Workspace ${record.id} is a child workspace; resume it through spawn_control.`);
         }
+        if (record?.sourceSessionFile !== source) throw new Error(`Workspace ${record?.id} belongs to a different conversation.`);
         if (record) checkRequestedIgnoredFiles(record, params.ignoredFiles);
         if (record && isWorkspaceFinalized(record)) {
           throw new Error(
@@ -613,7 +596,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
         return {
           content: [{
             type: "text",
-            text: `Workspace ${record.label} is ready. Transition to ${record.workspaceCwd} is queued; wait for the linked continuation before using repository tools.`,
+            text: `Workspace ${record.label} is ready. Cwd switch to ${record.workspaceCwd} is queued; wait before using repository tools.`,
           }],
           details: record,
           terminate: true,
@@ -629,8 +612,11 @@ export default function workspaceExtension(pi: ExtensionAPI) {
           throw new Error("Top-level workspace integration only applies to task workspaces; child workspaces integrate through spawn_control.");
         }
         const active = taskForCurrentContext(ctx);
+        if (retainedChildWorkspaces(selected.id).length) {
+          throw new Error(`Join or discard child workspaces before integrating ${selected.id}.`);
+        }
         if (!active || active.id !== selected.id) {
-          throw new Error(`Enter task workspace ${selected.id} before integrating it so the linked conversation can return safely.`);
+          throw new Error(`Enter task workspace ${selected.id} before integrating it.`);
         }
         const integrationMode = getIntegrationMode();
         let decision = integrationMode === "allowed" || params.approved === true
@@ -673,13 +659,16 @@ export default function workspaceExtension(pi: ExtensionAPI) {
         return {
           content: [{
             type: "text",
-            text: `Applied the task contribution to ${integrated.destinationRoot}. The return transition is queued; wait for the origin continuation before using more tools.`,
+            text: `Applied the task contribution to ${integrated.destinationRoot}. The return cwd switch is queued; wait before using more tools.`,
           }],
           details: integrated,
           terminate: true,
         };
       }
 
+      if (selected.kind === "task" && retainedChildWorkspaces(selected.id).length) {
+        throw new Error(`Join or discard child workspaces before discarding ${selected.id}.`);
+      }
       const prepared = prepareWorkspaceDiscard(selected.id);
       const changed = prepared.changedFiles.length > 0 ? prepared.changedFiles.join("\n") : "(no changed files)";
       const included = prepared.includedIgnoredFiles?.length
@@ -706,7 +695,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
         return {
           content: [{
             type: "text",
-            text: "Discard approved. The return transition is queued; wait for the origin continuation before using more tools.",
+            text: "Discard approved. The return cwd switch is queued; wait before using more tools.",
           }],
           details: prepared,
           terminate: true,

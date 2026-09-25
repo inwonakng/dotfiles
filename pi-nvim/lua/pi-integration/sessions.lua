@@ -27,7 +27,6 @@ local function empty_picker_cache()
 	return {
 		version = PICKER_CACHE_VERSION,
 		candidates = {},
-		relations = {},
 	}
 end
 
@@ -41,11 +40,10 @@ local function load_picker_cache()
 		type(decoded) ~= "table"
 		or decoded.version ~= PICKER_CACHE_VERSION
 		or type(decoded.candidates) ~= "table"
-		or type(decoded.relations) ~= "table"
 	then
 		picker_cache = empty_picker_cache()
 	else
-		picker_cache = decoded
+		picker_cache = { version = PICKER_CACHE_VERSION, candidates = decoded.candidates }
 	end
 	return picker_cache
 end
@@ -255,156 +253,6 @@ local function workspace_records()
 	return records
 end
 
-local function read_session_history(path)
-	local ok, lines = pcall(vim.fn.readfile, path)
-	if not ok then
-		return nil
-	end
-	local header = decode_record(lines[1] or "")
-	if not header or header.type ~= "session" or type(header.id) ~= "string" then
-		return nil
-	end
-	local entries = {}
-	for index = 2, #lines do
-		if vim.trim(lines[index]) ~= "" then
-			local entry = decode_record(lines[index])
-			if not entry or type(entry.id) ~= "string" or entries[entry.id] then
-				return nil
-			end
-			-- Renaming an old session does not create independent conversation history.
-			if entry.type ~= "session_info" then
-				entries[entry.id] = entry
-			end
-		end
-	end
-	return { parent = canonical_session_path(header.parentSession), entries = entries }
-end
-
-local function has_new_activity(previous, successor)
-	for id, entry in pairs(successor.entries) do
-		if not previous.entries[id] then
-			if entry.type == "custom_message" and entry.customType == "workspace-continuation" then
-				return true
-			end
-			local message = entry.type == "message" and entry.message
-			if type(message) == "table" and (message.role == "user" or message.role == "assistant") then
-				return true
-			end
-		end
-	end
-	return false
-end
-
-local function workspace_conversations(session_candidates)
-	local by_path, groups_by_path = {}, {}
-	for _, candidate in ipairs(session_candidates) do
-		local key = canonical_session_path(regular_session_path(candidate.path))
-		local group = groups_by_path[key]
-		if not group then
-			group = { members = {} }
-			groups_by_path[key] = group
-		end
-		table.insert(group.members, candidate)
-		by_path[key] = by_path[key] or candidate
-	end
-	local histories, hidden = {}, {}
-	local function history(path)
-		if histories[path] == nil then
-			histories[path] = read_session_history(path) or false
-		end
-		return histories[path]
-	end
-	local function supersede(source, target, returned)
-		source, target = canonical_session_path(source), canonical_session_path(target)
-		if not source or not target or source == target or not by_path[source] or not by_path[target] then
-			return
-		end
-
-		local source_file, target_file = by_path[source].path, by_path[target].path
-		local source_fingerprint = file_fingerprint(source_file)
-		local target_fingerprint = file_fingerprint(target_file)
-		local relation_key = vim.fn.sha256(table.concat({
-			source_file,
-			target_file,
-			returned and "returned" or "entered",
-		}, "\n"))
-		local cache = load_picker_cache()
-		local cached = cache.relations[relation_key]
-		local superseded
-		if
-			cached
-			and same_fingerprint(cached.source, source_fingerprint)
-			and same_fingerprint(cached.target, target_fingerprint)
-		then
-			superseded = cached.superseded
-		else
-			superseded = false
-			local previous, successor = history(source_file), history(target_file)
-			if previous and successor and successor.parent == source then
-				-- A fork made before switching is not a continuation until it has new activity.
-				superseded = returned or has_new_activity(previous, successor)
-				if superseded then
-					for id, entry in pairs(previous.entries) do
-						if not vim.deep_equal(entry, successor.entries[id]) then
-							superseded = false
-							break
-						end
-					end
-				end
-			end
-			if source_fingerprint and target_fingerprint then
-				cache.relations[relation_key] = {
-					source = source_fingerprint,
-					target = target_fingerprint,
-					superseded = superseded,
-				}
-				picker_cache_dirty = true
-			end
-		end
-		if superseded then
-			hidden[source] = true
-			local from, to = groups_by_path[source], groups_by_path[target]
-			if from ~= to then
-				for _, member in ipairs(from.members) do
-					table.insert(to.members, member)
-					groups_by_path[canonical_session_path(regular_session_path(member.path))] = to
-				end
-			end
-		end
-	end
-
-	for _, record in ipairs(workspace_records()) do
-		if record.kind == "task" then
-			supersede(record.sourceSessionFile, record.targetSessionFile, false)
-			-- Task integration finishes after switching back. Discard/cleanup can also happen
-			-- from another session, so those states require activity in the continuation.
-			if record.lifecycle == "integrated" or record.lifecycle == "discarded" or record.lifecycle == "cleanup_failed" then
-				supersede(record.targetSessionFile, record.continuationSessionFile, record.lifecycle == "integrated")
-			end
-		end
-	end
-
-	local result, seen = {}, {}
-	for _, candidate in ipairs(session_candidates) do
-		local group = groups_by_path[canonical_session_path(regular_session_path(candidate.path))]
-		if not seen[group] then
-			seen[group] = true
-			for _, member in ipairs(group.members) do
-				local key = canonical_session_path(regular_session_path(member.path))
-				if not hidden[key] and (not group.head or member.mtime > group.head.mtime) then
-					group.head = member
-				end
-			end
-			group.head = group.head or group.members[1]
-			table.insert(result, group)
-		end
-	end
-	table.sort(result, function(a, b)
-		return a.head.mtime > b.head.mtime
-	end)
-	return result
-end
-
 local function session_dirs(ctx)
 	local dirs = {}
 	local seen_dirs = {}
@@ -460,7 +308,13 @@ local function all_conversations(ctx)
 			table.insert(all, cached_candidate(path))
 		end
 	end
-	local groups = workspace_conversations(all)
+	local groups = {}
+	for _, candidate in ipairs(all) do
+		table.insert(groups, { head = candidate, members = { candidate } })
+	end
+	table.sort(groups, function(a, b)
+		return a.head.mtime > b.head.mtime
+	end)
 	save_picker_cache()
 	return groups
 end
@@ -548,8 +402,9 @@ local function protected_session_paths(ctx)
 	for _, record in ipairs(workspace_records()) do
 		if record.retained == true then
 			add(record.sourceSessionFile)
-			add(record.targetSessionFile)
-			add(record.continuationSessionFile)
+			if record.kind == "child" then
+				add(record.targetSessionFile)
+			end
 		end
 	end
 	return protected

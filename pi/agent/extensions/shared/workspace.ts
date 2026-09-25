@@ -51,7 +51,6 @@ export type WorkspaceRecord = {
   resultRef?: string;
   sourceSessionFile?: string;
   targetSessionFile?: string;
-  continuationSessionFile?: string;
   parentWorkspaceId?: string;
   runId?: string;
   integration: WorkspaceIntegration;
@@ -434,7 +433,7 @@ export function isWorkspaceFinalized(record: WorkspaceRecord): boolean {
   return record.integration === "applied" || record.integration === "none";
 }
 
-export function workspaceForContext(cwd: string, sessionFile?: string): WorkspaceRecord | undefined {
+export function workspaceForContext(cwd: string, _sessionFile?: string): WorkspaceRecord | undefined {
   const resolvedCwd = canonicalPath(cwd);
   const envId = process.env.PI_WORKSPACE_ID;
   if (envId) {
@@ -447,24 +446,21 @@ export function workspaceForContext(cwd: string, sessionFile?: string): Workspac
     if (!record.retained) {
       return false;
     }
-    return pathInside(record.worktreePath, resolvedCwd) || (!!sessionFile && record.targetSessionFile === sessionFile);
+    return pathInside(record.worktreePath, resolvedCwd);
   });
   return candidates.sort((left, right) => right.worktreePath.length - left.worktreePath.length)[0];
 }
 
-export function linkedTaskForSession(sessionFile: string | undefined): WorkspaceRecord | undefined {
-  if (!sessionFile) {
-    return undefined;
-  }
-  return listWorkspaces().find((record) =>
-    record.kind === "task"
-    && record.retained
-    && (
-      record.sourceSessionFile === sessionFile
-      || record.targetSessionFile === sessionFile
-      || record.continuationSessionFile === sessionFile
-    ),
+export function retainedChildWorkspaces(parentId: string): WorkspaceRecord[] {
+  return listWorkspaces().filter((record) =>
+    record.kind === "child" && record.retained && record.parentWorkspaceId === parentId,
   );
+}
+
+export function taskWorkspacesForSession(sessionFile: string | undefined): WorkspaceRecord[] {
+  return sessionFile ? listWorkspaces().filter((record) =>
+    record.kind === "task" && record.retained && record.sourceSessionFile === sessionFile,
+  ) : [];
 }
 
 export function setPendingWorkspace(id: string | undefined): void {
@@ -832,8 +828,8 @@ export function formatWorkspaceRecord(record: WorkspaceRecord): string {
     `- result patch: ${record.resultPatchPath}`,
     `- application patch: ${record.applicationPatchPath}`,
   ];
-  if (record.targetSessionFile) lines.push(`- session: ${record.targetSessionFile}`);
-  if (record.continuationSessionFile) lines.push(`- continuation: ${record.continuationSessionFile}`);
+  if (record.sourceSessionFile) lines.push(`- owner session: ${record.sourceSessionFile}`);
+  if (record.targetSessionFile) lines.push(`- child session: ${record.targetSessionFile}`);
   if (record.changedFiles.length > 0) lines.push(`- changed files: ${record.changedFiles.join(", ")}`);
   if (record.includedIgnoredFiles?.length) {
     lines.push(`- included ignored files (outside Git patch): ${record.includedIgnoredFiles.map((file) => file.path).join(", ")}`);

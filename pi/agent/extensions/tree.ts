@@ -1,5 +1,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { locationForEntry, moveToLocation } from "./shared/workspace-navigation";
+import { hasRunningSubagents } from "./spawn";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -176,22 +178,28 @@ export default function treeExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			const result = await ctx.navigateTree(entryId, { summarize });
-			if (result.cancelled) {
+			const targetPosition = (entry.type === "message" && entry.message.role === "user")
+				|| entry.type === "custom_message" ? entry.parentId : entry.id;
+			const location = locationForEntry(ctx, targetPosition);
+			if (summarize && location.cwd !== ctx.cwd) {
+				ctx.ui.notify("Cross-workspace branch summaries are not supported; jump without summary instead.", "warning");
 				return;
 			}
-
-			const leafId = ctx.sessionManager.getLeafId();
-			const editorText = editorTextForTreeEntry(entry);
-			if (editorText !== undefined) {
-				ctx.ui.setEditorText(editorText);
+			if (summarize) {
+				const result = await ctx.navigateTree(entryId, { summarize: true });
+				if (result.cancelled) return;
 			}
-			ctx.ui.setStatus("pi-tree-leaf", leafId ?? "");
-			ctx.ui.setStatus("pi-history-changed", new Date().toISOString());
-			ctx.ui.notify(
-				`Tree: moved to ${leafId ?? "root"}${summarize ? " with summary" : ""}.`,
-				"info",
-			);
+			const moved = await moveToLocation(ctx, location.cwd, ctx.sessionManager.getLeafId(), {
+				navigateTo: summarize ? undefined : entryId,
+				onArrival: (nextCtx) => {
+				const editorText = editorTextForTreeEntry(entry);
+				if (editorText !== undefined) nextCtx.ui.setEditorText(editorText);
+				nextCtx.ui.setStatus("pi-tree-leaf", nextCtx.sessionManager.getLeafId() ?? "");
+				nextCtx.ui.setStatus("pi-history-changed", new Date().toISOString());
+				nextCtx.ui.notify(`Tree: moved to ${entryId}${summarize ? " with summary" : ""}.`, "info");
+			},
+			});
+			if (!moved) ctx.ui.notify("Tree navigation was cancelled.", "warning");
 		},
 	});
 
@@ -203,8 +211,8 @@ export default function treeExtension(pi: ExtensionAPI) {
 				ctx.ui.notify("Usage: /pi-tree-delete <entry-id> [--yes]", "error");
 				return;
 			}
-			if (!ctx.isIdle()) {
-				ctx.ui.notify("Wait for the current Pi run to finish before deleting session history.", "warning");
+			if (!ctx.isIdle() || hasRunningSubagents()) {
+				ctx.ui.notify("Wait for Pi and its subagents to finish before deleting session history.", "warning");
 				return;
 			}
 
@@ -232,6 +240,9 @@ export default function treeExtension(pi: ExtensionAPI) {
 			}
 
 			const currentLeafId = ctx.sessionManager.getLeafId();
+			const removedIds = collectDeletedIds(records, entryId);
+			const expectedLeaf = currentLeafId && !removedIds.has(currentLeafId) ? currentLeafId : parentId(target) ?? null;
+			const location = locationForEntry(ctx, expectedLeaf);
 			let result: ReturnType<typeof rewriteSessionWithoutSubtree>;
 			try {
 				result = rewriteSessionWithoutSubtree(sessionFile, entryId, currentLeafId);
@@ -241,13 +252,14 @@ export default function treeExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			const switchResult = await ctx.switchSession(sessionFile, {
-				withSession: async (nextCtx) => {
-					nextCtx.ui.setStatus("pi-tree-leaf", result.desiredLeafId ?? "");
+			const switched = await moveToLocation(ctx, location.cwd, result.desiredLeafId, {
+				reload: true,
+				onArrival: (nextCtx) => {
+					nextCtx.ui.setStatus("pi-tree-leaf", nextCtx.sessionManager.getLeafId() ?? "");
 					nextCtx.ui.setStatus("pi-history-changed", new Date().toISOString());
 				},
 			});
-			if (switchResult.cancelled) {
+			if (!switched) {
 				ctx.ui.notify(
 					`Deleted entries, but session reload was cancelled. Restart or resume ${sessionFile} to pick up the change.`,
 					"warning",

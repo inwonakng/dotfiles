@@ -25,7 +25,8 @@
         },
         "compat": {
           "supportsOpenAIGrammarTools": true
-        }
+        },
+        "type": "chat"
       },
       {
         "id": "gpt-5.5",
@@ -73,7 +74,8 @@
               "jpegQuality": 80
             }
           }
-        }
+        },
+        "type": "chat"
       },
       {
         "id": "gpt-5.6-luna",
@@ -123,7 +125,8 @@
               "jpegQuality": 80
             }
           }
-        }
+        },
+        "type": "chat"
       },
       {
         "id": "gpt-5.6-sol",
@@ -173,7 +176,8 @@
               "jpegQuality": 80
             }
           }
-        }
+        },
+        "type": "chat"
       },
       {
         "id": "gpt-5.6-terra",
@@ -223,7 +227,8 @@
               "jpegQuality": 80
             }
           }
-        }
+        },
+        "type": "chat"
       },
       {
         "id": "gpt-6-astra",
@@ -277,7 +282,8 @@
               "jpegQuality": 80
             }
           }
-        }
+        },
+        "type": "chat"
       },
       {
         "id": "gpt-6-luna",
@@ -331,7 +337,8 @@
               "jpegQuality": 80
             }
           }
-        }
+        },
+        "type": "chat"
       },
       {
         "id": "gpt-6-sol",
@@ -385,12 +392,13 @@
               "jpegQuality": 80
             }
           }
-        }
+        },
+        "type": "chat"
       }
     ],
-    "checkedAt": 1790212740966,
-    "lastModified": 1790105581000,
-    "etag": "W/\"8cccd87cd4980e40933b6ce647c3a69e\""
+    "checkedAt": 1790294271682,
+    "lastModified": 1790253647000,
+    "etag": "W/\"33d4f9db141f788989850e1ac9cf899e\""
   },
   "google": {
     "models": [

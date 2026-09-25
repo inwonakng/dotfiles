@@ -849,12 +849,19 @@ function restoreRuns(parentSessionFile: string | undefined): SpawnRun[] {
   return runs;
 }
 
+let activeRuns: Map<string, SpawnRun> | undefined;
+
+export function hasRunningSubagents(): boolean {
+  return Array.from(activeRuns?.values() ?? []).some((run) => run.status === "running");
+}
+
 export default function spawnExtension(pi: ExtensionAPI) {
   if (process.env.PI_SPAWN_AGENT === "1") {
     return;
   }
 
   const runs = new Map<string, SpawnRun>();
+  activeRuns = runs;
   let lastContext: { ui?: { notify(message: string, type?: "info" | "warning" | "error"): void; setStatus(key: string, text: string | undefined): void } } | undefined;
 
   const spawnStatusPayload = () => {
@@ -1353,6 +1360,9 @@ export default function spawnExtension(pi: ExtensionAPI) {
         const parentWorkspace = workspaceForContext(ctx.cwd, ctx.sessionManager.getSessionFile());
         if (!parentWorkspace) {
           throw new Error("Isolated writing subagents require an active parent task workspace. Call workspace with action=enter first.");
+        }
+        if (parentWorkspace.kind === "task" && parentWorkspace.sourceSessionFile !== ctx.sessionManager.getSessionFile()) {
+          throw new Error(`Workspace ${parentWorkspace.id} belongs to another conversation; do not spawn writers from a fork of its session.`);
         }
         if (isWorkspaceFinalized(parentWorkspace)) {
           throw new Error(

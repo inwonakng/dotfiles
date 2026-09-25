@@ -33,6 +33,9 @@ local function record_text(ctx, record)
 		return record.thinkingLevel or "thinking level changed"
 	elseif record.type == "label" then
 		return record.label or "label cleared"
+	elseif record.type == "custom" and record.customType == "pi-workspace-location" then
+		local data = type(record.data) == "table" and record.data or {}
+		return (data.label or data.workspaceId or "Origin checkout") .. (data.cwd and " · " .. data.cwd or "")
 	end
 	return ""
 end
@@ -60,6 +63,8 @@ local function record_title(record)
 		return "Thinking"
 	elseif record.type == "label" then
 		return "Label"
+	elseif record.type == "custom" and record.customType == "pi-workspace-location" then
+		return "→ Workspace"
 	end
 	return record.type or "entry"
 end
@@ -89,6 +94,9 @@ end
 
 local function record_visible(ctx, record, mode)
 	mode = mode or ctx.state.tree_filter_mode or "default"
+	if record.type == "custom" then
+		return record.customType == "pi-workspace-location" and mode ~= "user-only"
+	end
 	if not ctx.config.tree_entry_types[record.type] then
 		return false
 	end
