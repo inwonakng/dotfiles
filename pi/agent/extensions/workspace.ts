@@ -569,7 +569,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
         if (record && record.kind !== "task") {
           throw new Error(`Workspace ${record.id} is a child workspace; resume it through spawn_control.`);
         }
-        if (record?.sourceSessionFile !== source) throw new Error(`Workspace ${record?.id} belongs to a different conversation.`);
+        if (record && record.sourceSessionFile !== source) throw new Error(`Workspace ${record.id} belongs to a different conversation.`);
         if (record) checkRequestedIgnoredFiles(record, params.ignoredFiles);
         if (record && isWorkspaceFinalized(record)) {
           throw new Error(

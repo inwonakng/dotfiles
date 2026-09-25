@@ -1,126 +1,41 @@
 local floats = require("pi-integration.floats")
 local guard = require("pi-integration.utils.guard")
 local json = require("pi-integration.utils.json")
+local tree_model = require("pi-integration.tree-model")
 
 local M = {}
 
 local tree_preview_augroup = vim.api.nvim_create_augroup("PiNvimTreePreview", { clear = true })
-local tree_sender_ns = vim.api.nvim_create_namespace("pi-nvim-tree-senders")
+local tree_highlight_ns = vim.api.nvim_create_namespace("pi-nvim-tree-highlights")
+local workspace_highlight_count = 14
 
 local function decode_record(line)
 	return json.decode_object(line)
 end
 
-local function record_text(ctx, record)
-	if record.type == "message" and record.message then
-		if record.message.role == "bashExecution" then
-			return record.message.command or record.message.output or "bash execution"
-		end
-		return ctx.messages.extract_text(record.message) or ""
-	elseif record.type == "branch_summary" then
-		return record.summary or "branch summary"
-	elseif record.type == "compaction" then
-		return record.summary or "compaction summary"
-	elseif record.type == "bashExecution" then
-		return record.command or record.output or "bash execution"
-	elseif record.type == "custom_message" then
-		return ctx.messages.extract_text(record) or record.content or "custom message"
-	elseif record.type == "model_change" then
-		return table.concat(vim.tbl_filter(function(part)
-			return part and part ~= ""
-		end, { record.provider, record.modelId }), "/")
-	elseif record.type == "thinking_level_change" then
-		return record.thinkingLevel or "thinking level changed"
-	elseif record.type == "label" then
-		return record.label or "label cleared"
-	elseif record.type == "custom" and record.customType == "pi-workspace-location" then
-		local data = type(record.data) == "table" and record.data or {}
-		return (data.label or data.workspaceId or "Origin checkout") .. (data.cwd and " · " .. data.cwd or "")
-	end
-	return ""
+local function node_text(ctx, node)
+	return tree_model.node_text(node, ctx.messages.extract_text)
 end
 
-local function record_title(record)
-	if record.type == "message" and record.message then
-		local role = record.message.role or "message"
-		if role == "bashExecution" then
-			return "Bash"
-		elseif role == "toolResult" then
-			return "Tool"
-		end
-		return role:gsub("^%l", string.upper)
-	elseif record.type == "branch_summary" then
-		return "Branch summary"
-	elseif record.type == "compaction" then
-		return "Compaction"
-	elseif record.type == "bashExecution" then
-		return "Bash"
-	elseif record.type == "custom_message" then
-		return "Custom"
-	elseif record.type == "model_change" then
-		return "Model"
-	elseif record.type == "thinking_level_change" then
-		return "Thinking"
-	elseif record.type == "label" then
-		return "Label"
-	elseif record.type == "custom" and record.customType == "pi-workspace-location" then
-		return "→ Workspace"
-	end
-	return record.type or "entry"
+local function node_title(node)
+	return tree_model.node_title(node)
 end
 
-local function message_has_visible_text(ctx, message)
-	return vim.trim(ctx.messages.extract_text(message) or "") ~= ""
-end
-
-local function is_tool_record(ctx, record)
-	if record.type == "bashExecution" then
-		return true
-	end
-	if record.type ~= "message" or not record.message then
+local function node_visible(ctx, node)
+	if not tree_model.node_visible(node, ctx.state.tree_filter_mode) then
 		return false
 	end
-	local role = record.message.role
-	if role == "toolResult" or role == "bashExecution" then
+	if node.kind == "location" then
 		return true
 	end
-	-- Assistant messages that only contain tool calls/thinking have no user-facing
-	-- text and clutter the navigation tree. Keep them available in "all" mode.
-	if role == "assistant" and not message_has_visible_text(ctx, record.message) then
+	local configured = ctx.config.tree_entry_types
+	if not configured then
 		return true
 	end
-	return false
-end
-
-local function record_visible(ctx, record, mode)
-	mode = mode or ctx.state.tree_filter_mode or "default"
-	if record.type == "custom" then
-		return record.customType == "pi-workspace-location" and mode ~= "user-only"
+	if node.kind == "user" or node.kind == "assistant" then
+		return configured.message == true
 	end
-	if not ctx.config.tree_entry_types[record.type] then
-		return false
-	end
-	if mode == "all" then
-		return true
-	end
-	-- Workspace handoff records and empty system updates are not shown in the transcript.
-	if record.type == "custom_message" and record.customType == "workspace-continuation" then
-		return false
-	end
-	if record.type == "message" and record.message and record.message.role == "system"
-		and not message_has_visible_text(ctx, record.message) then
-		return false
-	end
-	if mode == "user-only" then
-		return record.type == "message" and record.message and record.message.role == "user"
-	end
-	if mode == "no-tools" or mode == "default" then
-		if not vim.tbl_contains({ "message", "branch_summary", "compaction", "custom_message" }, record.type) then
-			return false
-		end
-		return not is_tool_record(ctx, record)
-	end
-	return not is_tool_record(ctx, record)
+	return configured[node.record.type] == true
 end
 
 local function cycle_filter_mode(ctx)
@@ -177,93 +92,71 @@ local function compact_text(text, max_width)
 	return truncate_display(text, max_width or 96)
 end
 
-local function visible_parent(record, visible_by_id, by_id)
-	local parent_id = record.parentId
-	local seen = {}
-	while parent_id and by_id[parent_id] and not seen[parent_id] do
-		if visible_by_id[parent_id] then
-			return parent_id
-		end
-		seen[parent_id] = true
-		parent_id = by_id[parent_id].parentId
-	end
-	return nil
-end
-
-local function nearest_visible_id(id, visible_by_id, by_id)
-	local seen = {}
-	while id and by_id[id] and not seen[id] do
-		if visible_by_id[id] then
-			return id
-		end
-		seen[id] = true
-		id = by_id[id].parentId
-	end
-	return nil
-end
-
 local function read_session_tree(ctx, path)
-	local records = {}
-	local by_id = {}
-	local visible_by_id = {}
-	local last_id = nil
 	if not path or vim.fn.filereadable(path) ~= 1 then
 		return {}, nil
 	end
-
+	local records = {}
 	for _, line in ipairs(vim.fn.readfile(path)) do
 		local record = decode_record(line)
-		if record and record.id then
-			by_id[record.id] = record
-			last_id = record.id
-			if record_visible(ctx, record, ctx.state.tree_filter_mode) then
-				table.insert(records, record)
-				visible_by_id[record.id] = true
-			end
+		if record then
+			table.insert(records, record)
+		end
+	end
+	local model = tree_model.build(records)
+	local visible = {}
+	local visible_by_node = {}
+	for _, node in ipairs(model.nodes) do
+		if node_visible(ctx, node) then
+			local view = {
+				kind = node.kind,
+				record = node.record,
+				records = node.records,
+				start_id = node.start_id,
+				target_id = node.target_id,
+				workspace = node.workspace,
+				transition = node.transition,
+				model_node = node,
+				children = {},
+			}
+			visible_by_node[node] = view
+			table.insert(visible, view)
 		end
 	end
 
-	local nodes_by_id = {}
 	local roots = {}
-	for _, record in ipairs(records) do
-		nodes_by_id[record.id] = {
-			record = record,
-			children = {},
-		}
-	end
-	for _, record in ipairs(records) do
-		local node = nodes_by_id[record.id]
-		local parent_id = visible_parent(record, visible_by_id, by_id)
-		if parent_id and nodes_by_id[parent_id] then
-			table.insert(nodes_by_id[parent_id].children, node)
+	for _, node in ipairs(visible) do
+		local parent = node.model_node.parent
+		while parent and not visible_by_node[parent] do
+			parent = parent.parent
+		end
+		local parent_view = parent and visible_by_node[parent] or nil
+		if parent_view then
+			node.parent = parent_view
+			table.insert(parent_view.children, node)
 		else
 			table.insert(roots, node)
 		end
 	end
 
-	local leaf_id
-	if ctx.state.tree_leaf_id ~= nil then
-		leaf_id = nearest_visible_id(ctx.state.tree_leaf_id, visible_by_id, by_id)
-	else
-		leaf_id = nearest_visible_id(last_id, visible_by_id, by_id)
+	local requested_leaf = ctx.state.tree_leaf_id
+	if requested_leaf == nil then
+		requested_leaf = model.last_id
 	end
-	return roots, leaf_id
+	local leaf_node = tree_model.node_for_record(model, requested_leaf)
+	while leaf_node and not visible_by_node[leaf_node] do
+		leaf_node = leaf_node.parent
+	end
+	local leaf_view = leaf_node and visible_by_node[leaf_node] or nil
+	return roots, leaf_view and leaf_view.target_id or nil
 end
 
-local function record_title_highlight(record)
-	if record.type == "message" and record.message then
-		local role = record.message.role
-		if role == "user" then
-			return "PiTreeUser"
-		elseif role == "assistant" then
-			return "PiTreeAssistant"
-		elseif role == "toolResult" or role == "bashExecution" then
-			return "PiTreeTool"
-		end
-		return "PiTreeMeta"
-	elseif record.type == "bashExecution" then
-		return "PiTreeTool"
-	elseif record.type == "custom_message" then
+local function node_title_highlight(node)
+	if node.kind == "user" then
+		return "PiTreeUser"
+	elseif node.kind == "assistant" then
+		return "PiTreeAssistant"
+	elseif node.kind == "custom" then
 		return "PiTreeCustom"
 	end
 	return "PiTreeMeta"
@@ -278,32 +171,102 @@ local function tree_window_width(ctx)
 	if win_valid(state.tree_win) then
 		return vim.api.nvim_win_get_width(state.tree_win)
 	end
-	return state.tree_width or math.min(math.max(72, math.floor(vim.o.columns * 0.72)), vim.o.columns - 4)
+	return state.tree_width or math.min(math.max(72, math.floor(vim.o.columns * 0.82)), vim.o.columns - 4)
 end
 
-local function render_node_line(ctx, node, leaf_id, lines, line_nodes, sender_highlights, line_prefix)
-	local record = node.record
-	local current = record.id == leaf_id
+local function workspace_hash(workspace)
+	local label = type(workspace) == "table" and workspace.label or nil
+	return type(label) == "string" and label:match("([%x]+)$") or nil
+end
+
+local function workspace_color_seed(workspace)
+	local id = type(workspace.id) == "string" and workspace.id or tostring(workspace.label or "")
+	local suffix = id:match("([%x]+)$")
+	local numeric = suffix and tonumber(suffix:sub(-8), 16) or nil
+	if numeric then
+		return numeric
+	end
+	local seed = 0
+	for index = 1, #id do
+		seed = (seed * 31 + id:byte(index)) % 2147483647
+	end
+	return seed
+end
+
+local function workspace_highlight(ctx, workspace)
+	local id = type(workspace.id) == "string" and workspace.id or workspace.label
+	if type(id) ~= "string" or id == "" then
+		return nil
+	end
+
+	local state = ctx.state
+	local assigned = state.tree_workspace_highlights
+	local occupied = state.tree_workspace_highlight_slots
+	if assigned[id] then
+		return assigned[id]
+	end
+
+	local first = (workspace_color_seed(workspace) % workspace_highlight_count) + 1
+	for offset = 0, workspace_highlight_count - 1 do
+		local slot = ((first + offset - 1) % workspace_highlight_count) + 1
+		if not occupied[slot] then
+			local group = "PiTreeWorkspace" .. slot
+			occupied[slot] = id
+			assigned[id] = group
+			return group
+		end
+	end
+
+	return "PiTreeWorkspace" .. first
+end
+
+local function render_node_line(ctx, node, leaf_id, lines, line_nodes, highlights_by_line, line_prefix)
+	local current = node.target_id == leaf_id
 	local marker = current and "●" or "○"
-	local title = record_title(record)
-	local label_prefix = string.format("%s%s %s  ", line_prefix, marker, record.id)
-	local heading = label_prefix .. title .. ": "
+	local title = node_title(node)
+	local workspace = ""
+	local workspace_data
+	if node.kind ~= "location" and node.transition then
+		workspace_data = node.transition
+		workspace = " [→ " .. node.transition.label .. "]"
+	elseif node.workspace then
+		workspace_data = node.workspace
+		workspace = " [" .. node.workspace.label .. "]"
+	end
+	local label_prefix = string.format("%s%s %s  ", line_prefix, marker, node.target_id)
+	local heading = label_prefix .. title .. workspace .. ": "
 	local suffix = current and "  ← current" or ""
 	local max_width = math.max(1, tree_window_width(ctx) - 1)
 	local text_width = max_width - display_width(heading) - display_width(suffix)
-	local label = heading .. compact_text(record_text(ctx, record), text_width) .. suffix
+	local label = heading .. compact_text(node_text(ctx, node), text_width) .. suffix
 	label = truncate_display(label, max_width)
 	table.insert(lines, label)
 	line_nodes[#lines] = node
-	sender_highlights[#lines] = {
-		start_col = #label_prefix,
-		end_col = #label_prefix + #title,
-		hl_group = record_title_highlight(record),
+	local highlights = {
+		{
+			start_col = #label_prefix,
+			end_col = #label_prefix + #title,
+			hl_group = node_title_highlight(node),
+		},
 	}
+	local hash = workspace_hash(workspace_data)
+	local hash_offset = hash and workspace:find(hash, 1, true) or nil
+	if hash_offset then
+		local start_col = #label_prefix + #title + hash_offset - 1
+		local end_col = start_col + #hash
+		if end_col <= #label then
+			table.insert(highlights, {
+				start_col = start_col,
+				end_col = end_col,
+				hl_group = workspace_highlight(ctx, workspace_data),
+			})
+		end
+	end
+	highlights_by_line[#lines] = highlights
 end
 
-local function render_node(ctx, node, leaf_id, lines, line_nodes, sender_highlights, line_prefix, child_prefix)
-	render_node_line(ctx, node, leaf_id, lines, line_nodes, sender_highlights, line_prefix)
+local function render_node(ctx, node, leaf_id, lines, line_nodes, highlights_by_line, line_prefix, child_prefix)
+	render_node_line(ctx, node, leaf_id, lines, line_nodes, highlights_by_line, line_prefix)
 
 	local child_count = #node.children
 	if child_count == 0 then
@@ -313,7 +276,7 @@ local function render_node(ctx, node, leaf_id, lines, line_nodes, sender_highlig
 	if child_count == 1 then
 		-- Most session history is a single parent→child chain. Keep that
 		-- continuation visually flat so long conversations do not drift right.
-		render_node(ctx, node.children[1], leaf_id, lines, line_nodes, sender_highlights, child_prefix, child_prefix)
+		render_node(ctx, node.children[1], leaf_id, lines, line_nodes, highlights_by_line, child_prefix, child_prefix)
 		return
 	end
 
@@ -322,29 +285,40 @@ local function render_node(ctx, node, leaf_id, lines, line_nodes, sender_highlig
 		local is_last = index == child_count
 		local connector = is_last and "└─ " or "├─ "
 		local next_child_prefix = child_prefix .. (is_last and "   " or "│  ")
-		render_node(ctx, child, leaf_id, lines, line_nodes, sender_highlights, child_prefix .. connector, next_child_prefix)
+		render_node(ctx, child, leaf_id, lines, line_nodes, highlights_by_line, child_prefix .. connector, next_child_prefix)
 	end
 end
 
-local function render_nodes(ctx, nodes, leaf_id, lines, line_nodes, sender_highlights)
-	for _, node in ipairs(nodes) do
-		render_node(ctx, node, leaf_id, lines, line_nodes, sender_highlights, "", "")
+local function render_nodes(ctx, nodes, leaf_id, lines, line_nodes, highlights_by_line)
+	if #nodes == 1 then
+		render_node(ctx, nodes[1], leaf_id, lines, line_nodes, highlights_by_line, "", "")
+		return
+	end
+	-- Hidden session metadata can be the common ancestor of every visible branch.
+	-- Draw top-level siblings as a fork instead of presenting them as unrelated roots.
+	for index, node in ipairs(nodes) do
+		local is_last = index == #nodes
+		local connector = is_last and "└─ " or "├─ "
+		local child_prefix = is_last and "   " or "│  "
+		render_node(ctx, node, leaf_id, lines, line_nodes, highlights_by_line, connector, child_prefix)
 	end
 end
 
-local function apply_sender_highlights(ctx)
+local function apply_tree_highlights(ctx)
 	local state = ctx.state
 	if not ctx.buffer.valid(state.tree_buf) then
 		return
 	end
 
-	vim.api.nvim_buf_clear_namespace(state.tree_buf, tree_sender_ns, 0, -1)
-	for line, highlight in pairs(state.tree_sender_highlights_by_line or {}) do
-		vim.api.nvim_buf_set_extmark(state.tree_buf, tree_sender_ns, line - 1, highlight.start_col, {
-			end_col = highlight.end_col,
-			hl_group = highlight.hl_group,
-			priority = 250,
-		})
+	vim.api.nvim_buf_clear_namespace(state.tree_buf, tree_highlight_ns, 0, -1)
+	for line, highlights in pairs(state.tree_highlights_by_line or {}) do
+		for _, highlight in ipairs(highlights) do
+			vim.api.nvim_buf_set_extmark(state.tree_buf, tree_highlight_ns, line - 1, highlight.start_col, {
+				end_col = highlight.end_col,
+				hl_group = highlight.hl_group,
+				priority = 250,
+			})
+		end
 	end
 end
 
@@ -375,45 +349,47 @@ local function preview_lines(ctx, node)
 	if not node or not node.record then
 		return { "No tree entry selected." }
 	end
-	local record = node.record
+	local first = node.records[1]
+	local last = node.records[#node.records]
 	local lines = {
-		string.format("%s  %s", record_title(record), record.id or ""),
+		string.format("%s  %s", node_title(node), node.target_id or ""),
 	}
-	if record.parentId then
-		table.insert(lines, "parent: " .. record.parentId)
+	if node.start_id ~= node.target_id then
+		table.insert(lines, "records: " .. node.start_id .. " → " .. node.target_id)
 	end
-	if record.timestamp then
-		table.insert(lines, "time: " .. tostring(record.timestamp))
+	if node.parent then
+		table.insert(lines, "parent: " .. node.parent.target_id)
 	end
-	if record.type then
-		table.insert(lines, "type: " .. tostring(record.type))
+	if first.timestamp then
+		local time = tostring(first.timestamp)
+		if last.timestamp and last.timestamp ~= first.timestamp then
+			time = time .. " → " .. tostring(last.timestamp)
+		end
+		table.insert(lines, "time: " .. time)
 	end
-	if record.type == "message" and record.message and record.message.role then
-		table.insert(lines, "role: " .. tostring(record.message.role))
-	end
-	if record.type == "message" and record.message and record.message.toolName then
-		table.insert(lines, "tool: " .. tostring(record.message.toolName))
-	end
-	if record.type == "model_change" then
-		table.insert(lines, "model: " .. record_text(ctx, record))
-	elseif record.type == "thinking_level_change" then
-		table.insert(lines, "thinking: " .. record_text(ctx, record))
+	if node.transition then
+		table.insert(lines, "workspace transition: " .. node.transition.label .. (node.transition.id and (" (" .. node.transition.id .. ")") or ""))
+		if node.transition.cwd then
+			table.insert(lines, "cwd: " .. node.transition.cwd)
+		end
+	elseif node.workspace then
+		table.insert(lines, "workspace: " .. node.workspace.label .. " (" .. node.workspace.id .. ")")
+		if node.workspace.cwd then
+			table.insert(lines, "cwd: " .. node.workspace.cwd)
+		end
 	end
 	table.insert(lines, "")
 
-	local text = record_text(ctx, record)
-	if text == "" and record.type == "message" and record.message then
-		text = vim.inspect(record.message.content or record.message)
-	end
+	local text = node_text(ctx, node)
 	if text == "" then
-		text = vim.inspect(record)
+		text = vim.inspect(node.records)
 	end
 	vim.list_extend(lines, vim.split(tostring(text), "\n", { plain = true }))
 	return lines
 end
 
 local function preview_entry_id(node)
-	return node and node.record and node.record.id or nil
+	return node and node.target_id or nil
 end
 
 local function update_preview(ctx)
@@ -474,8 +450,8 @@ local function selected_tree_position(ctx)
 	local node = (state.tree_nodes_by_line or {})[row]
 	return {
 		row = row,
-		entry_id = node and node.record and node.record.id or nil,
-		parent_id = node and node.record and node.record.parentId or nil,
+		entry_id = node and node.target_id or nil,
+		parent_id = node and node.parent and node.parent.target_id or nil,
 	}
 end
 
@@ -494,7 +470,7 @@ local function find_tree_line_by_id(ctx, entry_id)
 		return nil
 	end
 	for line, node in pairs(ctx.state.tree_nodes_by_line or {}) do
-		if node and node.record and node.record.id == entry_id then
+		if node and node.target_id == entry_id then
 			return line
 		end
 	end
@@ -531,14 +507,16 @@ local function render_tree_buffer(ctx, opts)
 		"",
 	}
 	state.tree_nodes_by_line = {}
-	state.tree_sender_highlights_by_line = {}
+	state.tree_highlights_by_line = {}
+	state.tree_workspace_highlights = {}
+	state.tree_workspace_highlight_slots = {}
 	if #roots == 0 then
 		table.insert(lines, "No tree entries found in this session.")
 	else
-		render_nodes(ctx, roots, leaf_id, lines, state.tree_nodes_by_line, state.tree_sender_highlights_by_line)
+		render_nodes(ctx, roots, leaf_id, lines, state.tree_nodes_by_line, state.tree_highlights_by_line)
 	end
 	ctx.buffer.set_lines(state.tree_buf, lines, false)
-	apply_sender_highlights(ctx)
+	apply_tree_highlights(ctx)
 	return true
 end
 
@@ -595,7 +573,7 @@ local function jump_to_node(ctx, summarize)
 	if not guard.if_not_active(ctx, "changing history") then
 		return
 	end
-	local entry_id = node.record.id
+	local entry_id = node.target_id
 	if not selected_session_path(ctx) then
 		return
 	end
@@ -631,7 +609,7 @@ local function delete_node(ctx)
 
 	local position = selected_tree_position(ctx)
 	position.view = save_tree_view(ctx)
-	local entry_id = node.record.id
+	local entry_id = node.start_id
 
 	ctx.rpc.send({ type = "prompt", message = "/pi-tree-delete " .. entry_id .. " --yes" }, function(event)
 		if not event.success then
@@ -663,7 +641,7 @@ function M.show(ctx)
 		return
 	end
 
-	local width = math.min(math.max(72, math.floor(vim.o.columns * 0.72)), vim.o.columns - 4)
+	local width = math.min(math.max(72, math.floor(vim.o.columns * 0.82)), vim.o.columns - 4)
 	state.tree_width = width
 	if not render_tree_buffer(ctx) then
 		return
