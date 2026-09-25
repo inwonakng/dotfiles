@@ -587,6 +587,24 @@ local function update_workspace_from_status(ctx, text)
 	ctx.transcript.refresh_ui()
 end
 
+local function picker_response(ctx, id, close_response)
+	local responded = false
+	local function respond(response)
+		if responded then
+			return
+		end
+		responded = true
+		send_extension_ui_response(ctx, id, response)
+	end
+	local function on_close()
+		-- fzf-lua closes its window before scheduling the choice callback.
+		vim.defer_fn(function()
+			respond(close_response)
+		end, 50)
+	end
+	return respond, on_close
+end
+
 function M.handle_extension_ui_request(ctx, event)
 	local state = ctx.state
 	if event.id and (event.method == "select" or event.method == "confirm" or event.method == "input") then
@@ -637,12 +655,9 @@ function M.handle_extension_ui_request(ctx, event)
 		if select_bash_approval(ctx, event) then
 			return
 		end
-		vim.ui.select(event.options or {}, { prompt = event.title or "Pi select" }, function(choice)
-			if choice then
-				send_extension_ui_response(ctx, event.id, { value = choice })
-			else
-				send_extension_ui_response(ctx, event.id, { cancelled = true })
-			end
+		local respond, on_close = picker_response(ctx, event.id, { cancelled = true })
+		vim.ui.select(event.options or {}, { prompt = event.title or "Pi select", no_hide = true, on_close = on_close }, function(choice)
+			respond(choice and { value = choice } or { cancelled = true })
 		end)
 	elseif event.method == "confirm" then
 		if confirm_with_preview(ctx, event) then
@@ -652,8 +667,9 @@ function M.handle_extension_ui_request(ctx, event)
 		if type(event.message) == "string" and event.message ~= "" then
 			prompt = prompt .. "\n" .. event.message
 		end
-		vim.ui.select({ "Yes", "No" }, { prompt = prompt }, function(choice)
-			send_extension_ui_response(ctx, event.id, { confirmed = choice == "Yes" })
+		local respond, on_close = picker_response(ctx, event.id, { confirmed = false })
+		vim.ui.select({ "Yes", "No" }, { prompt = prompt, no_hide = true, on_close = on_close }, function(choice)
+			respond({ confirmed = choice == "Yes" })
 		end)
 	elseif event.method == "input" then
 		if remember_note_float(ctx, event) then
