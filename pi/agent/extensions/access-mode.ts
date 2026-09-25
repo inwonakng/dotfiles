@@ -12,7 +12,7 @@ import { rememberCommand, readonlyBashBlockReason } from "./shared/bash-access";
 
 export { readonlyBashBlockReason } from "./shared/bash-access";
 
-const READONLY_TOOLS = new Set(["read", "grep", "find", "ls", "web_search", "web_fetch"]);
+const READONLY_TOOLS = new Set(["read", "grep", "find", "ls", "web_search", "web_fetch", "todowrite"]);
 const READONLY_WORKSPACE_ACTIONS = new Set(["status", "list"]);
 const READONLY_SPAWN_CONTROL_ACTIONS = new Set(["list", "status", "join", "join_all"]);
 
