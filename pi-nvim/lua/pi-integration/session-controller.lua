@@ -95,6 +95,14 @@ function M.new_session(ctx)
 	guard.confirm_abort_active_run(ctx, "Starting a new session", proceed)
 end
 
+function M.new_session_window(ctx)
+	local cwd = (ctx.state.workspace and ctx.state.workspace.cwd) or vim.fn.getcwd()
+	local launched, err = runtime.launch(ctx.config.launcher, cwd)
+	if not launched then
+		ctx.ui.notify(err or "Could not start a new session in a new window", vim.log.levels.ERROR)
+	end
+end
+
 function M.switch_session(ctx, path)
 	local function proceed()
 		if not (ctx.state.job and ctx.state.job > 0) then

@@ -601,6 +601,10 @@ function M.new_session()
 	pi_session.new_session(integration_ctx())
 end
 
+function M.new_session_window()
+	pi_session.new_session_window(integration_ctx())
+end
+
 local function normalize_leaf_id(value)
 	if value == vim.NIL or value == "" then
 		return false
