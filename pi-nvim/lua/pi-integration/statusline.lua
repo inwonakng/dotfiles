@@ -279,12 +279,18 @@ local function icon_only(label)
 end
 
 function M.status_indicators(state)
-	local mode = state.access_mode or "--"
-	local integration_mode = state.integration_mode or "ask"
+	local mode = state.access_mode
+	local integration_mode = state.integration_mode
 	local notification_status = state.notification_status
 	return {
-		{ text = icon_only(mode_statusline_label(mode)), highlight = mode_highlight_group(mode) },
-		{ text = icon_only(integration_statusline_label(integration_mode)), highlight = integration_highlight_group(integration_mode) },
+		{
+			text = mode and icon_only(mode_statusline_label(mode)) or "",
+			highlight = mode_highlight_group(mode),
+		},
+		{
+			text = integration_mode and icon_only(integration_statusline_label(integration_mode)) or "",
+			highlight = integration_highlight_group(integration_mode),
+		},
 		{
 			text = notification_status and icon_only(notification_statusline_label(notification_status)) or "",
 			highlight = notification_highlight_group(notification_status),
