@@ -97,15 +97,19 @@ local function truncate_plain_to_width(text, width)
 	return result
 end
 
-local function mode_statusline_highlight(mode)
+local function mode_highlight_group(mode)
 	if mode == "edit" then
-		return "%#PiModeEdit#"
+		return "PiModeEdit"
 	elseif mode == "ask" then
-		return "%#PiModeAsk#"
+		return "PiModeAsk"
 	elseif mode == "readonly" then
-		return "%#PiModeReadonly#"
+		return "PiModeReadonly"
 	end
-	return "%#PiModeUnknown#"
+	return "PiModeUnknown"
+end
+
+local function mode_statusline_highlight(mode)
+	return "%#" .. mode_highlight_group(mode) .. "#"
 end
 
 local function mode_statusline_label(mode)
@@ -235,13 +239,17 @@ local function integration_statusline_label(mode)
 	return "?"
 end
 
-local function integration_statusline_highlight(mode)
+local function integration_highlight_group(mode)
 	if mode == "ask" then
-		return "%#PiIntegrationAsk#"
+		return "PiIntegrationAsk"
 	elseif mode == "allowed" then
-		return "%#PiIntegrationAllowed#"
+		return "PiIntegrationAllowed"
 	end
-	return "%#PiModeUnknown#"
+	return "PiModeUnknown"
+end
+
+local function integration_statusline_highlight(mode)
+	return "%#" .. integration_highlight_group(mode) .. "#"
 end
 
 local function notification_statusline_label(status)
@@ -253,13 +261,35 @@ local function notification_statusline_label(status)
 	return tostring(status or "")
 end
 
-local function notification_statusline_highlight(status)
+local function notification_highlight_group(status)
 	if status == "notify on" then
-		return "%#PiNotifyOn#"
+		return "PiNotifyOn"
 	elseif status == "notify off" then
-		return "%#PiNotifyOff#"
+		return "PiNotifyOff"
 	end
-	return "%#PiUsageStats#"
+	return "PiUsageStats"
+end
+
+local function notification_statusline_highlight(status)
+	return "%#" .. notification_highlight_group(status) .. "#"
+end
+
+local function icon_only(label)
+	return (label:gsub("%s+$", ""))
+end
+
+function M.status_indicators(state)
+	local mode = state.access_mode or "--"
+	local integration_mode = state.integration_mode or "ask"
+	local notification_status = state.notification_status
+	return {
+		{ text = icon_only(mode_statusline_label(mode)), highlight = mode_highlight_group(mode) },
+		{ text = icon_only(integration_statusline_label(integration_mode)), highlight = integration_highlight_group(integration_mode) },
+		{
+			text = notification_status and icon_only(notification_statusline_label(notification_status)) or "",
+			highlight = notification_highlight_group(notification_status),
+		},
+	}
 end
 
 function M.render(ctx)

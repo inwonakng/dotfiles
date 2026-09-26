@@ -34,6 +34,7 @@ function M.new()
 		is_retrying = false,
 		is_compacting = false,
 		pending_ui_requests = {},
+		active_ui_request_id = nil,
 		pending_retry_error = nil,
 		awaiting_agent_output = false,
 		activity_label = nil,

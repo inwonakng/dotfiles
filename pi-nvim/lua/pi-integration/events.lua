@@ -331,6 +331,9 @@ end
 
 local function send_extension_ui_response(ctx, id, response)
 	ctx.state.pending_ui_requests[id] = nil
+	if ctx.state.active_ui_request_id == id then
+		ctx.state.active_ui_request_id = nil
+	end
 	response.type = "extension_ui_response"
 	response.id = id
 	ctx.rpc.send(response)
@@ -345,6 +348,81 @@ local function decode_approval_payload(message)
 		return nil
 	end
 	return decoded
+end
+
+local function compact_request_text(value, max_chars)
+	if type(value) ~= "string" then
+		return nil
+	end
+	value = vim.trim(value:gsub("%s+", " "))
+	if value == "" then
+		return nil
+	end
+	if vim.fn.strchars(value) > max_chars then
+		return vim.fn.strcharpart(value, 0, max_chars - 1) .. "…"
+	end
+	return value
+end
+
+local function request_has_option(event, expected)
+	for _, option in ipairs(type(event.options) == "table" and event.options or {}) do
+		if option == expected then
+			return true
+		end
+	end
+	return false
+end
+
+local function summarize_ui_request(event)
+	local approval = decode_approval_payload(event.message) or decode_approval_payload(event.title)
+	if approval then
+		local tool = compact_request_text(approval.tool, 40) or "tool"
+		return {
+			label = "Tool permission",
+			question = "Allow " .. tool .. "?",
+			context = compact_request_text(approval.summary, 240),
+		}
+	end
+
+	local title_payload = type(event.title) == "string" and json.decode_object(event.title) or nil
+	if title_payload and title_payload.kind == "pi_remember_note" then
+		return {
+			label = "Permission note",
+			question = "Add a note for the remembered command?",
+		}
+	end
+
+	local title = compact_request_text(event.title, 360)
+	local message = compact_request_text(event.message, 360)
+	if request_has_option(event, "Integrate and return") then
+		return {
+			label = "Workspace integration",
+			question = title or "Apply the workspace changes?",
+			context = "Choose whether to integrate, review, or return to the conversation.",
+		}
+	end
+
+	local labels = {
+		select = "Choice requested",
+		confirm = "Confirmation requested",
+		input = "Input requested",
+	}
+	local options
+	if event.method == "select" and type(event.options) == "table" then
+		local visible = {}
+		for _, option in ipairs(event.options) do
+			local value = compact_request_text(option, 80)
+			if value then
+				table.insert(visible, value)
+			end
+		end
+		options = #visible > 0 and table.concat(visible, " · ") or nil
+	end
+	return {
+		label = labels[event.method] or "Input requested",
+		question = title or "Pi needs input.",
+		context = message or options,
+	}
 end
 
 local function approval_preview_item(payload)
@@ -608,10 +686,10 @@ end
 function M.handle_extension_ui_request(ctx, event)
 	local state = ctx.state
 	if event.id and (event.method == "select" or event.method == "confirm" or event.method == "input") then
-		state.pending_ui_requests[event.id] = {
-			title = event.title or "Pi input requested",
-			expires = type(event.timeout) == "number" and (vim.uv.now() + event.timeout) or nil,
-		}
+		local request = summarize_ui_request(event)
+		request.expires = type(event.timeout) == "number" and (vim.uv.now() + event.timeout) or nil
+		state.pending_ui_requests[event.id] = request
+		state.active_ui_request_id = event.id
 	end
 	if event.method == "set_editor_text" and type(event.text) == "string" and ctx.buffer.valid(state.input_buf) then
 		vim.api.nvim_buf_set_lines(state.input_buf, 0, -1, false, vim.split(event.text, "\n", { plain = true }))

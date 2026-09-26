@@ -9,6 +9,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { getAccessMode, parseAccessMode, setAccessMode } from "./shared/access-state";
 import { rememberCommand, readonlyBashBlockReason } from "./shared/bash-access";
+import { notifyPiToolApproval } from "./shared/notifications";
 
 export { readonlyBashBlockReason } from "./shared/bash-access";
 
@@ -179,6 +180,7 @@ export default function accessModeExtension(pi: ExtensionAPI) {
     if (event.toolName === "bash" && typeof input.command === "string") {
       const title = ctx.mode === "rpc" ? approvalPayload(event, ctx) : `Allow bash? ${input.command}`;
       while (true) {
+        notifyPiToolApproval(ctx);
         const choice = await ctx.ui.select(title, ["Allow", "Deny", "Remember and allow", "Remember with comment and allow"]);
         if (choice === "Allow") return undefined;
         if (choice === "Deny" || !choice) {
@@ -208,6 +210,7 @@ export default function accessModeExtension(pi: ExtensionAPI) {
       }
     }
 
+    notifyPiToolApproval(ctx);
     const confirmed = await ctx.ui.confirm(`Allow ${event.toolName}?`, approvalPayload(event, ctx), { signal: ctx.signal });
     return confirmed ? undefined : { block: true, reason: `Tool "${event.toolName}" blocked by user.` };
   });

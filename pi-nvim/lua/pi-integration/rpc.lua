@@ -92,6 +92,7 @@ local function reset_runtime_state(ctx)
 	state.is_retrying = false
 	state.is_compacting = false
 	state.pending_ui_requests = {}
+	state.active_ui_request_id = nil
 	state.awaiting_agent_output = false
 	state.pending_retry_error = nil
 	if state.activity_timer then

@@ -15,7 +15,7 @@ import {
   setIntegrationMode,
   type IntegrationMode,
 } from "./shared/integration-state";
-import { suppressNextInputNotification } from "./shared/notifications";
+import { notifyPiWorkspaceIntegration, suppressNextInputNotification } from "./shared/notifications";
 import { activeLocation, moveToLocation } from "./shared/workspace-navigation";
 import {
   createWorkspace,
@@ -638,6 +638,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
           : RETURN_ACTION;
         if (integrationMode === "ask" && ctx.hasUI) {
           while (true) {
+            notifyPiWorkspaceIntegration(ctx);
             decision = await ctx.ui.select(
               `Apply ${selected.label} to ${selected.destinationRoot}?${ignoredReviewNote(selected)}`,
               [INTEGRATE_ACTION, REVIEW_ACTION, RETURN_ACTION],

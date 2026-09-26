@@ -55,7 +55,7 @@ export function rememberCommand(command: string, cwd: string, note: string): voi
 }
 
 type Word = { kind: "word"; value: string; expanded: boolean; variable: boolean };
-type Token = Word | { kind: "operator"; value: ";" | "|" | "||" | "2>/dev/null" };
+type Token = Word | { kind: "operator"; value: ";" | "|" | "&&" | "||" | "2>/dev/null" };
 
 // Only shell syntax explicitly checked below may reach bash. Quoting can
 // protect regex punctuation; variable expansion and escapes are narrowly scoped.
@@ -106,6 +106,9 @@ function tokens(command: string): Token[] | undefined {
       quoted = started = true;
     } else if (char === " ") {
       if (!flush()) return undefined;
+    } else if (char === "\\" && (command[i + 1] === "(" || command[i + 1] === ")")) {
+      word += command[++i];
+      started = true;
     } else if (char === "\\" && started && command[i + 1] === " ") {
       word += " ";
       i++;
@@ -114,8 +117,12 @@ function tokens(command: string): Token[] | undefined {
       const operator = char === "|" && command[i + 1] === "|" ? "||" : char;
       if (operator === "||") i++;
       result.push({ kind: "operator", value: operator });
+    } else if (char === "&" && command[i + 1] === "&") {
+      if (!flush()) return undefined;
+      result.push({ kind: "operator", value: "&&" });
+      i++;
     } else if (!started && command.startsWith("2>/dev/null", i)
-      && (i + 11 === command.length || /[ ;|]/.test(command[i + 11]))) {
+      && (i + 11 === command.length || /[ ;|&]/.test(command[i + 11]))) {
       result.push({ kind: "operator", value: "2>/dev/null" });
       i += 10;
     } else if (/[A-Za-z0-9_./@%:,=+-]/.test(char) || char === "*" || char === "{" || char === "}"
@@ -183,7 +190,7 @@ function rgArgs(args: Word[], stdinOnly = false): boolean {
   return (files || pattern) && !(stdinOnly && files);
 }
 
-function gitArgs(args: string[]): boolean {
+function gitArgs(args: string[], boundedOutput = false): boolean {
   const [subcommand, ...rest] = args;
   // status reports working-tree state; it may update Git's index cache.
   const flags: Record<string, string[]> = {
@@ -202,21 +209,43 @@ function gitArgs(args: string[]): boolean {
   const acceptedFlags = flags[subcommand];
   if (subcommand === "log") {
     let count = false;
+    let follow = false;
     let afterSeparator = false;
+    let paths = 0;
     for (const arg of rest) {
       if (arg === "--" && !afterSeparator) { afterSeparator = true; continue; }
-      if (afterSeparator) { if (arg.startsWith("-")) return false; continue; }
-      if (arg === "--oneline") continue;
+      if (afterSeparator) {
+        if (arg.startsWith("-")) return false;
+        paths++;
+        continue;
+      }
+      if (arg === "--oneline" || arg === "-p") continue;
+      if (arg === "--follow") { follow = true; continue; }
       if (/^-[1-9][0-9]{0,2}$/.test(arg) && Number(arg.slice(1)) <= 100 && !count) { count = true; continue; }
       return false;
     }
-    return count;
+    return (count || boundedOutput) && (!follow || paths === 1);
   }
   if (subcommand === "show") {
-    const [revision, ...paths] = rest;
-    if (!revision || !/^[A-Za-z0-9_][A-Za-z0-9_.^~/-]*(?::[A-Za-z0-9_./-]+)?$/.test(revision)) return false;
-    if (!paths.length) return true;
-    return paths[0] === "--" && paths.length > 1 && paths.slice(1).every((path) => !path.startsWith("-"));
+    let revision = false;
+    let afterSeparator = false;
+    let paths = 0;
+    for (const arg of rest) {
+      if (arg === "--" && !afterSeparator) {
+        if (!revision) return false;
+        afterSeparator = true;
+        continue;
+      }
+      if (afterSeparator) {
+        if (arg.startsWith("-")) return false;
+        paths++;
+        continue;
+      }
+      if (arg === "--stat" || arg === "--oneline") continue;
+      if (revision || !/^[A-Za-z0-9_][A-Za-z0-9_.^~/-]*(?::[A-Za-z0-9_./-]+)?$/.test(arg)) return false;
+      revision = true;
+    }
+    return revision && (!afterSeparator || paths > 0);
   }
   if (!acceptedFlags) return false;
   let afterSeparator = false;
@@ -236,26 +265,56 @@ function gitArgs(args: string[]): boolean {
 }
 
 function findArgs(args: Word[]): boolean {
-  let i = 0;
-  while (i < args.length && !args[i].value.startsWith("-")) {
-    if (!pathWord(args[i])) return false;
-    i++;
+  let position = 0;
+  while (position < args.length && !args[position].value.startsWith("-")
+    && args[position].value !== "(") {
+    if (!pathWord(args[position])) return false;
+    position++;
   }
-  if (!i) return false;
-  while (i < args.length) {
-    const { value: flag, expanded } = args[i++];
-    if (expanded) return false;
-    if (flag === "-print") return i === args.length;
-    const value = args[i++];
-    if (!value || value.expanded || (flag === "-maxdepth" && !/^[0-9]{1,3}$/.test(value.value))
-      || (flag === "-type" && !["f", "d", "l"].includes(value.value))
-      || (["-name", "-iname"].includes(flag) && value.value.startsWith("-"))
-      || !["-maxdepth", "-type", "-name", "-iname", "-path"].includes(flag)) return false;
-  }
-  return true;
+  if (!position) return false;
+  if (position === args.length) return true;
+
+  let depth = 0;
+  const primary = (): boolean => {
+    const current = args[position++];
+    if (!current || current.expanded) return false;
+    if (current.value === "(") {
+      if (++depth > 32) return false;
+      const valid = expression() && args[position]?.value === ")";
+      depth--;
+      if (!valid) return false;
+      position++;
+      return true;
+    }
+    if (current.value === "-print") return true;
+    const value = args[position++];
+    if (!value || value.expanded) return false;
+    if (current.value === "-maxdepth") return /^[0-9]{1,3}$/.test(value.value);
+    if (current.value === "-type") return ["f", "d", "l"].includes(value.value);
+    if (["-name", "-iname", "-path"].includes(current.value)) return !value.value.startsWith("-");
+    return false;
+  };
+  const conjunction = (): boolean => {
+    if (!primary()) return false;
+    while (position < args.length && args[position].value !== ")" && args[position].value !== "-o") {
+      if (args[position].value === "-a") position++;
+      if (!primary()) return false;
+    }
+    return true;
+  };
+  const expression = (): boolean => {
+    if (!conjunction()) return false;
+    while (args[position]?.value === "-o") {
+      position++;
+      if (!conjunction()) return false;
+    }
+    return true;
+  };
+
+  return expression() && position === args.length;
 }
 
-function simple(tokens: Token[]): boolean {
+function simple(tokens: Token[], boundedOutput = false): boolean {
   const redirect = tokens.at(-1)?.value === "2>/dev/null";
   const parts = redirect ? tokens.slice(0, -1) : tokens;
   if (!parts.length || parts.some((token) => token.kind !== "word")) return false;
@@ -282,7 +341,7 @@ function simple(tokens: Token[]): boolean {
     return pathsOnly(paths.map((arg) => arg.value)) && paths.every(pathWord);
   }
   if (program.value === "rg") return rgArgs(args);
-  if (program.value === "git") return args.every((arg) => !arg.expanded) && gitArgs(rest);
+  if (program.value === "git") return args.every((arg) => !arg.expanded) && gitArgs(rest, boundedOutput);
   if (program.value === "find") return findArgs(args);
   if (program.value === "readlink") return !redirect && args.length === 1
     && !args[0].value.startsWith("-") && pathWord(args[0]);
@@ -313,7 +372,16 @@ function inspection(tokens: Token[]): boolean {
     && stages.map((stage) => stage.length).join() === "1,3,3"
     && stages.flat().every((token, i) => token.kind === "word"
       && !token.expanded && !token.variable && token.value === envNames[i])) return true;
-  if (!simple(stages[0])) return false;
+  const boundedLines = (stage: Token[]): boolean => {
+    const limit = stage[0]?.value === "head" ? 2000 : 1000;
+    return (stage[0]?.value === "head" || stage[0]?.value === "tail")
+      && stage.every((token) => token.kind === "word" && !token.expanded && !token.variable)
+      && (stage.length === 1 || stage.length === 2 && /^-[1-9][0-9]{0,3}$/.test(stage[1].value)
+        && Number(stage[1].value.slice(1)) <= limit);
+  };
+  const boundedOutput = stages.length === 2 && stages[1][0]?.value === "head"
+    && boundedLines(stages[1]);
+  if (!simple(stages[0], boundedOutput)) return false;
   if (stages.length === 1) return true;
   if (stages.length > 3) return false;
   for (let i = 1; i < stages.length; i++) {
@@ -321,10 +389,12 @@ function inspection(tokens: Token[]): boolean {
     if (stage[0]?.value === "rg" && i === 1 && stages.length === 3
       && stage.every((token) => token.kind === "word")
       && rgArgs((stage as Word[]).slice(1), true)) continue;
-    if (i === stages.length - 1 && (stage[0]?.value === "head" || stage[0]?.value === "tail")
-      && stage.every((token) => token.kind === "word" && !token.expanded && !token.variable) && (stage.length === 1
-        || stage.length === 2 && /^-[1-9][0-9]{0,3}$/.test(stage[1].value)
-          && Number(stage[1].value.slice(1)) <= 1000)) continue;
+    if (stage.length === 1 && stage[0]?.kind === "word" && stage[0].value === "sort"
+      && !stage[0].expanded && !stage[0].variable) continue;
+    if (stage.length === 2 && stage[0]?.kind === "word" && stage[0].value === "wc"
+      && stage[1]?.kind === "word" && stage[1].value === "-l"
+      && stage.every((token) => token.kind === "word" && !token.expanded && !token.variable)) continue;
+    if (i === stages.length - 1 && boundedLines(stage)) continue;
     return false;
   }
   return true;
@@ -349,7 +419,8 @@ export function readonlyBashBlockReason(command: string): string | undefined {
   if (!parsed) return "not a simple read-only command";
   let start = 0;
   for (let i = 0; i <= parsed.length; i++) {
-    if (i === parsed.length || (parsed[i].kind === "operator" && parsed[i].value === ";")) {
+    if (i === parsed.length || (parsed[i].kind === "operator"
+      && (parsed[i].value === ";" || parsed[i].value === "&&"))) {
       if (!inspection(parsed.slice(start, i))) return "not a recognized read-only command form";
       start = i + 1;
     }

@@ -183,7 +183,7 @@ function reportNotificationResult(ctx: ExtensionContext, notified: boolean): boo
 	return notified;
 }
 
-export function notifyPiNeedsInput(ctx: ExtensionContext): boolean {
+export function notifyPiNeedsInput(ctx: ExtensionContext, title = "Pi needs input"): boolean {
 	if (notificationState.suppressedInputNotifications > 0) {
 		notificationState.suppressedInputNotifications--;
 		return false;
@@ -193,7 +193,7 @@ export function notifyPiNeedsInput(ctx: ExtensionContext): boolean {
 	}
 
 	return reportNotificationResult(ctx, sendAlerterNotification(ctx, {
-		title: "Pi needs input",
+		title,
 		group: "pi-coding-agent-input",
 		soundEnv: "PI_PERMISSION_SOUND",
 		defaultSound: "Ping",
@@ -203,6 +203,20 @@ export function notifyPiNeedsInput(ctx: ExtensionContext): boolean {
 			ctx.ui.notify(`Could not send Pi notification: ${error.message}`, "warning");
 		},
 	}));
+}
+
+function notifySpecificInputRequest(ctx: ExtensionContext, title: string): boolean {
+	const notified = notifyPiNeedsInput(ctx, title);
+	suppressNextInputNotification();
+	return notified;
+}
+
+export function notifyPiToolApproval(ctx: ExtensionContext): boolean {
+	return notifySpecificInputRequest(ctx, "Pi: Tool Approval");
+}
+
+export function notifyPiWorkspaceIntegration(ctx: ExtensionContext): boolean {
+	return notifySpecificInputRequest(ctx, "Pi: Workspace Integration");
 }
 
 export function notifyPiFinished(ctx: ExtensionContext, force = false): boolean {

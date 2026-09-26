@@ -132,11 +132,10 @@ end
 local function snapshot(state)
 	local status = "Idle"
 	local waiting
-	for _, request in pairs(state.pending_ui_requests or {}) do
-		if not request.expires or request.expires > vim.uv.now() then
-			waiting = request.title
-			break
-		end
+	local request_id = state.active_ui_request_id
+	local request = request_id and (state.pending_ui_requests or {})[request_id] or nil
+	if request and (not request.expires or request.expires > vim.uv.now()) then
+		waiting = request
 	end
 	if not state.job or state.job <= 0 then
 		status = "Stopped"
@@ -162,7 +161,11 @@ local function snapshot(state)
 		directory = (state.workspace and state.workspace.directory) or (state.workspace and state.workspace.cwd) or vim.fn.getcwd(),
 		workspace_id = state.workspace and state.workspace.id,
 		status = status,
-		activity = waiting or state.activity_label or "",
+		activity = waiting and waiting.label or state.activity_label or "",
+		waiting = waiting,
+		access_mode = state.access_mode,
+		integration_mode = state.integration_mode,
+		notification_status = state.notification_status,
 		model = state.model_id,
 		subagents = state.spawn_running_count or 0,
 	}

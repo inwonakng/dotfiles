@@ -1,5 +1,6 @@
 local runtime = require("pi-integration.runtime")
 local sessions = require("pi-integration.sessions")
+local statusline = require("pi-integration.statusline")
 local M = {}
 local ns = vim.api.nvim_create_namespace("pi-overview")
 local first_row = 5
@@ -27,6 +28,36 @@ local function workspace_hash(entry)
 	local id = type(entry.workspace_id) == "string" and entry.workspace_id or ""
 	return id:match("([%x]+)$") or "—"
 end
+
+local indicator_widths = { 1, 2, 1 }
+
+local function indicator_columns(entry)
+	local cells = {}
+	local spans = {}
+	local byte_offset = 0
+	for index, indicator in ipairs(statusline.status_indicators(entry)) do
+		if index > 1 then
+			table.insert(cells, " ")
+			byte_offset = byte_offset + 1
+		end
+		local icon = text(indicator.text)
+		local cell = column(icon, indicator_widths[index])
+		table.insert(cells, cell)
+		if icon ~= "" then
+			table.insert(spans, {
+				start_col = byte_offset,
+				end_col = byte_offset + #icon,
+				highlight = indicator.highlight,
+			})
+		end
+		byte_offset = byte_offset + #cell
+	end
+	return table.concat(cells), spans
+end
+
+local blank_indicators = column("", indicator_widths[1])
+	.. " " .. column("", indicator_widths[2])
+	.. " " .. column("", indicator_widths[3])
 
 local function set_lines(buf, lines)
 	if not vim.deep_equal(vim.api.nvim_buf_get_lines(buf, 0, -1, false), lines) then
@@ -88,20 +119,29 @@ function M.open(config)
 		local entry = selected()
 		local lines = { "", " Select a conversation to see its details." }
 		if entry then
+			local waiting = type(entry.waiting) == "table" and entry.waiting or nil
+			local activity = not waiting and entry.activity and entry.activity ~= "" and (" · " .. text(entry.activity)) or ""
 			lines = {
 				" " .. text(entry.title),
 				"",
-				" Status:    " .. text(entry.status) .. (entry.activity and entry.activity ~= "" and (" · " .. text(entry.activity)) or ""),
-				" Directory: " .. text(directory(entry)),
-				" Workspace: " .. workspace_hash(entry),
-				" Location:  " .. text(entry.location),
-				" Model:     " .. (text(entry.model) ~= "" and text(entry.model) or "—"),
-				" Subagents: " .. tostring(tonumber(entry.subagents) or 0),
-				" Session:   " .. (text(entry.path) ~= "" and text(entry.path) or "Not saved yet"),
+				" Status:    " .. text(entry.status) .. activity,
 			}
-			if workspace_hash(entry) ~= "—" then
-				table.insert(lines, 6, " Working:   " .. text(entry.cwd))
+			if waiting then
+				table.insert(lines, " Request:   " .. (text(waiting.label) ~= "" and text(waiting.label) or "Input requested"))
+				table.insert(lines, " Question:  " .. (text(waiting.question) ~= "" and text(waiting.question) or "Pi needs input."))
+				if text(waiting.context) ~= "" then
+					table.insert(lines, " Context:   " .. text(waiting.context))
+				end
 			end
+			table.insert(lines, " Directory: " .. text(directory(entry)))
+			table.insert(lines, " Workspace: " .. workspace_hash(entry))
+			if workspace_hash(entry) ~= "—" then
+				table.insert(lines, " Working:   " .. text(entry.cwd))
+			end
+			table.insert(lines, " Location:  " .. text(entry.location))
+			table.insert(lines, " Model:     " .. (text(entry.model) ~= "" and text(entry.model) or "—"))
+			table.insert(lines, " Subagents: " .. tostring(tonumber(entry.subagents) or 0))
+			table.insert(lines, " Session:   " .. (text(entry.path) ~= "" and text(entry.path) or "Not saved yet"))
 		end
 		set_lines(detail_buf, lines)
 		vim.api.nvim_buf_clear_namespace(detail_buf, ns, 0, -1)
@@ -139,13 +179,19 @@ function M.open(config)
 			" Pi sessions · " .. #entries .. " open",
 			query == "" and "" or (" Filter: " .. query),
 			"",
-			" " .. column("Status", 13) .. "  " .. column("Directory", 20) .. "  " .. column("Workspace", 10) .. "  Title",
+			" " .. column("Status", 13) .. "  " .. blank_indicators .. "  " .. column("Directory", 20) .. "  " .. column("Workspace", 10) .. "  Title",
 		}
 		local cursor = math.max(first_row, math.min(view.lnum, first_row + #rows - 1))
-		local title_prefix = " " .. column("", 13) .. "  " .. column("", 20) .. "  " .. column("", 10) .. "  "
+		local indicator_prefix = " " .. column("", 13) .. "  "
+		local indicator_spans = {}
+		local title_start_cols = {}
 		for index, entry in ipairs(rows) do
 			local name = vim.fn.fnamemodify(directory(entry), ":t")
-			table.insert(lines, " " .. column(entry.status, 13) .. "  " .. column(name, 20) .. "  " .. column(workspace_hash(entry), 10) .. "  " .. text(entry.title))
+			local indicators, spans = indicator_columns(entry)
+			local row_prefix = " " .. column(entry.status, 13) .. "  " .. indicators .. "  " .. column(name, 20) .. "  " .. column(workspace_hash(entry), 10) .. "  "
+			indicator_spans[index] = spans
+			title_start_cols[index] = #row_prefix
+			table.insert(lines, row_prefix .. text(entry.title))
 			if previous and previous.id == entry.id then
 				cursor = first_row + index - 1
 			end
@@ -162,8 +208,15 @@ function M.open(config)
 				or (entry.status == "Error" or entry.status == "Stopped" or entry.status == "Unresponsive") and "DiagnosticError"
 				or entry.status == "Idle" and "Comment"
 				or "DiagnosticInfo"
-			vim.api.nvim_buf_set_extmark(list_buf, ns, first_row + index - 2, 1, { end_col = 14, hl_group = group })
-			vim.api.nvim_buf_set_extmark(list_buf, ns, first_row + index - 2, #title_prefix, {
+			local row = first_row + index - 2
+			vim.api.nvim_buf_set_extmark(list_buf, ns, row, 1, { end_col = 14, hl_group = group })
+			for _, span in ipairs(indicator_spans[index]) do
+				vim.api.nvim_buf_set_extmark(list_buf, ns, row, #indicator_prefix + span.start_col, {
+					end_col = #indicator_prefix + span.end_col,
+					hl_group = span.highlight,
+				})
+			end
+			vim.api.nvim_buf_set_extmark(list_buf, ns, row, title_start_cols[index], {
 				end_col = #lines[first_row + index - 1],
 				hl_group = "PiOverviewTitle",
 			})
