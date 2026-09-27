@@ -9,11 +9,12 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { getAccessMode, parseAccessMode, setAccessMode } from "./shared/access-state";
 import { rememberCommand, readonlyBashBlockReason } from "./shared/bash-access";
+import { getInteractionMode } from "./shared/interaction-mode";
 import { notifyPiToolApproval } from "./shared/notifications";
 
 export { readonlyBashBlockReason } from "./shared/bash-access";
 
-const READONLY_TOOLS = new Set(["read", "grep", "find", "ls", "web_search", "web_fetch", "todowrite"]);
+const READONLY_TOOLS = new Set(["read", "grep", "find", "ls", "web_search", "web_fetch", "todowrite", "question"]);
 const READONLY_WORKSPACE_ACTIONS = new Set(["status", "list"]);
 const READONLY_SPAWN_CONTROL_ACTIONS = new Set(["list", "status", "join", "join_all"]);
 
@@ -172,9 +173,11 @@ export default function accessModeExtension(pi: ExtensionAPI) {
       };
     }
     if (mode === "readonly") return { block: true, reason: `Tool "${event.toolName}" is blocked in readonly mode (${reason}).` };
-    if (process.env.PI_SPAWN_AGENT === "1" || !ctx.hasUI) {
-      const context = process.env.PI_SPAWN_AGENT === "1" ? "spawned subagents cannot request approval" : "no UI is available";
-      return { block: true, reason: `Tool "${event.toolName}" requires approval (${reason}), but ${context}.` };
+    if (getInteractionMode(ctx) === "noninteractive") {
+      return {
+        block: true,
+        reason: `Tool "${event.toolName}" requires approval (${reason}), but interaction mode is noninteractive.`,
+      };
     }
 
     if (event.toolName === "bash" && typeof input.command === "string") {

@@ -98,7 +98,19 @@ function tokens(command: string): Token[] | undefined {
             continue;
           }
         }
-        if (quote === '"' && (char === "$" || char === "`" || char === "\\")) return undefined;
+        if (quote === '"' && char === "\\") {
+          const escaped = command[i + 1];
+          if (!escaped) return undefined;
+          if (["$", "`", '"', "\\"].includes(escaped)) {
+            word += escaped;
+            i++;
+          } else {
+            // Bash preserves a backslash before non-special characters in double quotes.
+            word += "\\";
+          }
+          continue;
+        }
+        if (quote === '"' && (char === "$" || char === "`")) return undefined;
         word += char;
       }
     } else if (char === "'" || char === '"') {
@@ -179,6 +191,12 @@ function rgArgs(args: Word[], stdinOnly = false): boolean {
       if (!value || value.expanded || value.variable
         || (["-g", "--glob"].includes(arg) && value.value.startsWith("-"))) return false;
       if (arg === "-e" || arg === "--regexp") pattern = true;
+      continue;
+    }
+    if (options && !expanded && ["-A", "--after-context", "-B", "--before-context", "-C", "--context"].includes(arg)) {
+      const value = args[++i];
+      if (!value || value.expanded || value.variable || !/^[0-9]{1,4}$/.test(value.value)
+        || Number(value.value) > 1000) return false;
       continue;
     }
     if (options && arg.startsWith("-") && arg !== "-") return false;
@@ -351,6 +369,14 @@ function simple(tokens: Token[], boundedOutput = false): boolean {
   return false;
 }
 
+function manSource(tokens: Token[]): boolean {
+  if (tokens.some((token) => token.kind !== "word" || token.expanded || token.variable)) return false;
+  const [program, ...args] = tokens as Word[];
+  if (program?.value !== "man" || (args.length !== 1 && args.length !== 2)) return false;
+  if (args.some((arg) => !/^[A-Za-z0-9][A-Za-z0-9_.:+-]*$/.test(arg.value))) return false;
+  return args.length === 1 || /^[0-9][A-Za-z0-9]*$/.test(args[0].value);
+}
+
 function inspection(tokens: Token[]): boolean {
   const conditional = tokens.findIndex((token) => token.value === "||" && token.kind === "operator");
   if (conditional !== -1) {
@@ -379,20 +405,25 @@ function inspection(tokens: Token[]): boolean {
       && (stage.length === 1 || stage.length === 2 && /^-[1-9][0-9]{0,3}$/.test(stage[1].value)
         && Number(stage[1].value.slice(1)) <= limit);
   };
-  const boundedOutput = stages.length === 2 && stages[1][0]?.value === "head"
-    && boundedLines(stages[1]);
-  if (!simple(stages[0], boundedOutput)) return false;
+  // Downstream stages are stdin-only filters; cap their composition to limit resource use.
+  if (stages.length > 8) return false;
+  const finalStageIsBounded = stages.length > 1 && boundedLines(stages.at(-1)!);
+  const directlyBoundedByHead = stages.length === 2 && stages[1][0]?.value === "head"
+    && finalStageIsBounded;
+  const sourceIsMan = manSource(stages[0]);
+  if (sourceIsMan ? !finalStageIsBounded : !simple(stages[0], directlyBoundedByHead)) return false;
   if (stages.length === 1) return true;
-  if (stages.length > 3) return false;
   for (let i = 1; i < stages.length; i++) {
     const stage = stages[i];
-    if (stage[0]?.value === "rg" && i === 1 && stages.length === 3
-      && stage.every((token) => token.kind === "word")
+    if (stage[0]?.value === "rg" && stage.every((token) => token.kind === "word")
       && rgArgs((stage as Word[]).slice(1), true)) continue;
     if (stage.length === 1 && stage[0]?.kind === "word" && stage[0].value === "sort"
       && !stage[0].expanded && !stage[0].variable) continue;
     if (stage.length === 2 && stage[0]?.kind === "word" && stage[0].value === "wc"
       && stage[1]?.kind === "word" && stage[1].value === "-l"
+      && stage.every((token) => token.kind === "word" && !token.expanded && !token.variable)) continue;
+    if (stage.length === 2 && stage[0]?.kind === "word" && stage[0].value === "col"
+      && stage[1]?.kind === "word" && stage[1].value === "-b"
       && stage.every((token) => token.kind === "word" && !token.expanded && !token.variable)) continue;
     if (i === stages.length - 1 && boundedLines(stage)) continue;
     return false;
