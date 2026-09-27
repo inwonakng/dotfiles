@@ -538,6 +538,7 @@ Profile path: ${input.agent.filePath}${input.agentPromptPath ? `\nLoaded prompt 
 Role: ${role}
 ${agentSection}
 Access mode: ${input.accessMode}
+Interaction mode: noninteractive
 Task brief path: ${input.briefPath}
 
 Instructions:
@@ -1135,6 +1136,7 @@ export default function spawnExtension(pi: ExtensionAPI) {
       ...process.env,
       PI_SPAWN_AGENT: "1",
       PI_SPAWN_ACCESS_MODE: run.accessMode,
+      PI_INTERACTION_MODE: "noninteractive",
       PI_SUBAGENT_NAME: run.profile?.name ?? run.requestedAgent ?? run.role ?? "",
       PI_WORKSPACE_ID: run.worktree?.workspaceId ?? "",
     };

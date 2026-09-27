@@ -15,6 +15,7 @@ import {
   setIntegrationMode,
   type IntegrationMode,
 } from "./shared/integration-state";
+import { getInteractionMode } from "./shared/interaction-mode";
 import { notifyPiWorkspaceIntegration, suppressNextInputNotification } from "./shared/notifications";
 import { activeLocation, moveToLocation } from "./shared/workspace-navigation";
 import {
@@ -288,7 +289,7 @@ async function confirmDestructive(
   message: string,
   approved: boolean | undefined,
 ): Promise<boolean> {
-  if (ctx.hasUI) {
+  if (getInteractionMode(ctx) === "interactive") {
     return ctx.ui.confirm(title, message, { signal: ctx.signal });
   }
   return approved === true;
@@ -636,7 +637,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
         let decision = integrationMode === "allowed" || params.approved === true
           ? INTEGRATE_ACTION
           : RETURN_ACTION;
-        if (integrationMode === "ask" && ctx.hasUI) {
+        if (integrationMode === "ask" && getInteractionMode(ctx) === "interactive") {
           while (true) {
             notifyPiWorkspaceIntegration(ctx);
             decision = await ctx.ui.select(

@@ -390,6 +390,11 @@ local function summarize_ui_request(event)
 			label = "Permission note",
 			question = "Add a note for the remembered command?",
 		}
+	elseif title_payload and title_payload.kind == "pi_question_response" then
+		return {
+			label = "Question response",
+			question = compact_request_text(title_payload.question, 360) or "Write a response to Pi's question.",
+		}
 	end
 
 	local title = compact_request_text(event.title, 360)
@@ -527,14 +532,19 @@ local function select_bash_approval(ctx, event)
 	return true
 end
 
-local function remember_note_float(ctx, event)
+local function markdown_input_float(ctx, event)
 	local payload = type(event.title) == "string" and json.decode_object(event.title)
-	if not payload or payload.kind ~= "pi_remember_note" then
+	if not payload or (payload.kind ~= "pi_remember_note" and payload.kind ~= "pi_question_response") then
 		return false
 	end
 
+	local is_question = payload.kind == "pi_question_response"
+	local buffer_kind = is_question and "question-response" or "remember-note"
+	local title = is_question
+		and " Answer question (:wq to submit, :q! to return) "
+		or " Remember comment (:wq to save, :q! to return) "
 	local buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_name(buf, "pi://remember-note/" .. tostring(event.id))
+	vim.api.nvim_buf_set_name(buf, "pi://" .. buffer_kind .. "/" .. tostring(event.id))
 	vim.bo[buf].buftype = "acwrite"
 	vim.bo[buf].bufhidden = "wipe"
 	vim.bo[buf].swapfile = false
@@ -549,14 +559,14 @@ local function remember_note_float(ctx, event)
 		col = math.floor((vim.o.columns - width) / 2),
 		style = "minimal",
 		border = "rounded",
-		title = " Remember comment (:wq to save, :q! to return) ",
+		title = title,
 		title_pos = "center",
 	})
-	local saved_note
+	local saved_text
 	vim.api.nvim_create_autocmd("BufWriteCmd", {
 		buffer = buf,
 		callback = function()
-			saved_note = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
+			saved_text = table.concat(vim.api.nvim_buf_get_lines(buf, 0, -1, false), "\n")
 			vim.bo[buf].modified = false
 		end,
 	})
@@ -564,10 +574,10 @@ local function remember_note_float(ctx, event)
 		pattern = tostring(win),
 		once = true,
 		callback = function()
-			local note = saved_note
+			local text = saved_text
 			vim.schedule(function()
-				if note then
-					send_extension_ui_response(ctx, event.id, { value = note })
+				if text then
+					send_extension_ui_response(ctx, event.id, { value = text })
 				else
 					send_extension_ui_response(ctx, event.id, { cancelled = true })
 				end
@@ -750,7 +760,7 @@ function M.handle_extension_ui_request(ctx, event)
 			respond({ confirmed = choice == "Yes" })
 		end)
 	elseif event.method == "input" then
-		if remember_note_float(ctx, event) then
+		if markdown_input_float(ctx, event) then
 			return
 		end
 		vim.ui.input({ prompt = event.title or "Pi input", default = event.placeholder or "" }, function(value)
