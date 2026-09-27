@@ -2,10 +2,13 @@
 -- Backends implement available/list/focus/launch/kill/publish/clear/start_overview.
 -- start_overview registers the overview's location for backend navigation.
 -- list() returns snapshots plus an opaque instance id and a readable location.
+-- Session controls use each Neovim instance's RPC server, independent of its backend.
 -- Operations return a non-nil value on success, or nil and an error message.
 local M = {}
 local timer
 local publisher_state
+local publisher_rpc_address
+local publisher_rpc_mode
 
 local function backend()
 	local tmux = require("pi-integration.backends.tmux")
@@ -70,6 +73,51 @@ function M.focus(id)
 		end
 	end
 	return nil, "That conversation is no longer open"
+end
+
+function M.control(entry, action, argument)
+	local transport = backend()
+	if not transport then
+		return nil, "No supported session backend is available"
+	end
+	local instances, err = transport.list()
+	if not instances then
+		return nil, err
+	end
+	local current
+	for _, candidate in ipairs(instances) do
+		if candidate.id == entry.id and candidate.pid == entry.pid then
+			current = candidate
+			break
+		end
+	end
+	if not current then
+		return nil, "That conversation is no longer open"
+	end
+	if type(current.rpc_address) ~= "string" or current.rpc_address == "" then
+		return nil, "That conversation is not ready for remote control"
+	end
+
+	local mode = current.rpc_mode == "tcp" and "tcp" or "pipe"
+	local connected, channel = pcall(vim.fn.sockconnect, mode, current.rpc_address, { rpc = true })
+	if not connected or channel == 0 then
+		return nil, "Could not connect to that conversation"
+	end
+	local ok, result = pcall(
+		vim.rpcrequest,
+		channel,
+		"nvim_exec_lua",
+		[[return require("pi-integration.remote").dispatch(...)]],
+		{ { action = action, argument = argument } }
+	)
+	pcall(vim.fn.chanclose, channel)
+	if not ok then
+		return nil, "Could not control that conversation: " .. tostring(result)
+	end
+	if type(result) ~= "table" or result.ok ~= true then
+		return nil, type(result) == "table" and result.error or "The conversation rejected that action"
+	end
+	return true
 end
 
 function M.kill_needs_confirmation(entry)
@@ -151,12 +199,22 @@ local function snapshot(state)
 		status = "Error"
 	end
 	local path = state.session_file or state.pending_session_file
+	local is_new_session = not state.session_name
+		and not state.pending_session_file
+		and (tonumber(state.message_count) or 0) == 0
+	local title = state.session_name
+		or (is_new_session and "New Session")
+		or (path and vim.fn.fnamemodify(path, ":t"))
+		or "New Session"
 	return {
 		version = 1,
 		pid = vim.uv.os_getpid(),
 		updated = os.time(),
 		path = path,
-		title = state.session_name or (path and vim.fn.fnamemodify(path, ":t")) or "New conversation",
+		title = title,
+		is_new_session = is_new_session,
+		rpc_address = publisher_rpc_address,
+		rpc_mode = publisher_rpc_mode,
 		cwd = (state.workspace and state.workspace.cwd) or vim.fn.getcwd(),
 		directory = (state.workspace and state.workspace.directory) or (state.workspace and state.workspace.cwd) or vim.fn.getcwd(),
 		workspace_id = state.workspace and state.workspace.id,
@@ -185,6 +243,8 @@ function M.stop()
 		timer = nil
 	end
 	publisher_state = nil
+	publisher_rpc_address = nil
+	publisher_rpc_mode = nil
 	local transport = backend()
 	if transport then
 		transport.clear()
@@ -196,6 +256,14 @@ function M.start(state)
 		return
 	end
 	publisher_state = state
+	publisher_rpc_address = vim.v.servername
+	if publisher_rpc_address == "" then
+		local ok, address = pcall(vim.fn.serverstart)
+		publisher_rpc_address = ok and address or nil
+	end
+	if publisher_rpc_address then
+		publisher_rpc_mode = publisher_rpc_address:find(":", 1, true) and "tcp" or "pipe"
+	end
 	M.publish()
 	timer = vim.uv.new_timer()
 	timer:start(

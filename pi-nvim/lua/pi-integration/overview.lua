@@ -1,3 +1,4 @@
+local help = require("pi-integration.help")
 local runtime = require("pi-integration.runtime")
 local sessions = require("pi-integration.sessions")
 local statusline = require("pi-integration.statusline")
@@ -90,7 +91,7 @@ function M.open(config)
 	local list_buf = scratch("pi://overview")
 	local list_win = vim.api.nvim_get_current_win()
 	vim.api.nvim_win_set_buf(list_win, list_buf)
-	window_options(list_win, "%#PiOverviewTitle# Pi Overview%#PiOverviewStatusLine# · Enter: focus · d: kill · /: filter · n: new · h: history · a: archived · r: refresh ")
+	window_options(list_win, "%#PiOverviewTitle# Pi Overview%#PiOverviewStatusLine# · Enter: focus · dd: kill · /: filter · c: clear · r: refresh · <leader>?: keys ")
 	vim.wo[list_win].cursorline = true
 	vim.cmd("botright 9split")
 	local detail_win = vim.api.nvim_get_current_win()
@@ -146,7 +147,8 @@ function M.open(config)
 		set_lines(detail_buf, lines)
 		vim.api.nvim_buf_clear_namespace(detail_buf, ns, 0, -1)
 		if entry then
-			vim.api.nvim_buf_set_extmark(detail_buf, ns, 0, 1, { end_col = #lines[1], hl_group = "PiOverviewDetailTitle" })
+			local title_group = entry.is_new_session and "PiOverviewNewSession" or "PiOverviewDetailTitle"
+			vim.api.nvim_buf_set_extmark(detail_buf, ns, 0, 1, { end_col = #lines[1], hl_group = title_group })
 			for row = 3, #lines do
 				local _, value_start = lines[row]:find(":%s*")
 				if value_start then
@@ -197,7 +199,7 @@ function M.open(config)
 			end
 		end
 		if #rows == 0 then
-			table.insert(lines, runtime.available() and " No matching open conversations. Press n to start one." or " No supported session backend available.")
+			table.insert(lines, runtime.available() and " No matching open conversations. Press <leader>pn to start one." or " No supported session backend available.")
 		end
 		updating = true
 		set_lines(list_buf, lines)
@@ -218,7 +220,7 @@ function M.open(config)
 			end
 			vim.api.nvim_buf_set_extmark(list_buf, ns, row, title_start_cols[index], {
 				end_col = #lines[first_row + index - 1],
-				hl_group = "PiOverviewTitle",
+				hl_group = entry.is_new_session and "PiOverviewNewSession" or "PiOverviewTitle",
 			})
 		end
 		if previous then
@@ -252,16 +254,44 @@ function M.open(config)
 			end,
 		},
 	}
+	local mapping_specs = {}
+	local help_state = {}
 	local function map(key, callback, description)
+		table.insert(mapping_specs, { lhs = key, desc = description })
 		vim.keymap.set("n", key, callback, { buffer = list_buf, desc = description, silent = true })
 	end
+	local function require_selected()
+		local entry = selected()
+		if not entry then
+			vim.notify("Select a conversation first", vim.log.levels.WARN, { title = "Pi overview" })
+		end
+		return entry
+	end
+	local function control_selected(action, argument)
+		local entry = require_selected()
+		if entry then
+			report(runtime.control(entry, action, argument))
+		end
+	end
+	local function pick_mode(values, prompt, action)
+		local entry = require_selected()
+		if not entry then
+			return
+		end
+		vim.ui.select(values, { prompt = prompt }, function(choice)
+			if choice then
+				report(runtime.control(entry, action, choice))
+			end
+		end)
+	end
+
 	map("<CR>", function()
 		local entry = selected()
 		if entry then
 			report(runtime.focus(entry.id))
 		end
 	end, "Focus conversation")
-	map("d", function()
+	map("dd", function()
 		local entry = selected()
 		if not entry then
 			return
@@ -292,13 +322,6 @@ function M.open(config)
 			report(runtime.kill(current, false))
 		end
 	end, "Kill conversation")
-	map("n", function()
-		vim.ui.input({ prompt = "New conversation directory: ", default = vim.fn.getcwd(), completion = "dir" }, function(cwd)
-			if cwd and vim.trim(cwd) ~= "" then
-				report(runtime.launch(config.launcher, vim.fn.fnamemodify(vim.fn.expand(cwd), ":p")))
-			end
-		end)
-	end, "New conversation")
 	map("/", function()
 		vim.ui.input({ prompt = "Filter sessions: ", default = query }, function(value)
 			if value then
@@ -312,15 +335,55 @@ function M.open(config)
 		refresh()
 	end, "Clear filter")
 	map("r", refresh, "Refresh overview")
-	map("h", function()
+	map("<leader>a", function()
+		control_selected("cycle_access_mode")
+	end, "Cycle selected conversation access mode")
+	map("<leader>A", function()
+		pick_mode(config.access_modes or {}, "Pi access mode", "set_access_mode")
+	end, "Pick selected conversation access mode")
+	map("<leader>i", function()
+		control_selected("cycle_integration_mode")
+	end, "Cycle selected conversation integration mode")
+	map("<leader>I", function()
+		pick_mode(config.integration_modes or {}, "Pi integration mode", "set_integration_mode")
+	end, "Pick selected conversation integration mode")
+	map("<leader>n", function()
+		control_selected("toggle_notifications")
+	end, "Toggle selected conversation notifications")
+	map("<leader>h", function()
 		sessions.pick(history_ctx)
 	end, "Session history")
-	map("<Tab>", function()
-		sessions.pick(history_ctx)
-	end, "Session history")
-	map("a", function()
-		sessions.pick(history_ctx, { view = "archived" })
-	end, "Archived sessions")
+	map("<leader>pn", function()
+		vim.ui.input({ prompt = "New conversation directory: ", default = vim.fn.getcwd(), completion = "dir" }, function(cwd)
+			if cwd and vim.trim(cwd) ~= "" then
+				report(runtime.launch(config.launcher, vim.fn.fnamemodify(vim.fn.expand(cwd), ":p")))
+			end
+		end)
+	end, "New conversation with chosen directory")
+	map("<leader>pN", function()
+		local entry = require_selected()
+		if entry then
+			report(runtime.launch(config.launcher, entry.cwd))
+		end
+	end, "New conversation in selected CWD")
+	map("<leader>?", function()
+		local lines = { "# Pi Overview Help", "", "## Keys", "" }
+		for _, spec in ipairs(mapping_specs) do
+			table.insert(lines, "- `" .. spec.lhs .. "` " .. spec.desc .. ".")
+		end
+		vim.list_extend(lines, { "- `q` or `<Esc>` close this help." })
+		help.toggle_window(help_state, {
+			name = "pi://overview-help",
+			title = "Pi Overview Help",
+			lines = lines,
+		})
+	end, "Pi overview help")
+
+	local which_key_specs = {}
+	for _, spec in ipairs(mapping_specs) do
+		table.insert(which_key_specs, { spec.lhs, buffer = list_buf, desc = spec.desc })
+	end
+	require("which-key").add(which_key_specs)
 	vim.api.nvim_create_autocmd("CursorMoved", {
 		buffer = list_buf,
 		callback = function()

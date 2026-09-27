@@ -25,6 +25,7 @@ require("catppuccin").setup({
 			PiInputTitle = { fg = colors.subtext1, bg = M.ui_bg },
 			PiOverviewStatusLine = { fg = colors.subtext1, bg = M.ui_bg },
 			PiOverviewTitle = { fg = colors.text, bg = M.ui_bg, bold = true },
+			PiOverviewNewSession = { fg = colors.text, bg = M.ui_bg, italic = true },
 			PiOverviewDetailTitle = { fg = colors.red, bg = M.ui_bg, bold = true },
 			PiOverviewValue = { fg = colors.green, bg = M.ui_bg },
 			PiInputSidebarEdit = { fg = colors.blue, bg = M.ui_bg },
