@@ -82,6 +82,7 @@ function M.submit_prompt(ctx)
 	end
 	state.abort_requested = false
 	state.error_rendered_for_active_run = false
+	state.has_sent_message = true
 	clear_input(ctx)
 	ctx.transcript.remove_status(ctx.notices.empty_session)
 	state.pending_user_message = text

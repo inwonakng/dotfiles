@@ -12,6 +12,7 @@ M.specs = {
 		{ lhs = "<leader>?", action = "show_help", desc = "Pi help" },
 		{ lhs = "<leader>/", action = "pick_command", desc = "Pick Pi command" },
 		{ lhs = "<leader>pi", action = "show_input", desc = "Show Pi input" },
+		{ lhs = "<leader>pc", action = "change_cwd", desc = "Change CWD" },
 		{ lhs = "<leader>pd", action = "show_workspace_diff", desc = "Diff" },
 		{ lhs = "<leader>pr", action = "restart", desc = "Restart Pi" },
 		{ lhs = "<leader>pt", action = "show_transcript", desc = "Show Pi transcript" },

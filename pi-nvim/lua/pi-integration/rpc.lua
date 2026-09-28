@@ -239,16 +239,25 @@ function M.send(ctx, cmd, callback)
 	end
 end
 
-function M.restart(ctx)
+function M.restart(ctx, options)
 	local state = ctx.state
+	options = options or {}
 	if state.is_streaming or state.is_retrying or state.awaiting_agent_output then
 		ctx.ui.notify("Wait for the current Pi response to finish before restarting.", vim.log.levels.WARN)
 		return
 	end
 
-	local session_file = state.session_file or state.pending_session_file
-	if session_file and session_file ~= "" then
-		state.pending_session_file = session_file
+	if options.fresh_session then
+		state.session_file = nil
+		state.pending_session_file = nil
+		state.session_name = nil
+		state.message_count = 0
+		state.has_sent_message = false
+	else
+		local session_file = state.session_file or state.pending_session_file
+		if session_file and session_file ~= "" then
+			state.pending_session_file = session_file
+		end
 	end
 	if state.access_mode and state.access_mode ~= "" then
 		state.pending_access_mode = state.access_mode

@@ -9,6 +9,7 @@ local function reset_conversation(ctx, keep_transcript)
 	state.pending_user_message = nil
 	state.session_name = nil
 	state.message_count = 0
+	state.has_sent_message = false
 	state.session_stats = nil
 	state.todo_status = nil
 	state.todo_tool_output_id = nil
@@ -40,6 +41,7 @@ function M.apply_state(ctx, data, new_session)
 	local restore_transcript = not new_session and session_changed
 		and type(data.sessionFile) == "string" and vim.fn.filereadable(data.sessionFile) == 1
 	local previous_leaf_id = state.tree_leaf_id
+	local sent_before_sync = state.has_sent_message
 	if new_session or session_changed then
 		reset_conversation(ctx, restore_transcript)
 	end
@@ -47,6 +49,7 @@ function M.apply_state(ctx, data, new_session)
 	state.pending_session_file = nil
 	state.session_name = data.sessionName
 	state.message_count = data.messageCount or state.message_count
+	state.has_sent_message = (not new_session and sent_before_sync) or (tonumber(state.message_count) or 0) > 0
 	state.is_streaming = data.isStreaming or false
 	state.is_compacting = data.isCompacting or false
 	state.thinking_level = data.thinkingLevel or data.thinking_level or state.thinking_level

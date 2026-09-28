@@ -70,6 +70,10 @@ function M.toggle(ctx)
 	vim.list_extend(lines, keymaps.help_key_lines())
 	vim.list_extend(lines, {
 		"",
+		"## Commands",
+		"",
+		"- `:PiCd [directory]` change CWD before sending the first message.",
+		"",
 		"## Access Modes",
 		"",
 		"- `edit`: allow available tools.",

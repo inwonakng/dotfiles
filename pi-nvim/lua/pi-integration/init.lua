@@ -752,6 +752,44 @@ function M.get_commands(callback)
 	end)
 end
 
+local function restart_in_cwd(path)
+	local cwd = vim.fs.normalize(vim.fn.fnamemodify(vim.fn.expand(path), ":p"))
+	if vim.fn.isdirectory(cwd) ~= 1 then
+		notify("Directory does not exist: " .. cwd, vim.log.levels.ERROR)
+		return
+	end
+	if cwd == vim.fs.normalize(vim.fn.getcwd()) then
+		notify("Pi is already using " .. cwd)
+		return
+	end
+
+	local ok, error_message = pcall(vim.api.nvim_set_current_dir, cwd)
+	if not ok then
+		notify("Could not change CWD: " .. tostring(error_message), vim.log.levels.ERROR)
+		return
+	end
+	pi_rpc.restart(integration_ctx(), { fresh_session = true })
+end
+
+function M.change_cwd(path)
+	if state.has_sent_message or state.pending_session_file then
+		notify("CWD can only be changed before the first message. Start a new session to use another directory.", vim.log.levels.WARN)
+		return
+	end
+
+	if type(path) == "string" and vim.trim(path) ~= "" then
+		restart_in_cwd(vim.trim(path))
+		return
+	end
+
+	local cwd = (state.workspace and state.workspace.cwd) or vim.fn.getcwd()
+	vim.ui.input({ prompt = "Pi CWD: ", default = cwd, completion = "dir" }, function(selected)
+		if selected and vim.trim(selected) ~= "" then
+			restart_in_cwd(vim.trim(selected))
+		end
+	end)
+end
+
 function M.restart()
 	pi_rpc.restart(integration_ctx())
 end

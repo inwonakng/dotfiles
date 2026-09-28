@@ -50,6 +50,10 @@ vim.api.nvim_create_user_command("PiCommand", function()
 	require("pi-integration").pick_command()
 end, { desc = "Pick a Pi slash command/template/skill" })
 
+vim.api.nvim_create_user_command("PiCd", function(opts)
+	require("pi-integration").change_cwd(opts.args)
+end, { nargs = "?", complete = "dir", desc = "Change CWD before the first Pi message" })
+
 vim.api.nvim_create_user_command("PiRestart", function()
 	require("pi-integration").restart()
 end, { desc = "Restart Pi" })
