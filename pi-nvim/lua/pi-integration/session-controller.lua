@@ -96,7 +96,8 @@ function M.new_session(ctx)
 end
 
 function M.new_session_window(ctx)
-	local cwd = (ctx.state.workspace and ctx.state.workspace.cwd) or vim.fn.getcwd()
+	local workspace = ctx.state.workspace
+	local cwd = (workspace and (workspace.directory or workspace.cwd)) or vim.fn.getcwd()
 	local launched, err = runtime.launch(ctx.config.launcher, cwd)
 	if not launched then
 		ctx.ui.notify(err or "Could not start a new session in a new window", vim.log.levels.ERROR)

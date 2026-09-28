@@ -363,9 +363,9 @@ function M.open(config)
 	map("<leader>pN", function()
 		local entry = require_selected()
 		if entry then
-			report(runtime.launch(config.launcher, entry.cwd))
+			report(runtime.launch(config.launcher, directory(entry)))
 		end
-	end, "New conversation in selected CWD")
+	end, "New conversation in selected project directory")
 	map("<leader>?", function()
 		local lines = { "# Pi Overview Help", "", "## Keys", "" }
 		for _, spec in ipairs(mapping_specs) do

@@ -26,7 +26,7 @@ M.specs = {
 		{ lhs = "<leader>h", action = "history", desc = "History" },
 		{ lhs = "<leader>T", action = "show_tree", desc = "Session tree" },
 		{ lhs = "<leader>pn", action = "new_session", desc = "New session in current window" },
-		{ lhs = "<leader>pN", action = "new_session_window", desc = "New session in new window" },
+		{ lhs = "<leader>pN", action = "new_session_window", desc = "New session in project directory" },
 		{ lhs = "<leader>n", action = "toggle_notifications", desc = "Toggle notifications" },
 		{ lhs = "<leader>r", action = "refresh_messages", desc = "Refresh transcript" },
 		{ lhs = "<leader>R", action = "rename_session", desc = "Rename session" },

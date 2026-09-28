@@ -91,3 +91,42 @@ appropriate `~/.local/bin/$ARCH$` folder
 - ripgrep
 - tree-sitter-cli (may need to use npm or cargo. apt is very out of date)
 - python3-dev (on top of python3)
+
+### Pi agent harness
+
+[pi](https://pi.dev/) is an agentic harness similar to codex or claude code. I use it as the main driver and maintain a neovim-based interface for it.
+
+**Pi session overview**
+
+`pi-nvim` has two startup modes using the same Neovim configuration:
+
+- `bash scripts/pi-nvim.sh` — conversation UI.
+- `bash scripts/pi-nvim.sh --overview` — live session overview, without starting Pi.
+- `bash scripts/pi-nvim.sh --session PATH` — resume a saved conversation.
+
+In tmux, `<prefix>g` toggles the `agents` popup, `<prefix>G` starts a new
+conversation in the current pane's directory, and `<prefix>o` opens or returns
+to its persistent Overview window. The Overview window is created lazily.
+
+The overview refreshes every second and preserves selection by instance ID.
+Use Enter to focus a conversation, `dd` to kill it and close its tmux window
+(with confirmation if it is active), `/` to filter, `c` to clear the filter,
+and `r` to refresh. `<leader>h` opens history, where `ctrl-g` switches between
+regular and archived sessions. `<leader>pN` starts a conversation in the
+selected session's project directory; `<leader>pn` prompts for a directory.
+The regular notification, access-mode, and integration-mode mappings control
+the selected session. `<leader>?` shows the complete mappings for either the
+overview or conversation UI. Killing a conversation leaves its saved session
+file in history. A tmux window with other panes cannot be closed from the overview.
+History keeps the existing transcript previews and archive/restore/trash actions.
+Resuming from the overview focuses an already-open conversation or creates a
+new window; it never replaces another conversation. Archive/trash skip sessions
+open in other registered instances, including those opened during confirmation.
+
+Backend-specific discovery, metadata storage, launching, and focus live in
+`pi-nvim/lua/pi-integration/backends/`. The overview and history picker use the
+backend-neutral `runtime.lua` API. Cross-instance controls use the Neovim RPC
+address in each runtime snapshot rather than backend-specific keystrokes. Only
+the tmux adapter is implemented; another adapter can implement the same
+operations without changing the dashboard UI.
+
