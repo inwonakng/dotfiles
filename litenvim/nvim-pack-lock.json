@@ -88,6 +88,10 @@
       "rev": "430522f95fe4fb7c511ec64f8c1a90cc6a66c05c",
       "src": "https://github.com/windwp/nvim-autopairs"
     },
+    "nvim-extras": {
+      "rev": "e6877c491ab89e370dab97f2edb0d9e51b6b85d5",
+      "src": "https://github.com/inwonakng/nvim-extras"
+    },
     "nvim-notify": {
       "rev": "8701bece920b38ea289b457f902e2ad184131a5d",
       "src": "https://github.com/rcarriga/nvim-notify"

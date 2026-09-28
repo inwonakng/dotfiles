@@ -287,7 +287,7 @@ alias tmux-start="bash ~/dotfiles/tmux/scripts/start.sh"
 alias tmux-kill="bash ~/dotfiles/tmux/scripts/clean-exit.sh"
 alias oc="opencode"
 alias bc="bob --chat-mode code"
-alias pn="bash ~/dotfiles/scripts/pi-nvim.sh"
+alias pc="pi-console"
 
 if [[ -f "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]]; then
     alias tailscale="/Applications/Tailscale.app/Contents/MacOS/Tailscale"

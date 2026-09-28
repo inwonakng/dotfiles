@@ -1,6 +1,5 @@
-# Shared settings for our custom Pi extensions. Use dash-case for all keys.
-# Install dependencies with: npm ci --prefix pi/agent
-# Extension changes are read on demand. Restart pi-nvim after changing its settings.
+# User settings for pi-console extensions. Use dash-case for all keys.
+# Changes are read on demand. Restart pi-console after changing settings that affect the Neovim UI.
 # Credentials remain in Pi's auth.json or provider environment variables.
 
 session-picker:

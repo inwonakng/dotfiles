@@ -32,6 +32,5 @@ claude/file-history
 /pi/agent/history
 /plans
 /.pi
-/pi-nvim-notes.md
 /pi/agent/litellm-provider-models.json
 /lazygit/github_pull_requests.json

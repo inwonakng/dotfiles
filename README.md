@@ -96,13 +96,28 @@ appropriate `~/.local/bin/$ARCH$` folder
 
 [pi](https://pi.dev/) is an agentic harness similar to codex or claude code. I use it as the main driver and maintain a neovim-based interface for it.
 
-**Pi session overview**
+**Pi session console**
 
-`pi-nvim` has two startup modes using the same Neovim configuration:
+[`pi-console`](https://github.com/inwonakng/pi-console) is developed from a local
+checkout at `~/Documents/projects/pi-console`. Its development installer links
+the `pi-console` command into `~/.local/bin`, registers its Pi package, and lets
+tmux load the integration through that installed command rather than a checkout
+path. It has three startup modes:
 
-- `bash scripts/pi-nvim.sh` — conversation UI.
-- `bash scripts/pi-nvim.sh --overview` — live session overview, without starting Pi.
-- `bash scripts/pi-nvim.sh --session PATH` — resume a saved conversation.
+- `pi-console` (or `pc`) — conversation UI.
+- `pi-console --overview` — live session overview.
+- `pi-console --session PATH` — resume a saved conversation.
+
+Both pi-console and litenvim install
+[`nvim-extras`](https://github.com/inwonakng/nvim-extras) through `vim.pack` and
+pin it in their own lockfiles. To test uncommitted nvim-extras changes, set
+`NVIM_EXTRAS_PATH` to a local checkout before starting Neovim or pi-console.
+
+Before sending the first message in a new conversation, use `:PiCd [DIRECTORY]`
+or `<leader>pc` to change its working directory. This restarts the empty Pi
+runtime so project-specific resources load from the selected directory. After a
+message has been sent, the command leaves the session unchanged and shows a
+warning.
 
 In tmux, `<prefix>g` toggles the `agents` popup, `<prefix>G` starts a new
 conversation in the current pane's directory, and `<prefix>o` opens or returns
@@ -123,9 +138,9 @@ Resuming from the overview focuses an already-open conversation or creates a
 new window; it never replaces another conversation. Archive/trash skip sessions
 open in other registered instances, including those opened during confirmation.
 
-Backend-specific discovery, metadata storage, launching, and focus live in
-`pi-nvim/lua/pi-integration/backends/`. The overview and history picker use the
-backend-neutral `runtime.lua` API. Cross-instance controls use the Neovim RPC
+Backend-specific discovery, metadata storage, launching, and focus live in the
+pi-console checkout under `nvim/lua/pi-integration/backends/`. The overview and
+history picker use the backend-neutral `runtime.lua` API. Cross-instance controls use the Neovim RPC
 address in each runtime snapshot rather than backend-specific keystrokes. Only
 the tmux adapter is implemented; another adapter can implement the same
 operations without changing the dashboard UI.

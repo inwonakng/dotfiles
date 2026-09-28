@@ -14,7 +14,7 @@ set -g @plugin 'tmux-plugins/tmux-continuum'
 setenv -g PATH "$HOME/.config/tmux/scripts:$PATH"
 
 # Processes that tmux-resurrect should restore
-set -g @resurrect-processes 'pixi uv "~pi-nvim.sh"'
+set -g @resurrect-processes 'pixi uv "~pi-console"'
 set -g @resurrect-hook-post-save-layout 'bash $HOME/dotfiles/tmux/scripts/filter-resurrect-save.sh'
 
 # Enable mouse mode (tmux 2.1 and above)
@@ -163,23 +163,9 @@ set -g status-left ""
 set -g status-right-length 80
 set -g status-right "#(bash status.sh)"
 
-# allow extended keys for pi
-if -F '#{extended-keys}' 'set -g extended-keys on'
-if -F '#{extended-keys-format}' 'set -g extended-keys-format csi-u'
-
-# Allow the local LaTeX renderer to send Kitty graphics through tmux.
-set -g allow-passthrough on
-
-# A popup that attaches another tmux client adds one passthrough layer. Record
-# whether the latest active client is direct (1) or nested (2) for Neovim.
-set-hook -g client-active[90] \
-  'set-option -q -t "#{client_session}" @graphics-nest-count "#{?#{==:#{client_termname},#{default-terminal}},2,1}"'
-set-hook -g client-attached[90] \
-  'set-option -q -t "#{client_session}" @graphics-nest-count "#{?#{==:#{client_termname},#{default-terminal}},2,1}"'
-set-hook -g client-focus-in[90] \
-  'set-option -q -t "#{client_session}" @graphics-nest-count "#{?#{==:#{client_termname},#{default-terminal}},2,1}"'
-set-hook -g client-session-changed[90] \
-  'set-option -q -t "#{client_session}" @graphics-nest-count "#{?#{==:#{client_termname},#{default-terminal}},2,1}"'
+# Load the integration through the installed pi-console command.
+if-shell "command -v pi-console >/dev/null 2>&1" \
+  "run-shell 'pi-console --tmux setup'"
 
 ###=============================###
 ### Plugin configurations start ###
@@ -224,12 +210,6 @@ bind V run-shell "edit-in-vim.sh"
 ### Custom Utilities ###
 ###==================###
 
-# general popup window
-bind g run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-agents.sh '#{pane_id}' '#{client_name}'"
-# open a new agents window rooted in the current pane's directory
-bind G run-shell "bash $HOME/.config/tmux/scripts/open-agents-window.sh '#{pane_id}' '#{client_name}'"
-# select the persistent overview, opening the agents popup when needed
-bind o run-shell "bash $HOME/.config/tmux/scripts/open-agents-overview.sh '#{pane_id}' '#{client_name}'"
 # special popup window with midnight commander
 bind e run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-mc.sh"
 # freehand calculator popup
