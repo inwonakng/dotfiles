@@ -15,7 +15,7 @@ Use this skill when the user explicitly asks for code or file changes.
 4. For bugs, test failures, or unexpected behavior, use the `debug` skill before changing code.
 5. For code changes, use the `write-good-code` skill.
 6. Use `todowrite` for non-trivial work with several distinct steps.
-7. Before making implementation changes with `edit` or `write`, call the `workspace` tool with `action=enter`. Use `edit` or `write`, not `bash`, for implementation changes. Temporary probes, scripts, and generated artifacts may instead be created under `$TMPDIR`; keep them outside the repository and remove them when finished. Wait for Pi to switch cwd into the task worktree before using repository tools. Reuse an associated task or child workspace instead of nesting another worktree.
+7. Before making implementation changes with `edit` or `write` inside the git repository containing the current session cwd, call the `workspace` tool with `action=enter` unless the session is already in an associated workspace. Use `edit` or `write`, not `bash`, for implementation changes. Temporary probes, scripts, and generated artifacts may instead be created under `$TMPDIR`; keep them outside the repository and remove them when finished. Wait for Pi to switch cwd into the task worktree before using repository tools. Reuse an associated task or child workspace instead of nesting another worktree.
 8. If the user asks for subagents, load `subagent-delegation` before using them.
 
 Do not create a workspace for discussion, explanation, planning, or read-only research. If an expected workspace is missing, stop editing and inspect it with `workspace` status rather than falling back to the original checkout.

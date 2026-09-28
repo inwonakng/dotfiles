@@ -530,7 +530,7 @@ export default function workspaceExtension(pi: ExtensionAPI) {
     description: "Create/reuse a task worktree, optionally copying named ignored files on entry, inspect workspace state, integrate or discard. Status includes full workspace paths.",
     promptSnippet: "Manage the current task's isolated Git worktree and integration lifecycle.",
     promptGuidelines: [
-      "Call workspace with action=enter as the only tool call in that assistant response before making implementation changes with edit or write, unless the current session is already in an associated workspace. To edit existing ignored files, provide their paths relative to the original cwd in ignoredFiles on the first enter call; only those files are copied and later integrated. Wait for the cwd switch before using more tools.",
+      "Before making implementation changes with edit or write inside the git repository containing the current session cwd, call workspace with action=enter as the only tool call in that assistant response, unless the current session is already in an associated workspace. To edit existing ignored files, provide their paths relative to the original cwd in ignoredFiles on the first enter call; only those files are copied and later integrated. Wait for the cwd switch before using more tools.",
       "Temporary probes, scripts, and generated artifacts may be created under $TMPDIR without entering a workspace; keep them outside the repository and remove them when finished.",
       "Call workspace with action=status when the expected workspace is missing or its lifecycle is unclear.",
       "Top-level workspace integration follows the active integration mode: ask requests confirmation and allowed is pre-authorized.",
