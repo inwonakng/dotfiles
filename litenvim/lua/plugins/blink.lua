@@ -47,8 +47,14 @@ cmp.setup({
 		},
 		per_filetype = {
 			codecompanion = { "codecompanion" },
+			ledger = { inherit_defaults = true, "hledger_accounts", "omni" },
 		},
 		providers = {
+			hledger_accounts = {
+				name = "Hledger Accounts",
+				module = "completion.hledger",
+				async = true,
+			},
 			markdown = {
 				name = "RenderMarkdown",
 				module = "render-markdown.integ.blink",
