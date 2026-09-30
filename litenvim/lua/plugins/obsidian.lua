@@ -131,12 +131,8 @@ end
 
 local function open_daily_note()
 	local workspace = require("obsidian.api").find_workspace(vim.api.nvim_buf_get_name(0)) or Obsidian.workspace
-	-- Use the application launcher, not its internal obsidian-cli binary:
-	-- the launcher routes commands to the requested vault.
-	local cli = vim.fn.exepath("obsidian")
-	if cli == "" then
-		cli = "/Applications/Obsidian.app/Contents/MacOS/Obsidian"
-	end
+	-- Keep timed CLI requests separate from the GUI process.
+	local cli = "/Applications/Obsidian.app/Contents/MacOS/obsidian-cli"
 	if vim.fn.executable(cli) ~= 1 then
 		vim.notify("Enable the Obsidian CLI before creating daily notes", vim.log.levels.ERROR)
 		return
@@ -156,9 +152,21 @@ local function open_daily_note()
 		return output
 	end
 	local ok, err = pcall(function()
-		local relative = run("daily:path")
-		if relative == "" or relative:find("[\r\n]") or not relative:match("%.md$") then
-			error("Obsidian did not return a daily note path")
+		local launched = vim.system({ "open", "-g", "-a", "Obsidian" }, { text = true }):wait(10000)
+		if launched.code ~= 0 then
+			error("Could not launch Obsidian: " .. vim.trim(launched.stderr or ""))
+		end
+		local relative, last_error
+		if not vim.wait(30000, function()
+			local ready, output = pcall(run, "daily:path")
+			if ready and output ~= "" and not output:find("[\r\n]") and output:match("%.md$") then
+				relative = output
+				return true
+			end
+			last_error = ready and "Obsidian did not return a daily note path" or output
+			return false
+		end, 250) then
+			error("Obsidian did not become ready: " .. tostring(last_error))
 		end
 		local path = vim.fs.joinpath(tostring(workspace.root), relative)
 		if vim.fn.filereadable(path) ~= 1 then
