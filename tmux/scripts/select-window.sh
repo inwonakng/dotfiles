@@ -32,9 +32,11 @@ if [[ -z "${TMUX_FZF_SWITCH_CURRENT:-}" ]]; then
     done <<< "$windows")
 fi
 
+preview_window_option=${TMUX_FZF_PREVIEW_OPTIONS##* }
+preview_options="--preview='bash $HOME/.config/tmux/scripts/preview-pane.sh window {}' $preview_window_option"
 FZF_DEFAULT_OPTS="$FZF_DEFAULT_OPTS --header='Select target window.'"
 target_origin=$(printf '%s\n[cancel]' "$windows" | \
-    eval "$TMUX_FZF_BIN $TMUX_FZF_OPTIONS $TMUX_FZF_PREVIEW_OPTIONS")
+    eval "$TMUX_FZF_BIN $TMUX_FZF_OPTIONS $preview_options")
 
 [[ "$target_origin" == "[cancel]" || -z "$target_origin" ]] && exit
 target=${target_origin%%: *}
