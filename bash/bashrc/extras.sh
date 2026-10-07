@@ -14,7 +14,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     SCRATCH_NOTE_FILE="$HOME/.cache/scratch.md"
     export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
     export NVM_SYMLINK_CURRENT=true
-    export NODE_DEFAULT_PATH="$NVM_DIR/current/bin"
+    export NODE_DEFAULT_DIR="$NVM_DIR/current/bin"
 else
     NVM_DIR="$HOME/.nvm"
     SCRATCH_NOTE_FILE="$HOME/scratch.md"
@@ -54,7 +54,7 @@ else
 
     export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
     export NVM_SYMLINK_CURRENT=true
-    export NODE_DEFAULT_PATH="$NVM_DIR/current/bin"
+    export NODE_DEFAULT_DIR="$NVM_DIR/current/bin"
 fi
 
 # at this point, we have finished setting the paths to the relevant tools we need
@@ -72,8 +72,12 @@ fi
 if [[ -d $LOCAL_BIN_DIR ]]; then
     PATH="$LOCAL_BIN_DIR:$PATH"
 fi
-if [[ -d $NODE_DEFAULT_PATH ]]; then
-    PATH="$NODE_DEFAULT_PATH:$PATH"
+if [[ -d $NODE_DEFAULT_DIR ]]; then
+    PATH="$NODE_DEFAULT_DIR:$PATH"
+fi
+PI_DIR="$HOME/.pi/bin"
+if [[ -d $PI_DIR ]]; then
+    PATH="$PI_DIR:$PATH"
 fi
 export PATH
 
