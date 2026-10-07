@@ -108,10 +108,18 @@ path. It has three startup modes:
 - `pi-console --overview` — live session overview.
 - `pi-console --session PATH` — resume a saved conversation.
 
-Both pi-console and litenvim install
+By default, pi-console and litenvim install
 [`nvim-extras`](https://github.com/inwonakng/nvim-extras) through `vim.pack` and
-pin it in their own lockfiles. To test uncommitted nvim-extras changes, set
-`NVIM_EXTRAS_PATH` to a local checkout before starting Neovim or pi-console.
+pin it in their own lockfiles. To test uncommitted changes in both, symlink an
+editable checkout at `~/.local/share/nvim-dev/nvim-extras`; each config prepends
+that directory to `runtimepath` when it exists.
+
+`tmux/tmux.conf.shared` owns Kitty graphics passthrough and the
+`@graphics-nest-count` hooks used by nvim-extras in both Neovim configs.
+They work without pi-console installed: ordinary clients use one passthrough
+wrapper, while clients attached inside a tmux popup use two. Pi-console's
+optional `tmux/graphics.conf` is for standalone installations; do not source it
+alongside these shared settings.
 
 Before sending the first message in a new conversation, use `:PiCd [DIRECTORY]`
 or `<leader>pc` to change its working directory. This restarts the empty Pi

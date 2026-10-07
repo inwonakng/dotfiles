@@ -4,6 +4,6 @@ The relevant directories are symlinked to the appropriate locations for each sys
 
 **Good practices**
 
-- Do not use `chmod` on helper scripts. prefer to use `bash` or `sh` to execute them. 
+- Do not use `chmod` on helper scripts. prefer to use `bash` or `sh` to execute them.
 - Do not write "tests". If you need to validate certain behavior, use a separate script in a throwaway directory under `$TMPDIR`, keep it outside the repository, and remove it when finished. If you really think a test is necessary, ask the user.
 - Read `README.md` to check what apps are configured and how they work.
