@@ -2,6 +2,14 @@
 # Changes are read on demand. Restart pi-console after changing settings that affect the Neovim UI.
 # Credentials remain in Pi's auth.json or provider environment variables.
 
+access-mode:
+  # Read all paths, including credentials; allow writes under /tmp.
+  read-paths: ["/"]
+  write-paths: ["/tmp", "/var/folders/7c"]
+  # Omitted: generate scratch directories under the OS default temp directory.
+  # Uncomment to change the prefix on the next Pi session.
+  # temp-dir-prefix: /tmp/pi-console-
+
 session-picker:
   # Prompt to review sessions after this many days without file activity.
   archive-after-days: 180
