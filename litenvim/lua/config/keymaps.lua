@@ -55,6 +55,23 @@ end, { desc = "delete hidden buffers" })
 map("n", "<leader>uw", "<cmd>set wrap!<CR>", { desc = "Toggle wrap" })
 map("n", "<leader>us", "<cmd>set spell!<CR>", { desc = "Toggle spell check" })
 map("n", "<leader>un", "<cmd>set relativenumber!<CR>", { desc = "Toggle number" })
+map("n", "<leader>uq", function()
+	if vim.fn.getqflist({ winid = 0 }).winid ~= 0 then
+		vim.cmd.cclose()
+	else
+		vim.cmd.copen()
+	end
+end, { desc = "Toggle quickfix" })
+map("n", "<leader>ul", function()
+	local list = vim.fn.getloclist(0, { id = 0, winid = 0 })
+	if list.winid ~= 0 then
+		vim.cmd.lclose()
+	elseif list.id == 0 then
+		vim.notify("No location list for this window", vim.log.levels.INFO)
+	else
+		vim.cmd.lopen()
+	end
+end, { desc = "Toggle location list" })
 
 -- let j and k move up and down lines that have been wrapped
 map({ "n", "v" }, "j", function()

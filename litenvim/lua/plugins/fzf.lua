@@ -90,6 +90,7 @@ config.defaults.keymap.fzf["ctrl-d"] = "half-page-down"
 config.defaults.keymap.fzf["ctrl-x"] = "jump"
 config.defaults.keymap.fzf["ctrl-f"] = "preview-page-down"
 config.defaults.keymap.fzf["ctrl-b"] = "preview-page-up"
+config.defaults.keymap.fzf["ctrl-l"] = "clear-multi"
 config.defaults.keymap.builtin["<c-f>"] = "preview-page-down"
 config.defaults.keymap.builtin["<c-b>"] = "preview-page-up"
 
@@ -125,6 +126,20 @@ fzf.setup({
 	defaults = {
 		formatter = "path.dirname_first",
 	},
+	actions = {
+		files = {
+			[1] = true, -- Keep the default file actions, including Enter.
+			["ctrl-o"] = function(selected, opts)
+				if #selected == 0 then
+					return
+				end
+				actions.file_sel_to_ll(selected, vim.tbl_extend("force", opts, { lopen = false }))
+				vim.cmd.lfirst()
+				vim.cmd("botright lopen")
+				vim.cmd.wincmd("p")
+			end,
+		},
+	},
 	previewers = {
 		builtin = {
 			treesitter = {
@@ -144,13 +159,13 @@ fzf.setup({
 	files = {
 		cwd_prompt = false,
 		actions = {
-			["ctrl-o"] = { actions.toggle_ignore },
+			["ctrl-q"] = { actions.toggle_ignore },
 			["ctrl-h"] = { actions.toggle_hidden },
 		},
 	},
 	grep = {
 		actions = {
-			["ctrl-o"] = { actions.toggle_ignore },
+			["ctrl-q"] = { actions.toggle_ignore },
 			["ctrl-h"] = { actions.toggle_hidden },
 		},
 	},
