@@ -72,6 +72,21 @@ map("n", "<leader>ul", function()
 		vim.cmd.lopen()
 	end
 end, { desc = "Toggle location list" })
+map("n", "<leader>uL", function()
+	if vim.bo.buftype == "quickfix" then
+		vim.notify("Copy quickfix from an editor pane", vim.log.levels.INFO)
+		return
+	end
+	local list = vim.fn.getqflist({ items = 0, title = 0, context = 0, idx = 0 })
+	if #list.items == 0 then
+		vim.notify("Quickfix list is empty", vim.log.levels.INFO)
+		return
+	end
+	list.nr = "$" -- Append without discarding newer location-list history.
+	vim.fn.setloclist(0, {}, " ", list)
+	vim.cmd.cclose()
+	vim.cmd.lopen()
+end, { desc = "Copy quickfix to location list" })
 
 -- let j and k move up and down lines that have been wrapped
 map({ "n", "v" }, "j", function()
