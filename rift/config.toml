@@ -223,7 +223,7 @@ fade_duration_ms = 180.0
 # Trackpad gestures
 [settings.gestures]
 # Enable horizontal swipes to switch virtual workspaces
-enabled = true
+enabled = false
 # If true, Rift consumes horizontal swipes handled by its trackpad gesture handlers
 # so macOS and the foreground app do not also handle them
 consume_dock_swipe = true
@@ -281,6 +281,7 @@ reapply_app_rules_on_title_change = true
 workspace_rules = [
   { workspace = "M", layout = "scrolling" },
   { workspace = "W", layout = "scrolling" },
+  { workspace = "N", layout = "scrolling" },
 ]
 
 
@@ -576,8 +577,14 @@ AltCtrl = "Alt + Ctrl"
 "AltCtrl + E" = "unjoin_windows"
 
 "AltShift + F" = "toggle_window_floating"
+
 "Alt + Z" = "toggle_fullscreen"
-"Alt + F" = "toggle_focus_floating"
+# "Alt + F" = "toggle_focus_floating"
+"Alt + F" = { exec = [
+  "bash",
+  "-lc",
+  "exec bash \"$HOME/.config/rift/scripts/toggle-floating-window-workspace.sh\"",
+] }
 
 # smartly resize windows
 "AltShift + Equal" = "resize_window_grow"
