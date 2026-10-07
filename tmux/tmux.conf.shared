@@ -158,6 +158,24 @@ set -as terminal-overrides ',*:Setulc=\E[58::2::%p1%{65536}%/%d::%p1%{256}%/%{25
 setw -g main-pane-height 40
 setw -g other-pane-height 40
 
+# Kitty graphics for both litenvim and pi-console, independent of pi-console setup.
+# nvim-extras reads this session option: ordinary clients need one passthrough
+# wrapper; tmux clients attached inside a popup need two.
+set -g allow-passthrough on
+# Expand both the hook's client session and depth before executing set-option.
+set-hook -g client-active[90] {
+  run-shell -C 'set-option -q -t "#{client_session}" @graphics-nest-count "#{?#{==:#{client_termname},#{default-terminal}},2,1}"'
+}
+set-hook -g client-attached[90] {
+  run-shell -C 'set-option -q -t "#{client_session}" @graphics-nest-count "#{?#{==:#{client_termname},#{default-terminal}},2,1}"'
+}
+set-hook -g client-focus-in[90] {
+  run-shell -C 'set-option -q -t "#{client_session}" @graphics-nest-count "#{?#{==:#{client_termname},#{default-terminal}},2,1}"'
+}
+set-hook -g client-session-changed[90] {
+  run-shell -C 'set-option -q -t "#{client_session}" @graphics-nest-count "#{?#{==:#{client_termname},#{default-terminal}},2,1}"'
+}
+
 # status bar
 set -g status-left ""
 set -g status-right-length 80
@@ -212,8 +230,8 @@ bind V run-shell "edit-in-vim.sh"
 
 # special popup window with midnight commander
 bind e run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-mc.sh"
-# freehand calculator popup
-bind c run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-calc.sh"
+# freehand irc popup
+bind c run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-chat.sh"
 
 # FZF stuff
 TMUX_FZF_OPTIONS="-p -w 80% -h 80% -m --layout=reverse --preview-window=top:70%,nowrap"

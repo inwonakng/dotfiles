@@ -4,10 +4,10 @@
 current_session=$(tmux display-message -p '#S')
 
 # Check if we're currently in the calc session (the popup)
-if [ "$current_session" = "calc" ]; then
+if [ "$current_session" = "chat" ]; then
     # We're in the popup, so detach (close it)
     tmux detach-client
 else
     # We're not in a popup, so open one
-    tmux display-popup -w 80% -h 85% -E "tmux new-session -A -s calc 'nvim /tmp/scratch.numi'"
+    tmux display-popup -w 80% -h 85% -E "tmux new-session -A -s chat 'irssi'"
 fi
