@@ -1,13 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Get the current session name
-current_session=$(tmux display-message -p '#S')
-
-# Check if we're currently in the scratch session (the popup)
-if [ "$current_session" = "mc" ]; then
-    # We're in the popup, so detach (close it)
-    tmux detach-client
-else
-    # We're not in a popup, so open one
-    tmux display-popup -w 80% -h 85% -E "tmux new-session -A -s mc mc"
-fi
+# This entry point has the same persistent-session behavior as the MC toggle.
+script_dir=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P) || exit
+exec bash "$script_dir/toggle-popup-mc.sh" "$@"

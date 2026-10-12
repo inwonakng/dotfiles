@@ -1,13 +1,20 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Get the current session name
-current_session=$(tmux display-message -p '#S')
+set -eu
 
-# Check if we're currently in the scratch session (the popup)
+script_dir=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+pane_id=${1:-$(tmux display-message -p '#{pane_id}')}
+client_name=${2:-$(tmux display-message -p -t "$pane_id" '#{client_name}')}
+current_session=$(tmux display-message -p -t "$pane_id" '#{session_name}')
+
 if [ "$current_session" = "mc" ]; then
-    # We're in the popup, so detach (close it)
-    tmux detach-client
-else
-    # We're not in a popup, so open one
-    tmux display-popup -w 80% -h 85% -E "tmux new-session -A -s mc mc"
+    if [ -n "$client_name" ]; then
+        exec tmux detach-client -t "$client_name"
+    else
+        exec tmux detach-client
+    fi
 fi
+
+socket_path=$(tmux display-message -p '#{socket_path}')
+exec bash "$script_dir/display-overlay.sh" "$pane_id" "$client_name" 80 85 \
+    env -u TMUX tmux -S "$socket_path" new-session -A -s mc mc

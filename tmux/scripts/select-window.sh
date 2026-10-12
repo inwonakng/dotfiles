@@ -1,46 +1,34 @@
 #!/usr/bin/env bash
 
-plugin_scripts="$HOME/.config/tmux/plugins/tmux-fzf/scripts"
-source "$plugin_scripts/.envs"
+set -eu
 
-current_session_id=$(tmux display-message -p '#{session_id}')
-current_window=$(tmux display-message -p '#{session_name}:#{window_index}:')
+script_dir=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+pane_id=${1:-$(tmux display-message -p '#{pane_id}')}
+client_name=${2:-$(tmux display-message -p -t "$pane_id" '#{client_name}')}
+current_session_id=$(tmux display-message -p -t "$pane_id" '#{session_id}')
+current_window_id=$(tmux display-message -p -t "$pane_id" '#{window_id}')
 
 list_windows() {
-    local session_filter=$1
-
-    if [[ -n "${TMUX_FZF_WINDOW_FILTER:-}" ]]; then
-        session_filter="#{&&:${TMUX_FZF_WINDOW_FILTER},${session_filter}}"
-    fi
-
-    if [[ -z "${TMUX_FZF_WINDOW_FORMAT:-}" ]]; then
-        tmux list-windows -a -f "$session_filter"
-    else
-        tmux list-windows -a -f "$session_filter" \
-            -F "#S:#{window_index}: $TMUX_FZF_WINDOW_FORMAT"
-    fi
+    tmux list-windows -a -f "#{&&:$1,#{!=:#{window_id},$current_window_id}}" \
+        -F '#{session_id}:#{window_id} #{session_name}:#{window_index}: #{window_name} (#{window_width}x#{window_height})#{?window_active, (active),}'
 }
 
+# List this session first and exclude the current window, as before.
 windows=$(
     list_windows "#{==:#{session_id},$current_session_id}"
     list_windows "#{!=:#{session_id},$current_session_id}"
 )
+printf -v preview 'bash %q window {1}' "$script_dir/preview-pane.sh"
+selection=$(printf '%s\n[cancel] [cancel]\n' "$windows" | \
+    bash "$script_dir/fzf-picker.sh" "$pane_id" "$client_name" \
+        --delimiter=' ' --with-nth=2.. --header='Select target window.' \
+        --preview="$preview" --preview-window=top:70%,nowrap)
 
-if [[ -z "${TMUX_FZF_SWITCH_CURRENT:-}" ]]; then
-    windows=$(while IFS= read -r window; do
-        [[ "$window" == "$current_window"* ]] || printf '%s\n' "$window"
-    done <<< "$windows")
+target=${selection%% *}
+[[ "$target" == '[cancel]' || -z "$target" ]] && exit 0
+if [ -n "$client_name" ]; then
+    tmux switch-client -c "$client_name" -t "${target%%:*}"
+else
+    tmux switch-client -t "${target%%:*}"
 fi
-
-preview_window_option=${TMUX_FZF_PREVIEW_OPTIONS##* }
-preview_options="--preview='bash $HOME/.config/tmux/scripts/preview-pane.sh window {}' $preview_window_option"
-FZF_DEFAULT_OPTS="$FZF_DEFAULT_OPTS --header='Select target window.'"
-target_origin=$(printf '%s\n[cancel]' "$windows" | \
-    eval "$TMUX_FZF_BIN $TMUX_FZF_OPTIONS $preview_options")
-
-[[ "$target_origin" == "[cancel]" || -z "$target_origin" ]] && exit
-target=${target_origin%%: *}
-target_session=${target%%:*}
-
-tmux switch-client -t "$target_session"
-tmux select-window -t "$target"
+exec tmux select-window -t "$target"

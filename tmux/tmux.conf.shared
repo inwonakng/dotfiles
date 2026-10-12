@@ -4,7 +4,6 @@
 set -g @plugin 'tmux-plugins/tpm'
 set -g @plugin 'catppuccin/tmux'
 set -g @plugin 'nhdaly/tmux-better-mouse-mode'
-set -g @plugin 'sainnhe/tmux-fzf'
 set -g @scroll-speed-num-lines-per-scroll 5
 set -g @sidebar-tree-command 'tree -C'
 set -g @plugin 'tmux-plugins/tmux-resurrect'
@@ -88,13 +87,13 @@ bind t display-message -d 5000 "Transfer: [b] break pane  [w] move window  [p] m
 bind T clock-mode
 
 # (b) *b*reak current pane as new window into fzf-selected session
-bind -T transfer b run-shell "tmux display-popup -w 80% -h 80% -E 'tmux list-sessions -F \"##{session_name}\" | fzf --layout=reverse --prompt=\"Break pane to session: \" | xargs -I{} tmux break-pane -d -s #{pane_id} -t {}:'"
+bind -T transfer b run-shell -b "bash $HOME/.config/tmux/scripts/transfer.sh break '#{pane_id}' '#{client_name}'"
 
 # (w) move current *w*indow to fzf-selected session
-bind -T transfer w run-shell "tmux display-popup -w 80% -h 80% -E 'tmux list-sessions -F \"##{session_name}\" | grep -v \"^#{session_name}$\" | fzf --layout=reverse --prompt=\"Move window to session: \" | xargs -I{} tmux move-window -s #{session_name}:#{window_index} -t {}:'"
+bind -T transfer w run-shell -b "bash $HOME/.config/tmux/scripts/transfer.sh window '#{pane_id}' '#{client_name}'"
 
 # (p) move current *p*ane into fzf-selected window
-bind -T transfer p run-shell "tmux display-popup -w 80% -h 80% -E 'tmux list-windows -a -F \"##{session_name}:##{window_index} (##{window_name})\" | grep -v \"^#{session_name}:#{window_index} \" | fzf --layout=reverse --prompt=\"Move pane to window: \" | sed \"s/ .*//\" | xargs -I{} tmux move-pane -s #{pane_id} -t {}'"
+bind -T transfer p run-shell -b "bash $HOME/.config/tmux/scripts/transfer.sh pane '#{pane_id}' '#{client_name}'"
 
 bind -T transfer Escape switch-client -T root
 
@@ -230,17 +229,15 @@ bind V run-shell "edit-in-vim.sh"
 ### Custom Utilities ###
 ###==================###
 
-# special popup window with midnight commander
-bind e run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-mc.sh"
-# freehand irc popup
-bind c run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-chat.sh"
+# Persistent Midnight Commander and IRC overlays.
+bind e run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-mc.sh '#{pane_id}' '#{client_name}'"
+bind c run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-chat.sh '#{pane_id}' '#{client_name}'"
 
-# FZF stuff
-TMUX_FZF_OPTIONS="-p -w 80% -h 80% -m --layout=reverse --preview-window=top:70%,nowrap"
-# this overrides the built-in selectors.
-bind s run-shell -b "bash $HOME/.config/tmux/scripts/select-session.sh"
-bind w run-shell -b "bash $HOME/.config/tmux/scripts/select-window.sh"
-TMUX_FZF_LAUNCH_KEY="C-f"
+# Our fzf selectors share a borderless modal launcher with popup fallback.
+bind s run-shell -b "bash $HOME/.config/tmux/scripts/select-session.sh '#{pane_id}' '#{client_name}'"
+bind w run-shell -b "bash $HOME/.config/tmux/scripts/select-window.sh '#{pane_id}' '#{client_name}'"
+# Remove the old plugin menu binding when reloading an existing server.
+unbind -q C-f
 
 # reload config file (keybind + command prompt alias)
 # bind R source-file "$HOME/.config/tmux/tmux.conf"
