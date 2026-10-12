@@ -51,6 +51,14 @@ A venue can count as reputable when there is clear evidence it is peer-reviewed 
 - Computer science/ML: NeurIPS, ICML, ICLR, CVPR, ICCV, ECCV, ACL, EMNLP, NAACL, SIGIR, KDD, WWW/The Web Conference, CHI, UIST, CSCW, SIGCOMM, SOSP, OSDI, PLDI, POPL, ICSE, FSE, USENIX venues, ACM/IEEE transactions and conferences, PMLR proceedings.
 - Biomedical/life sciences: PubMed-indexed journals, Nature/Science/Cell family journals, PLOS, JAMA, NEJM, Lancet, society journals.
 - Other domains: recognized society journals/conferences, major university presses, Springer/Elsevier/Wiley/Taylor & Francis/SAGE peer-reviewed journals, and field-specific top venues.
+- Ensure that the paper is *accepted*. just submitted does not mean accepted. 
+- Use the official venue page to get the final citation whenever possible. examples:
+  - Neurips: https://nips.cc
+  - ACL Anthology: https://aclanthology.org
+  - ICLR: https://iclr.cc OR https://openreview.net/group?id=ICLR.cc
+    - for ICLR, ensure that openreview says "ICLR Poster" or "ICLR Spotlight". "Submitted to ICLR" means it was rejected.
+  - ICML: https://icml.cc
+  - ACM Digital Library: https://dl.acm.org
 
 If uncertain whether a venue is reputable, say so and rely on the citation gate instead.
 
