@@ -24,6 +24,10 @@ end, {
 	end,
 })
 
+vim.api.nvim_create_user_command("PackUpdate", function()
+	vim.pack.update()
+end, {})
+
 vim.api.nvim_create_user_command("YankFilePath", function()
 	-- Get the full path of the current buffer
 	local file_path = vim.fn.expand("%:p")
@@ -72,9 +76,6 @@ end, { range = true })
 vim.api.nvim_create_user_command("FixReadingImagePath", function()
 	local bufnr = vim.api.nvim_get_current_buf()
 	local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-
-	for i, line in ipairs(lines) do
-	end
 
 	-- to save the image paths
 	local image_paths = {}
