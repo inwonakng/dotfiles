@@ -58,7 +58,11 @@ auto_focus_blacklist = []
 #   "rift-cli subscribe cli --event windows_changed --command sh --args -c --args 'sketchybar --trigger rift_windows_changed RIFT_WORKSPACE_NAME=\"$RIFT_WORKSPACE_NAME\" RIFT_WINDOW_COUNT=\"$RIFT_WINDOW_COUNT\"'"
 # ]
 
-run_on_start = []
+# Amber border for the focused floating window; tiled and unfocused borders are transparent.
+# Start one border daemon before subscribing. Restart Rift to apply startup changes.
+run_on_start = [
+  "bash -lc 'exec bash \"$HOME/.config/rift/scripts/update-floating-border.sh\" --start'",
+]
 
 # Hot Reloading
 # - If true, rift will watch the config file for changes and reload automatically.
@@ -576,7 +580,12 @@ AltCtrl = "Alt + Ctrl"
 "Alt + Backslash" = "toggle_orientation"
 "AltCtrl + E" = "unjoin_windows"
 
-"AltShift + F" = "toggle_window_floating"
+# Refresh explicitly even when toggling floating leaves the window geometry unchanged.
+"AltShift + F" = { exec = [
+  "bash",
+  "-lc",
+  "rift-cli execute window toggle-float && exec bash \"$HOME/.config/rift/scripts/update-floating-border.sh\"",
+] }
 
 "Alt + Z" = "toggle_fullscreen"
 # "Alt + F" = "toggle_focus_floating"
