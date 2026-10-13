@@ -27,6 +27,8 @@ bash "$script_dir/display-overlay.sh" "$pane_id" "$client_name" 80 80 \
         picker_dir=$1
         shift
         exec fzf --layout=reverse "$@" --no-multi --no-height --no-tmux --border=none \
+            --bind=ctrl-u:half-page-up,ctrl-d:half-page-down \
+            --bind=ctrl-f:preview-page-down,ctrl-b:preview-page-up \
             --bind=ctrl-z:ignore < "$picker_dir/input" > "$picker_dir/output"
     ' tmux-fzf-picker "$picker_dir" "$@" || status=$?
 

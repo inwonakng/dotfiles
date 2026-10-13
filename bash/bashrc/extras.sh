@@ -301,28 +301,71 @@ fi
 ## FZF Interactive Configuration ##
 ###################################
 
-# i got this from here:
-# https://thevaluable.dev/practical-guide-fzf-example/
+# Keep toggle state in the prompt so each picker starts fresh, without state files.
+fzf_ctrl_t_transform() {
+    local type=Both hidden=off ignored=off command
+    case $FZF_PROMPT in
+        Dirs*) type=Dirs ;;
+        Files*) type=Files ;;
+    esac
+    [[ $FZF_PROMPT == *hidden:on* ]] && hidden=on
+    [[ $FZF_PROMPT == *ignored:on* ]] && ignored=on
+
+    case $FZF_KEY in
+        ctrl-t)
+            case $type in
+                Both) type=Dirs ;;
+                Dirs) type=Files ;;
+                Files) type=Both ;;
+            esac
+            ;;
+        ctrl-o)
+            if [[ $hidden == off ]]; then hidden=on; else hidden=off; fi
+            ;;
+        ctrl-r)
+            if [[ $ignored == off ]]; then ignored=on; else ignored=off; fi
+            ;;
+    esac
+
+    command='fd --strip-cwd-prefix --follow'
+    case $type in
+        Both) command+=' --type f --type d' ;;
+        Dirs) command+=' --type d' ;;
+        Files) command+=' --type f' ;;
+    esac
+    [[ $hidden == on ]] && command+=' --hidden'
+    if [[ $ignored == on ]]; then
+        command+=' --no-ignore'
+    else
+        command+=' --exclude .git --exclude node_modules'
+    fi
+
+    printf 'change-prompt(%s [hidden:%s ignored:%s] > )+reload(%s)\n' \
+        "$type" "$hidden" "$ignored" "$command"
+}
+export -f fzf_ctrl_t_transform
+
+export FZF_CTRL_T_COMMAND='fd --strip-cwd-prefix --follow --type f --type d --exclude .git --exclude node_modules'
 export FZF_CTRL_T_OPTS="--multi --height=80% --border=sharp \
---preview='tree -C {}' --preview-window='45%,border-sharp' \
---prompt='Dirs > ' \
+--with-shell='bash -c' \
+--preview='if [[ -d {} ]]; then tree -C -- {}; else bat --color=always -- {}; fi' \
+--preview-window='45%,border-sharp,nowrap,<50(hidden)' \
+--prompt='Both [hidden:off ignored:off] > ' \
 --bind='del:execute(rm -ri {+})' \
 --bind='ctrl-v:toggle-preview' \
---bind='ctrl-d:change-prompt(Dirs > )' \
---bind='ctrl-d:+reload(fd --type d)' \
---bind='ctrl-d:+change-preview(tree -C {})' \
---bind='ctrl-d:+refresh-preview' \
---bind='ctrl-f:change-prompt(Files > )' \
---bind='ctrl-f:+reload(fd --type f)' \
---bind='ctrl-f:+change-preview(bat {})' \
---bind='ctrl-f:+refresh-preview' \
+--bind='ctrl-t:transform(fzf_ctrl_t_transform)' \
+--bind='ctrl-o:transform(fzf_ctrl_t_transform)' \
+--bind='ctrl-r:transform(fzf_ctrl_t_transform)' \
+--bind='ctrl-f:preview-page-down,ctrl-b:preview-page-up' \
+--bind='ctrl-d:half-page-down,ctrl-u:half-page-up' \
 --bind='ctrl-a:select-all' \
 --bind='ctrl-x:deselect-all' \
 --header '
-    CTRL-D to display directories | CTRL-F to display files
-    CTRL-A to select all | CTRL-x to deselect all
-    ENTER to edit | DEL to delete
-    CTRL-V to toggle preview
+    CTRL-T to cycle both/dirs/files | CTRL-O to toggle hidden entries
+    CTRL-R to toggle ignored entries and .git/node_modules (hidden toggle still applies)
+    CTRL-F/B to page preview | CTRL-D/U to half-page options
+    CTRL-A to select all | CTRL-X to deselect all
+    ENTER to insert paths | DEL to delete | CTRL-V to toggle preview
 '"
 
 export FZF_CTRL_R_OPTS="
@@ -331,24 +374,10 @@ export FZF_CTRL_R_OPTS="
   --color header:italic
   --header 'Press CTRL-Y to copy command into clipboard'"
 
-# rebind alt-c into ctrl+p
+# rebind alt-c into ctrl+k
 export FZF_ALT_C_OPTS="
   --walker-skip .git,node_modules,target
   --preview 'tree -C {}'"
-
-# FZF_ALT_C_COMMAND="CTRL-K"
-fzf_cd_pushd() {
-    local cmd
-    cmd="$(__fzf_cd__)" || return
-    cmd=${cmd/builtin cd/pushd}
-    eval "$cmd" >/dev/null || return
-    # show where we landed since the prompt may not redraw immediately
-    printf 'pushd %s\n' "$PWD"
-    READLINE_LINE=""
-    READLINE_POINT=0
-}
-bind -x '"\C-k": "fzf_cd_pushd"'
-bind -m vi-insert -x '"\C-k": "fzf_cd_pushd"'
 
 ###################
 ## CUSTOM PROMPT ##
