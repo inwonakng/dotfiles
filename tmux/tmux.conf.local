@@ -8,15 +8,12 @@ set-option -g status-position top
 # Initialize TMUX plugin manager
 run "$HOME/.config/tmux/plugins/tpm/tpm"
 
-# Override Catppuccin after TPM: lighter overlays identify the local environment.
-# Macchiato surface1 and text; floating modals also reuse popup-style.
-set -g popup-style "bg=#494d64,fg=#cad3f5"
-
 # Work around tmux 3.7+ drawing messages/prompts over the status line.
 # Catppuccin sets these styles with align=centre and no fill, which leaves
 # top-positioned window tabs visible around prompts like rename-window.
 set -gF message-style "fg=#{@thm_teal},bg=#{@_ctp_status_bg},fill=#{@_ctp_status_bg}"
 set -gF message-command-style "fg=#{@thm_teal},bg=#{@_ctp_status_bg},fill=#{@_ctp_status_bg}"
 
-# override catppuccin colors for popup windows
-set -g popup-style "bg=default,fg=default"
+# Override Catppuccin after TPM with a dark blue-charcoal background.
+# Floating modals also reuse popup-style.
+set -g popup-style "bg=#1b2230,fg=default"
