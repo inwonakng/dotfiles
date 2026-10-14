@@ -29,8 +29,10 @@ done <<< "$commands"
 current_path=$(tmux display-message -p -t "$pane_id" '#{pane_current_path}')
 
 if [ "$modal_supported" -eq 1 ]; then
+    # Reuse the popup colors so both overlay implementations look the same.
     # Let the application handle Escape. -W waits and returns its exit status.
     exec tmux new-pane -O -K -W -B none -t "$pane_id" -c "$current_path" \
+        -s "$(tmux show-options -gv popup-style)" \
         -x "$width%" -y "$height%" -X "$(((100 - width) / 2))%" -Y "$(((100 - height) / 2))%" \
         bash -eu -c '
             tmux set-option -p -t "$TMUX_PANE" remain-on-exit off
