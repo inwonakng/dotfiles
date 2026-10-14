@@ -191,7 +191,8 @@ if-shell "command -v pi-console >/dev/null 2>&1" \
 # Catppuccin stuff
 # Avoid underlining the selected tab's rounded separator.
 set -g window-status-current-style none
-set -g @catppuccin_flavor "frappe"
+# set -g @catppuccin_flavor "frappe"
+set -g @catppuccin_flavor "macchiato"
 set -g @catppuccin_window_status_style "rounded"
 set -g @catppuccin_window_current_background "#{@thm_mauve}"
 set -g @catppuccin_status_middle_separator " "
@@ -229,7 +230,8 @@ bind V run-shell "edit-in-vim.sh"
 ### Custom Utilities ###
 ###==================###
 
-# Persistent Midnight Commander and IRC overlays.
+# Persistent scratch shell, Midnight Commander and IRC overlays.
+bind q run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-scratch.sh '#{pane_id}' '#{client_name}'"
 bind e run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-mc.sh '#{pane_id}' '#{client_name}'"
 bind c run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-chat.sh '#{pane_id}' '#{client_name}'"
 
