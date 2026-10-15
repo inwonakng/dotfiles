@@ -54,6 +54,16 @@ Restart or `/reload` to discover the extension and skill. pi-console has its own
 Blink completion source for the same syntax and reference format; restart the
 console frontend after updating it.
 
+## Zotero research workspace
+
+See [Zotero setup](../zotero/README.md) for the on-demand reader bridge and
+`~/agents/zotero` project configuration. `zotero-reader.ts` registers
+`zotero_context` and `zotero_view` inactive globally; that project's settings enable
+them without changing global providers or credentials. The `zotero`,
+`zotero-curation`, and `project-bibliography` skills also work in ordinary research
+projects. New tag names require confirmation; official proceedings/publisher
+metadata takes precedence over supplied README citation blocks.
+
 ## Native tool selection
 
 Optional tools register with `defaultActive: false`. Global `agent/settings.json`
@@ -61,7 +71,7 @@ enables the existing tools alongside Pi's ordinary built-ins:
 
 ```json
 {
-  "defaultTools": ["+spawn", "+spawn_control", "+workspace", "+question", "+todowrite", "+web_search", "+web_fetch"]
+  "defaultTools": ["+codemode", "+spawn", "+spawn_control", "+workspace", "+question", "+todowrite", "+web_search", "+web_fetch"]
 }
 ```
 
@@ -75,8 +85,8 @@ need, without unloading their extensions or commands:
 ```
 
 These tools use direct exposure, not deferred exposure, so inactive tools are not
-callable/discoverable from codemode either. Codemode/tool search are not enabled by
-this setup. Startup selection is not a permanent exclusion or permission gate:
+callable/discoverable from codemode either. Codemode is enabled globally; tool
+search is not enabled by this setup. Startup selection is not a permanent exclusion or permission gate:
 CLI selections can override it, and other extensions can activate tools. Restart
 a session after removing tools in settings; `/reload` does not deactivate tools
 that were already active. No custom loadout/filtering extension is installed.

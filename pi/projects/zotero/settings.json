@@ -1,0 +1,36 @@
+{
+  "defaultTools": [
+    "read",
+    "bash",
+    "edit",
+    "write",
+    "codemode",
+    "question",
+    "todowrite",
+    "web_search",
+    "web_fetch",
+    "zotero_context",
+    "zotero_view"
+  ],
+  "extensions": ["-builtin:mcp"],
+  "skills": [
+    "~/.pi/agent/skills/frontend-web/SKILL.md",
+    "-~/.pi/agent/skills/frontend-web/SKILL.md",
+    "~/.pi/agent/skills/implement/SKILL.md",
+    "-~/.pi/agent/skills/implement/SKILL.md",
+    "~/.pi/agent/skills/plan/SKILL.md",
+    "-~/.pi/agent/skills/plan/SKILL.md",
+    "~/.pi/agent/skills/prepare-spec/SKILL.md",
+    "-~/.pi/agent/skills/prepare-spec/SKILL.md",
+    "~/.pi/agent/skills/review/SKILL.md",
+    "-~/.pi/agent/skills/review/SKILL.md",
+    "~/.pi/agent/skills/debug/SKILL.md",
+    "-~/.pi/agent/skills/debug/SKILL.md",
+    "~/.pi/agent/skills/write-good-code/SKILL.md",
+    "-~/.pi/agent/skills/write-good-code/SKILL.md",
+    "~/.pi/agent/skills/skill-authoring/SKILL.md",
+    "-~/.pi/agent/skills/skill-authoring/SKILL.md",
+    "~/.pi/agent/skills/subagent-delegation/SKILL.md",
+    "-~/.pi/agent/skills/subagent-delegation/SKILL.md"
+  ]
+}

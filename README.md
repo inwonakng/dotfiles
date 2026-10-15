@@ -51,6 +51,8 @@ Vim is an exception. link to `~/.vim`
 - [Hammerspoon](https://www.hammerspoon.org) scriptable automation tool. can do arbitrary things
 - [Zotero](https://www.zotero.org) paper manager
   - [AIdea](https://github.com/Visterainer/aidea-zotero) AI assistant integration for Zotero
+  - [Pi research workspace and reader bridge](zotero/README.md): ordinary Pi in
+    `~/agents/zotero`, with on-demand current-paper context and PDF images.
 - [btop](https://github.com/aristocratos/btop) system monitor (top/htop alternative).
 
 ## Notes
