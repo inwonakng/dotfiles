@@ -50,6 +50,7 @@ vim.pack.add({
 	{ src = "https://github.com/catppuccin/nvim", name = "catppuccin" },
 	"https://github.com/hedyhli/outline.nvim",
 	"https://github.com/nvim-treesitter/nvim-treesitter-context",
+	"https://github.com/catgoose/nvim-colorizer.lua",
 })
 
 require("catppuccin").setup({
@@ -87,6 +88,17 @@ require("outline").setup({
 	},
 })
 
+require("colorizer").setup({
+	options = {
+		parsers = { css = true },
+		display = {
+			mode = "virtualtext",
+			virtualtext = { position = "after" },
+		},
+	},
+})
+vim.keymap.set("n", "<leader>uc", "<cmd>TSContext toggle<CR>", { desc = "Toggle Treesitter Context" })
+
 -- keymaps for the one-line plugins.
 vim.keymap.set("n", "<leader>sr", "<cmd>GrugFar<cr>", { desc = "Find files with grug-far" })
 
@@ -98,4 +110,3 @@ vim.keymap.set("n", "<leader>cs", "<cmd>Outline<CR>", { desc = "Code Symbols" })
 vim.keymap.set("n", "[c", function()
 	require("treesitter-context").go_to_context(vim.v.count1)
 end, { silent = true })
-vim.keymap.set("n", "<leader>uc", "<cmd>TSContext toggle<CR>", { desc = "Toggle Treesitter Context" })
