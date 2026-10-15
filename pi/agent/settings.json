@@ -1,10 +1,22 @@
 {
   "lastChangelogVersion": "1.2.0",
   "theme": "dark",
-  "packages": [
-    "../../Documents/projects/pi-console/pi"
+  "packages": ["../../Documents/projects/pi-console/pi"],
+  "defaultTools": [
+    "+codemode",
+    "+spawn",
+    "+spawn_control",
+    "+workspace",
+    "+question",
+    "+todowrite",
+    "+web_search",
+    "+web_fetch"
   ],
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-6.1-sol",
-  "defaultThinkingLevel": "high"
+  "defaultThinkingLevel": "high",
+  "codemode": {
+    "mode": "on",
+    "inlineBudget": 3000
+  }
 }

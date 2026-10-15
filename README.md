@@ -96,6 +96,11 @@ appropriate `~/.local/bin/$ARCH$` folder
 
 [pi](https://pi.dev/) is an agentic harness similar to codex or claude code. I use it as the main driver and maintain a neovim-based interface for it.
 
+General-purpose question, todo, web, and LiteLLM extensions live in this repository
+under `pi/agent/extensions/`, independently of the console package. See
+[personal Pi setup](pi/README.md) for dependency installation, provider settings,
+and native global/project tool and skill selection.
+
 **Pi session console**
 
 [`pi-console`](https://github.com/inwonakng/pi-console) is developed from a local

@@ -1,0 +1,21 @@
+{
+  "name": "pi-web-search",
+  "private": true,
+  "dependencies": {
+    "@mozilla/readability": "0.6.0",
+    "linkedom": "0.18.12",
+    "turndown": "7.2.4",
+    "turndown-plugin-gfm": "1.0.2"
+  },
+  "devDependencies": {
+    "@types/turndown": "5.0.6"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*",
+    "typebox": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": { "optional": true },
+    "typebox": { "optional": true }
+  }
+}
