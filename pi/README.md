@@ -31,6 +31,29 @@ It owns access control, subagents, workspace/history/tree integration, titles,
 notifications, and Codex usage. Do not also load copies of these personal
 extensions from a second package or `extensions` entry.
 
+## Zotero completion
+
+In ordinary Pi, type `@z:` and choose `paper:`, `collection:`, or `tag:`, then
+enter title fragments, authors, citation keys, tags, or a collection name.
+Queries can contain spaces. Tab/Enter accepts a result; Tab can reopen suggestions
+if the menu closes after an unmatched query. Namespace selection inserts the
+prefix without a space; start typing (or press Tab) to list that namespace.
+
+`agent/extensions/zotero.ts` reads only Zotero's local personal-library API.
+Enable **Settings → Advanced → Allow other applications on this computer to
+communicate with Zotero** and leave Zotero running. Metadata loads on first use,
+is cached only in memory, and refreshes on use after a minute. Failures retry
+after ten seconds and keep any cached suggestions, with an unavailable warning.
+No PDFs, notes, or library writes are loaded by completion. Group libraries are
+not included.
+
+Accepted papers/collections become readable native Zotero links; tags become
+local API tag links carrying the exact tag name (metadata, not a PDF). The brief `zotero` skill uses
+`zotero-cli --json` to resolve references without automatically loading full PDFs.
+Restart or `/reload` to discover the extension and skill. pi-console has its own
+Blink completion source for the same syntax and reference format; restart the
+console frontend after updating it.
+
 ## Native tool selection
 
 Optional tools register with `defaultActive: false`. Global `agent/settings.json`
