@@ -33,8 +33,14 @@ is fetched when the request needs it; note creation still requires a request to
 write. Global Zotero skills work in research project directories too, without
 reader tools or this workspace.
 
-Rebuild and reinstall the XPI after editing `bridge/bootstrap.js`; there is no
-plugin auto-updater. Disable/remove the plugin to remove the endpoints. To undo
+Rebuild and reinstall the XPI after editing `bridge/bootstrap.js` or
+`bridge/manifest.json`; updates are manual. Zotero requires an `update_url`, which
+points to this repository's raw `master` copy of `zotero/updates.json`. That file
+has an empty updates list, so it advertises no automatic updates. Commit and push
+`zotero/updates.json` to `master` to make the URL available; local setup does not
+publish it.
+
+Disable/remove the plugin to remove the endpoints. To undo
 project setup, remove only the two symlinks and the generated XPI; leave your other
 project files alone.
 

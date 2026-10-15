@@ -6,6 +6,7 @@
   "applications": {
     "zotero": {
       "id": "pi-reader-bridge@inwon.local",
+      "update_url": "https://raw.githubusercontent.com/inwonakng/dotfiles/master/zotero/updates.json",
       "strict_min_version": "10.0",
       "strict_max_version": "10.0.*"
     }
