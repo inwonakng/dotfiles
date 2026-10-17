@@ -9,23 +9,23 @@ font-style = Light
 confirm-close-surface = false
 
 # theme stuff
-palette = 0=#494d64
-palette = 1=#ed8796
-palette = 2=#a6da95
-palette = 3=#eed49f
-palette = 4=#8aadf4
-palette = 5=#f5bde6
-palette = 6=#8bd5ca
-palette = 7=#a5adcb
-palette = 8=#5b6078
-palette = 9=#ed8796
-palette = 10=#a6da95
-palette = 11=#eed49f
-palette = 12=#8aadf4
-palette = 13=#f5bde6
-palette = 14=#8bd5ca
-palette = 15=#b8c0e0
-# background = #2c2e3d
+palette = 0=#2a2a2a
+palette = 1=#ff0000
+palette = 2=#9bdc73
+palette = 3=#e7bf00
+palette = 4=#396bd7
+palette = 5=#b449be
+palette = 6=#66ccff
+palette = 7=#bbbbbb
+palette = 8=#666666
+palette = 9=#b85c86
+palette = 10=#7fc49b
+palette = 11=#f3d64e
+palette = 12=#709aed
+palette = 13=#db67e6
+palette = 14=#7adff2
+palette = 15=#ffffff
+
 background = #202227
 foreground = #cad3f5
 cursor-color = #f4dbd6
