@@ -2,7 +2,6 @@
 
 # Plugins
 set -g @plugin 'tmux-plugins/tpm'
-set -g @plugin 'catppuccin/tmux'
 set -g @plugin 'nhdaly/tmux-better-mouse-mode'
 set -g @scroll-speed-num-lines-per-scroll 5
 set -g @sidebar-tree-command 'tree -C'
@@ -184,26 +183,34 @@ set -g status-right "#(bash status.sh)"
 if-shell "command -v pi-console >/dev/null 2>&1" \
   "run-shell 'pi-console --tmux setup'"
 
-###=============================###
-### Plugin configurations start ###
-###=============================###
+###================###
+### Shared styling ###
+###================###
 
-# Catppuccin stuff
+# Colors are defined in tmux.conf.local / tmux.conf.remote before sourcing this file.
+set -gF status-style "bg=#{@ui_status_bg},fg=#{@ui_text}"
 # Keep the selected tab's brackets free of inherited underlining.
 set -g window-status-current-style none
-# set -g @catppuccin_flavor "frappe"
-set -g @catppuccin_flavor "macchiato"
-# Own the tab formats: muted inactive tabs, mauve brackets on the active tab.
-set -g @catppuccin_window_status_style "none"
 set -g window-status-separator " "
-set -g window-status-format "#[fg=#{@thm_overlay_2},bg=#{@_ctp_status_bg}]#{E:@catppuccin_window_number} #{window_name}"
-set -g window-status-current-format "#[fg=#{@thm_mauve},bg=#{@_ctp_status_bg}][#{E:@catppuccin_window_current_number} #{window_name}]"
+set -g window-status-format "#[fg=#{@ui_muted},bg=#{@ui_status_bg}]#{E:@ui_window_number} #{window_name}"
+set -g window-status-current-format "#[fg=#{@ui_accent},bg=#{@ui_status_bg}][#{E:@ui_window_number} #{window_name}]"
 # Convert every digit, including multi-digit window indices, to a subscript.
-set -g @catppuccin_window_number "#{s|0|₀|;s|1|₁|;s|2|₂|;s|3|₃|;s|4|₄|;s|5|₅|;s|6|₆|;s|7|₇|;s|8|₈|;s|9|₉|:window_index}"
-set -g @catppuccin_window_current_number "#{E:@catppuccin_window_number}"
-set -g @catppuccin_status_middle_separator " "
-set -g @catppuccin_pane_border_style "fg=#{@thm_surface_0}" # Use a value compatible with the standard tmux 'pane-border-style'
-set -g @catppuccin_pane_active_border_style "fg=#{@thm_peach}" # Use a value compatible with the standard tmux 'pane-border-active-style'
+set -g @ui_window_number "#{s|0|₀|;s|1|₁|;s|2|₂|;s|3|₃|;s|4|₄|;s|5|₅|;s|6|₆|;s|7|₇|;s|8|₈|;s|9|₉|:window_index}"
+
+set -wgF pane-border-style "fg=#{@ui_border}"
+set -wgF pane-active-border-style "fg=#{@ui_active_border}"
+# Fill the status line behind messages/prompts, including with tmux 3.7+.
+set -gF message-style "fg=#{@ui_info},bg=#{@ui_status_bg},fill=#{@ui_status_bg}"
+set -gF message-command-style "fg=#{@ui_info},bg=#{@ui_status_bg},fill=#{@ui_status_bg}"
+set -wgF mode-style "bg=#{@ui_selection_bg},fg=#{@ui_selection_fg}"
+set -wgF clock-mode-colour "#{@ui_clock}"
+
+%if "#{>=:#{version},3.4}"
+  set -gF menu-selected-style "fg=#{@ui_text},bg=#{@ui_menu_bg},bold"
+  # Floating modals also reuse popup-style.
+  set -gF popup-style "bg=#{@ui_popup_bg},fg=#{@ui_popup_fg}"
+  set -gF popup-border-style "fg=#{@ui_popup_border}"
+%endif
 
 # Copy mode stuff
 set -g @copy_use_osc52_fallback on

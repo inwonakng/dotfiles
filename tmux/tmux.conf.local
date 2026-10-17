@@ -2,18 +2,33 @@ unbind C-b
 set-option -g prefix C-w
 bind C-w send-prefix
 
+# Local palette. Change these values independently of the remote palette.
+# Loaded before the shared config, which applies the colors to native tmux styles.
+set -g @ui_status_bg "#181825"
+set -g @ui_text "#cdd6f4"
+set -g @ui_muted "#9399b2"
+set -g @ui_accent "#cba6f7"          # active tab
+set -g @ui_border "#313244"
+set -g @ui_active_border "#fab387"
+set -g @ui_host "#fab387"
+set -g @ui_session "#b4befe"
+set -g @ui_info "#94e2d5"            # pane ID and prompts
+set -g @ui_selection_bg "#626880"
+set -g @ui_selection_fg "#c6d0f5"
+set -g @ui_popup_bg "#1b2230"
+set -g @ui_popup_fg "default"
+set -g @ui_popup_border "#45475a"
+set -g @ui_menu_bg "#6c7086"
+set -g @ui_clock "#89b4fa"
+
 source-file "$HOME/dotfiles/tmux/tmux.conf.shared"
 set-option -g status-position top
+set -ag mode-style "bold"
 
 # Initialize TMUX plugin manager
 run "$HOME/.config/tmux/plugins/tpm/tpm"
 
-# Work around tmux 3.7+ drawing messages/prompts over the status line.
-# Catppuccin sets these styles with align=centre and no fill, which leaves
-# top-positioned window tabs visible around prompts like rename-window.
-set -gF message-style "fg=#{@thm_teal},bg=#{@_ctp_status_bg},fill=#{@_ctp_status_bg}"
-set -gF message-command-style "fg=#{@thm_teal},bg=#{@_ctp_status_bg},fill=#{@_ctp_status_bg}"
-
-# Override Catppuccin after TPM with a dark blue-charcoal background.
-# Floating modals also reuse popup-style.
-set -g popup-style "bg=#1b2230,fg=default"
+# >>> pi-console >>>
+# Default channel: dev
+run-shell "bash '/Users/inwon/Documents/projects/pi-console/tmux/scripts/setup.sh' --apply"
+# <<< pi-console <<<
