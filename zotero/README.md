@@ -1,138 +1,244 @@
 # Zotero research agent
 
-Use ordinary Pi or pi-console in `~/agents/zotero`, with the same global providers,
-credentials, access control, and UI. The project adds reader tools and narrows the
-active tools/advertised skills; it does not create another Pi profile or sandbox.
+Read papers and manage your Zotero library through ordinary Pi or pi-console.
+Use `~/agents/zotero` when you want the agent to see which paper, passage, or
+figure you have selected in Zotero.
 
-## Set up
+- **First time:** follow [Setup](#setup).
+- **Already installed:** open Zotero, start Pi in `~/agents/zotero`, and ask about
+  the paper you are reading.
+- **Something is unavailable:** see [Troubleshooting](#troubleshooting).
 
-From the **normal dotfiles checkout**, not a temporary task worktree:
+## Everyday use
+
+Open a PDF in Zotero, then start a session:
+
+```sh
+cd ~/agents/zotero
+pi
+```
+
+You can use pi-console in the same directory instead. No special launch flags
+are needed.
+
+Example requests:
+
+- "Explain this paper's identification strategy."
+- "Explain the passage I selected."
+- "What is happening in this selected figure?"
+- "Find papers in my library about causal discovery."
+- "Save this explanation as a new note on this paper."
+
+The agent fetches the current selection only when your request needs it. It does
+not watch Zotero or capture pages in the background. Summarizing a paper does not
+authorize saving a note; ask explicitly when you want a library change.
+
+**Paper text and images returned to Pi can enter the transcript and be sent to
+the model provider.**
+
+## Setup
+
+You need Zotero **10.0.x**, Pi or pi-console, and `zotero-cli` for library work.
+The setup script below configures the reader integration; it does not install
+those applications.
+
+### Build the plugin and link the workspace
+
+Run this from your normal dotfiles checkout, **not a temporary task worktree**:
 
 ```sh
 bash ~/dotfiles/scripts/setup/zotero.sh
 ```
 
-This links `pi/projects/zotero/AGENTS.md` and `settings.json` into the project and
-builds `~/dotfiles/zotero/pi-zotero-reader.xpi` in that checkout's `zotero/`
-directory. The generated XPI is ignored by Git.
-It refuses to replace regular project configuration files. It does not install
-plugins, change the library, or copy credentials. The setup script packages the
-two plugin files with `zip`; no Python, npm dependencies, or PDF packages are needed.
+The script links the workspace configuration into `~/agents/zotero` and builds:
 
-In Zotero **10.0.x**:
+```text
+~/dotfiles/zotero/pi-zotero-reader.xpi
+```
 
-1. Tools → Plugins → gear → **Install Plugin From File**; select the `.xpi`.
-2. Settings → Advanced → **Allow other applications on this computer to
+It requires `zip`, refuses to replace regular workspace configuration files, and
+does not install the plugin, change your library, or copy credentials. Packaging
+requires no Python, npm dependencies, or PDF packages.
+
+### Enable the integration in Zotero
+
+1. Open **Tools > Plugins > gear > Install Plugin From File** and choose the XPI.
+2. Enable **Settings > Advanced > Allow other applications on this computer to
    communicate with Zotero**.
-3. Start a **new** Pi/pi-console session in `~/agents/zotero` and trust that
-   project's configuration. No special Pi launch flags are required.
+3. Start a **new** Pi/pi-console session in `~/agents/zotero` and trust the
+   project's configuration.
 
-Examples: "Explain this paper's identification strategy", "What is happening in
-this selected figure?", "Save this explanation as a note on this paper". Context
-is fetched when the request needs it; note creation still requires a request to
-write. Global Zotero skills work in research project directories too, without
-reader tools or this workspace.
+## Reading and library tools
 
-Rebuild and reinstall the XPI after editing `bridge/bootstrap.js` or
-`bridge/manifest.json`; updates are manual. Zotero requires an `update_url`, which
-points to this repository's raw `master` copy of `zotero/updates.json`. That file
-has an empty updates list, so it advertises no automatic updates. Commit and push
-`zotero/updates.json` to `master` to make the URL available; local setup does not
-publish it.
+The integration has separate tools for library access and the open Zotero reader:
 
-Disable/remove the plugin to remove the endpoints. To undo
-project setup, remove only the two symlinks and the generated XPI; leave your other
-project files alone.
+| Tool | Purpose |
+| --- | --- |
+| `zotero-cli` | Search the library; read metadata, PDF text, notes, and annotations; perform requested imports, edits, and exports. |
+| `zotero_context` | Identify the currently selected paper, page, passage, or saved annotations. |
+| `zotero_view` | Show the model a PDF page or crop, such as a figure, table, or equation. |
 
-## Reader tools
+The reader bridge is read-only. Library changes go through `zotero-cli` and
+require separately authorized local API writes (Zotero 10) or configured web API
+credentials. Setup does not grant write authorization.
 
-`pi/agent/extensions/zotero-reader.ts` registers both tools with
-`defaultActive: false`. They do not connect at startup. Context has direct
-exposure and is not callable through codemode while inactive. View is model-only:
-call it directly so its image blocks reach the model rather than being reduced
-to text by codemode. Project `defaultTools` enables
-these alongside file/shell, web, question, task-list and codemode tools. It omits
-subagents/workspaces and disables built-in MCP in this project. Existing console
-extensions remain loaded for permissions and UI; this is not process isolation.
-Restart to apply removals; `/reload` does not deactivate already-active tools.
+The global skills also work in other research directories without the reader
+bridge:
 
-- **`zotero_context {}`** returns a fresh timestamped reader or library snapshot.
-  Reader snapshots include item/library identity, attachment key, physical page
-  (1-based), printed label, current selected text, and up to five selected saved
-  annotations. No PDFs or images are captured. Library snapshots contain up to
-  five selected item summaries and the selected collection. Limits are explicit.
-- **`zotero_view`** requires `attachmentKey` and `libraryID` from a fresh snapshot
-  (`item.library.localID`, not the web API group ID). `target` is:
-  - `page`: optional physical `page`; optional normalized top-left
-    `rect: [x,y,width,height]`, entirely inside the displayed page.
-  - `selection`: up to three current PDF text-selection bounding regions.
-  - `annotation`: `annotationKey` for a currently selected saved annotation.
+- [zotero](../pi/agent/skills/zotero/SKILL.md): paper references, reading, and requested note-taking.
+- [zotero-curation](../pi/agent/skills/zotero-curation/SKILL.md): imports, metadata correction, and duplicates.
+- [project-bibliography](../pi/agent/skills/project-bibliography/SKILL.md): project collections, existing tags, and bibliography exports.
 
-View results contain source context, PDF-coordinate crop rectangles and PNG image
-blocks (including both pages of a selected cross-page annotation). They show PDF content, not Zotero UI, annotation overlays, or text-shaped
-masks. No image files or annotations are written. Capture refuses a changed
-paper/library and does not fall back to a different open PDF. A capture uses the
-reader state it resolved at request time. Tool results can therefore be stale if
-you switch papers afterward; fetch context again for a new reference.
+### PDF text and images
 
-Only PDF rendering is supported. Reading Mode/non-PDF views can lack selection
-geometry; an unavailable selection is reported instead of replaying a cached
-popup. A Zotero dialog can obscure the active reader: focus the library/reader
-and retry. The bridge uses private reader APIs inspected in **Zotero 10.0.6**,
-including `_lastView`, `_selectionRanges`, and `_pdfRenderer.renderRegionCrops`.
-They may change; failures must be surfaced rather than guessed around. Upstream
-API context: [Zotero 10 developer notes](https://www.zotero.org/support/dev/zotero_10_for_developers)
+`zotero-cli read` extracts text automatically; the agent does not need to convert
+the PDF manually. Ordinary CLI reads do not keep a persistent Markdown conversion
+for reuse across commands. The installed CLI has a process-local parse cache and
+a separate transient cache for semantic indexing, not a permanent reading cache.
+
+Text extraction can lose equations or visual structure. For those passages, the
+agent can request an image. `zotero_view` renders PDF content directly from Zotero,
+without saving image files or showing Zotero's UI or annotation overlays. CLI
+image reads are another option and write PNG files to disk.
+
+## Troubleshooting
+
+| Symptom | Action |
+| --- | --- |
+| Reader bridge unavailable | Open Zotero, enable local communication, and check that the reader plugin is enabled. |
+| Reader tools missing | Start a new session in `~/agents/zotero` and trust its configuration. |
+| Current paper or selection unavailable | Focus the Zotero library or PDF reader, dismiss dialogs, and retry. |
+| Selection image unavailable | Use the PDF view rather than Reading Mode. Non-PDF views may lack selection geometry. |
+| Paper changed during a request | Ask again so the agent fetches fresh context; it will not substitute another open PDF. |
+| Library write refused | Check the CLI's write authorization. The reader plugin cannot write to the library. |
+
+If the bridge remains unavailable, provide an explicit Zotero paper link/key or
+paste the passage. Library access through the CLI is independent of the bridge.
+
+## Updates and removal
+
+After changing `bridge/bootstrap.js` or `bridge/manifest.json`, rerun setup from
+the normal checkout and reinstall the XPI. Plugin updates are manual.
+
+To remove the integration, disable/remove the plugin and remove only these setup
+artifacts, leaving other workspace files alone:
+
+- `~/agents/zotero/AGENTS.md` symlink
+- `~/agents/zotero/.pi/settings.json` symlink
+- `~/dotfiles/zotero/pi-zotero-reader.xpi`
+
+## Technical reference
+
+These details are for maintaining or debugging the integration, not everyday use.
+
+<details>
+<summary>Reader tool inputs and limits</summary>
+
+`zotero_context {}` returns a fresh timestamped snapshot, without images:
+
+- In the reader: item/library identity, attachment key, physical page (1-based),
+  printed page label, selected text, and up to five selected saved annotations.
+- In the library: up to five selected item summaries and the selected collection.
+
+`zotero_view` requires `attachmentKey` and `libraryID` from fresh context. Use
+`item.library.localID`, not a web API group ID. Supported targets:
+
+| Target | Parameters |
+| --- | --- |
+| `page` | Optional physical `page` and normalized top-left `rect: [x,y,width,height]`, entirely inside the displayed page. |
+| `selection` | Up to three current text-selection bounding regions. |
+| `annotation` | `annotationKey` of a currently selected saved annotation. Cross-page annotations can return both pages. |
+
+Results include source context, PDF-coordinate crop rectangles, and PNG images.
+They show rectangular PDF regions, not text-shaped masks. The bridge rejects a
+changed paper/library. Results reflect state resolved at request time and can
+become stale after a paper switch.
+
+Text is capped. Images are limited to three and 12 MiB total PNG data (16 MiB
+base64); the client also bounds response size. Overlapping renders are refused.
+
+</details>
+
+<details>
+<summary>Pi configuration and source files</summary>
+
+- [Project instructions](../pi/projects/zotero/AGENTS.md)
+- [Project settings](../pi/projects/zotero/settings.json)
+- [Reader tool extension](../pi/agent/extensions/zotero-reader.ts)
+- [Zotero plugin](bridge/bootstrap.js) and [manifest](bridge/manifest.json)
+- [Setup script](../scripts/setup/zotero.sh)
+
+This is ordinary Pi with the same global providers, credentials, permissions,
+and UI, not a separate profile or sandbox. The project enables reader tools
+alongside file/shell, web, question, task-list, and codemode tools. It omits
+subagents/workspaces and disables built-in MCP; console permission/UI extensions
+remain loaded.
+
+Both reader tools default to inactive globally and make no startup connection.
+Inactive context is not callable through codemode. Call `zotero_view` directly,
+not through codemode, so its image blocks reach the model. Restart after changing
+the active tool set: `/reload` does not deactivate already-active tools.
+
+</details>
+
+<details>
+<summary>Connection security and privacy</summary>
+
+The plugin exposes POST endpoints `/pi-zotero/context` and `/pi-zotero/view` on
+Zotero's existing loopback server. They require a random bearer token, reject
+requests with an `Origin` header, and expose no eval, arbitrary path/URL access,
+or library writes. Zotero checks Host/loopback binding. Do not expose the server
+through a network proxy.
+
+Connection state is automatic, not user-maintained configuration:
+
+```text
+~/.local/state/pi-zotero/bridge.json
+```
+
+The plugin atomically writes the protocol version, port, and a fresh random token
+on startup, with directory permissions `0700` and file permissions `0600`. Pi
+reads the file afresh for each request and never edits credentials. Normal
+shutdown removes it only if its token still belongs to that plugin instance; a
+stale file after a crash does not establish connectivity.
+
+Use one Zotero instance/profile at a time. Both components use this fixed path
+rather than `XDG_STATE_HOME` or `TMPDIR`, whose values can differ between Dock and
+terminal launches. If upgrading from `~/.config/pi-zotero/bridge.json`, reinstall
+the new XPI and restart Pi; no manual token migration is needed.
+
+Never include the state file in prompts or commits. Zotero debug logging at
+level 5 can record bearer tokens and response bodies; do not share unredacted
+logs. Inactive tools and project instructions limit model exposure, not shell
+access or OS permissions.
+
+</details>
+
+<details>
+<summary>Compatibility and maintenance checks</summary>
+
+The bridge uses private Zotero reader APIs inspected in **10.0.6**, including
+`_lastView`, `_selectionRanges`, and `_pdfRenderer.renderRegionCrops`. These can
+change; failures must be reported rather than replaced with guessed or cached
+selections. This bridge is maintained independently of the third-party chat panel.
+
+Packaging and throwaway probes outside Zotero can check endpoint, selection,
+crop, and tool contracts. They do not prove live reader compatibility. After
+installation, manually check:
+
+- Main-window, standalone, and split readers.
+- Cleared and cross-page selections; selected area annotations.
+- Full-page and cropped images on rotated PDFs; changed-paper errors.
+- Requested note creation and read-back, only with authorization.
+
+Do not describe the bridge as live-tested unless those checks have run.
+
+The manifest's required `update_url` points to the repository's raw `master`
+copy of [updates.json](updates.json). Its empty updates list advertises no
+automatic updates. The file must be committed and pushed to `master` for the URL
+to be available; setup does not publish it.
+
+Upstream references: [Zotero 10 developer notes](https://www.zotero.org/support/dev/zotero_10_for_developers)
 and [plugin lifecycle](https://www.zotero.org/support/dev/zotero_7_for_developers).
-The bridge is maintained here, independently of the third-party chat panel.
 
-## Security and privacy
-
-The plugin adds two POST endpoints to Zotero's existing loopback server:
-`/pi-zotero/context` and `/pi-zotero/view`. Requests require a random bearer token,
-reject any `Origin` header, and expose no eval, arbitrary path/URL access or library
-write operations. Zotero itself checks Host/loopback binding. Do not expose its
-server through a network proxy. The Pi client reads the token from
-`~/.local/state/pi-zotero/bridge.json`. This is automatic connection state, not
-user-maintained configuration. Both components use this fixed home-relative path
-rather than `XDG_STATE_HOME` or `TMPDIR`, which can differ between a Dock-launched
-Zotero and a terminal-launched Pi.
-
-The plugin owns the file: it atomically records the protocol version, Zotero port,
-and a fresh random token on startup, using directory permissions `0700` and file
-permissions `0600`. Pi only reads it, freshly for each request; it never creates or
-edits credentials. On normal shutdown the plugin removes the file only if the
-token still belongs to that instance. A stale file after a crash does not imply a
-reachable bridge; Pi reports connection failures.
-
-That file is outside the repository; never include it in prompts or commits.
-Use one Zotero instance/profile at a time with this shared state location. After
-updating from the old `~/.config/pi-zotero/bridge.json` location, reinstall the new
-XPI and restart Pi so both components use the state path. No token migration or
-manual configuration is needed.
-
-Context text is capped, images are limited to three and 12 MiB total PNG data
-(16 MiB base64), the client bounds response size, and overlapping image renders are
-refused. Reader selection is read on request; there is no watcher or background
-capture. No session-start context injection takes place.
-
-**Anything returned by a tool can enter the Pi transcript and be sent to the model
-provider.** Images are only requested on demand. Zotero debug logging at level 5
-can record HTTP headers (including the bearer token) and response bodies. Do not
-share unredacted debug logs. Disabling tools limits model exposure, not shell
-access or OS permissions; project instructions and inactive tools are not a
-security sandbox.
-
-Library data operations continue to use `zotero-cli`, not this reader bridge. See
-`pi/agent/skills/zotero`, `zotero-curation`, and `project-bibliography`. Reads can
-work locally; writes require separately authorized local API writes (Zotero 10)
-or configured web API credentials. Setup does not grant write authorization.
-
-## Validation boundaries
-
-The XPI can be packaged and its endpoint, selection, crop and tool contracts
-checked outside Zotero using throwaway probes. Those checks do not establish live
-reader compatibility. After installation, manually exercise: main-window and
-standalone/split readers; cleared and cross-page selections; selected area
-annotations; full-page and cropped images on rotated PDFs; changed-paper errors;
-and note creation/read-back only when requested. Do not call the bridge live-tested
-until those checks have actually run.
+</details>

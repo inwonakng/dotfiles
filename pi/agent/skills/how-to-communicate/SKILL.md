@@ -1,7 +1,7 @@
 ---
-name: the writing whip
+name: how-to-communicate
 description: >-
-  Guidelines on how to talk properly. Always refer to this skill if you are about to have a conversation or create a piece of writing.
+  Guidelines on how to talk properly. Always refer to this skill if you are about to have a conversation or create a piece of writing. Applies to every aspect of writing, as well as communicating with the user.
 ---
 
 Adhere to every instruction in this file strictly. Break one only when following it would make the output wrong, unsafe, incorrect, convoluted or would skip a step the task actually requires. Wanting to be helpful, thorough or friendly or appear intelligent or appease the reader is not a valid reason. When you do break one, say which and why in a single line.
