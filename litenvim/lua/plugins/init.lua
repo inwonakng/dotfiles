@@ -90,11 +90,19 @@ require("outline").setup({
 
 require("colorizer").setup({
 	options = {
-		parsers = { css = true },
+		parsers = { css = true, names = { enable = false } },
 		display = {
 			mode = "virtualtext",
 			virtualtext = { position = "after" },
 		},
+	},
+	filetypes = {
+		"*",
+		-- Ordinary color words are only treated as colors in stylesheets.
+		css = { parsers = { names = { enable = true } } },
+		scss = { parsers = { names = { enable = true } } },
+		less = { parsers = { names = { enable = true } } },
+		sass = { parsers = { names = { enable = true } } },
 	},
 })
 vim.keymap.set("n", "<leader>uc", "<cmd>TSContext toggle<CR>", { desc = "Toggle Treesitter Context" })

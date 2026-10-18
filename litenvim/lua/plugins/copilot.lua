@@ -1,6 +1,6 @@
 -- this is the way I set node path in bashrc, so if this is null, assume that
 -- we don't have node.
-if vim.env.NODE_DEFAULT_PATH == nil then
+if vim.env.NODE_DEFAULT_DIR == nil then
 	return
 end
 
