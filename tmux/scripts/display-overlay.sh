@@ -41,8 +41,12 @@ if [ "$modal_supported" -eq 1 ]; then
         ' tmux-overlay "$@"
 fi
 
-# Older popup implementations accept a single shell-command string.
-printf -v command '%q ' "$@"
+# Older popup implementations parse one command string with /bin/sh, which may
+# not support Bash's %q quoting. Single-quote each argument using POSIX syntax.
+command=''
+for argument in "$@"; do
+    command+="'${argument//\'/\'\\\'\'}' "
+done
 if [ -n "$client_name" ]; then
     exec tmux display-popup -B -c "$client_name" -d "$current_path" -w "$width%" -h "$height%" -E "$command"
 else
