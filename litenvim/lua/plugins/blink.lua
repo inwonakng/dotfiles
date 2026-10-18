@@ -9,6 +9,8 @@ vim.pack.add({
 local cmp = require("blink.cmp")
 cmp.build():pwait()
 
+local default_label_highlight = require("blink.cmp.config").completion.menu.draw.components.label.highlight
+
 cmp.setup({
 	term = { enabled = false },
 	cmdline = {
@@ -39,12 +41,35 @@ cmp.setup({
 		nerd_font_variant = "mono",
 	},
 	completion = {
+		menu = {
+			draw = {
+				components = {
+					label = {
+						highlight = function(ctx)
+							if ctx.source_id == "hledger_accounts" then
+								local group = ctx.item.data.hledger_component and "HledgerCmpComponent" or "HledgerCmpAccount"
+								return { { 0, #ctx.label, group = group, priority = 20000 } }
+							end
+							return default_label_highlight(ctx)
+						end,
+					},
+				},
+			},
+		},
 		documentation = {
 			auto_show = true,
 			auto_show_delay_ms = 500,
 		},
 	},
 	sources = {
+		transform_items = function(ctx, items)
+			if vim.bo[ctx.bufnr].filetype == "ledger" and require("completion.hledger").in_account(ctx) then
+				return vim.tbl_filter(function(item)
+					return item.source_id == "hledger_accounts"
+				end, items)
+			end
+			return items
+		end,
 		default = {
 			"lsp",
 			"path",

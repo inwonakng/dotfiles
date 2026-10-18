@@ -60,6 +60,8 @@ require("catppuccin").setup({
 		local delete_background = color_utils.darken(colors.red, 0.42, colors.base)
 
 		return {
+			HledgerCmpComponent = { fg = colors.green },
+			HledgerCmpAccount = { fg = colors.blue },
 			FzfLuaCodeActionAddText = { bg = add_background },
 			FzfLuaCodeActionDeleteText = { bg = delete_background },
 			GitSignsAddInline = { bg = add_background },

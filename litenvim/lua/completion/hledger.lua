@@ -131,6 +131,13 @@ local function build_candidates(root_path, stdout)
 		end
 	end
 
+	local components = {}
+	for account in pairs(accounts) do
+		for component in account:gmatch("[^:]+") do
+			components[component] = true
+		end
+	end
+
 	local candidates = {}
 	for name, target in pairs(aliases) do
 		table.insert(candidates, {
@@ -146,6 +153,14 @@ local function build_candidates(root_path, stdout)
 			label = account,
 			detail = expansion and ("alias → " .. expansion) or nil,
 			sort_text = "1" .. account,
+		})
+	end
+
+	for component in pairs(components) do
+		table.insert(candidates, {
+			label = component,
+			component = true,
+			sort_text = "2" .. component,
 		})
 	end
 
@@ -208,10 +223,21 @@ local function account_range(ctx)
 		return nil
 	end
 
+	local component_offset = account:match("^.*():") or 0
 	return {
-		start = { line = ctx.pos.row, character = start_index - 1 },
-		["end"] = { line = ctx.pos.row, character = cursor_col },
+		account = {
+			start = { line = ctx.pos.row, character = start_index - 1 },
+			["end"] = { line = ctx.pos.row, character = cursor_col },
+		},
+		component = {
+			start = { line = ctx.pos.row, character = start_index - 1 + component_offset },
+			["end"] = { line = ctx.pos.row, character = cursor_col },
+		},
 	}
+end
+
+function M.in_account(ctx)
+	return account_range(ctx) ~= nil
 end
 
 local source = {}
@@ -241,20 +267,36 @@ function source:enabled()
 	return vim.bo.filetype == "ledger"
 end
 
+function source:get_trigger_characters()
+	return { ":" }
+end
+
 function source:complete(candidates, range, callback)
 	local kind = require("blink.cmp.types").CompletionItemKind.Field
 	local items = {}
+	local full_labels = {}
 	for _, candidate in ipairs(candidates) do
-		table.insert(items, {
-			label = candidate.label,
-			kind = kind,
-			detail = candidate.detail,
-			sortText = candidate.sort_text,
-			textEdit = {
-				newText = candidate.label,
-				range = range,
-			},
-		})
+		if not candidate.component then
+			full_labels[candidate.label] = true
+		end
+	end
+	local nested = range.component.start.character > range.account.start.character
+	for _, candidate in ipairs(candidates) do
+		-- At the first level, identical account/component edits need only one entry.
+		if not candidate.component or nested or not full_labels[candidate.label] then
+			table.insert(items, {
+				label = candidate.label,
+				kind = kind,
+				detail = candidate.detail,
+				sortText = candidate.sort_text,
+				score_offset = candidate.component and nested and 3 or 0,
+				data = { hledger_component = candidate.component == true },
+				textEdit = {
+					newText = candidate.label,
+					range = candidate.component and range.component or range.account,
+				},
+			})
+		end
 	end
 	callback({
 		items = items,
