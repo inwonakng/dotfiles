@@ -5,76 +5,41 @@ description: Use for bugs, failing tests, build errors, regressions, unexpected 
 
 # Debug
 
-Use this skill before proposing or applying fixes for technical failures.
+Investigate the root cause before proposing or applying a fix. An obvious-looking patch still needs evidence.
 
-## Iron Rule
+## Reproduce the failure
 
-No fixes before root-cause investigation.
+- Read the complete error, stack trace, logs, or failing assertion.
+- Identify the exact reproduction steps or failing command.
+- If the failure cannot be reproduced, gather more evidence before changing code.
+- Inspect relevant recent changes when useful.
 
-Do not patch symptoms because a fix seems obvious. First prove what is happening and why.
+## Trace the cause
 
-## Phase 1: Reproduce and Read Evidence
+Trace incorrect values or behavior back to their source. In multi-component flows, inspect inputs, outputs, configuration, environment, and state changes at each boundary.
 
-- Read the complete error message, stack trace, logs, or failing assertion.
-- Identify exact reproduction steps or the exact command that fails.
-- If the failure is not reproducible, gather more evidence before changing code.
-- Check relevant recent changes when useful (`git diff`, nearby edits, changed config).
+Find a working example in the codebase and compare it with the failing path. Track each observed difference; dismiss one only with evidence that it cannot affect the failure. Gather evidence before forming hypotheses.
 
-## Phase 2: Trace the Root Cause
+Use a readonly subagent when a named component or path needs independent investigation. Follow `subagent-delegation`, specify the evidence required, and join background work before relying on it.
 
-- Trace bad values or behavior backward to where they originate.
-- In multi-component flows, inspect each boundary:
-  - input entering the component
-  - output leaving the component
-  - config/environment passed across the boundary
-  - state changes at each layer
-- Find a similar working example in the codebase and compare behavior.
-- List each observed difference. Do not dismiss a difference without evidence that it cannot affect the failure.
-- Do not speculate about the cause. Form hypotheses only after evidence is gathered.
+## Test a hypothesis
 
-Use `spawn` with `accessMode: "readonly"` when a named component or code path needs independent investigation. State the evidence the subagent must return. If the spawn runs in background and you need its result, use `spawn_control join` before proceeding.
+Form a specific, evidence-backed hypothesis internally. Test it with the smallest probe, changing one variable at a time. If it fails, use the new evidence to form the next hypothesis rather than stacking speculative fixes.
 
-## Phase 3: Form and Test One Hypothesis
+If three fix attempts fail, or each reveals another architectural problem, stop and discuss the design with the user.
 
-State the hypothesis clearly:
+Return to evidence gathering when a proposed edit is a guess, unrelated cleanup, or another quick fix after failed attempts. A predicted passing test is not a result.
 
-```text
-I think the root cause is X because Y.
-```
+## Fix the cause
 
-Then test it with the smallest possible probe. Change only one variable at a time.
-
-If the hypothesis fails, form a new one from the new evidence. Do not stack speculative fixes.
-
-If three fix attempts fail or each fix reveals a new architectural problem, stop and discuss whether the underlying design is wrong.
-
-## Phase 4: Fix the Cause
-
-Only after the root cause is identified:
+After identifying the root cause:
 
 1. Add or identify a test or reproduction that fails for the observed symptom and would detect its return.
-2. Implement one fix at the source of the problem.
-3. Verify the original symptom is fixed.
-4. Run checks for callers or contracts affected by the fix.
+2. Apply a fix at the source.
+3. Verify the original symptom and check affected callers and contracts.
 
-If the project has no suitable test location or automation cannot reproduce the symptom, state the manual or command-based verification instead.
+When the project has no suitable test location or automation cannot reproduce the symptom, use manual or command-based verification and state its limits.
 
-## Red Flags
+## Report
 
-Stop and return to evidence gathering if you notice yourself thinking:
-
-- "Just try this."
-- "This is probably it."
-- "I'll clean this up while I'm here."
-- "The test should pass now" without running it.
-- "One more quick fix" after prior attempts failed.
-
-## Report Shape
-
-When reporting a debug result, include:
-
-- Symptom observed
-- Root cause
-- Evidence
-- Fix applied or proposed
-- Verification performed
+Lead with the fix or diagnosed cause. Include the observed symptom, supporting evidence, and verification without repeating the investigation. Distinguish proposed fixes from applied changes and state what remains unverified.

@@ -5,90 +5,43 @@ description: Use when reviewing a plan, diff, implementation, branch, or complet
 
 # Review
 
-Use this skill to review work with fresh, evidence-based judgment.
+Review requirements and evidence before judging implementation quality. Use `write-good-code` for code or code-changing plans.
 
-Use the `write-good-code` skill when reviewing code or code-changing plans.
+Review is especially useful for shared interfaces, security, persisted data, concurrency, multiple subsystems, spawned implementations, and work approaching completion, merge, or handoff.
 
-Use Pi's `spawn` / `spawn_control` when an independent context would reduce author bias or keep a large diff out of the main conversation.
+## Choose the scope
 
-## When to Review
+For a small diff or conceptual answer, review inline: read the requirements, inspect changed files and affected contracts, check coverage, and report findings by severity.
 
-Review is especially useful:
+Use a readonly reviewer subagent when independent context would reduce author bias or keep a large diff out of the main conversation. Follow `subagent-delegation` and join before relying on findings. Specify requirements, exact paths or a diff command, affected contracts and failure modes, checks already run, and the return format. Reference file artifacts or commands instead of pasting large diffs.
 
-- after changing a shared or public interface
-- after changing security, persisted data, concurrency, or multiple subsystems
-- before claiming a feature is complete
-- before merging or handing work back
-- when a spawned implementer changed files
+## Check requirements
 
-## Review Modes
-
-### Inline review
-
-Use this when the diff is small or the answer is conceptual.
-
-1. Read the requirements or plan.
-2. Inspect the changed files and affected contracts.
-3. Check requirement coverage before code quality.
-4. Identify findings by severity.
-5. Recommend fixes or approval.
-
-### Spawned review
-
-Use `spawn` with `accessMode: "readonly"` and role `reviewer` when fresh context would help. Join the spawned reviewer before relying on its findings.
-
-Give the reviewer a scoped brief that names:
-
-- the requirements or plan being checked
-- the exact files or diff command to inspect
-- the contracts or failure modes affected
-- verification already performed
-- the required output format
-
-Do not paste huge diffs into the main context if a file artifact or git command is enough.
-
-## Severity Levels
-
-- **Critical**: incorrect behavior, data loss, security issue, broken build, or violation of an explicit requirement. Must fix before proceeding.
-- **Important**: likely bug, missing regression coverage for changed behavior, or a design issue likely to cause near-term failures or rework. Should fix before proceeding.
-- **Minor**: cleanup, clarity, naming, optional refactor. Track or fix if cheap.
-- **Question**: ambiguity requiring user or implementer decision.
-
-## Review Checklist
-
-### Pass 1: Requirement Coverage
-
-- Trace each requested behavior to the code that implements it.
-- Trace each changed behavior to evidence that would detect a regression.
+- Trace each requested behavior to its implementation.
+- Trace changed behavior to evidence that would detect regression.
 - Check affected callers, public interfaces, configuration, persisted data, and user-visible flows.
-- Confirm any deviation from the approved plan was explained before implementation.
+- Confirm deviations from the approved plan were explained before implementation.
 
-### Pass 2: Engineering Quality
+## Check implementation quality
 
-- Does the implementation address the cause or core requirement rather than only the visible symptom?
-- Are failure and boundary cases handled and surfaced through project conventions?
-- Would the tests fail if the changed requirement regressed, or do they only assert implementation details?
-- Is this the least complex design that fully preserves required behavior, affected contracts, and error handling?
-- Does it follow existing project patterns without adding speculative compatibility or unrelated cleanup?
-- Are abstractions, dependencies, public API changes, and Python type annotations justified by the changed code and project conventions?
+- Does the change address the cause or core requirement?
+- Are failure and boundary cases handled through project conventions?
+- Would tests detect a requirement regression rather than only implementation changes?
+- Is the design the least complex option that preserves required behavior, contracts, and error handling?
+- Does it follow project patterns without speculative compatibility or unrelated cleanup?
+- Are abstractions, dependencies, public API changes, and Python annotations justified by the code and project conventions?
 
-## Output Shape
+## Grade findings
 
-```markdown
-## Review result
+- Critical: incorrect behavior, data loss, security issue, broken build, or an explicit requirement violation. Must fix before proceeding.
+- Important: likely bug, missing regression coverage, or a design issue likely to cause near-term failures or rework. Should fix before proceeding.
+- Minor: clarity, naming, cleanup, or optional refactor. Track or fix when cheap.
+- Question: ambiguity requiring a user or implementer decision.
 
-Status: APPROVED | APPROVED_WITH_MINOR_NOTES | CHANGES_REQUESTED | BLOCKED
+## Report
 
-### Findings
-- [Severity] file:line — issue and why it matters
+Lead with consequential findings. Give severity, `file:line`, the issue, and its consequence. If there are none, say so without inventing minor findings.
 
-### Evidence checked
-- files and diffs inspected
+Include the status (`APPROVED`, `APPROVED_WITH_MINOR_NOTES`, `CHANGES_REQUESTED`, or `BLOCKED`), concise evidence inspected, commands and results if any, and a recommendation when action is needed. Avoid repeating findings in a closing recap.
 
-### Commands run
-- command and result, if any
-
-### Recommendation
-```
-
-Do not claim approval unless you inspected the relevant evidence.
+Approve only after inspecting relevant evidence. State unverified behavior separately.

@@ -3,69 +3,47 @@ name: zotero
 description: "Use when resolving Zotero paper, collection, or tag references (including @z: links), or reading papers, annotations, and notes in the user's library or current Zotero selection. Covers reading and requested note-taking; use zotero-curation for imports or cleanup and project-bibliography for project collections or exports. Not for general web literature search without a Zotero request."
 ---
 
-# Zotero Access and Reading
+# Zotero access and reading
 
 ## Resolve the source
 
-Use `zotero-cli --json` for library reads. Check `ok` before using `data`.
-The following native completion references target the local personal library: prefix their read commands with
-`env ZOTERO_LOCAL=true ZOTERO_LIBRARY_TYPE=user ZOTERO_LIBRARY_ID=0 ZOTERO_BACKEND=sqlite`
-so an unrelated CLI default cannot select a group library or API search backend.
+Use `zotero-cli --json` for library reads and check `ok` before using `data`.
 
-- `zotero://select/library/items/KEY`: use `get metadata KEY`, `get children KEY`,
-  or `notes list --item-key KEY`. Read the attachment/page range only as needed.
-- `zotero://select/library/collections/KEY`: use `get collection-items KEY --limit 20`;
-  this scopes the reading set, not a request to load every PDF. It excludes
-  subcollections unless the user asks for them.
-- `http://127.0.0.1:23119/api/users/0/tags/NAME`: URL-decode the final path
-  segment exactly. Dot-only names use `items/top?tag=NAME` instead; decode that value.
-  Use `search --mode advanced --conditions '[{"field":"tag","operation":"is","value":"NAME"}]' --limit 20`;
-  construct the JSON with an encoder and quote shell arguments, preserving punctuation.
-  Keep only items whose tags equal the decoded name exactly (CLI comparisons can
-  ignore case/diacritics). These are scopes, not papers. If SQLite is unavailable,
-  report that API fallback can miss names containing query operators (`-`, `||`).
+Native completion references below target the local personal library. Prefix their read commands with:
 
-Keys/URLs identify the source; labels are only for readability. Unselected `@z:`
-text is a query, not a resolved key. State limits or unavailable sources rather
-than claiming exhaustive coverage. A reference alone does not authorize Zotero writes.
+```sh
+env ZOTERO_LOCAL=true ZOTERO_LIBRARY_TYPE=user ZOTERO_LIBRARY_ID=0 ZOTERO_BACKEND=sqlite
+```
 
-## Current selection and page images
+This prevents unrelated CLI defaults from selecting a group library or API search backend.
 
-`zotero_context` and `zotero_view` are optional, read-only tools, inactive globally
-unless enabled for the session or project. Follow their available tool descriptions;
-do not assume they are installed or enable them by changing configuration unasked.
+- `zotero://select/library/items/KEY`: use `get metadata KEY`, `get children KEY`, or `notes list --item-key KEY`. Read attachments/pages only as needed.
+- `zotero://select/library/collections/KEY`: use `get collection-items KEY --limit 20`. The collection scopes reading without requiring every PDF. Exclude subcollections unless requested.
+- `http://127.0.0.1:23119/api/users/0/tags/NAME`: URL-decode the final path segment exactly. For dot-only names, decode the value in `items/top?tag=NAME` instead. Use `search --mode advanced --conditions '[{"field":"tag","operation":"is","value":"NAME"}]' --limit 20`. Build JSON with an encoder and quote shell arguments to preserve punctuation. Keep only items with an exact tag match; CLI comparisons may ignore case or diacritics. Tags scope items rather than identifying a paper. If SQLite is unavailable, state that API fallback can miss names with query operators such as `-` or `||`.
 
-- Call `zotero_context` when the user refers to "this paper", the current reader,
-  or the current Zotero selection. Do not poll it for unrelated library questions.
-- Use the returned attachmentKey and libraryID to identify the actual source.
-  They do not imply that the CLI's personal-library defaults target the same
-  library. Resolve the library mapping before CLI follow-up, especially for groups;
-  do not assume a bridge-local libraryID equals an API group ID.
-- `zotero_view` renders a given attachmentKey at a 1-based page, with an optional
-  rect for a crop. Use it for figures, equations, tables, or layout that text misses.
-  Keep library identity attached to the request as the tool supports it. It does
-  not create annotations or change the reader selection.
-- If tools are unavailable, resolve an explicit key/link through the CLI or ask
-  which paper the user means. Do not silently substitute a similarly titled item.
+Use keys and URLs as identity; labels are for readability. Unselected `@z:` text is a query, not a resolved key. State limits or unavailable sources rather than claiming exhaustive coverage. A reference alone never authorizes writes.
 
-## Read and take notes
+## Use selection and page tools when available
 
-1. Inspect metadata and children first. Read existing notes with `notes list` and
-   annotations with `annotations list` when relevant; distinguish the user's notes
-   from the paper's claims and your own interpretation.
-2. Read only the needed attachment/pages. Use `read --find` to locate a passage,
-   then a bounded page range; use images when extraction loses mathematical or
-   visual content. Distinguish PDF page indices from printed page labels.
-3. Ground explanations in the pages actually read. Cite the item and page or
-   annotation when available, identify quotations, and state missing access or
-   unexamined sections. Metadata or an abstract alone is not a full-paper reading.
-4. Draft notes in the conversation unless saving is requested. Before a requested
-   save, inspect the destination and existing note content. Preserve existing notes
-   and annotations; prefer a new note or an agreed append over replacing content.
-   Read back the saved note and report its item/note key. A request to explain or
-   summarize a paper is not by itself a request to save a note in Zotero.
+`zotero_context` and `zotero_view` are optional readonly tools, inactive globally unless enabled for the session or project. Follow their tool descriptions. Do not assume they are installed or change configuration to enable them unasked.
 
-For imports, metadata correction, or duplicates, load
-[zotero-curation](../zotero-curation/SKILL.md). For project collection structure,
-existing tag meanings, or bibliography exports, load
-[project-bibliography](../project-bibliography/SKILL.md).
+- Call `zotero_context` for "this paper," the current reader, or current selection. Do not poll it for unrelated library questions.
+- Use its attachmentKey and libraryID as source identity. Resolve library mapping before CLI follow-up, especially for groups; bridge-local library IDs are not necessarily API group IDs or the CLI's personal-library target.
+- Use `zotero_view` for figures, equations, tables, or layout missed by text. It takes an attachmentKey, a 1-based page, and an optional crop rect. Preserve library identity as supported. It does not annotate or change reader selection.
+- If unavailable, resolve an explicit key/link through the CLI or ask which paper is meant. Do not substitute a similarly titled item.
+
+## Read and explain
+
+1. Inspect metadata and children first. Read `notes list` and `annotations list` when relevant. Distinguish the user's notes, the paper's claims, and your interpretation.
+2. Read only needed attachments/pages. Locate passages with `read --find`, then use a bounded page range. Use images for lost mathematical or visual content, and distinguish PDF indices from printed page labels.
+3. Answer from pages actually read. Cite the item and page or annotation when available, mark quotations, and state missing access or unexamined sections. An abstract or metadata alone does not support a full-paper reading claim.
+
+Lead with the answer to the user's question. Include source limits where they affect the answer, without narrating retrieval.
+
+## Save notes only when requested
+
+Draft notes in the conversation by default. Before saving, inspect the destination and existing content. Preserve notes and annotations; prefer a new note or agreed append over replacement. Read back the saved note and report its item/note key.
+
+Explaining or summarizing a paper does not authorize saving a note.
+
+For imports, metadata corrections, or duplicates, load [Zotero curation](../zotero-curation/SKILL.md). For project collections, tag meanings, or exports, load [project bibliography](../project-bibliography/SKILL.md).

@@ -5,42 +5,39 @@ description: Use when the user explicitly asks to implement, fix, add, remove, r
 
 # Implement
 
-Use this skill when the user explicitly asks for code or file changes.
+Make the smallest complete change that satisfies the approved behavior and affected contracts.
 
-## Before Editing
+## Before editing
 
-1. Identify the requested outcome and source of truth: the current conversation, an approved plan, or a specification.
-2. If a referenced document is a draft, has blocking questions, or conflicts with the user's current request, resolve that before editing.
-3. Inspect the current code and verify that the plan or specification still matches it. Explain any conflict that would change the agreed behavior or approach.
-4. For bugs, test failures, or unexpected behavior, use the `debug` skill before changing code.
-5. For code changes, use the `write-good-code` skill.
-6. Use `todowrite` for non-trivial work with several distinct steps.
-7. Before making implementation changes with `edit` or `write` inside the git repository containing the current session cwd, call the `workspace` tool with `action=enter` unless the session is already in an associated workspace. Use `edit` or `write`, not `bash`, for implementation changes. Temporary probes, scripts, and generated artifacts may instead be created under `$TMPDIR`; keep them outside the repository and remove them when finished. Wait for Pi to switch cwd into the task worktree before using repository tools. Reuse an associated task or child workspace instead of nesting another worktree.
-8. If the user asks for subagents, load `subagent-delegation` before using them.
+1. Identify the requested outcome and source of truth: the conversation, an approved plan, or a specification.
+2. Resolve draft status, blocking questions, or conflicts with the current request before editing.
+3. Inspect the current code and check the plan's assumptions. Explain conflicts that would change the agreed behavior or approach.
+4. Use `debug` for failures or unexpected behavior and `write-good-code` for code changes.
+5. Use `todowrite` for work with several distinct steps.
+6. Before repository edits, enter a task workspace unless already in an associated task or child workspace. Use `edit` or `write` for implementation changes. Wait for the cwd switch before repository tool calls.
+7. Load `subagent-delegation` before delegating, including when the user requests subagents.
 
-Do not create a workspace for discussion, explanation, planning, or read-only research. If an expected workspace is missing, stop editing and inspect it with `workspace` status rather than falling back to the original checkout.
+Do not create workspaces for discussion, explanation, planning, or read-only research. If an expected workspace is missing, stop editing and inspect `workspace status`; do not fall back to the original checkout. Keep temporary probes and generated artifacts under `$TMPDIR`, outside the repository, and remove them when finished.
 
-## Execution
+## Make the change
 
-- Make the smallest complete change that satisfies the requested behavior and affected contracts.
-- Follow existing project patterns and avoid unrelated cleanup.
-- Respect unrelated worktree changes.
-- Do not add speculative abstractions, dependencies, options, or compatibility behavior.
-- Explain before proceeding if current evidence requires a change to an approved public interface, persisted data, dependency, security property, or architecture.
-- Add or update a behavior test when a suitable test location exists and the test would catch regression of the requested behavior.
-- Run implementation checks inside the associated workspace.
+Follow existing patterns, preserve unrelated work, and avoid speculative abstractions, dependencies, options, or compatibility behavior.
+
+Explain before proceeding if evidence requires changing an approved public interface, persisted data, dependency, security property, or architecture. If a blocking design decision appears, ask the user rather than silently changing direction.
 
 For each independently verifiable change:
 
 1. Inspect the affected flow, callers, failure paths, and tests.
 2. Make the least complex complete edit.
-3. Review the edit against `write-good-code`.
-4. Run the fastest check that could disprove the changed behavior.
-5. Run broader checks required by affected consumers or contracts.
-6. If a check fails, use `debug` rather than guessing.
+3. Review it against `write-good-code`.
+4. Add or update a behavior test when the project has a suitable location and the test would catch a regression.
+5. Run the fastest check that could disprove the changed behavior, then broader checks required by affected consumers or contracts.
+6. Use `debug` if a check fails.
 
-If implementation reveals a blocking design decision, stop and ask rather than silently changing the agreed direction.
+Run implementation checks inside the associated workspace.
 
-## Completion
+## Complete the task
 
-Before claiming completion, use the `verify` skill and report only what fresh evidence proves. Report the active workspace, then call the `workspace` tool with `action=integrate`. In `ask` mode the tool requests user confirmation; in `allowed` mode integration is pre-authorized. Wait for Pi to switch cwd back to the origin checkout before using more tools.
+Use `verify` before claiming completion. Report the changed result, evidence, unchecked behavior, and active workspace concisely.
+
+Call `workspace integrate` after verification. In `ask` mode it requests confirmation; in `allowed` mode integration is pre-authorized. Wait for the cwd switch back to the origin checkout before further tool calls.

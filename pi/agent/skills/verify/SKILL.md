@@ -5,54 +5,34 @@ description: Use before claiming work is done, fixed, passing, reviewed, or read
 
 # Verify
 
-Use this skill before any completion or success claim.
+Make completion claims only after checking fresh evidence that proves them.
 
-## Iron Rule
+## Check the claim
 
-No completion claims without fresh verification evidence.
+Before reporting success:
 
-Do not say work is done, fixed, passing, clean, or ready unless you have just checked the evidence that proves that claim.
+1. Identify each behavior, build, test, and requirement-coverage claim.
+2. Match each claim to a check:
+   - Passing tests: run the named test command.
+   - Successful build or typecheck: run the relevant command.
+   - Fixed bug: rerun the original reproduction or regression check.
+   - Working user-facing behavior: exercise the affected runtime flow when practical.
+   - Met requirements: trace every requirement to implementation and evidence.
+3. Run the fastest check capable of disproving the changed behavior.
+4. Run broader checks required by affected contracts, such as shared-API consumers, exported types, migrations, or changed failure paths.
+5. Read the full result, including warnings, skipped checks, failures, and exit status.
+6. Limit the claim to what the result proves. State failures and unchecked behavior.
 
-## Verification Gate
+## Respect evidence limits
 
-Before claiming success:
+Tests cover only the cases executed. Builds and typechecks do not prove runtime behavior. Runtime checks cover only the observed flow and conditions. Inspection can establish wiring and requirement coverage, but not unexecuted behavior.
 
-1. **List the claims.** Separate behavior, build, test, and requirement-coverage claims.
-2. **Match each claim to proof.**
-   - Tests pass: run the named test command.
-   - Build succeeds: run the build or typecheck command.
-   - Bug is fixed: re-run the original reproduction or regression check.
-   - User-facing behavior works: exercise the affected runtime flow when practical.
-   - Requirements are met: trace every requirement to implementation and evidence.
-3. **Run the fastest check capable of falsifying the changed behavior.**
-4. **Run broader checks required by the affected contract.** Examples include package tests for a shared API, build/typecheck for exported types, migration checks for persisted data, or failure-path checks for changed error behavior.
-5. **Read the full result** including failures, warnings, skipped checks, and exit status.
-6. **Report only what the evidence proves.** State failures and unchecked behavior explicitly.
+Inspect a subagent's diff or reproduce its evidence before relying on its report. A success statement alone is insufficient.
 
-## Evidence Boundaries
+Do not rely on runs from before the last relevant edit, unrelated tests, predicted results, or lint for runtime claims. A targeted check is insufficient when a changed shared contract affects additional consumers.
 
-- Tests prove only the cases they execute.
-- A build or typecheck proves compilation, not runtime behavior.
-- A runtime check proves only the flow and conditions observed.
-- Code inspection can prove wiring and requirement coverage, but not unexecuted runtime behavior.
-- A reviewer or subagent report is a lead until you inspect the diff or reproduce its evidence.
+## Report
 
-Not enough:
+Lead with the verified outcome, then give concise supporting commands or inspections and their results. State requested behavior or affected contracts that remain unchecked. Include a follow-up only when a concrete action remains.
 
-- "should work"
-- prior runs from before the last relevant edit
-- relying only on a subagent's success statement
-- tests unrelated to the changed behavior
-- lint passing when the claim is that runtime behavior is fixed
-- one targeted check when a changed shared contract has additional consumers
-
-## Final Response Shape
-
-Include:
-
-- Conclusion: one sentence stating only the verified outcome
-- Evidence: `command or inspection` → result and the claim it supports
-- Not verified: each requested behavior or affected contract that remains unchecked
-- Follow-up: only when a concrete next action remains
-
-Avoid celebratory language before verification. Evidence first, then conclusion.
+Perform verification before writing the conclusion; the response should still put the conclusion first. Do not narrate the internal checklist or force empty report sections.

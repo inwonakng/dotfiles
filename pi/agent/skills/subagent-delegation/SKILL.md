@@ -3,63 +3,34 @@ name: subagent-delegation
 description: Use before delegating a bounded research, planning, implementation, review, or verification task to a Pi subagent. Defines scope, access, joining, and main-agent responsibility.
 ---
 
-# Subagent Delegation
+# Subagent delegation
 
-Use this skill when the user asks for subagents or when another skill explicitly calls for delegation.
+Delegate bounded work with a clear goal that can return a useful result without resolving user or design decisions.
 
-## When Delegation Helps
+Suitable tasks include code or documentation research, investigation of a named failure or subsystem, independent review, verification of a specific claim, and approved implementation with non-overlapping file ownership. Keep tiny tasks, vague work, and overlapping edits in the main session.
 
-Delegate work that has a clear goal and can return a useful result without owning unresolved user or design decisions. Common uses are:
-
-- codebase or documentation research
-- investigation of a specific failure or subsystem
-- independent plan or code review
-- verification of a named claim
-- approved implementation with exact, non-overlapping file scope
-
-Do not delegate tiny tasks, vague work, or overlapping edit tasks.
-
-## Access
+## Choose access
 
 Use `readonly` for research, planning, investigation, review, and verification.
 
-Use `edit` only when:
+Use `edit` only after implementation approval, with exact file or directory scope, settled behavior, clear verification, and no overlap with another writer.
 
-- the user approved implementation,
-- the files or directory are exact,
-- the required behavior and verification are clear, and
-- the work does not overlap another writer.
+## Write the brief
 
-## Brief
+Specify the goal, relevant context and paths, permitted actions, constraints, decisions the subagent must not make, required evidence, and expected return.
 
-Every subagent brief must state:
+Request `DONE`, `BLOCKED`, or `NEEDS_CONTEXT`, followed by concise findings, changes, evidence or commands, and remaining uncertainty as applicable. Do not request a process diary.
 
-- the goal
-- relevant context and paths
-- the task and permitted actions
-- constraints and decisions it must not make
-- required evidence or verification
-- the expected return
+## Respect workspace ownership
 
-Ask the subagent to return `DONE`, `BLOCKED`, or `NEEDS_CONTEXT`, followed by concise evidence, findings, changes, commands, and remaining uncertainty.
+- Edit-mode subagents use the isolated child workspace assigned by `spawn`; they must not create another worktree.
+- Children inherit the immediate parent's tracked working state and non-ignored untracked files, including additions and deletions.
+- Join integrates the child's contribution relative to that baseline into the immediate parent, not the original checkout.
+- Compatible parent changes are preserved. Conflicts retain the child worktree and recovery artifacts without changing the parent.
+- Treat `integration=needs_parent` or `integration=failed` as unresolved. Inspect the reported workspace, patch, and conflict diagnostics rather than applying a blind patch.
 
-## Workspace Rules
+## Retain main-agent responsibility
 
-- Edit-mode subagents use the isolated child workspace assigned by `spawn`; they must not create another worktree when they load the implementation skill.
-- Child workspaces inherit the immediate parent's tracked working state and non-ignored untracked files, including additions and deletions.
-- Join integrates the child's contribution relative to that inherited baseline. Compatible parent changes are preserved; conflicts retain the child worktree and recovery artifacts without changing the parent.
-- Treat `integration=needs_parent` or `integration=failed` as unresolved. Inspect the reported workspace, result patch, and conflict diagnostics instead of applying a blind patch.
-- Child integration targets the immediate parent workspace, not the original checkout.
+Keep user intent and unresolved decisions in the main conversation. Join background work before relying on it. Inspect and integrate returned work, resolve conflicts, verify important claims directly, and report remaining uncertainty.
 
-## Main-Agent Responsibility
-
-The main agent must:
-
-- keep user intent and unresolved decisions in the main conversation
-- join background work before relying on it
-- inspect and integrate returned work
-- resolve conflicts and inconsistencies
-- verify important claims directly
-- report what remains unverified
-
-A subagent's success report is not proof. Use the `verify` skill before completion claims.
+Use `verify` before completion claims; a subagent's success statement is not proof.

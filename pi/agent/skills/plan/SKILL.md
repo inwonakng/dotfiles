@@ -5,73 +5,27 @@ description: Use when the user asks for an implementation plan, requests a desig
 
 # Plan
 
-Planning turns a requested change and repository evidence into an agreed implementation approach. A useful plan explains:
-
-- the observable outcome and success criteria
-- how the relevant behavior works now
-- the chosen approach and why it fits the repository
-- the affected contracts and ordered implementation slices
-- how the outcome will be verified
+Produce an actionable implementation approach from the requested outcome and repository evidence. Keep the plan in the conversation for approval; use `prepare-spec` for a standalone handoff.
 
 ## Boundaries
 
-- Do not modify files or begin implementation.
-- Inspect the relevant code and documentation before planning.
-- Resolve repository facts through inspection. Ask the user only about intent, constraints, or tradeoffs that cannot be discovered.
-- Ask only questions whose answers could materially change the approach.
+- Inspect relevant code and documentation without modifying files or starting implementation.
+- Resolve repository facts through inspection. Ask only about intent, constraints, or tradeoffs that cannot be discovered and would materially change the approach.
 - Use `write-good-code` for code-related plans.
-- Keep planning in the current conversation. Use `prepare-spec` when the deliverable must stand alone for another session or implementer.
-- The main agent synthesizes and presents the plan. Subagents may gather bounded evidence or critique a draft, but they do not own unresolved user decisions.
+- Keep synthesis and unresolved user decisions in the main session. Subagents may gather bounded evidence or critique a draft.
 
-## Workflow
+## Develop the plan
 
-1. **Frame the outcome**
-   - Identify the requested behavior, success criteria, constraints, exclusions, and decisions the user has already made.
-   - Ask about unresolved intent only when it blocks a sound approach.
+1. Identify the observable outcome, success criteria, constraints, exclusions, and decisions already made. Resolve intent that blocks a sound approach.
+2. Trace current behavior through callers, data flow, interfaces, configuration, and failure paths. Find nearby implementation and testing patterns. Identify contracts to preserve or deliberately change.
+3. Choose the smallest complete approach supported by the evidence. Include deciding tradeoffs; present alternatives only when they materially differ in behavior, cost, complexity, compatibility, or risk.
+4. Order the work into coherent implementation slices. Give each slice an outcome, likely paths or symbols, affected contracts, dependencies, and relevant verification. Avoid file inventories and speculative pseudocode.
+5. Check every success criterion and ensure verification observes the requested behavior. Account for relevant migrations, security, compatibility, rollout constraints, and uncertainty.
 
-2. **Understand the current system**
-   - Trace the relevant behavior through its callers, data flow, interfaces, configuration, and failure paths.
-   - Find nearby implementation and testing patterns.
-   - Identify contracts that must remain stable or change deliberately.
+## Present the plan
 
-3. **Choose the approach**
-   - Select the smallest complete approach supported by repository evidence.
-   - Explain the deciding tradeoffs.
-   - Present alternatives only when they differ materially in behavior, cost, complexity, compatibility, or risk.
+Lead with the proposed approach and outcome. Include current behavior only where it explains a constraint or decision, then give the implementation steps and verification. Add risks and open questions only when relevant.
 
-4. **Sequence the work**
-   - Divide the change into ordered, coherent implementation slices.
-   - For each slice, state its outcome, likely files or symbols, affected contracts, dependencies, and relevant verification.
-   - Do not turn the plan into a file inventory or speculative pseudocode.
+Use the detail the task needs. Do not force a template, repeat the outcome in each section, or describe the planning process.
 
-5. **Check completeness**
-   - Ensure every success criterion is covered.
-   - Ensure verification observes the requested behavior.
-   - Identify migrations, compatibility concerns, security implications, rollout constraints, and meaningful uncertainty when relevant.
-
-## Output
-
-Use only the sections the task needs:
-
-```markdown
-# [Change]
-
-## Outcome
-
-## Current behavior and constraints
-
-## Proposed approach
-
-## Implementation steps
-
-1. **[Coherent change]** — `paths` or `symbols`
-   - Behavior and contract changes
-   - Dependencies or ordering
-   - Relevant verification
-
-## Verification
-
-## Risks and open questions
-```
-
-Blocking questions must be resolved before presenting a final plan. Keep non-blocking uncertainty explicit. After presenting the plan, stop for approval or revision.
+Resolve blocking questions before presenting a final plan. State non-blocking uncertainty, then stop for approval or revision.

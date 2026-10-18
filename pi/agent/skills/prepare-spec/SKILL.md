@@ -3,42 +3,31 @@ name: prepare-spec
 description: Use when the user asks for a standalone implementation specification, a handoff document for another agent or fresh session, or a durable specification for later implementation. Produces a self-contained spec without implementing it.
 ---
 
-# Prepare Spec
+# Prepare spec
 
-Use this skill when implementation will happen outside the current conversation. The specification must preserve the intent and decisions that the next agent cannot recover from the repository alone.
+Write a self-contained specification that preserves intent and decisions a future implementer cannot recover from the repository.
 
-## Rules
+## Boundaries
 
-- Do not implement the change.
-- Write a file only when the user asks for one.
-- Inspect the relevant code and documentation before writing the specification.
-- Resolve repository facts through inspection. Ask the user about missing intent or decisions that cannot be discovered.
-- Do not finalize a specification with unresolved blocking questions.
-- Mark it `Draft` unless the user has already approved its content.
-- Keep it self-contained, but do not copy source code or include incidental exploration details.
-- Treat the specification as the source of truth for intent. Tell the implementing agent to inspect the current code and verify the specification's assumptions before editing.
+- Do not implement the change. Write a file only when requested.
+- Inspect relevant code and documentation first. Resolve repository facts through inspection and ask about missing intent or decisions.
+- Resolve blocking questions before finalizing.
+- Mark the specification `Draft` unless the user has approved its content.
+- Preserve intent without copying source code or recording incidental exploration.
+- Tell the implementer to inspect current code and verify the specification's assumptions before editing.
 
-## Required Content
+## Content
 
-A specification should state:
+Include the purpose and observable outcome, required behavior and acceptance criteria, relevant current behavior and repository orientation, agreed decisions, constraints and exclusions, affected contracts, implementation approach and necessary ordering, verification, and remaining assumptions or risks.
 
-- the purpose and observable outcome
-- required behavior and acceptance criteria
-- relevant current behavior and repository orientation
-- agreed decisions, constraints, and exclusions
-- affected contracts or interfaces
-- the implementation approach and order, where order matters
-- verification that demonstrates the outcome
-- assumptions, risks, and any remaining non-blocking uncertainty
+Use exact paths, symbols, commands, and expected results when they prevent guessing. Write requirements directly. Keep the document self-contained without repeating them across sections or adding a work diary.
 
-Include exact paths, symbols, commands, or expected results only when they help the next agent act without guessing.
-
-## Spec Shape
+Adapt this structure and omit empty sections:
 
 ```markdown
-# [Name] Specification
+# [Name] specification
 
-**Status:** Draft | Approved
+Status: Draft | Approved
 
 ## Purpose
 
@@ -55,6 +44,4 @@ Include exact paths, symbols, commands, or expected results only when they help 
 ## Assumptions and risks
 ```
 
-Adapt the shape to the task and omit empty sections. Keep the document clear enough for a fresh agent, but no longer than needed.
-
-After presenting or saving the specification, stop. Do not begin implementation without an explicit request.
+After presenting or saving the specification, stop. Implementation requires an explicit request.
