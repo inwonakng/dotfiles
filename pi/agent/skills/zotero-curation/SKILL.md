@@ -26,9 +26,10 @@ Reuse tags with established meanings. Ask before inventing tags or assigning unc
 
 1. Check installed `zotero-cli` subcommand help. Prefer its importer: `add bibtex` for verified official BibTeX, or the appropriate DOI/URL importer for that verified source. Do not start with hand-built API item JSON for extra control.
 2. Confirm command-scoped library/backend settings for the destination. The SQLite prefix for native personal-library reads is not a write recipe. Do not change persistent CLI defaults for one task.
-3. Keep collections, tags, and attachment behavior within scope. The importer's `--if-exists file` default can reuse an item and add missing collections/tags; it is not a readonly duplicate check. `--if-exists skip` leaves existing items untouched. Collection creation and downloads require authorization too.
-4. Read back the item and compare requested fields: type, creators, title, date, venue/proceedings, identifiers, memberships, and tags. A success envelope is insufficient. Preserve unrelated data, including existing tags when the change is additive.
-5. Use the official Zotero API only for an observed importer/edit mapping gap. Consult the [write API documentation](https://www.zotero.org/support/dev/web_api/v3/write_requests), use the correct library and current item version, preserve unrelated fields, check the response, and read back. Report the gap and affected fields. This fallback does not bypass authorization or access restrictions.
+3. Keep collections, tags, and attachment behavior within scope. The importer's `--if-exists file` default can reuse an item and add missing collections/tags; it is not a readonly duplicate check. `--if-exists skip` leaves existing items untouched.
+4. Every imported paper must have a PDF attached. Do not consider the import complete until the attachment is verified. If the importer skips the PDF, retrieve and attach it separately. If a PDF cannot be obtained, report the paper as incomplete and let the user know.
+5. Read back the item and compare requested fields: type, creators, title, date, venue/proceedings, identifiers, memberships, and tags. A success envelope is insufficient. Preserve unrelated data, including existing tags when the change is additive.
+6. Use the official Zotero API only for an observed importer/edit mapping gap. Consult the [write API documentation](https://www.zotero.org/support/dev/web_api/v3/write_requests), use the correct library and current item version, preserve unrelated fields, check the response, and read back. Report the gap and affected fields. This fallback does not bypass authorization or access restrictions.
 
 ## Handle versions and cleanup
 
@@ -37,3 +38,4 @@ Compare identifiers, authors, content/version, and linked notes/attachments befo
 Before merges, deletions, or bulk changes, present the concrete items, survivor and field choices, and preservation of notes, annotations, attachments, tags, and memberships. Obtain confirmation for that scope. Do not delete a preprint or attachment merely because a publication exists. Stop if the merge path cannot preserve the user's material.
 
 After authorized changes, read back affected records and children. Report keys, sources, changes, and unresolved discrepancies concisely. Basic readback is sufficient; do not add semantic tag validation.
+
