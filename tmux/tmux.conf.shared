@@ -247,9 +247,9 @@ bind V run-shell "edit-in-vim.sh"
 run-shell "bash $HOME/.config/tmux/scripts/popup-client.sh --install-hooks '#{socket_path}'"
 
 # Persistent scratch shell, Midnight Commander and IRC overlays.
-bind q run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-scratch.sh '#{pane_id}' '#{client_name}'"
-bind e run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-mc.sh '#{pane_id}' '#{client_name}'"
-bind c run-shell "bash $HOME/.config/tmux/scripts/toggle-popup-chat.sh '#{pane_id}' '#{client_name}'"
+bind q run-shell -b "bash $HOME/.config/tmux/scripts/toggle-popup-scratch.sh '#{pane_id}' '#{client_name}'"
+bind e run-shell -b "bash $HOME/.config/tmux/scripts/toggle-popup-mc.sh '#{pane_id}' '#{client_name}'"
+bind c run-shell -b "bash $HOME/.config/tmux/scripts/toggle-popup-chat.sh '#{pane_id}' '#{client_name}'"
 
 # Our fzf selectors share a borderless modal launcher with popup fallback.
 bind s run-shell -b "bash $HOME/.config/tmux/scripts/select-session.sh '#{pane_id}' '#{client_name}'"
