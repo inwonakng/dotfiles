@@ -39,3 +39,20 @@ Before merges, deletions, or bulk changes, present the concrete items, survivor 
 
 After authorized changes, read back affected records and children. Report keys, sources, changes, and unresolved discrepancies concisely. Basic readback is sufficient; do not add semantic tag validation.
 
+## Assign Tags
+
+Tags describe the topics covered in a paper or its type, such as a survey, benchmark paper, or dataset paper. Collections represent project membership; do not add tags that merely repeat that membership.
+
+Before proposing or assigning tags, inspect the existing tag set in the
+target library, not just the tags on the selected papers. Reuse existing tags when their meanings fit the paper. If the tag inventory is unavailable or incomplete, state that limitation rather than assuming a tag is new.
+
+Use self-explanatory names. Prefer full terms unless an abbreviation is widely accepted in the relevant field. Do not create synonyms or abbreviated variants of existing tags, or rename existing tags without approval.
+
+If existing tags do not adequately describe the paper's topics or type,
+propose the exact new names, explain what they describe and why existing
+tags are insufficient, and ask the user before creating or applying them.
+Batch confirmation is fine. Do not ask again for tags already explicitly
+approved for the requested papers.
+
+Preserve unrelated existing tags. Tag selection does not authorize
+library-wide renaming or cleanup.
