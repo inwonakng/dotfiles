@@ -12,7 +12,7 @@
     "+web_search",
     "+web_fetch"
   ],
-  "defaultProvider": "openai-codex",
+  "defaultProvider": "relay",
   "defaultModel": "gpt-6.1-sol",
   "defaultThinkingLevel": "high",
   "codemode": {
