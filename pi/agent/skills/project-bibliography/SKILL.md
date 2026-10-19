@@ -1,46 +1,66 @@
 ---
 name: project-bibliography
-description: "Use when organizing a project's Zotero collections or subcollections, interpreting its existing tags, or exporting and maintaining a project bibliography. Not for general paper search, a single-paper explanation, or metadata cleanup without a project bibliography task."
+description: "Use when finding related work for a project, adding papers to its Zotero collection, grounding project discussion in existing references, synthesizing prior work, reviewing collection relevance or tags, or explicitly exporting its bibliography. Not for unrelated paper searches, standalone paper explanations, routine coding or brainstorming, or metadata-only cleanup."
 ---
 
-# Project bibliography
+# Project literature workflow
 
-Load [Zotero access](../zotero/SKILL.md) for library and reference resolution. Load [Zotero curation](../zotero-curation/SKILL.md) when importing papers or correcting metadata.
+Use the project's research question to decide which papers to find, keep, and consult. Discovery, collection, discussion, synthesis, and review are separate activities; do not automatically run them as a pipeline.
 
-## Establish scope
+## Establish project context
 
-Read the project's `AGENTS.md` and bibliography/export setup. Inspect the collection hierarchy and relevant items before choosing a library, collection, tags, or output file.
+Read the project's `AGENTS.md` and any linked research-scope document. Use its research questions, inclusion/exclusion criteria, library identity, collection key/path, and established tag meanings. Ask only about missing choices that affect the current task; a web search does not require setting up a Zotero collection.
 
-Resolve names and paths to keys in the intended library. Matching names under different libraries or parents are not interchangeable. A reference scopes reading; it does not authorize reorganization or overwriting an export.
+Load [Zotero access](../zotero/SKILL.md) before library reads. Resolve the intended library and collection by key, not name alone. Keep collection reads nonrecursive unless the user or project convention includes descendants. Inspect relevant items rather than enumerating the whole collection by default.
 
-Determine:
+When asked to record project conventions, put the agreed scope, collection identity, and tag meanings in the project's `AGENTS.md` or a linked document. Do not invent project values or update instructions during ordinary literature work.
 
-- library identity and project collection key/path
-- collection-only or recursive scope
-- membership: all scoped items, cited works, or an existing selection/filter
-- established export path, format, and citation-key policy
+## Discover related work
 
-Ask about missing choices that affect the task. Keep direct native collection reads nonrecursive unless the user or project convention requests descendants.
+Trigger: the user asks to find papers, update related work with additional literature, find external evidence, or assess novelty. Revising a related-work section from existing references belongs to consultation and synthesis, not automatic discovery.
 
-## Use existing collections and tags
+1. Identify the specific question or gap the search should address. Use relevant existing references as seeds when available; do not reread the whole collection first.
+2. Load [paper search](../paper-search/SKILL.md) for searching and source-quality checks. Combine targeted searches with backward references and forward citations from useful seed papers.
+3. Present a focused shortlist with source links and each paper's concrete role in the project: comparison, method, dataset, evidence, or necessary background. Include relevant conflicting evidence, not only papers supporting the project's approach.
+4. Distinguish new candidates from known references when checked. State search and access limits; absence from the project collection does not establish novelty.
 
-Reuse collections that fit the agreed organization. Create or move them only when requested, after verifying library and parent. Preserve other memberships; adding an item to this project does not authorize removing it elsewhere or deleting it.
+Search results are proposals, not permission to import, tag, or save notes. Ask which candidates the user wants to keep unless they already authorized specific additions.
 
-Inspect exact tag names, their use on relevant items, and documented meanings. Ask before inventing tags or interpreting ambiguous ones. Do not infer meaning from spelling, impose prefixes or a taxonomy, or introduce a global schema. Native tag references require exact equality as described in Zotero access.
+## Collect with confirmed tags
 
-Confirm concrete scope before merges, deletions, or bulk tag/collection changes. After authorized writes, read back affected items or memberships. Basic checks are sufficient; do not build a semantic validation layer.
+Trigger: the user asks to add papers or approves candidates for the project.
 
-## Export the agreed set
+1. Check the intended library for existing records before import. Reuse an appropriate record and add project membership rather than duplicating it. Load [Zotero curation](../zotero-curation/SKILL.md) for identity/version checks, imports, and metadata corrections.
+2. Explain why each proposed addition belongs in this project. Broad topical similarity alone is not enough; distinguish papers awaiting relevance assessment from selected related work using the project's agreed convention.
+3. Every paper in the project collection should have at least one sensible, user-confirmed tag. Inspect existing tags and their documented meanings, then propose the exact tags to retain or add for each paper. Ask the user to confirm them before importing or changing project membership or tags; batch confirmation is fine. If the user already specified the papers, destination, and tags, do not ask again.
+4. Prefer existing tags when they fit. If none fit, propose a new tag and explain its meaning rather than silently inventing one or leaving the paper untagged. Imported keywords are not automatically suitable. Tags belong to the item across its collections, so do not silently assign a project-specific meaning to a shared tag.
+5. Apply only the approved imports, memberships, and tags. Preserve unrelated tags, memberships, notes, and attachments. Read back the affected records to confirm project membership and agreed tags, and report any incomplete additions.
 
-1. Resolve membership before export. For recursive scope, enumerate descendants and their items explicitly; do not assume `export --collection` includes them. Fetch all needed pages, deduplicate by library/item identity, and exclude notes and attachments. State incomplete enumeration.
-2. Inspect installed `zotero-cli export --help` and use its supported collection or explicit-item export. Retain the project's Better BibTeX or other exporter/key mechanism. Inspect suspicious metadata and use curation guidance for corrections.
-3. Export to a temporary file outside the repository. Compare entries with the selected set, checking omissions, key collisions, and the existing key policy. Before proposing key changes, identify affected in-project citations; never rename keys silently.
-4. Write the agreed path only with authorization. Preserve unrelated entries and ask before replacing mixed/manual content. Read back the file.
+Do not turn one addition into a library-wide retagging exercise. Flag existing untagged papers encountered during review and propose tags for approval.
 
-Report the exported item scope, output path, key changes, exclusions, and unresolved metadata without repeating the export procedure.
+## Consult existing references
 
-## Record conventions only when requested
+Trigger: the user asks what collected papers say, compares the project with prior work, or asks a question whose answer depends on evidence from those papers.
 
-Add a short prose section to the project's `AGENTS.md` with the agreed library identity, collection key/path, recursive scope, membership rule, export path/format, and key policy. Include existing tag meanings only when known and relevant.
+- Retrieve the subset relevant to the question. Start with metadata and existing notes, then read the passages needed to support the answer. A single-paper explanation normally needs only Zotero access, not a collection scan.
+- Cite the papers and relevant passages actually consulted. Separate the papers' findings, the user's notes, and your own interpretation; metadata or an abstract does not establish a full-paper reading.
+- If the collection cannot answer the question, say what is missing. Offer a targeted external search rather than silently expanding ordinary discussion into discovery. An explicit search or novelty-assessment request already triggers discovery.
+- Do not consult Zotero merely because a conversation takes place in the project. Routine coding, general explanation, and brainstorming need no literature lookup unless the question calls for it.
 
-Do not invent project values, create a global configuration schema, or edit instructions for a one-off export.
+Reserve collection-wide inspection for collection-wide questions. Inspecting an inventory does not require reading every paper.
+
+## Synthesize around the question
+
+Trigger: the user asks how the project fits prior work, requests a comparison across papers, or wants help drafting related work.
+
+Organize the answer around relevant assumptions, methods, findings, limitations, and consequences for the project. Identify agreement, disagreement, and missing evidence rather than concatenating paper summaries. Distinguish gaps in this collection from demonstrated gaps in the literature.
+
+Use a small comparison table when it helps. Keep synthesis in the conversation unless the user asks to save it; do not require a spreadsheet, notes database, or export as part of discussion.
+
+## Review relevance and coverage
+
+Trigger: the user requests a collection review or the project's research scope changes. After an addition batch, check the added papers' relevance, overlap, membership, and tags; do not audit the entire collection after every change.
+
+For a broader review, inspect the agreed collection scope and identify unclear relevance, unresolved candidates, missing or ambiguous tags, and missing coverage. Explain what each proposed removal no longer contributes. Being old, uncited, or contrary to the project's hypothesis is not by itself a reason to drop a paper.
+
+Present proposed changes for confirmation. Before removing membership, check whether the project still cites or depends on the paper. Confirm concrete scope before merges, removals, or bulk tag/collection changes, and read back authorized changes. Removing a paper from this project is not deleting it from Zotero or removing it from other collections. Create or move collections only when requested, after verifying the library and parent.
