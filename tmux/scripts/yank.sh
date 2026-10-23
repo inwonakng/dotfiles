@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 
+# Popup shells may lack SSH variables. Route by their owning client first.
+if [ -n "${1-}" ]; then
+    script_dir=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P) || exit 1
+    socket_path=$(tmux display-message -p '#{socket_path}') || exit 1
+    clipboard_client=$(bash "$script_dir/popup-client.sh" --clipboard-client "$socket_path" "$1") || exit 1
+    if [ -n "$clipboard_client" ]; then
+        exec tmux -S "$socket_path" load-buffer -w -t "$clipboard_client" -
+    fi
+fi
+
 # Check if we are in an SSH session (Remote).
 if [ -n "$SSH_CLIENT" ] || [ -n "$SSH_TTY" ]; then
-    # Popup clients must send directly to the terminal that opened the popup.
-    if [ -n "${1-}" ]; then
-        script_dir=$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P) || exit 1
-        socket_path=$(tmux display-message -p '#{socket_path}') || exit 1
-        clipboard_client=$(bash "$script_dir/popup-client.sh" --clipboard-client "$socket_path" "$1") || exit 1
-        if [ -n "$clipboard_client" ]; then
-            exec tmux -S "$socket_path" load-buffer -w -t "$clipboard_client" -
-        fi
-    fi
     # === REMOTE MODE (OSC 52) ===
     input=$(cat)
     # OSC 52 Header: \033]52;c; (c = clipboard)
