@@ -215,7 +215,7 @@ set -wgF clock-mode-colour "#{@ui_clock}"
 # Copy mode stuff
 set -g @copy_use_osc52_fallback on
 set -g set-clipboard on
-bind -T copy-mode-vi 'y' send -X copy-pipe-no-clear "bash $HOME/dotfiles/tmux/scripts/yank.sh"
+bind -T copy-mode-vi 'y' send -X copy-pipe-no-clear "bash $HOME/dotfiles/tmux/scripts/yank.sh #{q:client_name}"
 
 ###=========================###
 ### Visual/Copy Mode Config ###

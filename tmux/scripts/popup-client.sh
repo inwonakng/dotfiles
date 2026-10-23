@@ -5,7 +5,7 @@ set -eu
 prefix=@tmux_popup_
 mode=${1-}
 case "$mode" in
-    --install-hooks|--owned|--changed) shift ;;
+    --install-hooks|--owned|--clipboard-client|--changed) shift ;;
     *) mode=attach ;;
 esac
 [ "$#" -ge 1 ] || { printf 'Missing tmux socket\n' >&2; exit 2; }
@@ -23,7 +23,7 @@ lookup_owned_client() {
         [ "$name" = "$1" ] || continue
         case "$pid" in ''|*[!0-9]*) return 0 ;; esac
         record=$(tmux -S "$socket_path" show-options -gqv "$prefix$pid") || exit 1
-        read -r owner tracked_session <<< "$record"
+        read -r owner tracked_session parent_pid parent_terminal <<< "$record"
         if [ -n "$terminal" ] && [ "$owner" = "$terminal" ]; then
             owned_pid=$pid
             owned_terminal=$terminal
@@ -52,6 +52,25 @@ case "$mode" in
         [ -z "$owned_pid" ] || printf '1\n'
         exit 0
         ;;
+    --clipboard-client)
+        [ "$#" -eq 1 ] || exit 2
+        lookup_owned_client "$1"
+        [ -n "$owned_pid" ] || exit 0
+        # Older, still-open popups have no originating client recorded.
+        if [ -z "$parent_pid" ] || [ -z "$parent_terminal" ]; then
+            printf 'Reopen this popup to enable clipboard forwarding.\n' >&2
+            exit 1
+        fi
+        clients=$(tmux -S "$socket_path" list-clients -F $'#{client_name}\t#{client_pid}\t#{client_tty}')
+        while IFS=$'\t' read -r name pid terminal; do
+            if [ "$pid" = "$parent_pid" ] && [ "$terminal" = "$parent_terminal" ]; then
+                printf '%s\n' "$name"
+                exit 0
+            fi
+        done <<< "$clients"
+        printf 'The popup\047s originating tmux client is no longer attached.\n' >&2
+        exit 1
+        ;;
     --changed)
         [ "$#" -eq 3 ] || exit 2
         client=$1
@@ -68,7 +87,7 @@ case "$mode" in
         # Explicit switches retain old_session even if it is deleted before
         # this handler runs. Destruction clears it before assigning a fallback.
         if [ -n "$old_session" ]; then
-            tmux -S "$socket_path" set-option -g "$prefix$owned_pid" "$owned_terminal $next_session"
+            tmux -S "$socket_path" set-option -g "$prefix$owned_pid" "$owned_terminal $next_session $parent_pid $parent_terminal"
         else
             tmux -S "$socket_path" detach-client -t "$client"
         fi
@@ -76,22 +95,25 @@ case "$mode" in
         ;;
 esac
 
-[ "$#" -eq 1 ] || { printf 'Usage: %s SOCKET SESSION\n' "${0##*/}" >&2; exit 2; }
+[ "$#" -eq 2 ] || { printf 'Usage: %s SOCKET SESSION PARENT_CLIENT\n' "${0##*/}" >&2; exit 2; }
 session=$1
 session_id=$(tmux -S "$socket_path" display-message -p -t "=$session:" '#{session_id}')
+parent=$(tmux -S "$socket_path" display-message -p -c "$2" '#{client_pid} #{client_tty}')
+read -r parent_pid parent_terminal <<< "$parent"
+[[ "$parent_pid" =~ ^[0-9]+$ ]] && [ -n "$parent_terminal" ] || { printf 'Missing originating tmux client\n' >&2; exit 1; }
 terminal=$(tty)
 unset TMUX
 
 # Register before exec so even the initial client-session-changed hook sees the
 # marker. exec preserves the child's PID as the tmux client's PID.
 bash -eu -c '
-    socket=$1; session=$2; terminal=$3; prefix=$4
-    if ! error=$(tmux -S "$socket" set-option -g "$prefix$$" "$terminal $session" </dev/null 2>&1); then
+    socket=$1; session=$2; terminal=$3; prefix=$4; parent=$5
+    if ! error=$(tmux -S "$socket" set-option -g "$prefix$$" "$terminal $session $parent" </dev/null 2>&1); then
         printf "%s\n" "$error" >&2
         exit 1
     fi
     exec tmux -S "$socket" attach-session -t "$session"
-' popup-client "$socket_path" "$session_id" "$terminal" "$prefix" <&0 &
+' popup-client "$socket_path" "$session_id" "$terminal" "$prefix" "$parent" <&0 &
 attach_pid=$!
 cleanup() {
     local error

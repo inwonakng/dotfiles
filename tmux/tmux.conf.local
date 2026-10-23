@@ -30,5 +30,5 @@ run "$HOME/.config/tmux/plugins/tpm/tpm"
 
 # >>> pi-console >>>
 # Default channel: dev
-run-shell "bash '/Users/inwon/Documents/projects/pi-console/tmux/scripts/setup.sh' --apply"
+run-shell "bash '/Users/inwon/.local/share/pi-console-dev/current/tmux/scripts/setup.sh' --apply"
 # <<< pi-console <<<

@@ -36,4 +36,4 @@ if [ "$owned" = 1 ]; then
     exec tmux switch-client -c "$client_name" -t "=$session"
 fi
 exec bash "$script_dir/display-overlay.sh" "$pane_id" "$client_name" 80 85 \
-    bash "$script_dir/popup-client.sh" "$socket_path" "$session"
+    bash "$script_dir/popup-client.sh" "$socket_path" "$session" "$client_name"
