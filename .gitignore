@@ -38,3 +38,7 @@ claude/file-history
 /zotero/pi-zotero-reader.xpi
 /pi/agent/trust.json
 /pi/agent/relay.json
+/pi/agent/install
+/pi-console/config-dev.yaml
+/pi-console/hosts-dev.yaml
+/pi-console/hosts.yaml

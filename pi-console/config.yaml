@@ -1,0 +1,24 @@
+# User settings for pi-console extensions. Use dash-case for all keys.
+# Changes are read on demand. Restart pi-console after changing settings that affect the Neovim UI.
+# Credentials remain in Pi's auth.json or provider environment variables.
+
+access-mode:
+  # Read all paths, including credentials; allow writes under /tmp.
+  read-paths: ["/"]
+  write-paths: ["/tmp", "/var/folders/7c"]
+  # Omitted: generate scratch directories under the OS default temp directory.
+  # Uncomment to change the prefix on the next Pi session.
+  # temp-dir-prefix: /tmp/pi-console-
+
+session-picker:
+  # Prompt to review sessions after this many days without file activity.
+  archive-after-days: 180
+
+auto-title:
+  # Model IDs are resolved within the active provider; no cross-provider fallback.
+  provider-models:
+    openai-codex: gpt-5.6-luna
+  # Unmapped providers use an available text model with the lowest catalog
+  # input + output price (equal token weighting; model ID breaks ties).
+  # Catalog prices are estimates, not subscription quota costs. Explicitly map
+  # providers whose catalog prices are unknown or recorded as zero.
