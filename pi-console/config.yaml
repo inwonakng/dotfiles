@@ -22,3 +22,6 @@ auto-title:
   # input + output price (equal token weighting; model ID breaks ties).
   # Catalog prices are estimates, not subscription quota costs. Explicitly map
   # providers whose catalog prices are unknown or recorded as zero.
+
+workspace:
+  auto-commit: true
