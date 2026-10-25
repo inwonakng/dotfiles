@@ -1,11 +1,11 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import type { AutocompleteItem, AutocompleteProvider } from "@earendil-works/pi-tui";
+import { API, configPath, credentials, login, logout, request, type Credentials } from "./zotero/connection.ts";
 
-const API = "http://127.0.0.1:23119/api/users/0/";
 const KINDS = ["paper", "collection", "tag"] as const;
 type Kind = (typeof KINDS)[number];
 type Entry = AutocompleteItem & { search: string };
-type Cache = { entries?: Entry[]; loaded: number; retry: number; pending?: Promise<Entry[]> };
+type Cache = { entries?: Entry[]; version?: string; loaded: number; retry: number; pending?: Promise<Entry[]> };
 type RecordData = Record<string, unknown>;
 
 function object(value: unknown): RecordData {
@@ -20,15 +20,15 @@ function encode(value: string): string {
 	return encodeURIComponent(value).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
 }
 
-function reference(kind: Kind, label: string, id: string): string {
-	// Dot-only path segments are normalized by URL clients; their query form is literal.
-	const tagTarget = id === "." || id === ".." ? `${API}items/top?tag=${encode(id)}` : `${API}tags/${encode(id)}`;
-	const target = kind === "tag" ? tagTarget
-		: `zotero://select/library/${kind === "paper" ? "items" : "collections"}/${id}`;
+function reference(kind: Kind, label: string, id: string, userID: string): string {
+	const base = `${API}/users/${userID}/`;
+	// Query form preserves dot-only tags, which URL path normalization removes.
+	const tagTarget = id === "." || id === ".." ? `${base}items/top?tag=${encode(id)}` : `${base}tags/${encode(id)}`;
+	const target = kind === "tag" ? tagTarget : `${base}${kind === "paper" ? "items" : "collections"}/${id}`;
 	return `[Zotero ${kind}: ${label.replace(/[\\[\]]/g, "\\$&")}](${target})`;
 }
 
-function entriesFrom(rows: unknown[], kind: Kind): Entry[] {
+function entriesFrom(rows: unknown[], kind: Kind, userID: string): Entry[] {
 	const records = rows.map(object);
 	const collections = new Map(records.map((row) => [text(row.key), object(row.data)]));
 	const entries: Entry[] = [];
@@ -63,7 +63,7 @@ function entriesFrom(rows: unknown[], kind: Kind): Entry[] {
 			}
 			search = label;
 		}
-		entries.push({ value: reference(kind, label, id), label, description, search: search.toLowerCase() });
+		entries.push({ value: reference(kind, label, id, userID), label, description, search: search.toLowerCase() });
 	}
 	return entries.sort((a, b) => a.label < b.label ? -1 : a.label > b.label ? 1 : 0);
 }
@@ -89,17 +89,73 @@ function token(lines: string[], line: number, col: number): string | undefined {
 }
 
 export default function zotero(pi: ExtensionAPI): void {
-	let shutdown: AbortController | undefined;
-	pi.on("session_shutdown", () => shutdown?.abort());
-	pi.on("session_start", (_event, ctx) => {
-		if (ctx.mode !== "tui") return;
-		shutdown?.abort();
-		const lifetime = new AbortController();
-		shutdown = lifetime;
-		const caches = new Map<Kind, Cache>();
-		let errorShown = false;
+	let connection = new AbortController();
+	const caches = new Map<Kind, Cache>();
+	let account: Credentials | undefined;
+	let errorShown = false;
+	function reset(): void {
+		connection.abort();
+		connection = new AbortController();
+		caches.clear();
+		account = undefined;
+		errorShown = false;
+	}
+	pi.on("session_shutdown", () => connection.abort());
 
+	pi.registerCommand("zotero-login", {
+		description: "Save a Zotero web API key for Pi completion and zotero-cli (library, notes, files, write access required)",
+		handler: async (args, ctx) => {
+			if (args.trim()) { ctx.ui.notify("Run /zotero-login without arguments. Enter the key only in the dialog, not in chat.", "warning"); return; }
+			if (!ctx.hasUI || process.env.PI_INTERACTION_MODE === "noninteractive") {
+				ctx.ui.notify("Run /zotero-login in an interactive Pi session on this machine.", "warning"); return;
+			}
+			const key = (await ctx.ui.input("Zotero API key (stored locally, not in the conversation)", "Paste the key from zotero.org/settings/keys"))?.trim();
+			if (!key) return;
+			try {
+				const userID = await login(key, connection.signal);
+				reset();
+				ctx.ui.setStatus("zotero", undefined);
+				ctx.ui.notify(`Zotero web access saved for user ${userID} in ${configPath} (0600, plaintext). Pi completion and zotero-cli share it.`, "info");
+			} catch (error) { ctx.ui.notify(error instanceof Error ? error.message : "Zotero login failed.", "error"); }
+		},
+	});
+	pi.registerCommand("zotero-logout", {
+		description: "Remove the saved Zotero web key on this machine (does not revoke it at Zotero)",
+		handler: async (_args, ctx) => {
+			try {
+				await logout();
+				reset();
+				ctx.ui.setStatus("zotero", undefined);
+				ctx.ui.notify("Saved Zotero web credentials removed on this machine. The key has not been revoked at Zotero.", "info");
+			} catch (error) { ctx.ui.notify(error instanceof Error ? error.message : "Zotero logout failed.", "error"); }
+		},
+	});
+
+	pi.on("session_start", (_event, ctx) => {
+		reset();
+		if (ctx.mode !== "tui") return;
+		function unavailable(error: unknown, cached = false): void {
+			ctx.ui.setStatus("zotero", `Zotero unavailable${cached ? " (cached suggestions)" : ""}`);
+			if (!errorShown) {
+				errorShown = true;
+				ctx.ui.notify(error instanceof Error ? error.message : "Zotero web request failed.", "warning");
+			}
+		}
 		async function load(kind: Kind): Promise<Entry[]> {
+			const beforeRead = connection.signal;
+			let auth: Credentials;
+			try { auth = await credentials(); }
+			catch (error) {
+				if (!beforeRead.aborted) {
+					if (account) reset();
+					unavailable(error);
+				}
+				return [];
+			}
+			if (beforeRead.aborted) return [];
+			if (account && (account.apiKey !== auth.apiKey || account.userID !== auth.userID)) reset();
+			account = auth;
+			const signal = connection.signal;
 			let cache = caches.get(kind);
 			if (!cache) { cache = { loaded: 0, retry: 0 }; caches.set(kind, cache); }
 			if (cache.pending) return cache.entries ?? cache.pending;
@@ -108,28 +164,38 @@ export default function zotero(pi: ExtensionAPI): void {
 			const endpoint = kind === "paper" ? "items/top" : kind === "collection" ? "collections" : "tags";
 			state.pending = (async () => {
 				try {
-					const response = await fetch(API + endpoint, {
-						headers: { "Zotero-API-Version": "3" }, redirect: "error",
-						signal: AbortSignal.any([lifetime.signal, AbortSignal.timeout(3000)]),
-					});
-					if (!response.ok) throw new Error(`HTTP ${response.status}`);
-					const rows: unknown = await response.json();
-					if (!Array.isArray(rows)) throw new Error("Expected a Zotero result list");
-					state.entries = entriesFrom(rows, kind);
+					const rows: unknown[] = [];
+					let version: string | undefined;
+					for (let start = 0; ; start += 100) {
+						const response = await request(`/users/${auth.userID}/${endpoint}?limit=100&start=${start}`, auth.apiKey, signal, start === 0 ? state.version : undefined);
+						if (response.status === 304) break;
+						const pageVersion = response.headers.get("Last-Modified-Version") ?? undefined;
+						if (start === 0) version = pageVersion;
+						else if (pageVersion !== version) throw new Error("Zotero changed while loading suggestions; retry to refresh the complete list.");
+						let page: unknown;
+						try { page = await response.json(); }
+						catch { throw new Error("Zotero returned invalid metadata."); }
+						if (!Array.isArray(page)) throw new Error("Expected a Zotero result list.");
+						rows.push(...page);
+						const total = response.headers.get("Total-Results");
+						if (page.length < 100 || (total !== null && rows.length >= Number(total))) {
+							if (signal.aborted) return [];
+							state.entries = entriesFrom(rows, kind, auth.userID);
+							state.version = version;
+							break;
+						}
+					}
+					if (signal.aborted) return [];
 					state.loaded = Date.now();
 					errorShown = false;
 					ctx.ui.setStatus("zotero", undefined);
 				} catch (error) {
-					if (!lifetime.signal.aborted) {
+					if (!signal.aborted) {
 						state.retry = Date.now() + 10_000;
-						ctx.ui.setStatus("zotero", `Zotero unavailable${state.entries ? " (cached suggestions)" : ""}`);
-						if (!errorShown) {
-							errorShown = true;
-							ctx.ui.notify(`Zotero: ${error instanceof Error ? error.message : "request failed"}. Open Zotero and enable Settings → Advanced → Allow other applications to communicate with Zotero.`, "warning");
-						}
+						unavailable(error, !!state.entries);
 					}
 				} finally { state.pending = undefined; }
-				return state.entries ?? [];
+				return signal.aborted ? [] : state.entries ?? [];
 			})();
 			return state.entries ?? state.pending;
 		}
@@ -149,7 +215,8 @@ export default function zotero(pi: ExtensionAPI): void {
 				}
 				const kind = tail.slice(0, colon) as Kind;
 				if (!KINDS.includes(kind)) return null;
-				if (options.signal.aborted || lifetime.signal.aborted) return null;
+				const generation = connection.signal;
+				if (options.signal.aborted || generation.aborted) return null;
 				// Pi serializes provider calls: release the consumer on cancellation,
 				// while letting the shared metadata refresh finish for the next query.
 				const entries = await new Promise<Entry[] | undefined>((resolve, reject) => {
@@ -157,7 +224,7 @@ export default function zotero(pi: ExtensionAPI): void {
 					options.signal.addEventListener("abort", aborted, { once: true });
 					load(kind).then(resolve, reject).finally(() => options.signal.removeEventListener("abort", aborted));
 				});
-				if (!entries || options.signal.aborted || lifetime.signal.aborted) return null;
+				if (!entries || options.signal.aborted || generation.aborted) return null;
 				const query = tail.slice(colon + 1).trim();
 				const items = entries.map((entry) => ({ entry, score: score(entry.search, query) }))
 					.filter((match): match is { entry: Entry; score: number } => match.score !== undefined)

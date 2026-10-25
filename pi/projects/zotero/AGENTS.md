@@ -26,8 +26,12 @@ separate from printed page labels.
 
 ## Library work
 
-Use the existing `zotero-cli` for searches, imports, metadata, collections, tags,
-and notes. New papers require independently retrieved official publication
+Use the existing `zotero-cli` in web mode for searches, imports, metadata,
+collections, tags, notes, and synced Zotero Storage PDFs on every machine.
+`/zotero-login` configures its shared machine-local credentials. Keep the reader
+bridge local; do not force library commands to localhost or library ID `0`.
+Unsynced desktop changes may not yet be available through the web API.
+New papers require independently retrieved official publication
 metadata when available; a citation in a repository/README is a clue, not the
 preferred citation source. Reuse existing tags with their existing meaning; ask
 before inventing tags or a new tag scheme.
