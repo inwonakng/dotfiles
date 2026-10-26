@@ -193,6 +193,10 @@ local function open_daily_note()
 	end
 end
 
+vim.api.nvim_create_user_command("ProjectNotesInit", function()
+	require("utils.project-notes").initialize(workspaces)
+end, { desc = "Initialize project notes in an Obsidian vault" })
+vim.keymap.set("n", "<leader>oN", "<cmd>ProjectNotesInit<cr>", { desc = "Initialize project notes" })
 vim.keymap.set("n", "<leader>on", function()
 	require("utils.project-notes").open("notes", workspaces)
 end, { desc = "Open project notes through Obsidian" })

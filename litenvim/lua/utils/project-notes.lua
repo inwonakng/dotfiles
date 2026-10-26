@@ -104,4 +104,100 @@ function M.open(kind, workspaces)
 	end
 end
 
+local function skip_initialized(project)
+	for _, kind in ipairs({ "todo", "notes" }) do
+		local path = vim.fs.joinpath(project, "." .. kind)
+		if uv.fs_lstat(path) then
+			vim.notify("Skipping initialization: " .. path .. " already exists")
+			return true
+		end
+	end
+	return false
+end
+
+local function ensure_directory(path)
+	local stat = uv.fs_lstat(path)
+	if stat then
+		if stat.type ~= "directory" then
+			error("Expected a real directory: " .. path)
+		end
+		return
+	end
+	local ok, err = uv.fs_mkdir(path, 493) -- 0755, respecting the process umask.
+	if not ok then
+		error("Could not create directory " .. path .. ": " .. tostring(err))
+	end
+end
+
+function M.initialize(workspaces)
+	local project = vim.fn.getcwd()
+	if skip_initialized(project) then
+		return
+	end
+	if #workspaces == 0 then
+		vim.notify("No Obsidian vaults are configured", vim.log.levels.ERROR)
+		return
+	end
+	-- fzf-lua is registered as the vim.ui.select provider in plugins/fzf.lua.
+	vim.ui.select(workspaces, {
+		prompt = "Project notes vault",
+		format_item = function(workspace)
+			return workspace.name
+		end,
+	}, function(workspace)
+		if not workspace then
+			return
+		end
+		vim.ui.input({ prompt = "Project name: ", default = vim.fs.basename(project) }, function(name)
+			if name == nil then
+				return
+			end
+			name = vim.trim(name)
+			if name == "" or name == "." or name == ".." or name:find("[/\\%z\1-\31]") then
+				vim.notify("Project name must be a single non-empty directory name", vim.log.levels.ERROR)
+				return
+			end
+			if skip_initialized(project) then
+				return
+			end
+			local created_links = {}
+			local ok, err = pcall(function()
+				local root = uv.fs_realpath(workspace.path)
+				if not root or vim.fn.isdirectory(root) ~= 1 then
+					error("Vault directory is unavailable: " .. workspace.path)
+				end
+				local projects = vim.fs.joinpath(root, "projects")
+				local target = vim.fs.joinpath(projects, name)
+				ensure_directory(projects)
+				ensure_directory(target)
+				for _, kind in ipairs({ "todo", "notes" }) do
+					ensure_directory(vim.fs.joinpath(target, kind))
+				end
+				for _, kind in ipairs({ "todo", "notes" }) do
+					local destination = vim.fs.joinpath(project, "." .. kind)
+					local source = vim.fs.joinpath(target, kind)
+					local linked, link_error = uv.fs_symlink(source, destination)
+					if not linked then
+						error("Could not link " .. destination .. ": " .. tostring(link_error))
+					end
+					table.insert(created_links, { source = source, destination = destination })
+				end
+				vim.notify("Project notes linked to " .. target)
+			end)
+			if not ok then
+				-- Roll back only our links, never existing vault directories or notes.
+				for _, link in ipairs(created_links) do
+					if uv.fs_readlink(link.destination) == link.source then
+						local removed, remove_error = uv.fs_unlink(link.destination)
+						if not removed then
+							vim.notify("Could not remove partial link: " .. tostring(remove_error), vim.log.levels.ERROR)
+						end
+					end
+				end
+				vim.notify(tostring(err), vim.log.levels.ERROR)
+			end
+		end)
+	end)
+end
+
 return M
