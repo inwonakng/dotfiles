@@ -181,7 +181,7 @@ vim.keymap.set("n", "<leader>oN", "<cmd>ProjectNotesInit<cr>", { desc = "Initial
 vim.api.nvim_create_user_command("ProjectDailies", function()
 	require("utils.project-dailies").open(workspaces)
 end, { desc = "Edit today's dailies for all projects" })
-vim.keymap.set("n", "<leader>oa", "<cmd>ProjectDailies<cr>", { desc = "Edit all project dailies" })
+vim.keymap.set("n", "<leader>oD", "<cmd>ProjectDailies<cr>", { desc = "Edit all project dailies" })
 local function update_template_mapping(buffer)
 	local path = vim.api.nvim_buf_get_name(buffer)
 	local workspace = path ~= "" and require("obsidian.api").find_workspace(path) or nil
@@ -210,4 +210,3 @@ end, { desc = "Open daily note" })
 vim.keymap.set("n", "<leader>oo", "<cmd>Obsidian open<cr>", { desc = "Open in Obsidian" })
 vim.keymap.set("n", "<C-CR>", "<cmd>Obsidian follow_link vsp<cr>", { desc = "Follow link in vsplit" })
 vim.keymap.set("n", "<S-CR>", "<cmd>Obsidian follow_link hsplit<cr>", { desc = "Follow link in hsplit" })
-vim.keymap.set("n", "<leader>oD", "<cmd>Obsidian dailies<cr>", { desc = "Pick from daily notes" })
