@@ -66,46 +66,51 @@ local function open_buffer(path)
 	end
 end
 
+-- Use the same Templater creation path for individual and collected project dailies.
+function M.ensure_daily(workspace, relative)
+	local root = uv.fs_realpath(workspace.path) or workspace.path
+	local path = vim.fs.joinpath(root, relative, "daily", os.date("%Y-%m-%d") .. ".md")
+	if vim.fn.filereadable(path) == 1 then
+		return path
+	end
+	obsidian.cli()
+	obsidian.launch(workspace)
+	local last_error
+	if not vim.wait(30000, function()
+		local ready, response = pcall(
+			evaluate,
+			workspace,
+			'JSON.stringify({ready:typeof app.plugins.plugins["templater-obsidian"]?.projectNotes?.open==="function"})'
+		)
+		last_error = ready and "Enable Templater startup templates and reload Templater in this vault" or response
+		return ready and response.ready == true
+	end, 250) then
+		error("Project-note commands unavailable: " .. tostring(last_error))
+	end
+	local response = evaluate(
+		workspace,
+		('(async()=>JSON.stringify({path:await app.plugins.plugins["templater-obsidian"].projectNotes.open(%s,false)}))()'):format(
+			vim.json.encode(relative)
+		)
+	)
+	if type(response.path) ~= "string" or not response.path:match("^" .. vim.pesc(relative) .. "/daily/%d%d%d%d%-%d%d%-%d%d%.md$") then
+		error("Obsidian returned an invalid project note path")
+	end
+	path = vim.fs.joinpath(workspace.path, response.path)
+	if vim.fn.filereadable(path) ~= 1 then
+		error("Project note was not created: " .. path)
+	end
+	return path
+end
+
 -- Return false only when there is no project context, so callers can open a vault daily.
 function M.open(workspaces)
 	local ok, handled = pcall(function()
-		local workspace, target, relative = find_target(workspaces)
+		local workspace, _, relative = find_target(workspaces)
 		if not workspace then
 			return false
 		end
-		local path = vim.fs.joinpath(target, "daily", os.date("%Y-%m-%d") .. ".md")
-		if vim.fn.filereadable(path) == 1 then
-			open_buffer(path)
-			return true
-		end
-		obsidian.cli()
-		obsidian.launch(workspace)
-		local last_error
-		if not vim.wait(30000, function()
-			local ready, response = pcall(
-				evaluate,
-				workspace,
-				'JSON.stringify({ready:typeof app.plugins.plugins["templater-obsidian"]?.projectNotes?.open==="function"})'
-			)
-			last_error = ready and "Enable Templater startup templates and reload Templater in this vault" or response
-			return ready and response.ready == true
-		end, 250) then
-			error("Project-note commands unavailable: " .. tostring(last_error))
-		end
-		local response = evaluate(
-			workspace,
-			('(async()=>JSON.stringify({path:await app.plugins.plugins["templater-obsidian"].projectNotes.open(%s,false)}))()'):format(
-				vim.json.encode(relative)
-			)
-		)
-		if type(response.path) ~= "string" or not response.path:match("^" .. vim.pesc(relative) .. "/daily/%d%d%d%d%-%d%d%-%d%d%.md$") then
-			error("Obsidian returned an invalid project note path")
-		end
-		path = vim.fs.joinpath(workspace.path, response.path)
-		if vim.fn.filereadable(path) ~= 1 then
-			error("Project note was not created: " .. path)
-		end
-		open_buffer(path)
+		open_buffer(M.ensure_daily(workspace, relative))
 		return true
 	end)
 	if not ok then
