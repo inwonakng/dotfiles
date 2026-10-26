@@ -4,6 +4,9 @@ set -euo pipefail
 repo="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 if [[ $# -eq 0 ]]; then
   base="$HOME/Library/Mobile Documents/iCloud~md~obsidian/Documents"
+  if [[ ! -d "$base" ]]; then
+    base="/mnt/c/Users/inwon/iCloudDrive/iCloud~md~obsidian"
+  fi
   set -- "$base/personal" "$base/work"
 fi
 python3 - "$repo" "$@" <<'PY'

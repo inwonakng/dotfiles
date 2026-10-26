@@ -1,6 +1,6 @@
 local M = {}
 local uv = vim.uv
-local cli = "/Applications/Obsidian.app/Contents/MacOS/obsidian-cli"
+local obsidian = require("utils.obsidian")
 
 local function find_target(kind, workspaces)
 	local directory = vim.fn.getcwd()
@@ -34,7 +34,7 @@ local function find_target(kind, workspaces)
 end
 
 local function evaluate(workspace, code)
-	local result = vim.system({ cli, "vault=" .. workspace.name, "eval", "code=" .. code }, { text = true }):wait(10000)
+	local result = vim.system({ obsidian.cli(), "vault=" .. workspace.name, "eval", "code=" .. code }, { text = true }):wait(10000)
 	local output = vim.trim(result.stdout or "")
 	if result.code ~= 0 then
 		error("Obsidian CLI failed: " .. vim.trim((result.stderr or "") .. "\n" .. output))
@@ -64,13 +64,8 @@ function M.open(kind, workspaces)
 			open_buffer(path)
 			return
 		end
-		if vim.fn.executable(cli) ~= 1 then
-			error("Enable the Obsidian CLI to create project notes")
-		end
-		local launched = vim.system({ "open", "-g", "-a", "Obsidian" }, { text = true }):wait(10000)
-		if launched.code ~= 0 then
-			error("Could not launch Obsidian: " .. vim.trim(launched.stderr or ""))
-		end
+		obsidian.cli()
+		obsidian.launch(workspace)
 		local last_error
 		if not vim.wait(30000, function()
 			local ready, response = pcall(

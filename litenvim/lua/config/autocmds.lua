@@ -29,19 +29,26 @@ vim.api.nvim_create_autocmd("FileType", {
 })
 
 -- Obsidian with hledger. If in this directory, render as ledger filetype
-vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
-	group = vim.api.nvim_create_augroup("md_ledger", { clear = true }),
-	pattern = {
-		vim.env.HOME .. "/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal/finance/journals/**.md",
-		vim.env.HOME .. "/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal/finance/journals/**.journal",
-	},
-	callback = function()
-		vim.bo.filetype = "ledger"
-		vim.opt_local.wrap = false
-		vim.bo.shiftwidth = 4
-		vim.bo.tabstop = 4
-	end,
-})
+local ledger_patterns = {}
+for _, workspace in ipairs(require("utils.obsidian").workspaces()) do
+	if workspace.name == "personal" then
+		for _, extension in ipairs({ "md", "journal" }) do
+			table.insert(ledger_patterns, workspace.path .. "/finance/journals/**." .. extension)
+		end
+	end
+end
+if #ledger_patterns > 0 then
+	vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
+		group = vim.api.nvim_create_augroup("md_ledger", { clear = true }),
+		pattern = ledger_patterns,
+		callback = function()
+			vim.bo.filetype = "ledger"
+			vim.opt_local.wrap = false
+			vim.bo.shiftwidth = 4
+			vim.bo.tabstop = 4
+		end,
+	})
+end
 
 -- Highlight when yanking (copying) text
 vim.api.nvim_create_autocmd("TextYankPost", {

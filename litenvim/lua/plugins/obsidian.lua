@@ -1,17 +1,5 @@
-local configured_workspaces = {
-	{
-		name = "personal",
-		path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/personal",
-	},
-	{
-		name = "work",
-		path = "/Users/inwon/Library/Mobile Documents/iCloud~md~obsidian/Documents/work",
-	},
-}
-
-local workspaces = vim.tbl_filter(function(workspace)
-	return vim.fn.isdirectory(workspace.path) == 1
-end, configured_workspaces)
+local obsidian = require("utils.obsidian")
+local workspaces = obsidian.workspaces()
 
 if vim.tbl_isempty(workspaces) then
 	return
@@ -22,6 +10,7 @@ vim.pack.add({ "https://github.com/obsidian-nvim/obsidian.nvim" })
 require("obsidian").setup({
 	legacy_commands = false,
 	workspaces = workspaces,
+	open = vim.fn.has("wsl") == 1 and { func = obsidian.open } or nil,
 	daily_notes = {
 		folder = "daily",
 		date_format = "%Y-%m-%d",
@@ -131,14 +120,8 @@ end
 
 local function open_daily_note()
 	local workspace = require("obsidian.api").find_workspace(vim.api.nvim_buf_get_name(0)) or Obsidian.workspace
-	-- Keep timed CLI requests separate from the GUI process.
-	local cli = "/Applications/Obsidian.app/Contents/MacOS/obsidian-cli"
-	if vim.fn.executable(cli) ~= 1 then
-		vim.notify("Enable the Obsidian CLI before creating daily notes", vim.log.levels.ERROR)
-		return
-	end
 	local function run(command, ...)
-		local result = vim.system({ cli, "vault=" .. workspace.name, command, ... }, { text = true }):wait(10000)
+		local result = vim.system({ obsidian.cli(), "vault=" .. workspace.name, command, ... }, { text = true }):wait(10000)
 		local output = vim.trim(result.stdout or "")
 		if result.code ~= 0 or output:match("^Error:") then
 			error(
@@ -152,10 +135,8 @@ local function open_daily_note()
 		return output
 	end
 	local ok, err = pcall(function()
-		local launched = vim.system({ "open", "-g", "-a", "Obsidian" }, { text = true }):wait(10000)
-		if launched.code ~= 0 then
-			error("Could not launch Obsidian: " .. vim.trim(launched.stderr or ""))
-		end
+		obsidian.cli()
+		obsidian.launch(workspace)
 		local relative, last_error
 		if not vim.wait(30000, function()
 			local ready, output = pcall(run, "daily:path")
