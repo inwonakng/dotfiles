@@ -10,6 +10,40 @@ local cmp = require("blink.cmp")
 cmp.build():pwait()
 
 local default_label_highlight = require("blink.cmp.config").completion.menu.draw.components.label.highlight
+local label_max_width = 60
+
+local function label_text(ctx)
+	local text = ctx.label .. ctx.label_detail
+	local is_path = ctx.kind == "File" or ctx.kind == "Folder" or ctx.source_id == "path"
+		or (ctx.source_id == "cmdline" and ctx.label:find("/", 1, true) ~= nil)
+	if not is_path or vim.api.nvim_strwidth(text) <= label_max_width then
+		return text, 0
+	end
+
+	local tail = ""
+	for index = vim.fn.strchars(text, true) - 1, 0, -1 do
+		local candidate = vim.fn.strcharpart(text, index, 1, true) .. tail
+		if vim.api.nvim_strwidth("…" .. candidate) > label_max_width then break end
+		tail = candidate
+	end
+	return "…" .. tail, #text - #tail
+end
+
+local function label_highlight(ctx)
+	local highlights = default_label_highlight(ctx)
+	local _, removed = label_text(ctx)
+	if removed == 0 then return highlights end
+
+	local shifted = { { 0, #"…", group = ctx.deprecated and "BlinkCmpLabelDeprecated" or "BlinkCmpLabel" } }
+	for _, highlight in ipairs(highlights) do
+		if highlight[2] > removed then
+			highlight[1] = math.max(0, highlight[1] - removed) + #"…"
+			highlight[2] = highlight[2] - removed + #"…"
+			table.insert(shifted, highlight)
+		end
+	end
+	return shifted
+end
 
 cmp.setup({
 	term = { enabled = false },
@@ -45,12 +79,14 @@ cmp.setup({
 			draw = {
 				components = {
 					label = {
+						width = { max = label_max_width },
+						text = label_text,
 						highlight = function(ctx)
 							if ctx.source_id == "hledger_accounts" then
 								local group = ctx.item.data.hledger_component and "HledgerCmpComponent" or "HledgerCmpAccount"
 								return { { 0, #ctx.label, group = group, priority = 20000 } }
 							end
-							return default_label_highlight(ctx)
+							return label_highlight(ctx)
 						end,
 					},
 				},
