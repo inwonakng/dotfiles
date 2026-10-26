@@ -129,6 +129,33 @@ local function ensure_directory(path)
 	end
 end
 
+local function ignore_project_links(project)
+	local path = vim.fs.joinpath(project, ".gitignore")
+	if not uv.fs_lstat(path) then
+		return
+	end
+	local lines = vim.fn.readfile(path, "b")
+	local present = {}
+	for _, line in ipairs(lines) do
+		present[(line:gsub("\r$", ""))] = true
+	end
+	local entries = {}
+	for _, kind in ipairs({ "todo", "notes" }) do
+		if not present["/." .. kind] and not present["." .. kind] then
+			table.insert(entries, "/." .. kind)
+		end
+	end
+	if #entries == 0 then
+		return
+	end
+	if #lines > 0 and lines[#lines] ~= "" then
+		table.insert(entries, 1, "")
+	end
+	if vim.fn.writefile(entries, path, "a") ~= 0 then
+		error("Could not update " .. path)
+	end
+end
+
 function M.initialize(workspaces)
 	local project = vim.fn.getcwd()
 	if skip_initialized(project) then
@@ -182,6 +209,7 @@ function M.initialize(workspaces)
 					end
 					table.insert(created_links, { source = source, destination = destination })
 				end
+				ignore_project_links(project)
 				vim.notify("Project notes linked to " .. target)
 			end)
 			if not ok then
