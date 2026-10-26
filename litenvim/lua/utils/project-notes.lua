@@ -2,9 +2,9 @@ local M = {}
 local uv = vim.uv
 local obsidian = require("utils.obsidian")
 
-local function find_target(kind, workspaces)
+local function find_target(workspaces)
 	local directory = vim.fn.getcwd()
-	local marker = "." .. kind
+	local marker = ".notes"
 	while directory do
 		local candidate = vim.fs.joinpath(directory, marker)
 		if uv.fs_lstat(candidate) then
@@ -16,8 +16,8 @@ local function find_target(kind, workspaces)
 				local root = uv.fs_realpath(workspace.path)
 				if root and target:sub(1, #root + 1) == root .. "/" then
 					local relative = target:sub(#root + 2)
-					if not relative:match("^projects/[^/]+/" .. kind .. "$") then
-						error(marker .. " must target projects/<project>/" .. kind .. " in a configured vault")
+					if not relative:match("^projects/[^/]+$") then
+						error(marker .. " must target projects/<project> in a configured vault; legacy links must be migrated manually")
 					end
 					return workspace, target, relative
 				end
@@ -30,7 +30,17 @@ local function find_target(kind, workspaces)
 		end
 		directory = parent
 	end
-	error("No " .. marker .. " directory found in the current directory or its parents")
+	-- A project daily opened directly in the vault still has project context.
+	local path = uv.fs_realpath(vim.api.nvim_buf_get_name(0))
+	for _, workspace in ipairs(workspaces) do
+		local root = uv.fs_realpath(workspace.path)
+		if path and root and path:sub(1, #root + 1) == root .. "/" then
+			local relative = path:sub(#root + 2):match("^(projects/[^/]+)/")
+			if relative then
+				return workspace, vim.fs.joinpath(root, relative), relative
+			end
+		end
+	end
 end
 
 local function evaluate(workspace, code)
@@ -56,13 +66,17 @@ local function open_buffer(path)
 	end
 end
 
-function M.open(kind, workspaces)
-	local ok, err = pcall(function()
-		local workspace, target, relative = find_target(kind, workspaces)
-		local path = vim.fs.joinpath(target, os.date("%Y-%m-%d") .. ".md")
+-- Return false only when there is no project context, so callers can open a vault daily.
+function M.open(workspaces)
+	local ok, handled = pcall(function()
+		local workspace, target, relative = find_target(workspaces)
+		if not workspace then
+			return false
+		end
+		local path = vim.fs.joinpath(target, "daily", os.date("%Y-%m-%d") .. ".md")
 		if vim.fn.filereadable(path) == 1 then
 			open_buffer(path)
-			return
+			return true
 		end
 		obsidian.cli()
 		obsidian.launch(workspace)
@@ -80,12 +94,11 @@ function M.open(kind, workspaces)
 		end
 		local response = evaluate(
 			workspace,
-			('(async()=>JSON.stringify({path:await app.plugins.plugins["templater-obsidian"].projectNotes.open(%s,%s,false)}))()'):format(
-				vim.json.encode(kind),
+			('(async()=>JSON.stringify({path:await app.plugins.plugins["templater-obsidian"].projectNotes.open(%s,false)}))()'):format(
 				vim.json.encode(relative)
 			)
 		)
-		if type(response.path) ~= "string" or not response.path:match("^" .. vim.pesc(relative) .. "/%d%d%d%d%-%d%d%-%d%d%.md$") then
+		if type(response.path) ~= "string" or not response.path:match("^" .. vim.pesc(relative) .. "/daily/%d%d%d%d%-%d%d%-%d%d%.md$") then
 			error("Obsidian returned an invalid project note path")
 		end
 		path = vim.fs.joinpath(workspace.path, response.path)
@@ -93,10 +106,13 @@ function M.open(kind, workspaces)
 			error("Project note was not created: " .. path)
 		end
 		open_buffer(path)
+		return true
 	end)
 	if not ok then
-		vim.notify(tostring(err), vim.log.levels.ERROR)
+		vim.notify(tostring(handled), vim.log.levels.ERROR)
+		return true
 	end
+	return handled
 end
 
 local function skip_initialized(project)
@@ -124,7 +140,7 @@ local function ensure_directory(path)
 	end
 end
 
-local function ignore_project_links(project)
+local function ignore_project_link(project)
 	local path = vim.fs.joinpath(project, ".gitignore")
 	if not uv.fs_lstat(path) then
 		return
@@ -134,15 +150,10 @@ local function ignore_project_links(project)
 	for _, line in ipairs(lines) do
 		present[(line:gsub("\r$", ""))] = true
 	end
-	local entries = {}
-	for _, kind in ipairs({ "todo", "notes" }) do
-		if not present["/." .. kind] and not present["." .. kind] then
-			table.insert(entries, "/." .. kind)
-		end
-	end
-	if #entries == 0 then
+	if present["/.notes"] or present[".notes"] then
 		return
 	end
+	local entries = { "/.notes" }
 	if #lines > 0 and lines[#lines] ~= "" then
 		table.insert(entries, 1, "")
 	end
@@ -182,7 +193,8 @@ function M.initialize(workspaces)
 			if skip_initialized(project) then
 				return
 			end
-			local created_links = {}
+			local destination = vim.fs.joinpath(project, ".notes")
+			local linked_source
 			local ok, err = pcall(function()
 				local root = uv.fs_realpath(workspace.path)
 				if not root or vim.fn.isdirectory(root) ~= 1 then
@@ -192,29 +204,21 @@ function M.initialize(workspaces)
 				local target = vim.fs.joinpath(projects, name)
 				ensure_directory(projects)
 				ensure_directory(target)
-				for _, kind in ipairs({ "todo", "notes" }) do
-					ensure_directory(vim.fs.joinpath(target, kind))
+				ensure_directory(vim.fs.joinpath(target, "daily"))
+				local linked, link_error = uv.fs_symlink(target, destination)
+				if not linked then
+					error("Could not link " .. destination .. ": " .. tostring(link_error))
 				end
-				for _, kind in ipairs({ "todo", "notes" }) do
-					local destination = vim.fs.joinpath(project, "." .. kind)
-					local source = vim.fs.joinpath(target, kind)
-					local linked, link_error = uv.fs_symlink(source, destination)
-					if not linked then
-						error("Could not link " .. destination .. ": " .. tostring(link_error))
-					end
-					table.insert(created_links, { source = source, destination = destination })
-				end
-				ignore_project_links(project)
+				linked_source = target
+				ignore_project_link(project)
 				vim.notify("Project notes linked to " .. target)
 			end)
 			if not ok then
-				-- Roll back only our links, never existing vault directories or notes.
-				for _, link in ipairs(created_links) do
-					if uv.fs_readlink(link.destination) == link.source then
-						local removed, remove_error = uv.fs_unlink(link.destination)
-						if not removed then
-							vim.notify("Could not remove partial link: " .. tostring(remove_error), vim.log.levels.ERROR)
-						end
+				-- Roll back only our link, never existing vault directories or notes.
+				if linked_source and uv.fs_readlink(destination) == linked_source then
+					local removed, remove_error = uv.fs_unlink(destination)
+					if not removed then
+						vim.notify("Could not remove partial link: " .. tostring(remove_error), vim.log.levels.ERROR)
 					end
 				end
 				vim.notify(tostring(err), vim.log.levels.ERROR)

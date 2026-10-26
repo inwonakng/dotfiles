@@ -15,7 +15,8 @@ import shutil
 import sys
 from pathlib import Path
 
-source = Path(sys.argv[1]) / "obsidian/templates/project-notes.md"
+templates = Path(sys.argv[1]) / "obsidian/templates"
+sources = [templates / "project-notes.md", templates / "project-daily.md"]
 # Validate every destination before making changes.
 vaults = []
 for argument in sys.argv[2:]:
@@ -24,15 +25,17 @@ for argument in sys.argv[2:]:
     settings = json.loads(settings_path.read_text())
     if settings.get("templates_folder") != "templates":
         raise SystemExit(f"Expected templates folder 'templates': {vault}")
-    destination = vault / "templates/project-notes.md"
-    if destination.is_symlink():
-        raise SystemExit(f"Refusing to replace symlink: {destination}")
-    vaults.append((vault, settings_path, settings, destination))
+    for source in sources:
+        destination = vault / "templates" / source.name
+        if destination.is_symlink():
+            raise SystemExit(f"Refusing to replace symlink: {destination}")
+    vaults.append((vault, settings_path, settings))
 
-for vault, settings_path, settings, destination in vaults:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    # This template is managed here; re-running setup deploys source updates.
-    shutil.copyfile(source, destination)
+for vault, settings_path, settings in vaults:
+    (vault / "templates").mkdir(parents=True, exist_ok=True)
+    # These templates are managed here; re-running setup deploys source updates.
+    for source in sources:
+        shutil.copyfile(source, vault / "templates" / source.name)
     (vault / "projects").mkdir(exist_ok=True)
     startup = settings.setdefault("startup_templates", [])
     if "templates/project-notes.md" not in startup:
@@ -43,6 +46,6 @@ for vault, settings_path, settings, destination in vaults:
     if not any(entry.get("folder", "").rstrip("/") == "projects" for entry in ignored):
         ignored.append({"folder": "projects"})
     settings_path.write_text(json.dumps(settings, indent=2) + "\n")
-    print(f"Installed project-note commands in {vault}")
+    print(f"Installed project daily templates and command in {vault}")
 PY
 printf '%s\n' 'Enable Templater > Enable startup templates on each device, then reload Templater.'

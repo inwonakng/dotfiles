@@ -103,7 +103,7 @@ local function insert_regular_template(workspace)
 	local templates = {}
 	for _, path in ipairs(vim.fn.globpath(tostring(dir), "**/*.md", false, true)) do
 		local name = path:sub(#tostring(dir) + 2)
-		if name ~= "daily.md" and name ~= "default.md" and name ~= "project-notes.md" then
+		if name ~= "daily.md" and name ~= "default.md" and name ~= "project-notes.md" and name ~= "project-daily.md" then
 			table.insert(templates, name)
 		end
 	end
@@ -178,22 +178,31 @@ vim.api.nvim_create_user_command("ProjectNotesInit", function()
 	require("utils.project-notes").initialize(workspaces)
 end, { desc = "Initialize project notes in an Obsidian vault" })
 vim.keymap.set("n", "<leader>oN", "<cmd>ProjectNotesInit<cr>", { desc = "Initialize project notes" })
-vim.keymap.set("n", "<leader>on", function()
-	require("utils.project-notes").open("notes", workspaces)
-end, { desc = "Open project notes through Obsidian" })
-vim.keymap.set("n", "<leader>oT", function()
-	require("utils.project-notes").open("todo", workspaces)
-end, { desc = "Open project todo through Obsidian" })
-vim.keymap.set("n", "<leader>ot", function()
-	local path = vim.api.nvim_buf_get_name(0)
-	local workspace = require("obsidian.api").find_workspace(path ~= "" and path or vim.fn.getcwd())
-	if workspace then
-		insert_regular_template(workspace)
-	else
-		require("utils.project-notes").open("todo", workspaces)
+local function update_template_mapping(buffer)
+	local path = vim.api.nvim_buf_get_name(buffer)
+	local workspace = path ~= "" and require("obsidian.api").find_workspace(path) or nil
+	if workspace and vim.bo[buffer].buftype == "" then
+		vim.keymap.set("n", "<leader>ot", function()
+			insert_regular_template(workspace)
+		end, { buffer = buffer, desc = "Insert template" })
+		vim.b[buffer].vault_template_mapping = true
+	elseif vim.b[buffer].vault_template_mapping then
+		vim.keymap.del("n", "<leader>ot", { buffer = buffer })
+		vim.b[buffer].vault_template_mapping = nil
 	end
-end, { desc = "Insert vault template or open project todo" })
-vim.keymap.set("n", "<leader>od", open_daily_note, { desc = "Open daily note through Obsidian" })
+end
+vim.api.nvim_create_autocmd({ "BufEnter", "BufFilePost" }, {
+	group = vim.api.nvim_create_augroup("vault_template_mapping", { clear = true }),
+	callback = function(event)
+		update_template_mapping(event.buf)
+	end,
+})
+update_template_mapping(vim.api.nvim_get_current_buf())
+vim.keymap.set("n", "<leader>od", function()
+	if not require("utils.project-notes").open(workspaces) then
+		open_daily_note()
+	end
+end, { desc = "Open daily note" })
 vim.keymap.set("n", "<leader>oo", "<cmd>Obsidian open<cr>", { desc = "Open in Obsidian" })
 vim.keymap.set("n", "<C-CR>", "<cmd>Obsidian follow_link vsp<cr>", { desc = "Follow link in vsplit" })
 vim.keymap.set("n", "<S-CR>", "<cmd>Obsidian follow_link hsplit<cr>", { desc = "Follow link in hsplit" })
