@@ -133,31 +133,6 @@ map("n", "<leader>id", function()
 	vim.cmd("normal! a" .. os.date("%Y-%m-%d"))
 end, { desc = "Insert Date", noremap = true, silent = true })
 
--- open notes.md from project root if exists
-map("n", "<leader>on", function()
-	local notes_path = vim.fn.getcwd() .. "/notes/daily.md"
-	if vim.fn.filereadable(notes_path) == 1 then
-		-- Check if buffer is already open
-		local bufnr = vim.fn.bufnr(notes_path)
-		if bufnr ~= -1 then
-			-- Buffer exists, check if it's in a window
-			local winnr = vim.fn.bufwinnr(bufnr)
-			if winnr ~= -1 then
-				-- Buffer is in a window, focus it
-				vim.cmd(winnr .. "wincmd w")
-			else
-				-- Buffer exists but not in any window, open it in current window
-				vim.cmd.buffer(bufnr)
-			end
-		else
-			-- Buffer doesn't exist, open the file
-			vim.cmd.edit(notes_path)
-		end
-	else
-		vim.notify("notes.md not found in project root", vim.log.levels.WARN)
-	end
-end, { desc = "Open Project Notes", noremap = true, silent = true })
-
 -- Toggle harper-ls spell checking
 map("n", "<leader>cp", function()
 	local bufnr = vim.api.nvim_get_current_buf()

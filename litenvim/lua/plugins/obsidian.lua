@@ -114,7 +114,7 @@ local function insert_regular_template()
 	local templates = {}
 	for _, path in ipairs(vim.fn.globpath(tostring(dir), "**/*.md", false, true)) do
 		local name = path:sub(#tostring(dir) + 2)
-		if name ~= "daily.md" and name ~= "default.md" then
+		if name ~= "daily.md" and name ~= "default.md" and name ~= "project-notes.md" then
 			table.insert(templates, name)
 		end
 	end
@@ -193,6 +193,12 @@ local function open_daily_note()
 	end
 end
 
+vim.keymap.set("n", "<leader>on", function()
+	require("utils.project-notes").open("notes", workspaces)
+end, { desc = "Open project notes through Obsidian" })
+vim.keymap.set("n", "<leader>oT", function()
+	require("utils.project-notes").open("todo", workspaces)
+end, { desc = "Open project todo through Obsidian" })
 vim.keymap.set("n", "<leader>ot", insert_regular_template, { desc = "Insert regular template" })
 vim.keymap.set("n", "<leader>od", open_daily_note, { desc = "Open daily note through Obsidian" })
 vim.keymap.set("n", "<leader>oo", "<cmd>Obsidian open<cr>", { desc = "Open in Obsidian" })
