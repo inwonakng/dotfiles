@@ -6,14 +6,17 @@ vim.api.nvim_set_decoration_provider(separators, {
 	on_win = function(_, window, buffer)
 		for _, state in pairs(views) do
 			if state.buffer == buffer and not state.pending then
-				-- Overlay the protected blank before each later heading. Draw per window
-				-- so splits and resizes always get a full-width rule in the text area.
+				-- Leave a protected blank above and below each full-width rule.
+				local count = vim.api.nvim_buf_line_count(buffer)
 				for i = 2, #state.sections do
-					vim.api.nvim_buf_set_extmark(buffer, separators, state.sections[i].first - 2, 0, {
-						ephemeral = true,
-						virt_text = { { string.rep("═", vim.api.nvim_win_get_width(window)), "NonText" } },
-						virt_text_win_col = 0,
-					})
+					local row = state.sections[i].first - 3
+					if row >= 0 and row < count then
+						vim.api.nvim_buf_set_extmark(buffer, separators, row, 0, {
+							ephemeral = true,
+							virt_text = { { string.rep("━", vim.api.nvim_win_get_width(window)), "NonText" } },
+							virt_text_win_col = 0,
+						})
+					end
 				end
 				break
 			end
@@ -173,7 +176,7 @@ local function attach_guard(state)
 			-- Text updates are forbidden under on_lines' textlock. Writes also check
 			-- pending synchronously, so rejected text can never reach a source file.
 			vim.schedule(function()
-				if not vim.api.nvim_buf_is_valid(state.buffer) then
+				if not state.pending or not vim.api.nvim_buf_is_valid(state.buffer) then
 					return
 				end
 				local current = vim.api.nvim_buf_get_lines(state.buffer, 0, -1, false)
@@ -396,6 +399,48 @@ local function collect(workspace, date)
 	return sections
 end
 
+local function render(sections, date)
+	local lines = { "---", "date: " .. date, "---", "", "# Project dailies - " .. date, "" }
+	for i, section in ipairs(sections) do
+		lines[#lines + 1] = "## " .. section.label
+		section.first = #lines
+		vim.list_extend(lines, section.contents)
+		section.contents = nil
+		section.last = #lines
+		if i < #sections then
+			vim.list_extend(lines, { "", "", "" })
+		end
+	end
+	return lines
+end
+
+local function populate(state)
+	-- A reload is a new snapshot: undo must not resurrect old source contents.
+	local levels = vim.bo[state.buffer].undolevels
+	vim.bo[state.buffer].undolevels = -1
+	vim.api.nvim_buf_set_lines(state.buffer, 0, -1, false, state.lines)
+	vim.bo[state.buffer].undolevels = levels
+	state.pending = false
+	vim.bo[state.buffer].modified = dirty(state)
+	remember(state)
+	attach_guard(state)
+end
+
+local function reload(state, workspace, date)
+	local ok, sections = pcall(collect, workspace, date)
+	if ok then
+		state.sections = sections
+		state.lines = render(sections, date)
+		state.history = {}
+	end
+	-- :edit unloads the text and detaches on_lines before BufReadCmd. Restore
+	-- the previous snapshot on failure, and reattach the guard in either case.
+	populate(state)
+	if not ok then
+		error(sections)
+	end
+end
+
 function M.open(workspace)
 	local date = os.date("%Y-%m-%d")
 	local root = vim.uv.fs_realpath(workspace.path)
@@ -411,7 +456,7 @@ function M.open(workspace)
 		if windows[1] then
 			vim.api.nvim_set_current_win(windows[1])
 		else
-			vim.api.nvim_set_current_buf(existing.buffer)
+			vim.cmd("tab sbuffer " .. existing.buffer)
 		end
 		return existing.buffer
 	end
@@ -424,17 +469,7 @@ function M.open(workspace)
 			vim.notify("No projects found in the current Obsidian vault")
 			return
 		end
-		local lines = { "---", "date: " .. date, "---", "", "# Project dailies - " .. date, "" }
-		for i, section in ipairs(sections) do
-			lines[#lines + 1] = "## " .. section.label
-			section.first = #lines
-			vim.list_extend(lines, section.contents)
-			section.contents = nil
-			section.last = #lines
-			if i < #sections then
-				lines[#lines + 1] = ""
-			end
-		end
+		local lines = render(sections, date)
 		local buffer = vim.api.nvim_create_buf(true, false)
 		local state = { buffer = buffer, sections = sections, lines = lines, history = {} }
 		vim.api.nvim_buf_set_name(buffer, "project-dailies://" .. vim.uri_encode(root, "rfc3986") .. "/" .. date)
@@ -442,15 +477,13 @@ function M.open(workspace)
 		vim.bo[buffer].buftype = "acwrite"
 		vim.bo[buffer].bufhidden = "hide"
 		vim.bo[buffer].swapfile = false
-		vim.api.nvim_buf_set_lines(buffer, 0, -1, false, lines)
-		-- Generated text must never become an undo target.
-		local levels = vim.bo[buffer].undolevels
-		vim.bo[buffer].undolevels = -1
-		vim.api.nvim_buf_set_lines(buffer, 0, -1, false, lines)
-		vim.bo[buffer].undolevels = levels
-		vim.bo[buffer].modified = false
-		remember(state)
-		attach_guard(state)
+		populate(state)
+		vim.api.nvim_create_autocmd("BufReadCmd", {
+			buffer = buffer,
+			callback = function()
+				reload(state, workspace, date)
+			end,
+		})
 		vim.api.nvim_create_autocmd({ "BufWriteCmd", "FileWriteCmd", "FileAppendCmd" }, {
 			buffer = buffer,
 			callback = function(event)
@@ -467,7 +500,7 @@ function M.open(workspace)
 			jump(state)
 		end, { buffer = buffer, desc = "Jump to project daily source" })
 		views[key] = state
-		vim.api.nvim_set_current_buf(buffer)
+		vim.cmd("tab sbuffer " .. buffer)
 		vim.bo[buffer].filetype = "markdown"
 		return buffer
 	end)
