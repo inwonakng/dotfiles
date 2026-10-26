@@ -400,7 +400,7 @@ local function collect(workspace, date)
 end
 
 local function render(sections, date)
-	local lines = { "---", "date: " .. date, "---", "", "# Project dailies - " .. date, "" }
+	local lines = { "---", "date: " .. date, "---", "", "# Project dailies", "" }
 	for i, section in ipairs(sections) do
 		lines[#lines + 1] = "## " .. section.label
 		section.first = #lines
