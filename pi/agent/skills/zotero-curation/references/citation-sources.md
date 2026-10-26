@@ -5,6 +5,19 @@ publication metadata. These are lookup recipes, not a claim that a particular
 paper has been verified. Retrieve the actual paper record and cite its URL in the
 result. A source's absence or access failure is not proof of rejection.
 
+## OpenReview: all venues
+
+For any OpenReview-hosted paper, retrieve the official record's citation/BibTeX
+export and import it with `zotero-cli add bibtex`. Do not use generic `add url`
+for OpenReview records. Cross-check title, authors, year, and canonical forum URL
+against the record rather than inferring them from arXiv or a repository README.
+OpenReview hosting alone establishes neither the venue nor acceptance; verify the
+actual venue, track, decision, and version separately.
+
+Treat URL-only fallback imports, such as a webpage titled with the forum URL and
+missing authors/year, as incomplete even if the command reports success. Report
+existing stubs for scoped correction; do not automatically delete or reimport them.
+
 ## ICLR: accepted OpenReview records
 
 Start from the relevant year at [ICLR](https://iclr.cc/) and its official
@@ -16,9 +29,6 @@ forum/record and check the venue, decision, and version for that year.
 - A submission page by itself establishes submission, not acceptance. Conversely,
   a submitted label alone is not evidence of rejection; inspect the decision or
   official accepted-paper listing. Distinguish workshops from the main conference.
-- Use the accepted record's official citation export when available. Cross-check
-  title, authors, year, and the canonical forum URL rather than inferring them from
-  an arXiv citation or repository README.
 
 ## ICML: PMLR proceedings
 
