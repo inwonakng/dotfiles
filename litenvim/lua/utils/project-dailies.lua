@@ -9,9 +9,9 @@ vim.api.nvim_set_decoration_provider(separators, {
 				-- Overlay the protected blank before each later heading. Draw per window
 				-- so splits and resizes always get a full-width rule in the text area.
 				for i = 2, #state.sections do
-					vim.api.nvim_buf_set_extmark(buffer, separators, state.sections[i].first - 3, 0, {
+					vim.api.nvim_buf_set_extmark(buffer, separators, state.sections[i].first - 2, 0, {
 						ephemeral = true,
-						virt_text = { { string.rep("═", vim.api.nvim_win_get_width(window)), "WinSeparator" } },
+						virt_text = { { string.rep("═", vim.api.nvim_win_get_width(window)), "NonText" } },
 						virt_text_win_col = 0,
 					})
 				end
@@ -335,8 +335,8 @@ local function jump(state)
 	end
 	local row = vim.api.nvim_win_get_cursor(0)[1] - 1
 	for _, section in ipairs(state.sections) do
-		-- The heading and following blank line also jump to the start of the note.
-		if row >= section.first - 2 and row < section.last then
+		-- The heading also jumps to the start of the note.
+		if row >= section.first - 1 and row < section.last then
 			local line = section.source_offset + math.max(1, row - section.first + 1)
 			vim.cmd("keepalt split " .. vim.fn.fnameescape(section.path))
 			vim.api.nvim_win_set_cursor(0, { math.min(line, vim.api.nvim_buf_line_count(0)), 0 })
@@ -346,61 +346,66 @@ local function jump(state)
 	vim.notify("Project dailies: no source at this line")
 end
 
-local function collect(workspaces, date)
+local function collect(workspace, date)
 	local sections, seen = {}, {}
-	for _, workspace in ipairs(workspaces) do
-		local directory = vim.fs.joinpath(workspace.path, "projects")
-		local scan, err, code = vim.uv.fs_scandir(directory)
-		if not scan and code ~= "ENOENT" then
-			error("Could not list " .. directory .. ": " .. tostring(err))
-		end
-		local projects = {}
-		if scan then
-			while true do
-				local name, kind = vim.uv.fs_scandir_next(scan)
-				if not name then
-					break
-				end
-				if kind == "directory" then
-					projects[#projects + 1] = name
-				end
+	local directory = vim.fs.joinpath(workspace.path, "projects")
+	local scan, err, code = vim.uv.fs_scandir(directory)
+	if not scan and code ~= "ENOENT" then
+		error("Could not list " .. directory .. ": " .. tostring(err))
+	end
+	local projects = {}
+	if scan then
+		while true do
+			local name, kind = vim.uv.fs_scandir_next(scan)
+			if not name then
+				break
+			end
+			if kind == "directory" then
+				projects[#projects + 1] = name
 			end
 		end
-		table.sort(projects)
-		for _, project in ipairs(projects) do
-			local path = require("utils.project-notes").ensure_daily(workspace, "projects/" .. project)
-			if vim.fs.basename(path) ~= date .. ".md" then
-				error("Daily date changed while collecting projects; reopen ProjectDailies")
+	end
+	table.sort(projects)
+	for _, project in ipairs(projects) do
+		local path = require("utils.project-notes").ensure_daily(workspace, "projects/" .. project)
+		if vim.fs.basename(path) ~= date .. ".md" then
+			error("Daily date changed while collecting projects; reopen ProjectDailies")
+		end
+		path = assert(vim.uv.fs_realpath(path), "Daily is unavailable: " .. path)
+		if not seen[path] then
+			seen[path] = true
+			local bytes = read(path)
+			local metadata, body, offset = frontmatter(bytes)
+			local lines, newline, eol = decode(body)
+			if not body:find("\n", 1, true) then
+				local _, source_newline = decode(bytes)
+				newline = source_newline
 			end
-			path = assert(vim.uv.fs_realpath(path), "Daily is unavailable: " .. path)
-			if not seen[path] then
-				seen[path] = true
-				local bytes = read(path)
-				local metadata, body, offset = frontmatter(bytes)
-				local lines, newline, eol = decode(body)
-				if not body:find("\n", 1, true) then
-					local _, source_newline = decode(bytes)
-					newline = source_newline
-				end
-				sections[#sections + 1] = {
-					label = (workspace.name .. " / " .. project):gsub("[\r\n]", " "),
-					path = path,
-					snapshot = bytes,
-					frontmatter = metadata,
-					source_offset = offset,
-					contents = lines,
-					newline = newline,
-					eol = eol,
-				}
-			end
+			sections[#sections + 1] = {
+				label = project:gsub("[\r\n]", " "),
+				path = path,
+				snapshot = bytes,
+				frontmatter = metadata,
+				source_offset = offset,
+				contents = lines,
+				newline = newline,
+				eol = eol,
+			}
 		end
 	end
 	return sections
 end
 
-function M.open(workspaces)
+function M.open(workspace)
 	local date = os.date("%Y-%m-%d")
-	local existing = views[date]
+	local root = vim.uv.fs_realpath(workspace.path)
+	if not root then
+		vim.notify("Vault directory is unavailable: " .. workspace.path, vim.log.levels.ERROR)
+		return
+	end
+	workspace = { name = workspace.name, path = root }
+	local key = root .. "\n" .. date
+	local existing = views[key]
 	if existing and vim.api.nvim_buf_is_valid(existing.buffer) and vim.api.nvim_buf_is_loaded(existing.buffer) then
 		local windows = vim.fn.win_findbuf(existing.buffer)
 		if windows[1] then
@@ -414,14 +419,14 @@ function M.open(workspaces)
 		if existing and vim.api.nvim_buf_is_valid(existing.buffer) then
 			vim.api.nvim_buf_delete(existing.buffer, { force = true })
 		end
-		local sections = collect(workspaces, date)
+		local sections = collect(workspace, date)
 		if #sections == 0 then
-			vim.notify("No projects found in configured Obsidian vaults")
+			vim.notify("No projects found in the current Obsidian vault")
 			return
 		end
 		local lines = { "---", "date: " .. date, "---", "", "# Project dailies - " .. date, "" }
 		for i, section in ipairs(sections) do
-			vim.list_extend(lines, { "## " .. section.label, "" })
+			lines[#lines + 1] = "## " .. section.label
 			section.first = #lines
 			vim.list_extend(lines, section.contents)
 			section.contents = nil
@@ -432,7 +437,8 @@ function M.open(workspaces)
 		end
 		local buffer = vim.api.nvim_create_buf(true, false)
 		local state = { buffer = buffer, sections = sections, lines = lines, history = {} }
-		vim.api.nvim_buf_set_name(buffer, "project-dailies://" .. date)
+		vim.api.nvim_buf_set_name(buffer, "project-dailies://" .. vim.uri_encode(root, "rfc3986") .. "/" .. date)
+		vim.b[buffer].project_dailies_workspace = workspace
 		vim.bo[buffer].buftype = "acwrite"
 		vim.bo[buffer].bufhidden = "hide"
 		vim.bo[buffer].swapfile = false
@@ -460,7 +466,7 @@ function M.open(workspaces)
 		vim.keymap.set("n", "gf", function()
 			jump(state)
 		end, { buffer = buffer, desc = "Jump to project daily source" })
-		views[date] = state
+		views[key] = state
 		vim.api.nvim_set_current_buf(buffer)
 		vim.bo[buffer].filetype = "markdown"
 		return buffer
