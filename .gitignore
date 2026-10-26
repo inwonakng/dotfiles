@@ -42,3 +42,5 @@ claude/file-history
 /pi-console/config-dev.yaml
 /pi-console/hosts-dev.yaml
 /pi-console/hosts.yaml
+/.todo
+/.notes
