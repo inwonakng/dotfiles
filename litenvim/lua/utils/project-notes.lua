@@ -30,17 +30,6 @@ local function find_target(workspaces)
 		end
 		directory = parent
 	end
-	-- A project daily opened directly in the vault still has project context.
-	local path = uv.fs_realpath(vim.api.nvim_buf_get_name(0))
-	for _, workspace in ipairs(workspaces) do
-		local root = uv.fs_realpath(workspace.path)
-		if path and root and path:sub(1, #root + 1) == root .. "/" then
-			local relative = path:sub(#root + 2):match("^(projects/[^/]+)/")
-			if relative then
-				return workspace, vim.fs.joinpath(root, relative), relative
-			end
-		end
-	end
 end
 
 local function evaluate(workspace, code)
@@ -103,7 +92,7 @@ function M.ensure_daily(workspace, relative)
 	return path
 end
 
--- Return false only when there is no project context, so callers can open a vault daily.
+-- Return false only when cwd has no linked project notes.
 function M.open(workspaces)
 	local ok, handled = pcall(function()
 		local workspace, _, relative = find_target(workspaces)

@@ -1,3 +1,6 @@
+-- Capture startup mode before plugins or session restoration change the argument list.
+vim.g.project_mode = vim.fn.argc() == 0 and vim.env.IS_TEMP_SESSION ~= "1"
+
 local extras_dev = vim.fn.expand("~/.local/share/nvim-dev/nvim-extras")
 if vim.fn.isdirectory(extras_dev) == 1 then
 	vim.opt.runtimepath:prepend(extras_dev)

@@ -118,8 +118,7 @@ local function insert_regular_template(workspace)
 	end)
 end
 
-local function open_daily_note()
-	local workspace = require("obsidian.api").find_workspace(vim.api.nvim_buf_get_name(0)) or Obsidian.workspace
+local function open_daily_note(workspace)
 	local function run(command, ...)
 		local result = vim.system({ obsidian.cli(), "vault=" .. workspace.name, command, ... }, { text = true }):wait(10000)
 		local output = vim.trim(result.stdout or "")
@@ -149,7 +148,7 @@ local function open_daily_note()
 		end, 250) then
 			error("Obsidian did not become ready: " .. tostring(last_error))
 		end
-		local path = vim.fs.joinpath(tostring(workspace.root), relative)
+		local path = vim.fs.joinpath(workspace.path, relative)
 		if vim.fn.filereadable(path) ~= 1 then
 			-- The app action opens Source mode, where Templater's editor changes
 			-- are saved correctly. CLI `daily` instead uses the default view mode.
@@ -209,8 +208,19 @@ vim.api.nvim_create_autocmd({ "BufEnter", "BufFilePost" }, {
 })
 update_template_mapping(vim.api.nvim_get_current_buf())
 vim.keymap.set("n", "<leader>od", function()
+	if not vim.g.project_mode then
+		return
+	end
+	local directory = vim.uv.fs_realpath(vim.fn.getcwd())
+	for _, workspace in ipairs(workspaces) do
+		local root = vim.uv.fs_realpath(workspace.path)
+		if directory and root and (directory == root or directory:sub(1, #root + 1) == root .. "/") then
+			open_daily_note(workspace)
+			return
+		end
+	end
 	if not require("utils.project-notes").open(workspaces) then
-		open_daily_note()
+		vim.notify("no project notes, first link an obsidian project note directory", vim.log.levels.WARN)
 	end
 end, { desc = "Open daily note" })
 vim.keymap.set("n", "<leader>oo", "<cmd>Obsidian open<cr>", { desc = "Open in Obsidian" })
