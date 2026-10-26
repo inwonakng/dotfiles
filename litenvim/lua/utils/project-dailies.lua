@@ -1,5 +1,26 @@
 local M = {}
 local views = {}
+local separators = vim.api.nvim_create_namespace("project-dailies-separators")
+
+vim.api.nvim_set_decoration_provider(separators, {
+	on_win = function(_, window, buffer)
+		for _, state in pairs(views) do
+			if state.buffer == buffer and not state.pending then
+				-- Overlay the protected blank before each later heading. Draw per window
+				-- so splits and resizes always get a full-width rule in the text area.
+				for i = 2, #state.sections do
+					vim.api.nvim_buf_set_extmark(buffer, separators, state.sections[i].first - 3, 0, {
+						ephemeral = true,
+						virt_text = { { string.rep("═", vim.api.nvim_win_get_width(window)), "WinSeparator" } },
+						virt_text_win_col = 0,
+					})
+				end
+				break
+			end
+		end
+		return false
+	end,
+})
 
 local function read(path)
 	local file, err = io.open(path, "rb")
@@ -25,12 +46,42 @@ local function decode(bytes)
 	return vim.split(text, newline, { plain = true }), newline, eol
 end
 
+-- Only an initial, closed YAML block is metadata. Keep its original bytes,
+-- including delimiter whitespace and line endings, separate from editable text.
+local function frontmatter(bytes)
+	local first_end = bytes:find("\n", 1, true)
+	if not first_end or not bytes:sub(1, first_end - 1):gsub("\r$", ""):match("^%-%-%-[ \t]*$") then
+		return "", bytes, 0
+	end
+	local start, offset = first_end + 1, 1
+	while start <= #bytes do
+		local ending = bytes:find("\n", start, true)
+		local line = bytes:sub(start, ending and ending - 1 or #bytes):gsub("\r$", "")
+		offset = offset + 1
+		if line:match("^%-%-%-[ \t]*$") or line:match("^%.%.%.[ \t]*$") then
+			local last = ending or #bytes
+			return bytes:sub(1, last), bytes:sub(last + 1), offset
+		end
+		if not ending then
+			break
+		end
+		start = ending + 1
+	end
+	return "", bytes, 0
+end
+
 local function encode(state, section)
 	local lines = {}
 	for row = section.first + 1, section.last do
 		lines[#lines + 1] = state.lines[row]
 	end
-	return table.concat(lines, section.newline) .. (section.eol and section.newline or "")
+	local body = table.concat(lines, section.newline) .. (section.eol and section.newline or "")
+	local prefix = section.frontmatter
+	-- A metadata-only note may end at its closing delimiter without a newline.
+	if body ~= "" and prefix ~= "" and prefix:sub(-1) ~= "\n" then
+		prefix = prefix .. section.newline
+	end
+	return prefix .. body
 end
 
 local function dirty(state)
@@ -286,7 +337,7 @@ local function jump(state)
 	for _, section in ipairs(state.sections) do
 		-- The heading and following blank line also jump to the start of the note.
 		if row >= section.first - 2 and row < section.last then
-			local line = math.max(1, row - section.first + 1)
+			local line = section.source_offset + math.max(1, row - section.first + 1)
 			vim.cmd("keepalt split " .. vim.fn.fnameescape(section.path))
 			vim.api.nvim_win_set_cursor(0, { math.min(line, vim.api.nvim_buf_line_count(0)), 0 })
 			return
@@ -325,11 +376,18 @@ local function collect(workspaces, date)
 			if not seen[path] then
 				seen[path] = true
 				local bytes = read(path)
-				local lines, newline, eol = decode(bytes)
+				local metadata, body, offset = frontmatter(bytes)
+				local lines, newline, eol = decode(body)
+				if not body:find("\n", 1, true) then
+					local _, source_newline = decode(bytes)
+					newline = source_newline
+				end
 				sections[#sections + 1] = {
 					label = (workspace.name .. " / " .. project):gsub("[\r\n]", " "),
 					path = path,
 					snapshot = bytes,
+					frontmatter = metadata,
+					source_offset = offset,
 					contents = lines,
 					newline = newline,
 					eol = eol,
@@ -362,13 +420,15 @@ function M.open(workspaces)
 			return
 		end
 		local lines = { "---", "date: " .. date, "---", "", "# Project dailies - " .. date, "" }
-		for _, section in ipairs(sections) do
+		for i, section in ipairs(sections) do
 			vim.list_extend(lines, { "## " .. section.label, "" })
 			section.first = #lines
 			vim.list_extend(lines, section.contents)
 			section.contents = nil
 			section.last = #lines
-			vim.list_extend(lines, { "", "---", "" })
+			if i < #sections then
+				lines[#lines + 1] = ""
+			end
 		end
 		local buffer = vim.api.nvim_create_buf(true, false)
 		local state = { buffer = buffer, sections = sections, lines = lines, history = {} }
