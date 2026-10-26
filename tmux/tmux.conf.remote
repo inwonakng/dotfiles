@@ -26,3 +26,8 @@ set-option -g status-position bottom
 
 # Initialize TMUX plugin manager
 run "$HOME/.config/tmux/plugins/tpm/tpm"
+
+# >>> pi-console >>>
+# Default channel: dev
+run-shell "bash '/home/inwon/.local/share/pi-console-dev/current/tmux/scripts/setup.sh' --apply"
+# <<< pi-console <<<
