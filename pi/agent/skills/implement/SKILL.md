@@ -15,7 +15,7 @@ Make the smallest complete change that satisfies the approved behavior and affec
 4. Use `debug` for failures or unexpected behavior and `write-good-code` for code changes.
 5. Use `todowrite` for work with several distinct steps.
 6. Before repository edits, enter a task workspace unless already in an associated task or child workspace. Use `edit` or `write` for implementation changes. Wait for the cwd switch before repository tool calls.
-7. Load `subagent-delegation` before delegating, including when the user requests subagents.
+7. Load the packaged `orchestration` skill through its advertised path before delegating. When orchestration is active, delegate the implementation steps below rather than executing them in the parent. Spawned workers follow their assignment and must not delegate.
 
 Do not create workspaces for discussion, explanation, planning, or read-only research. If an expected workspace is missing, stop editing and inspect `workspace status`; do not fall back to the original checkout. Keep temporary probes and generated artifacts under `$TMPDIR`, outside the repository, and remove them when finished.
 

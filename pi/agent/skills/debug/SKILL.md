@@ -20,7 +20,7 @@ Trace incorrect values or behavior back to their source. In multi-component flow
 
 Find a working example in the codebase and compare it with the failing path. Track each observed difference; dismiss one only with evidence that it cannot affect the failure. Gather evidence before forming hypotheses.
 
-Use a readonly subagent when a named component or path needs independent investigation. Follow `subagent-delegation`, specify the evidence required, and join background work before relying on it.
+When orchestration is active, delegate investigation to readonly subagents. Otherwise, use one when a named component or path needs independent investigation. Follow the packaged `orchestration` skill through its advertised path, specify the evidence required, and join background work before relying on it. Spawned workers investigate their assignment directly and must not delegate.
 
 ## Test a hypothesis
 

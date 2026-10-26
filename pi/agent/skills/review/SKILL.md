@@ -11,9 +11,9 @@ Review is especially useful for shared interfaces, security, persisted data, con
 
 ## Choose the scope
 
-For a small diff or conceptual answer, review inline: read the requirements, inspect changed files and affected contracts, check coverage, and report findings by severity.
+Outside active orchestration, review a small diff or conceptual answer inline: read the requirements, inspect changed files and affected contracts, check coverage, and report findings by severity. During orchestration, delegate detailed review and evaluate the returned evidence. Spawned workers review their assignment directly and must not delegate.
 
-Use a readonly reviewer subagent when independent context would reduce author bias or keep a large diff out of the main conversation. Follow `subagent-delegation` and join before relying on findings. Specify requirements, exact paths or a diff command, affected contracts and failure modes, checks already run, and the return format. Reference file artifacts or commands instead of pasting large diffs.
+Use a readonly reviewer subagent during orchestration, or when independent context would reduce author bias or keep a large diff out of the main conversation. Follow the packaged `orchestration` skill through its advertised path and join before relying on findings. Specify requirements, exact paths or a diff command, affected contracts and failure modes, checks already run, and the return format. Reference file artifacts or commands instead of pasting large diffs.
 
 ## Check requirements
 
