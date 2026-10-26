@@ -15,7 +15,15 @@ vim.filetype.add({
   }
 })
 vim.schedule(function()
-  vim.opt.clipboard = "unnamedplus"
+  local ssh_connection = vim.env.SSH_CONNECTION or ""
+  if vim.env.TMUX and vim.env.TMUX ~= "" then
+    -- Use the latest attachment, rather than the shell's stale SSH environment.
+    local connection = vim.fn.system({ "tmux", "show-environment", "SSH_CONNECTION" })
+    if vim.v.shell_error == 0 then
+      ssh_connection = connection:match("^SSH_CONNECTION=([^\r\n]*)") or ""
+    end
+  end
+  vim.opt.clipboard = ssh_connection ~= "" and "" or "unnamedplus"
 end)
 
 vim.opt.number = true
