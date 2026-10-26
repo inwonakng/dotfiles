@@ -106,8 +106,8 @@ require("obsidian").setup({
 
 -- Only regular templates belong in Neovim's insertion picker. Obsidian owns
 -- daily/default rendering; ordinary Neovim notes get frontmatter on save.
-local function insert_regular_template()
-	local dir = require("obsidian.api").templates_dir()
+local function insert_regular_template(workspace)
+	local dir = require("obsidian.api").templates_dir(workspace)
 	if not dir then
 		return
 	end
@@ -124,7 +124,7 @@ local function insert_regular_template()
 		no_default_mappings = true,
 	}, function(choices)
 		if choices and choices[1] then
-			require("obsidian.actions").insert_template(choices[1])
+			require("obsidian.actions").insert_template(vim.fs.joinpath(tostring(dir), choices[1]))
 		end
 	end)
 end
@@ -199,7 +199,15 @@ end, { desc = "Open project notes through Obsidian" })
 vim.keymap.set("n", "<leader>oT", function()
 	require("utils.project-notes").open("todo", workspaces)
 end, { desc = "Open project todo through Obsidian" })
-vim.keymap.set("n", "<leader>ot", insert_regular_template, { desc = "Insert regular template" })
+vim.keymap.set("n", "<leader>ot", function()
+	local path = vim.api.nvim_buf_get_name(0)
+	local workspace = require("obsidian.api").find_workspace(path ~= "" and path or vim.fn.getcwd())
+	if workspace then
+		insert_regular_template(workspace)
+	else
+		require("utils.project-notes").open("todo", workspaces)
+	end
+end, { desc = "Insert vault template or open project todo" })
 vim.keymap.set("n", "<leader>od", open_daily_note, { desc = "Open daily note through Obsidian" })
 vim.keymap.set("n", "<leader>oo", "<cmd>Obsidian open<cr>", { desc = "Open in Obsidian" })
 vim.keymap.set("n", "<C-CR>", "<cmd>Obsidian follow_link vsp<cr>", { desc = "Follow link in vsplit" })
