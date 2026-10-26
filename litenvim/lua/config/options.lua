@@ -32,6 +32,7 @@ vim.opt.splitbelow = true
 vim.opt.list = true
 vim.opt.listchars = { tab = "» ", trail = "·", nbsp = "␣" }
 vim.opt.inccommand = "split"
+vim.opt.wildmode = "noselect:full"
 vim.opt.cursorline = true
 vim.opt.tabstop = 4
 vim.opt.softtabstop = 4
