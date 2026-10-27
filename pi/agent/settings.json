@@ -1,7 +1,9 @@
 {
-  "lastChangelogVersion": "1.3.0",
+  "lastChangelogVersion": "1.4.0",
   "theme": "dark",
-  "packages": ["git:git@github.com:inwonakng/api-relay-server.git"],
+  "packages": [
+    "git:git@github.com:inwonakng/api-relay-server.git"
+  ],
   "defaultTools": [
     "+codemode",
     "+spawn",
