@@ -178,15 +178,10 @@ vim.api.nvim_create_user_command("ProjectNotesInit", function()
 end, { desc = "Initialize project notes in an Obsidian vault" })
 vim.keymap.set("n", "<leader>oN", "<cmd>ProjectNotesInit<cr>", { desc = "Initialize project notes" })
 vim.api.nvim_create_user_command("ProjectDailies", function()
-	-- A virtual view keeps its own vault even when cwd or the active vault changes.
-	local workspace = vim.b.project_dailies_workspace
-	if not workspace then
-		local current = require("obsidian.api").find_workspace(vim.api.nvim_buf_get_name(0)) or Obsidian.workspace
-		workspace = { name = current.name, path = tostring(current.root) }
-	end
-	require("utils.project-dailies").open(workspace)
-end, { desc = "Edit today's dailies for all projects" })
-vim.keymap.set("n", "<leader>oD", "<cmd>ProjectDailies<cr>", { desc = "Edit all project dailies" })
+	local current = require("obsidian.api").find_workspace(vim.api.nvim_buf_get_name(0)) or Obsidian.workspace
+	require("utils.project-notes").pick({ name = current.name, path = tostring(current.root) })
+end, { desc = "Pick a project to open today's daily" })
+vim.keymap.set("n", "<leader>oD", "<cmd>ProjectDailies<cr>", { desc = "Pick project daily" })
 local function update_template_mapping(buffer)
 	local path = vim.api.nvim_buf_get_name(buffer)
 	local workspace = path ~= "" and require("obsidian.api").find_workspace(path) or nil

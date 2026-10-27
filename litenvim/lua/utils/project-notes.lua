@@ -55,7 +55,7 @@ local function open_buffer(path)
 	end
 end
 
--- Use the same Templater creation path for individual and collected project dailies.
+-- Reuse existing dailies; create missing ones through Templater.
 function M.ensure_daily(workspace, relative)
 	local root = uv.fs_realpath(workspace.path) or workspace.path
 	local path = vim.fs.joinpath(root, relative, "daily", os.date("%Y-%m-%d") .. ".md")
@@ -107,6 +107,52 @@ function M.open(workspaces)
 		return true
 	end
 	return handled
+end
+
+function M.pick(workspace)
+	local ok, err = pcall(function()
+		local root = uv.fs_realpath(workspace.path)
+		if not root or vim.fn.isdirectory(root) ~= 1 then
+			error("Vault directory is unavailable: " .. workspace.path)
+		end
+		workspace = { name = workspace.name, path = root }
+		local directory = vim.fs.joinpath(root, "projects")
+		local scan, scan_error, code = uv.fs_scandir(directory)
+		if not scan and code ~= "ENOENT" then
+			error("Could not list " .. directory .. ": " .. tostring(scan_error))
+		end
+		local projects = {}
+		if scan then
+			while true do
+				local name, kind = uv.fs_scandir_next(scan)
+				if not name then
+					break
+				end
+				if kind == "directory" then
+					projects[#projects + 1] = name
+				end
+			end
+		end
+		if #projects == 0 then
+			vim.notify("No projects found in the current Obsidian vault")
+			return
+		end
+		table.sort(projects)
+		vim.ui.select(projects, { prompt = "Project daily" }, function(project)
+			if not project then
+				return
+			end
+			local opened, open_error = pcall(function()
+				open_buffer(M.ensure_daily(workspace, "projects/" .. project))
+			end)
+			if not opened then
+				vim.notify(tostring(open_error), vim.log.levels.ERROR)
+			end
+		end)
+	end)
+	if not ok then
+		vim.notify(tostring(err), vim.log.levels.ERROR)
+	end
 end
 
 local function skip_initialized(project)
