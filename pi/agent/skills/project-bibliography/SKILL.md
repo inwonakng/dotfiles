@@ -36,6 +36,8 @@ Trigger: the user asks to add papers or approves candidates for the project.
 4. Propose the exact tags to retain or add for each paper and ask the user to confirm them before importing or changing project membership or tags. Batch confirmation is fine. If the user already specified the papers, destination, and tags, do not ask again. Imported keywords are not automatically suitable tags.
 5. Apply only the approved imports, memberships, and tags. Preserve unrelated tags, memberships, notes, and attachments. Read back the affected records to confirm project membership and agreed tags, and report any incomplete additions.
 
+For blocked imports, follow [When automated import is blocked](../zotero-curation/SKILL.md#when-automated-import-is-blocked) to request manual addition and verify the synced item before continuing. Manual addition does not replace the agent's responsibility to propose suitable tags and obtain any outstanding tag approval.
+
 Do not turn one addition into a library-wide retagging exercise. Flag existing untagged papers encountered during review and propose tags for approval.
 
 ## Consult existing references

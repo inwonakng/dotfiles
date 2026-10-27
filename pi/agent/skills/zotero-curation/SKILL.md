@@ -31,6 +31,22 @@ Reuse tags with established meanings. Ask before inventing tags or assigning unc
 5. Read back the item and compare requested fields: type, creators, title, date, venue/proceedings, identifiers, memberships, and tags. A success envelope is insufficient. Preserve unrelated data, including existing tags when the change is additive. After final metadata changes, also read back native `citationKey` and any legacy `Citation Key` in Extra. Flag URL-derived (including sanitized URLs), placeholder, or conflicting keys as unresolved. Preserve established citation-key conventions; do not impose a uniform format or silently rename existing keys that may already be cited.
 6. Use the official Zotero API only for an observed importer/edit mapping gap. Consult the [write API documentation](https://www.zotero.org/support/dev/web_api/v3/write_requests), use the correct library and current item version, preserve unrelated fields, check the response, and read back. Report the gap and affected fields. This fallback does not bypass authorization or access restrictions.
 
+## When automated import is blocked
+
+First check for the paper on an official publisher or proceedings website. Prefer its verified citation export over an OpenReview submission page.
+
+If no accessible official record can be imported and the available source requires browser verification, authentication, or produces incomplete metadata, use `question` to request manual addition. Include the paper title, source URL, destination library/collection, and ask the user to save the paper with its PDF in Zotero and sync. Offer "Added and synced", "Skip", and "Couldn't add".
+
+After the user confirms addition, immediately search the intended library through Zotero's Web API by URL, title, and authors. If the paper is missing, retry at 5-second intervals for up to 30 seconds total elapsed time. Stop retrying as soon as it appears; do not sleep before the first check or wait out the remaining time after success. If it still cannot be found, use `question` again to ask the user to confirm syncing has finished or provide the Zotero item link. Do not create a duplicate or switch to local access.
+
+Verify the matching item, metadata, and PDF before continuing the approved task using that item. Check the PDF's remote availability separately; attachment metadata alone does not prove the file has synced. If the PDF is still unavailable, ask the user to finish file syncing or attach it rather than treating the addition as complete.
+
+The agent remains responsible for determining suitable tags. Inspect the library's existing tags and follow the applicable tag-confirmation rules before applying tags or collection changes.
+
+If the user skips, cannot add the paper, or cancels the question, leave that paper unresolved and continue independent work. If `question` is unavailable, ask verbally and wait for a reply before continuing that paper.
+
+Do not create URL-only placeholders or reconstruct unsupported metadata merely to report a successful import. Report existing stubs for scoped correction; do not automatically delete or reimport them.
+
 ## Handle versions and cleanup
 
 Compare identifiers, authors, content/version, and linked notes/attachments before treating a preprint and publication as the same work. Title similarity is insufficient. Correct or reuse an appropriate item when supported; retain separate versions when the distinction matters or is unresolved.

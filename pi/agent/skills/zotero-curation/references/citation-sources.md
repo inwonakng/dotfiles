@@ -5,26 +5,30 @@ publication metadata. These are lookup recipes, not a claim that a particular
 paper has been verified. Retrieve the actual paper record and cite its URL in the
 result. A source's absence or access failure is not proof of rejection.
 
-## OpenReview: all venues
+## OpenReview
 
-For any OpenReview-hosted paper, retrieve the official record's citation/BibTeX
-export and import it with `zotero-cli add bibtex`. Do not use generic `add url`
-for OpenReview records. Cross-check title, authors, year, and canonical forum URL
-against the record rather than inferring them from arXiv or a repository README.
-OpenReview hosting alone establishes neither the venue nor acceptance; verify the
-actual venue, track, decision, and version separately.
+Check for an official proceedings record first, including for ICLR and COLM.
+If OpenReview is the available official source and its citation/BibTeX export is
+accessible, verify and import that export with `zotero-cli add bibtex`. Do not use
+generic `add url` for OpenReview. Cross-check title, authors, year, and canonical
+forum URL against the record rather than inferring them from arXiv or a repository
+README.
 
-Treat URL-only fallback imports, such as a webpage titled with the forum URL and
-missing authors/year, as incomplete even if the command reports success. Report
-existing stubs for scoped correction; do not automatically delete or reimport them.
+If access or import is blocked, follow [When automated import is blocked](../SKILL.md#when-automated-import-is-blocked).
+Do not initiate OpenReview login, request credentials, or switch API versions as
+part of routine import. OpenReview hosting alone establishes neither the venue
+nor acceptance; verify the actual venue, track, decision, and version separately.
 
-## ICLR: accepted OpenReview records
+## ICLR and COLM: proceedings and accepted records
 
-Start from the relevant year at [ICLR](https://iclr.cc/) and its official
-[OpenReview venue](https://openreview.net/group?id=ICLR.cc). Find the paper's
-forum/record and check the venue, decision, and version for that year.
+Start from the relevant year at [ICLR](https://iclr.cc/) or
+[COLM](https://colmweb.org/) and check its official proceedings links first.
+Prefer an accessible proceedings record and citation export. If none is
+accessible, use the conference's official OpenReview record or accepted-paper
+listing, following the OpenReview guidance above. Check the venue, track,
+decision, and version for that year.
 
-- Accepted poster, spotlight, and oral papers are all valid accepted conference
+- Accepted ICLR poster, spotlight, and oral papers are all valid accepted conference
   papers. Do not restrict this workflow to years before 2024 or only oral papers.
 - A submission page by itself establishes submission, not acceptance. Conversely,
   a submitted label alone is not evidence of rejection; inspect the decision or
