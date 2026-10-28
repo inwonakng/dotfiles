@@ -722,20 +722,18 @@ function M.toggleAllFloating()
         local window = nativeFocused(windows)
         local wasFloating = window and window.is_floating == true
         if not window then wasFloating = (cache[workspace] or {}).floats_up == true end
-        if window then
-            save(workspace, "last_focused", window)
-            save(workspace, wasFloating and "last_floating" or "last_tiled", window)
-        end
+        local controller = history or History.new(cache, save, focus, now, stackFloats, nativeFocused)
+        controller:remember(workspace, window)
         local predicate = function(w) return (w.is_floating == true) ~= wasFloating end
-        local target = cachedWindow(windows, workspace,
-            wasFloating and "last_tiled" or "last_floating", predicate)
+        local target = controller:recentWindow(workspace, windows, predicate)
+            or cachedWindow(windows, workspace,
+                wasFloating and "last_tiled" or "last_floating", predicate)
         if not target then
             for _, candidate in ipairs(windows) do
                 if predicate(candidate) then target = candidate end
             end
         end
         if not target then return end
-        local controller = history or History.new(cache, save, focus, now, stackFloats, nativeFocused)
         if not controller:selectGroup(workspace, target, not wasFloating) then return end
         -- Commit explicit group intent only after verified native focus.
         -- Generic focus events (including workspace entry) never change it.

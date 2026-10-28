@@ -45,6 +45,15 @@ function History:remember(workspace, window)
     })
 end
 
+function History:recentWindow(workspace, windows, predicate)
+    -- Use current membership and floating state, not the state at focus time.
+    -- Leave vanished records for the native destruction callback to consume.
+    for _, record in ipairs(self.recent[workspace] or {}) do
+        local window = History.find(windows, record.window)
+        if window and predicate(window) then return window end
+    end
+end
+
 -- Consume the pre-close observation, even if macOS has already selected another
 -- window. Preserve the tile used before entering floats, not its automatic fallback.
 function History:takeClosed(id, pid)
