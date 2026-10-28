@@ -6,6 +6,7 @@ require("hs.timer")
 require("hs.json")
 require("hs.fs")
 require("hs.logger")
+require("hs.window")
 local History = require("rift.history")
 local M = {}
 local log = hs.logger.new("rift", "info")
@@ -34,6 +35,8 @@ local current, history, stream, servers
 local heartbeat, expiry, expiryQueued
 local borderQueued, borderColor
 local lastError
+local workspaceRevision = 0
+local workspaceRevisions = {} -- History queries are independent across native Spaces.
 local pump
 
 local function now() return hs.timer.absoluteTime() / 1e9 end
@@ -149,21 +152,107 @@ local function query(kind, space)
     return value
 end
 
-local function focus(window)
-    local args = { "execute", "window", "focus", "--window-id", hs.json.encode(window.id) }
-    if window.window_server_id then
-        table.insert(args, "--window-server-id")
-        table.insert(args, tostring(window.window_server_id))
+local function context()
+    -- Keep membership and active workspace in one snapshot across async queries.
+    for _, workspace in ipairs(query("workspaces")) do
+        if workspace.is_active then return workspace.windows, workspace.id end
     end
-    cli(args)
+    return {}, "default"
 end
 
-local function context()
-    local windows = query("windows")
-    for _, workspace in ipairs(query("workspaces")) do
-        if workspace.is_active then return windows, workspace.id end
+local function nativeFocused(windows)
+    local native = hs.window.focusedWindow()
+    if not native then return nil, false end
+    local app = native:application()
+    for _, window in ipairs(windows) do
+        if app and window.window_server_id == native:id() and window.id.pid == app:pid() then
+            return window, true
+        end
     end
-    return windows, "default"
+    return nil, true -- Native focus outside this workspace is still real focus.
+end
+
+local function nativeWindow(window)
+    local native = window.window_server_id and hs.window.get(window.window_server_id)
+    local app = native and native:application()
+    assert(app and app:pid() == window.id.pid, "Rift window is no longer available")
+    return native, app
+end
+
+local function stackFloats(windows, target)
+    local failures = {}
+    local function attempt(fn)
+        local ok, err = pcall(fn)
+        if not ok then table.insert(failures, tostring(err)) end
+    end
+    -- The target must already be focused. AXRaise alone can leave inactive
+    -- windows below the foreground app, or change main within that same app.
+    -- Do not yield or activate intermediate apps during this batch.
+    for _, window in ipairs(windows) do
+        if window.is_floating and not History.sameId(window.id, target.id) then
+            attempt(function()
+                local native = nativeWindow(window)
+                assert(native:raise(), "Cannot raise Rift window " .. tostring(window.window_server_id))
+            end)
+        end
+    end
+    -- Same-app raises may have changed main. Restore the intended target last,
+    -- even if an intermediate window closed or failed to raise.
+    attempt(function()
+        local native = nativeWindow(target)
+        assert(native:becomeMain(), "Cannot restore Rift focus target")
+        assert(native:raise(), "Cannot raise Rift focus target")
+    end)
+    return failures
+end
+
+local function focusedId()
+    local window = hs.window.focusedWindow()
+    return window and window:id()
+end
+
+local function focus(window, afterFocus, expectedWorkspace)
+    local revision, initial = workspaceRevision, focusedId()
+    local windows, workspace = context()
+    -- Queries yield to the event stream. Never apply an old action after a switch
+    -- or after the user/app has selected a different native window.
+    if revision ~= workspaceRevision or focusedId() ~= initial
+        or (expectedWorkspace and workspace ~= expectedWorkspace) then return false end
+    local available = History.find(windows, window)
+    if not available then return false, "unavailable" end
+    if available.is_floating ~= window.is_floating then return false end
+    local native, app = nativeWindow(window)
+    local id = native:id()
+    if initial ~= id then
+        -- Unlike hs.window:focus(), this has no delayed Finder becomeMain callback
+        -- which could steal focus back after the user moves on.
+        assert(native:becomeMain(), "Cannot make Rift window main")
+        assert(app:setFrontmost(false), "Cannot activate Rift window application")
+        assert(native:raise(), "Cannot raise Rift focus target")
+    end
+    local deadline = now() + 1
+    while true do
+        if revision ~= workspaceRevision then return false end
+        local actual = focusedId()
+        if actual == id then
+            -- Focus first, then stack/restore synchronously. Intermediate AXRaise
+            -- focus changes are ours, not cancellation; verify the final target.
+            if afterFocus then afterFocus(windows) end
+            if focusedId() ~= id then return false end
+            local activeWindows, activeWorkspace = context()
+            if revision ~= workspaceRevision or workspace ~= activeWorkspace then return false end
+            local member = History.find(activeWindows, window)
+            if not member then return false, "unavailable" end
+            local observed = nativeFocused(activeWindows)
+            return member.is_floating == window.is_floating
+                and observed ~= nil and History.sameId(observed.id, window.id)
+        end
+        if actual and actual ~= initial then return false end
+        if now() >= deadline then
+            error("Native focus did not reach Rift window " .. tostring(window.window_server_id))
+        end
+        sleep(0.02)
+    end
 end
 
 local function cachedWindow(windows, workspace, key, predicate)
@@ -243,7 +332,7 @@ end
 local function connect(pids)
     disconnect()
     servers = pids
-    history = History.new(cache, save, focus, now)
+    history = History.new(cache, save, focus, now, stackFloats, nativeFocused)
     local token, buffered = generation, ""
     stream = hs.task.new(riftCli, function(code, _, stderr)
         if token ~= generation then return end
@@ -260,11 +349,18 @@ local function connect(pids)
             buffered = buffered:sub(newline + 1)
             local event = hs.json.decode(line)
             if type(event) == "table" then
+                -- Observe switches immediately, not after a yielding focus action.
+                if event.type == "workspace_changed" then
+                    workspaceRevision = workspaceRevision + 1
+                    workspaceRevisions[event.space_id] = (workspaceRevisions[event.space_id] or 0) + 1
+                end
                 enqueue(function()
                     if token ~= generation then return end
                     if event.type == "workspace_changed" or event.type == "focused_window_changed" then
                         local ok, err = pcall(function()
-                            history:handle(event, query("workspaces", event.space_id))
+                            local revision = workspaceRevisions[event.space_id]
+                            local workspaces = query("workspaces", event.space_id)
+                            if revision == workspaceRevisions[event.space_id] then history:handle(event, workspaces) end
                         end)
                         if not ok then disconnect(); error(err) end
                     end
@@ -293,13 +389,61 @@ local function checkServer()
     end
 end
 
+-- A nil selector delegates last-workspace tracking to Rift. Explicit shortcuts
+-- restore cached focus; app-driven entry and moved-window-follow stay native.
+function M.switchWorkspace(selector)
+    assert(selector == nil or type(selector) == "number" or type(selector) == "string",
+        "Unsupported workspace selector")
+    enqueue(function()
+        local revision, initial = workspaceRevision, focusedId()
+        local workspaces = query("workspaces")
+        if revision ~= workspaceRevision or focusedId() ~= initial then return end
+        local source, destination
+        for _, workspace in ipairs(workspaces) do
+            if workspace.is_active then source = workspace end
+            if (type(selector) == "number" and workspace.index == selector)
+                or (type(selector) == "string" and workspace.name == selector) then
+                destination = workspace
+            end
+        end
+        if not source or (selector ~= nil and not destination) then return end
+        local controller = history or History.new(cache, save, focus, now, stackFloats, nativeFocused)
+        controller:remember(source.id, nativeFocused(source.windows))
+        -- Save references before the switch, not after automatic entry can record
+        -- Rift's incoming tile. Snapshot every workspace for the unknown "last".
+        local remembered = {}
+        for workspace, state in pairs(cache) do remembered[workspace] = state.last_focused end
+        local args = { "execute", "workspace", "last" }
+        if destination then
+            args = { "execute", "workspace", "switch", tostring(destination.index) }
+        end
+        cli(args)
+        local switchedRevision = workspaceRevision
+        -- Multiple observed transitions mean newer workspace intent.
+        if switchedRevision > revision + 1 then return end
+        local windows, workspace = context()
+        -- Rift's own entry focus arrives after CLI completion. It is expected
+        -- during this query; focus() establishes cancellation from that entry.
+        if switchedRevision ~= workspaceRevision then return end
+        if workspace == source.id or (destination and workspace ~= destination.id) then return end
+        local target = History.find(windows, remembered[workspace])
+        if not target then return end
+        controller:selectGroup(workspace, target, target.is_floating)
+    end)
+end
+
 function M.toggleAllFloating()
     enqueue(function()
+        local revision, initial = workspaceRevision, focusedId()
         local windows, workspace = context()
-        local window = History.focused(windows)
+        if revision ~= workspaceRevision or focusedId() ~= initial then return end
+        local window = nativeFocused(windows)
         local wasFloating = window and window.is_floating == true
         if not window then wasFloating = (cache[workspace] or {}).floats_up == true end
-        if window then save(workspace, wasFloating and "last_floating" or "last_tiled", window) end
+        if window then
+            save(workspace, "last_focused", window)
+            save(workspace, wasFloating and "last_floating" or "last_tiled", window)
+        end
         local predicate = function(w) return (w.is_floating == true) ~= wasFloating end
         local target = cachedWindow(windows, workspace,
             wasFloating and "last_tiled" or "last_floating", predicate)
@@ -309,9 +453,9 @@ function M.toggleAllFloating()
             end
         end
         if not target then return end
-        local controller = history or History.new(cache, save, focus, now)
-        controller:selectGroup(workspace, windows, target, not wasFloating)
-        -- Commit explicit group intent only after an error-free traversal.
+        local controller = history or History.new(cache, save, focus, now, stackFloats, nativeFocused)
+        if not controller:selectGroup(workspace, target, not wasFloating) then return end
+        -- Commit explicit group intent only after verified native focus.
         -- Generic focus events (including workspace entry) never change it.
         cache[workspace] = cache[workspace] or {}
         cache[workspace].floats_up = not wasFloating
@@ -322,7 +466,7 @@ end
 function M.toggleFinder()
     enqueue(function()
         local windows, workspace = context()
-        local window = History.focused(windows)
+        local window = nativeFocused(windows)
         local function nonFinder(w) return w.bundle_id ~= "com.apple.finder" end
         if window and not nonFinder(window) then
             local target = cachedWindow(windows, workspace, "last_non_finder", nonFinder)
@@ -331,7 +475,7 @@ function M.toggleFinder()
                     if nonFinder(candidate) then target = candidate; break end
                 end
             end
-            if target then focus(target) end
+            if target then focus(target, nil, workspace) end
             return
         end
         if window then save(workspace, "last_non_finder", window) end
@@ -340,8 +484,10 @@ function M.toggleFinder()
             if not nonFinder(candidate) then
                 found = true
                 -- One closed Finder window must not prevent visiting the remaining ones.
-                local ok = pcall(focus, candidate)
-                if ok and not candidate.is_floating then
+                local ok, focused, reason = pcall(focus, candidate, nil, workspace)
+                -- A vanished member is skippable; new focus/workspace intent is not.
+                if ok and not focused and reason ~= "unavailable" then return end
+                if ok and focused and not candidate.is_floating then
                     pcall(cli, { "execute", "window", "toggle-float" })
                 end
             end
@@ -359,14 +505,14 @@ function M.layoutPreserveFocus(operation)
     assert(operation == "toggle-stack" or operation == "toggle-orientation", "Unsupported layout operation")
     enqueue(function()
         local windows, workspace = context()
-        local previous = History.focused(windows)
+        local previous = nativeFocused(windows)
         cli({ "execute", "layout", operation })
         if not previous then return end
         sleep(0.05)
         local currentWindows, currentWorkspace = context()
         if currentWorkspace ~= workspace then return end
         local window = History.find(currentWindows, previous)
-        if window then focus(window) end
+        if window then focus(window, nil, workspace) end
     end)
 end
 
@@ -383,11 +529,22 @@ function M.start()
     enqueue(checkServer)
     heartbeat = hs.timer.doEvery(2, function() enqueue(checkServer) end)
     expiry = hs.timer.doEvery(0.05, function()
-        if expiryQueued or not history or not next(history.pending) then return end
+        if expiryQueued or not history then return end
+        local due = false
+        for _, pending in pairs(history.pending) do
+            if pending.deadline and now() >= pending.deadline then due = true; break end
+        end
+        if not due then return end
         expiryQueued = true
         enqueue(function()
             expiryQueued = false
-            if history then history:expire(function(space) return query("workspaces", space) end) end
+            if history then
+                history:expire(function(space)
+                    local revision = workspaceRevisions[space]
+                    local workspaces = query("workspaces", space)
+                    return revision == workspaceRevisions[space] and workspaces or {}
+                end)
+            end
         end)
     end)
 end

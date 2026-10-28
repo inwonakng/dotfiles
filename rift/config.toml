@@ -499,35 +499,92 @@ AltCtrl = "Alt + Ctrl"
 "AltShift + K" = { move_node = "up" }
 "AltShift + L" = { move_node = "right" }
 
-"Alt + 0" = { switch_to_workspace = 0 }
-"Alt + 1" = { switch_to_workspace = 1 }
-"Alt + 2" = { switch_to_workspace = 2 }
-"Alt + 3" = { switch_to_workspace = 3 }
-"Alt + 4" = { switch_to_workspace = 4 }
-"Alt + 5" = { switch_to_workspace = 5 }
-"Alt + 6" = { switch_to_workspace = 6 }
-"Alt + 7" = { switch_to_workspace = 7 }
-"Alt + 8" = { switch_to_workspace = 8 }
-"Alt + 9" = { switch_to_workspace = 9 }
+# Explicit switches restore remembered focus; automatic app switches keep incoming focus.
+"Alt + 0" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace(0)",
+] }
+"Alt + 1" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace(1)",
+] }
+"Alt + 2" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace(2)",
+] }
+"Alt + 3" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace(3)",
+] }
+"Alt + 4" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace(4)",
+] }
+"Alt + 5" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace(5)",
+] }
+"Alt + 6" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace(6)",
+] }
+"Alt + 7" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace(7)",
+] }
+"Alt + 8" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace(8)",
+] }
+"Alt + 9" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace(9)",
+] }
 
-"Alt + A" = { switch_to_workspace = "A" }
-"Alt + B" = { switch_to_workspace = "B" }
-"Alt + C" = { switch_to_workspace = "C" }
-"Alt + G" = { switch_to_workspace = "G" }
-"Alt + I" = { switch_to_workspace = "I" }
-"Alt + M" = { switch_to_workspace = "M" }
-"Alt + N" = { switch_to_workspace = "N" }
-"Alt + O" = { switch_to_workspace = "O" }
-"Alt + P" = { switch_to_workspace = "P" }
-"Alt + Q" = { switch_to_workspace = "Q" }
-"Alt + R" = { switch_to_workspace = "R" }
-"Alt + S" = { switch_to_workspace = "S" }
-"Alt + T" = { switch_to_workspace = "T" }
-"Alt + U" = { switch_to_workspace = "U" }
-"Alt + V" = { switch_to_workspace = "V" }
-"Alt + W" = { switch_to_workspace = "W" }
-"Alt + X" = { switch_to_workspace = "X" }
-"Alt + Y" = { switch_to_workspace = "Y" }
+"Alt + A" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('A')",
+] }
+"Alt + B" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('B')",
+] }
+"Alt + C" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('C')",
+] }
+"Alt + G" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('G')",
+] }
+"Alt + I" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('I')",
+] }
+"Alt + M" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('M')",
+] }
+"Alt + N" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('N')",
+] }
+"Alt + O" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('O')",
+] }
+"Alt + P" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('P')",
+] }
+"Alt + Q" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('Q')",
+] }
+"Alt + R" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('R')",
+] }
+"Alt + S" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('S')",
+] }
+"Alt + T" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('T')",
+] }
+"Alt + U" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('U')",
+] }
+"Alt + V" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('V')",
+] }
+"Alt + W" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('W')",
+] }
+"Alt + X" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('X')",
+] }
+"Alt + Y" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace('Y')",
+] }
 
 "AltShift + 0" = { move_window_to_workspace = { workspace = 0, follow = true } }
 "AltShift + 1" = { move_window_to_workspace = { workspace = 1, follow = true } }
@@ -560,7 +617,9 @@ AltCtrl = "Alt + Ctrl"
 "AltShift + Y" = { move_window_to_workspace = { workspace = "Y", follow = true } }
 
 
-"Alt + Tab" = "switch_to_last_workspace"
+"Alt + Tab" = { exec = [
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs", "-c", "rift.switchWorkspace()",
+] }
 
 # commands to change the layout engine of the active workspace
 "AltCtrl + 1" = { set_workspace_layout = { mode = "traditional" } }
