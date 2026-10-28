@@ -8,6 +8,7 @@ require("hs.fs")
 require("hs.logger")
 require("hs.window")
 require("hs.window.filter")
+require("hs.eventtap")
 local History = require("rift.history")
 local M = {}
 local log = hs.logger.new("rift", "info")
@@ -34,7 +35,7 @@ local generation = 0
 local jobs, tasks, timers = {}, {}, {}
 local current, history, stream, servers
 local closeWatcher, lastNativeFocus, closingNativeFocus
-local nativeWindows = {}
+local nativeWindows, closeGuards = {}, {}
 local heartbeat, expiry, expiryQueued
 local borderQueued, borderWindows = {}, {}
 local lastError
@@ -219,12 +220,13 @@ local function frontmostPid()
     return app and app:pid()
 end
 
-local function focus(window, afterFocus, expectedWorkspace)
+local function focus(window, afterFocus, expectedWorkspace, valid)
     local revision, initial, initialApp = workspaceRevision, focusedId(), frontmostPid()
     local windows, workspace = context()
     -- Queries yield to the event stream. Never apply an old action after a switch
     -- or after the user/app has selected a different native window.
     if revision ~= workspaceRevision or focusedId() ~= initial or frontmostPid() ~= initialApp
+        or (valid and not valid())
         or (expectedWorkspace and workspace ~= expectedWorkspace) then return false end
     local available = History.find(windows, window)
     if not available then return false, "unavailable" end
@@ -240,7 +242,7 @@ local function focus(window, afterFocus, expectedWorkspace)
     end
     local deadline = now() + 1
     while true do
-        if revision ~= workspaceRevision then return false end
+        if revision ~= workspaceRevision or (valid and not valid()) then return false end
         local actual = focusedId()
         if actual == id then
             -- Focus first, then stack/restore synchronously. Intermediate AXRaise
@@ -248,7 +250,8 @@ local function focus(window, afterFocus, expectedWorkspace)
             if afterFocus then afterFocus(windows) end
             if focusedId() ~= id then return false end
             local activeWindows, activeWorkspace = context()
-            if revision ~= workspaceRevision or workspace ~= activeWorkspace then return false end
+            if revision ~= workspaceRevision or workspace ~= activeWorkspace
+                or (valid and not valid()) then return false end
             local member = History.find(activeWindows, window)
             if not member then return false, "unavailable" end
             local observed = nativeFocused(activeWindows)
@@ -292,43 +295,66 @@ local function restoreAfterClose(native)
     end
     if not source or not history then return end
     local eligible = source == lastNativeFocus or source == closingNativeFocus
-    local successor = source == closingNativeFocus and lastNativeFocus
     if source == lastNativeFocus then lastNativeFocus = nil end
     if source == closingNativeFocus then closingNativeFocus = nil end
     local closed = history:takeClosed(source.id, source.pid)
     if not eligible or not closed or not closed.window.is_floating then return end
-    -- Accept the immediate automatic successor, even in another app, but not an
-    -- unrelated windowless application activation while destruction was queued.
-    if frontmostPid() ~= source.pid and (not successor or successor.pid ~= frontmostPid()
-        or successor.id ~= focusedId()) then return end
     local token, controller, revision = generation, history, workspaceRevision
-    local initial, app = focusedId(), frontmostPid()
-    local function unchanged()
-        return token == generation and revision == workspaceRevision
-            and focusedId() == initial and frontmostPid() == app
+    local cancelled = false
+    -- Observe only while this close is pending. Do not inspect, store, or consume
+    -- keys/clicks; a new press simply cancels automatic focus restoration.
+    local types = hs.eventtap.event.types
+    local guard = hs.eventtap.new({ types.keyDown, types.leftMouseDown,
+        types.rightMouseDown, types.otherMouseDown }, function()
+        cancelled = true
+        return false
+    end):start()
+    if not guard:isEnabled() then
+        guard:stop()
+        log.w("Cannot monitor input; skipping close-focus restoration")
+        return
+    end
+    closeGuards[guard] = true
+    local function valid()
+        return not cancelled and token == generation and revision == workspaceRevision
     end
     enqueue(function()
-        -- AX destruction can precede Rift's removal. Wait only for this confirmed
-        -- close, and abandon it on newer native focus or workspace intent.
-        local deadline = now() + 0.5
-        local windows, workspace
-        repeat
-            if not unchanged() then return end
-            windows, workspace = context()
-            if not unchanged() or workspace ~= closed.workspace then return end
-            if not History.find(windows, closed.window) then break end
-            if now() >= deadline then return end
-            sleep(0.02)
-        until false
-        local available = {}
-        for _, window in ipairs(windows) do
-            local ok, candidate = pcall(nativeWindow, window)
-            if ok and candidate:isVisible() and not candidate:isMinimized() then
-                table.insert(available, window)
+        local ok, err = pcall(function()
+            -- AX can briefly report window ID 0 before the automatic successor.
+            -- Let that transition settle, but let any new user input win.
+            sleep(0.05)
+            if not valid() then return end
+            local initial, app = focusedId(), frontmostPid()
+            if app ~= source.pid and (not initial or initial <= 0) then return end
+            local function unchanged()
+                return valid() and focusedId() == initial and frontmostPid() == app
             end
-        end
-        local target = controller:closeTarget(closed, available)
-        if target and unchanged() then controller:selectGroup(workspace, target, target.is_floating) end
+            -- AX destruction can also precede Rift's membership removal.
+            local deadline = now() + 0.5
+            local windows, workspace
+            repeat
+                if not unchanged() then return end
+                windows, workspace = context()
+                if not unchanged() or workspace ~= closed.workspace then return end
+                if not History.find(windows, closed.window) then break end
+                if now() >= deadline then return end
+                sleep(0.02)
+            until false
+            local available = {}
+            for _, window in ipairs(windows) do
+                local found, candidate = pcall(nativeWindow, window)
+                if found and candidate:isVisible() and not candidate:isMinimized() then
+                    table.insert(available, window)
+                end
+            end
+            local target = controller:closeTarget(closed, available)
+            if target and unchanged() then
+                controller:selectGroup(workspace, target, target.is_floating, valid)
+            end
+        end)
+        guard:stop()
+        closeGuards[guard] = nil
+        if not ok then error(err) end
     end)
 end
 
@@ -442,6 +468,8 @@ local function disconnect()
     generation = generation + 1
     if stream then stream:terminate(); stream = nil end
     if closeWatcher then closeWatcher:delete(); closeWatcher = nil end
+    for guard in pairs(closeGuards) do guard:stop() end
+    closeGuards = {}
     lastNativeFocus, closingNativeFocus = nil, nil
     nativeWindows = {}
     history, servers = nil, nil

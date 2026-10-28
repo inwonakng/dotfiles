@@ -94,11 +94,11 @@ function History:seed(space, workspaces)
     end
 end
 
-function History:selectGroup(workspace, target, up)
+function History:selectGroup(workspace, target, up, valid)
     local failures = {}
     local selected = self.focus(target, up and function(windows)
         failures = self.stackFloats(windows, target)
-    end or nil, workspace)
+    end or nil, workspace, valid)
     if selected then self:remember(workspace, target) end
     if #failures > 0 then error("Cannot raise Rift floats:\n" .. table.concat(failures, "\n"), 0) end
     return selected
