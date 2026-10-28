@@ -35,7 +35,8 @@ local generation = 0
 local jobs, tasks, timers = {}, {}, {}
 local current, history, stream, servers
 local closeWatcher, lastNativeFocus, closingNativeFocus
-local nativeWindows, closeGuards = {}, {}
+local nativeWindows, inputGuards = {}, {}
+local focusIntent = 0
 local heartbeat, expiry, expiryQueued
 local borderQueued, borderWindows = {}, {}
 local lastError
@@ -220,7 +221,51 @@ local function frontmostPid()
     return app and app:pid()
 end
 
-local function focus(window, afterFocus, expectedWorkspace, valid)
+local function floatsAboveTiles(windows, target)
+    -- This is the WindowServer ID order used by hs.window.orderedWindows(),
+    -- without enumerating every application's AX windows again.
+    local positions = {}
+    for index, id in ipairs(hs.window._orderedwinids()) do positions[id] = index end
+    local firstFloat, lastFloat, firstTile = math.huge, 0, math.huge
+    for _, window in ipairs(windows) do
+        local position = positions[window.window_server_id]
+        -- Windows absent from the on-screen order are hidden/minimized; do not
+        -- reveal them or include inactive workspaces in the stacking contract.
+        if position then
+            if window.is_floating then
+                firstFloat = math.min(firstFloat, position)
+                lastFloat = math.max(lastFloat, position)
+            else
+                firstTile = math.min(firstTile, position)
+            end
+        end
+    end
+    return positions[target.window_server_id] == firstFloat and lastFloat < firstTile
+end
+
+local function watchInput()
+    local cancelled = false
+    local types = hs.eventtap.event.types
+    local guard = hs.eventtap.new({ types.keyDown, types.leftMouseDown,
+        types.rightMouseDown, types.otherMouseDown }, function()
+        cancelled = true
+        return false
+    end):start()
+    if not guard:isEnabled() then
+        guard:stop()
+        log.w("Cannot monitor input; skipping automatic focus restoration")
+        return nil
+    end
+    inputGuards[guard] = true
+    return guard, function() return not cancelled end
+end
+
+local function stopWatchingInput(guard)
+    guard:stop()
+    inputGuards[guard] = nil
+end
+
+local function focusWindow(window, afterFocus, expectedWorkspace, valid)
     local revision, initial, initialApp = workspaceRevision, focusedId(), frontmostPid()
     local windows, workspace = context()
     -- Queries yield to the event stream. Never apply an old action after a switch
@@ -241,13 +286,19 @@ local function focus(window, afterFocus, expectedWorkspace, valid)
         assert(native:raise(), "Cannot raise Rift focus target")
     end
     local deadline = now() + 1
+    local timeoutError = (afterFocus and "Floating window order did not settle for Rift window "
+        or "Native focus did not reach Rift window ") .. tostring(window.window_server_id)
+    local stacked, verified, reached = false, false, false
     while true do
         if revision ~= workspaceRevision or (valid and not valid()) then return false end
         local actual = focusedId()
         if actual == id then
-            -- Focus first, then stack/restore synchronously. Intermediate AXRaise
-            -- focus changes are ours, not cancellation; verify the final target.
-            if afterFocus then afterFocus(windows) end
+            reached = true
+            -- Each batch stays synchronous, but its success is checked against
+            -- WindowServer order after yielding, not AXRaise's return value.
+            if afterFocus and not stacked then
+                stacked = afterFocus(windows) ~= false
+            end
             if focusedId() ~= id then return false end
             local activeWindows, activeWorkspace = context()
             if revision ~= workspaceRevision or workspace ~= activeWorkspace
@@ -255,15 +306,46 @@ local function focus(window, afterFocus, expectedWorkspace, valid)
             local member = History.find(activeWindows, window)
             if not member then return false, "unavailable" end
             local observed = nativeFocused(activeWindows)
-            return member.is_floating == window.is_floating
-                and observed ~= nil and History.sameId(observed.id, window.id)
+            if member.is_floating ~= window.is_floating or not observed
+                or not History.sameId(observed.id, window.id) then return false end
+            if not afterFocus then return true end
+            if now() >= deadline then error(timeoutError) end
+            if stacked and floatsAboveTiles(activeWindows, member) then
+                -- Require a second observation after another event-loop turn
+                -- and fresh membership query to catch deferred activation raises.
+                if verified then return true end
+                verified = true
+            else
+                verified = false
+                stacked = afterFocus(activeWindows) ~= false
+                if focusedId() ~= id then return false end
+            end
+            windows = activeWindows
+        elseif reached or (actual and actual ~= initial) then
+            return false
         end
-        if actual and actual ~= initial then return false end
-        if now() >= deadline then
-            error("Native focus did not reach Rift window " .. tostring(window.window_server_id))
-        end
+        if now() >= deadline then error(timeoutError) end
         sleep(0.02)
     end
+end
+
+local function focus(window, afterFocus, expectedWorkspace, valid)
+    local intent = focusIntent
+    local guard, inputValid
+    if afterFocus then
+        guard, inputValid = watchInput()
+        if not guard then return false end
+    end
+    local function currentIntent()
+        return intent == focusIntent and (not valid or valid())
+            and (not inputValid or inputValid())
+    end
+    -- Always remove the temporary input listener, including cancellation/error
+    -- paths which yield through native tasks before returning here.
+    local ok, selected, reason = pcall(focusWindow, window, afterFocus, expectedWorkspace, currentIntent)
+    if guard then stopWatchingInput(guard) end
+    if not ok then error(selected, 0) end
+    return selected, reason
 end
 
 local function cachedWindow(windows, workspace, key, predicate)
@@ -300,23 +382,11 @@ local function restoreAfterClose(native)
     local closed = history:takeClosed(source.id, source.pid)
     if not eligible or not closed or not closed.window.is_floating then return end
     local token, controller, revision = generation, history, workspaceRevision
-    local cancelled = false
-    -- Observe only while this close is pending. Do not inspect, store, or consume
-    -- keys/clicks; a new press simply cancels automatic focus restoration.
-    local types = hs.eventtap.event.types
-    local guard = hs.eventtap.new({ types.keyDown, types.leftMouseDown,
-        types.rightMouseDown, types.otherMouseDown }, function()
-        cancelled = true
-        return false
-    end):start()
-    if not guard:isEnabled() then
-        guard:stop()
-        log.w("Cannot monitor input; skipping close-focus restoration")
-        return
-    end
-    closeGuards[guard] = true
+    -- Observe only while this close is pending; never inspect/store input.
+    local guard, inputValid = watchInput()
+    if not guard then return end
     local function valid()
-        return not cancelled and token == generation and revision == workspaceRevision
+        return inputValid() and token == generation and revision == workspaceRevision
     end
     enqueue(function()
         local ok, err = pcall(function()
@@ -352,8 +422,7 @@ local function restoreAfterClose(native)
                 controller:selectGroup(workspace, target, target.is_floating, valid)
             end
         end)
-        guard:stop()
-        closeGuards[guard] = nil
+        stopWatchingInput(guard)
         if not ok then error(err) end
     end)
 end
@@ -468,8 +537,8 @@ local function disconnect()
     generation = generation + 1
     if stream then stream:terminate(); stream = nil end
     if closeWatcher then closeWatcher:delete(); closeWatcher = nil end
-    for guard in pairs(closeGuards) do guard:stop() end
-    closeGuards = {}
+    for guard in pairs(inputGuards) do guard:stop() end
+    inputGuards = {}
     lastNativeFocus, closingNativeFocus = nil, nil
     nativeWindows = {}
     history, servers = nil, nil
@@ -544,6 +613,7 @@ end
 -- A nil selector delegates last-workspace tracking to Rift. Explicit shortcuts
 -- restore cached focus; app-driven entry and moved-window-follow stay native.
 function M.switchWorkspace(selector)
+    focusIntent = focusIntent + 1
     assert(selector == nil or type(selector) == "number" or type(selector) == "string",
         "Unsupported workspace selector")
     enqueue(function()
@@ -585,6 +655,7 @@ function M.switchWorkspace(selector)
 end
 
 function M.toggleAllFloating()
+    focusIntent = focusIntent + 1
     enqueue(function()
         local revision, initial = workspaceRevision, focusedId()
         local windows, workspace = context()
@@ -616,6 +687,7 @@ function M.toggleAllFloating()
 end
 
 function M.toggleFinder()
+    focusIntent = focusIntent + 1
     enqueue(function()
         local windows, workspace = context()
         local window = nativeFocused(windows)
@@ -654,6 +726,7 @@ function M.toggleFinder()
 end
 
 function M.layoutPreserveFocus(operation)
+    focusIntent = focusIntent + 1
     assert(operation == "toggle-stack" or operation == "toggle-orientation", "Unsupported layout operation")
     enqueue(function()
         local windows, workspace = context()
@@ -669,6 +742,7 @@ function M.layoutPreserveFocus(operation)
 end
 
 function M.toggleFloat()
+    focusIntent = focusIntent + 1
     enqueue(function()
         local revision, initial = workspaceRevision, focusedId()
         local windows = query("windows")

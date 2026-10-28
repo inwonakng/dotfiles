@@ -98,6 +98,7 @@ function History:selectGroup(workspace, target, up, valid)
     local failures = {}
     local selected = self.focus(target, up and function(windows)
         failures = self.stackFloats(windows, target)
+        return #failures == 0
     end or nil, workspace, valid)
     if selected then self:remember(workspace, target) end
     if #failures > 0 then error("Cannot raise Rift floats:\n" .. table.concat(failures, "\n"), 0) end
@@ -108,14 +109,14 @@ function History:enter(space, workspace)
     local window, hasFocus = self.nativeFocused(workspace.windows)
     if not window then return false, hasFocus end
     self.pending[space] = nil
-    -- Native incoming focus (including moved-window-follow) always wins over
-    -- stale floats_up/last_focused state. Restore stacking and the original main
-    -- window in one synchronous batch, never activate a different application.
-    local failures = window.is_floating and self.stackFloats(workspace.windows, window) or {}
+    -- Keep the incoming target (including moved-window-follow), but use the
+    -- same cancellable, verified stacking operation as an explicit float toggle.
+    if window.is_floating then
+        return self:selectGroup(workspace.id, window, true), true
+    end
     local observed = self.nativeFocused(workspace.windows)
     local selected = observed ~= nil and History.sameId(observed.id, window.id)
     if selected then self:remember(workspace.id, window) end
-    if #failures > 0 then error("Cannot raise Rift floats:\n" .. table.concat(failures, "\n"), 0) end
     return selected, true
 end
 
