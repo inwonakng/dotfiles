@@ -1,45 +1,23 @@
 ---
 name: debug
-description: Use for bugs, failing tests, build errors, regressions, unexpected behavior, performance problems, or when a previous fix did not work. Requires root-cause investigation before fixes.
+description: Use when diagnosing unexplained failures, regressions, unexpected behavior, performance problems, or a fix that did not work. Do not use for a clear typo or a change whose cause is already established; those can proceed directly to implementation.
 ---
 
 # Debug
 
-Investigate the root cause before proposing or applying a fix. An obvious-looking patch still needs evidence.
+Find an evidence-supported cause before applying a fix. A hypothesis guides investigation; it is not itself proof.
 
-## Reproduce the failure
+## Diagnose the symptom
 
-- Read the complete error, stack trace, logs, or failing assertion.
-- Identify the exact reproduction steps or failing command.
-- If the failure cannot be reproduced, gather more evidence before changing code.
-- Inspect relevant recent changes when useful.
+1. Use the reported error, logs, failing assertion, or observed behavior to identify the symptom and a likely cause. Reuse evidence already available.
+2. Inspect or probe the smallest relevant path to distinguish that cause from plausible alternatives. Reproduce the failure when practical; existing logs and clear code or configuration evidence may establish the cause when local reproduction is unavailable.
+3. If the evidence does not explain the symptom, expand the investigation where the uncertainty points: a relevant boundary, recent change, or working example. Do not trace every boundary or account for unrelated differences by default.
+4. Stop investigating when the evidence explains the symptom and identifies an appropriate fix or a concrete blocker.
 
-## Trace the cause
+Use focused probes, changing one variable at a time where practical. A failed hypothesis should update the next probe, not lead to stacked speculative fixes. If three fix attempts fail, or successive attempts reveal architectural problems, stop and discuss the approach with the user.
 
-Trace incorrect values or behavior back to their source. In multi-component flows, inspect inputs, outputs, configuration, environment, and state changes at each boundary.
+## Hand off the diagnosis
 
-Find a working example in the codebase and compare it with the failing path. Track each observed difference; dismiss one only with evidence that it cannot affect the failure. Gather evidence before forming hypotheses.
+For diagnosis-only requests, report the cause, supporting evidence, and any remaining uncertainty without applying changes.
 
-When orchestration is active, delegate investigation to readonly subagents. Otherwise, use one when a named component or path needs independent investigation. Follow the packaged `orchestration` skill through its advertised path, specify the evidence required, and join background work before relying on it. Spawned workers investigate their assignment directly and must not delegate.
-
-## Test a hypothesis
-
-Form a specific, evidence-backed hypothesis internally. Test it with the smallest probe, changing one variable at a time. If it fails, use the new evidence to form the next hypothesis rather than stacking speculative fixes.
-
-If three fix attempts fail, or each reveals another architectural problem, stop and discuss the design with the user.
-
-Return to evidence gathering when a proposed edit is a guess, unrelated cleanup, or another quick fix after failed attempts. A predicted passing test is not a result.
-
-## Fix the cause
-
-After identifying the root cause:
-
-1. Add or identify a test or reproduction that fails for the observed symptom and would detect its return.
-2. Apply a fix at the source.
-3. Verify the original symptom and check affected callers and contracts.
-
-When the project has no suitable test location or automation cannot reproduce the symptom, use manual or command-based verification and state its limits.
-
-## Report
-
-Lead with the fix or diagnosed cause. Include the observed symptom, supporting evidence, and verification without repeating the investigation. Distinguish proposed fixes from applied changes and state what remains unverified.
+When a fix is authorized, carry the causal finding and a check for the original symptom into implementation. Prefer correcting the source over hiding the symptom. If reproduction or verification is unavailable, distinguish the supported diagnosis from behavior that remains unverified.

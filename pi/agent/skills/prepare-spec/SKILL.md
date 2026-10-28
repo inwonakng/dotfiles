@@ -10,11 +10,11 @@ Write a self-contained specification that preserves intent and decisions a futur
 ## Boundaries
 
 - Do not implement the change. Write a file only when requested.
-- Inspect relevant code and documentation first. Resolve repository facts through inspection and ask about missing intent or decisions.
-- Resolve blocking questions before finalizing.
+- Reuse agreed decisions and evidence from the conversation. Do not repeat discovery or reopen settled design choices merely to produce a handoff.
+- Inspect repository details only when they are missing, may have changed, or need precision to prevent implementation errors. Resolve blocking intent or design questions before finalizing.
 - Mark the specification `Draft` unless the user has approved its content.
 - Preserve intent without copying source code or recording incidental exploration.
-- Tell the implementer to inspect current code and verify the specification's assumptions before editing.
+- Tell the implementer to verify assumptions that could have changed before editing; the specification is not a substitute for current code.
 
 ## Content
 

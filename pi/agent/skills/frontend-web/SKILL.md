@@ -138,4 +138,4 @@ Judge the rendered UI rather than relying on code inspection alone.
 
 Start with the smallest relevant check: typecheck/build, targeted component/story/page rendering, applicable lint, browser/screenshot inspection, or generated markup/CSS inspection for small static changes.
 
-Use `verify` before claiming completion. Report the changed result and checks concisely. If visual verification was unavailable, state what was checked and leave rendered behavior explicitly unverified.
+Report the changed result and checks concisely. If visual verification was unavailable, state what was checked and leave rendered behavior explicitly unverified.

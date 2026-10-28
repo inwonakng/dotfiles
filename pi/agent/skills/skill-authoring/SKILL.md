@@ -1,82 +1,36 @@
 ---
 name: skill-authoring
-description: Use when creating, editing, refactoring, or evaluating SKILL.md files or reusable agent workflow prompts. Produces precise triggers, lean instructions, progressive disclosure, and evidence scaled to the behavioral impact of the change.
+description: Use when creating, editing, or evaluating SKILL.md files or reusable agent workflow prompts. Covers trigger boundaries, concise instructions, and evaluation proportionate to behavioral risk; not general editing mechanics.
 ---
 
 # Skill authoring
 
-Match verification to the change's impact. Plausible wording is not evidence that a skill works.
+Add instructions that address observed failures or supply context the model lacks. Plausible wording alone does not establish better behavior.
 
-## Classify the change
+## Define the responsibility
 
-Choose the evaluation depth before editing:
+Identify when the skill should load, nearby tasks that should not load it, the observed problem, and the intended replacement behavior. Preserve unrelated requirements and safety boundaries. Keep these as working criteria unless the user requests an evaluation document.
 
-- Structural: spelling, formatting, links, or frontmatter corrections with no intended behavior change. Validate structure and references.
-- Behavioral: instructions or examples that change decisions, actions, or output. Compare the previous version and candidate on representative prompts.
-- High impact: new global/shared skills, changed trigger descriptions, discipline rules, or workflows with file edits or other side effects. Use repeated runs, near-miss prompts, and held-out validation prompts.
+Give each rule one authoritative home: global behavior in global instructions, tool mechanics in tool instructions, project facts in project instructions, and specialized guidance in the skill. Avoid chains of mandatory skill reads for routine tasks.
 
-For a rule addressing a hypothetical failure, first confirm that the previous version or no-skill baseline exhibits it.
+## Write minimal guidance
 
-## Define the behavior
+- Describe the purpose and observable trigger in frontmatter, including important exclusions. Use a clear `Use when...` description, no longer than 1024 characters.
+- Include only useful decision criteria, non-obvious facts, and steps needed to avoid likely mistakes. Make expensive investigation conditional and give it a stopping condition.
+- Use direct instructions and sentence-case headings. Prefer positive procedures over long prohibition lists. Explain a rule when its reason helps with unfamiliar cases.
+- Keep checks internal unless the user needs evidence or a decision. Let output formats omit irrelevant sections.
+- Keep `SKILL.md` short and below 500 lines. Put detailed references or reusable resources in separate files with explicit load conditions; do not split a short skill just to create more reads.
 
-Identify the conditions that should load the skill, similar tasks that should not, the observed baseline failure, the desired replacement, and assertions that distinguish success from a plausible response. Keep these as working criteria unless the user requests an evaluation document.
+## Evaluate proportionately
 
-Use observable assertions, such as "names the failing command and exit status." When revising an existing skill, preserve its trigger, required steps, safety boundaries, and exceptions unless the user requested a behavior change.
+For structural changes, check frontmatter and references. For ordinary personal workflow revisions, inspect the changed instructions and try representative tasks where practical, including a near miss when a trigger changes. Compare against the previous behavior or an observed failure before claiming improvement.
 
-## Write the skill
+Use repeated baseline/candidate runs and held-out prompts for safety-sensitive or broadly deployed changes, or when results are inconsistent. Read [the evaluation procedure](references/evaluation.md) only for that deeper comparison, not for every wording revision.
 
-Start the description with `Use when...`. Describe user intent and observable conditions, distinguish adjacent skills, and keep it below 1024 characters.
+If behavioral evaluation is unavailable, keep the revision reviewable and report behavior as unverified rather than blocking all useful edits or claiming success from wording alone.
 
-Include only instructions the agent needs to avoid likely mistakes:
+## Validate and report
 
-- the default procedure and decision criteria
-- non-obvious project or tool facts
-- failures observed in baseline runs
-- an output format when the task requires one
-- a validation loop when the result can be checked
+Check that frontmatter parses, the name matches the directory and uses lowercase letters/numbers/hyphens within 64 characters, descriptions fit their limit, and referenced resources exist. Check for duplicated policies and stale skill references.
 
-Follow `how-to-communicate` for wording. Use direct instructions and sentence-case headings. Remove repeated rules, preambles, and recaps. Keep internal checks internal; require user-facing explanation only when it supports a decision, required evidence, or a requested deliverable. Output formats should allow concise answers without forcing empty sections or process narration.
-
-Explain a rule when the reason helps with unfamiliar cases. Prefer a procedure or template over prohibitions. Use prohibitions and checks for rationalization when the observed failure is knowingly skipping a rule under pressure.
-
-Keep `SKILL.md` below 500 lines and preferably much shorter. Move detailed references, templates, and reusable scripts into `references/`, `assets/`, or `scripts/`, with an explicit load condition for each resource. Prefer scripts, hooks, schemas, or validators for mechanical invariants.
-
-## Evaluate triggering
-
-For a new skill or changed description:
-
-1. Create varied prompts that should trigger it and close near misses that should not.
-2. Run the baseline and candidate in clean contexts and record whether each loaded the skill.
-3. For high-impact changes, run each prompt at least three times and keep some prompts out of the revision loop.
-4. Revise for categories of misses rather than copying evaluation phrasing into the skill.
-
-## Evaluate output
-
-For behavioral changes:
-
-1. Run the same representative tasks against the baseline and candidate.
-2. Grade each assertion using output, tool calls, or artifacts.
-3. Inspect traces for skipped steps, wasted work, and unintended behavior.
-4. Revise and rerun if the candidate is inconsistent or regresses a required assertion.
-
-For high-impact changes, add boundary or pressure cases and compare repeated results. Measure time or tokens only when overhead affects the decision. Use blind comparison for qualities that cannot be graded mechanically, such as clarity.
-
-If behavioral evaluation cannot be run, report structural validation separately and leave behavior explicitly unverified. Do not claim wording improves behavior without comparison evidence.
-
-## Validate the package
-
-Check that:
-
-- the directory matches `name`, which uses lowercase letters, numbers, and hyphens and is at most 64 characters
-- `description` states when to use the skill and is at most 1024 characters
-- YAML frontmatter parses
-- relative links resolve from the skill directory
-- referenced resources exist and have load conditions
-- policy owned by system instructions, global instructions, or another skill is not duplicated
-- behavior-change claims have evidence at the selected evaluation depth
-
-Use an Agent Skills validator when available. Structural checks do not establish behavioral effectiveness.
-
-## Report
-
-Lead with the changed files and intended effect. State the evaluation depth, evidence, and anything behaviorally unverified, including skipped prompts, models, or runtime conditions. Fit this into the primary task's response format when skill authoring is only part of the work. Do not turn the report into an evaluation diary.
+Report changed files, intended effect, checks performed, and behavioral uncertainty concisely. Structural validation does not prove better triggering, lower tool use, or improved task outcomes.

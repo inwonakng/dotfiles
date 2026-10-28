@@ -1,43 +1,27 @@
 ---
 name: implement
-description: Use when the user explicitly asks to implement, fix, add, remove, refactor, apply, write code, or execute an approved plan or specification. Delivers the smallest complete change and verifies the result.
+description: Use when carrying out an explicitly requested or approved change to code, configuration, documents, user data, or external state. Owns execution and verification, not coding style. Do not use for discussion, read-only diagnosis, planning, or explanation alone.
 ---
 
 # Implement
 
-Make the smallest complete change that satisfies the approved behavior and affected contracts.
+Deliver the smallest complete change that satisfies the approved outcome. Implementation is not limited to programming.
 
-## Before editing
+## Execute the change
 
-1. Identify the requested outcome and source of truth: the conversation, an approved plan, or a specification.
-2. Resolve draft status, blocking questions, or conflicts with the current request before editing.
-3. Inspect the current code and check the plan's assumptions. Explain conflicts that would change the agreed behavior or approach.
-4. Use `debug` for failures or unexpected behavior and `write-good-code` for code changes.
-5. Use `todowrite` for work with several distinct steps.
-6. Before repository edits, enter a task workspace unless already in an associated task or child workspace. Use `edit` or `write` for implementation changes. Wait for the cwd switch before repository tool calls.
-7. Load the packaged `orchestration` skill through its advertised path before delegating. When orchestration is active, delegate the implementation steps below rather than executing them in the parent. Spawned workers follow their assignment and must not delegate.
+1. Establish the requested outcome from the conversation, approved plan, or specification. Resolve only questions that block the change; do not reopen settled decisions.
+2. Inspect the immediate target and any assumptions that could invalidate the approach. Extend inspection to callers, contracts, or other components only when the change could affect them.
+3. Make the change using applicable domain guidance. For code, apply `programming`; for unexplained or recurring failures, use `debug`. A clear typo or understood failure does not require a separate diagnosis phase.
+4. Check the result against the approved outcome and inspect the diff or resulting state for unintended changes.
 
-Do not create workspaces for discussion, explanation, planning, or read-only research. If an expected workspace is missing, stop editing and inspect `workspace status`; do not fall back to the original checkout. Keep temporary probes and generated artifacts under `$TMPDIR`, outside the repository, and remove them when finished.
+Tool permissions, workspaces, task tracking, and delegation follow the environment's instructions; they are not separate procedures defined by this skill.
 
-## Make the change
+## Verify the result
 
-Follow existing patterns, preserve unrelated work, and avoid speculative abstractions, dependencies, options, or compatibility behavior.
+Choose the fastest check capable of detecting a wrong result. For a bug fix, check the original symptom. For user-facing behavior, exercise the affected flow when practical. Broaden checks when shared contracts or consequences require coverage beyond the immediate target.
 
-Explain before proceeding if evidence requires changing an approved public interface, persisted data, dependency, security property, or architecture. If a blocking design decision appears, ask the user rather than silently changing direction.
+Use relevant results obtained after the last change; do not rerun checks merely to enter a completion stage. Read outcomes, warnings, skipped checks, and exit status. For delegated work, inspect the contribution and its evidence rather than relying on a success statement alone.
 
-For each independently verifiable change:
+When a check cannot run, use the available inspection or manual evidence and state its limits. A build or typecheck does not prove runtime behavior. Once the requested outcome is supported and relevant checks are complete, finish without unrelated cleanup or extra investigation.
 
-1. Inspect the affected flow, callers, failure paths, and tests.
-2. Make the least complex complete edit.
-3. Review it against `write-good-code`.
-4. Add or update a behavior test when the project has a suitable location and the test would catch a regression.
-5. Run the fastest check that could disprove the changed behavior, then broader checks required by affected consumers or contracts.
-6. Use `debug` if a check fails.
-
-Run implementation checks inside the associated workspace.
-
-## Complete the task
-
-Use `verify` before claiming completion. Report the changed result, evidence, unchecked behavior, and active workspace concisely.
-
-Call `workspace integrate` after verification. In `ask` mode it requests confirmation; in `allowed` mode integration is pre-authorized. Wait for the cwd switch back to the origin checkout before further tool calls.
+Report the changed result, supporting checks, and important unchecked behavior concisely.

@@ -1,31 +1,21 @@
 ---
 name: plan
-description: Use when the user asks for an implementation plan, requests a design or architecture decision before coding, or wants implementation approaches compared. Produces an evidence-based, actionable plan in the current conversation for review and approval. Do not use to implement changes, explain existing code without proposing a change, review an existing plan, or create a standalone handoff specification.
+description: Use when the user requests an implementation plan, a design decision before coding, or a comparison of approaches. Chooses an actionable approach for approval. Not needed just to execute a small understood change. Do not use for explanation alone, review of an existing plan, or a standalone handoff specification.
 ---
 
 # Plan
 
-Produce an actionable implementation approach from the requested outcome and repository evidence. Keep the plan in the conversation for approval; use `prepare-spec` for a standalone handoff.
+Choose the smallest complete approach supported by the requested outcome and available evidence. Keep the plan in the conversation; do not start implementation.
 
-## Boundaries
+## Decide the approach
 
-- Inspect relevant code and documentation without modifying files or starting implementation.
-- Resolve repository facts through inspection. Ask only about intent, constraints, or tradeoffs that cannot be discovered and would materially change the approach.
-- Use `write-good-code` for code-related plans.
-- Keep synthesis and unresolved user decisions in the main session. Subagents may gather bounded evidence or critique a draft.
+1. Reuse agreed outcomes, constraints, and decisions. Ask about intent or tradeoffs only when they materially change the approach and cannot be resolved from available evidence.
+2. Inspect only repository facts that could change the recommendation. Follow callers, data flow, interfaces, configuration, or failure paths when the proposed change makes them relevant, not as a mandatory inventory.
+3. Choose an approach and explain deciding tradeoffs. Compare alternatives only when they materially differ in behavior, cost, complexity, or risk. Apply `programming` principles to code designs without starting an implementation workflow.
+4. Identify the implementation steps and how the requested outcome will be checked. Add paths, ordering, affected contracts, migrations, or rollout considerations only where they prevent ambiguity or address a concrete risk.
 
-## Develop the plan
-
-1. Identify the observable outcome, success criteria, constraints, exclusions, and decisions already made. Resolve intent that blocks a sound approach.
-2. Trace current behavior through callers, data flow, interfaces, configuration, and failure paths. Find nearby implementation and testing patterns. Identify contracts to preserve or deliberately change.
-3. Choose the smallest complete approach supported by the evidence. Include deciding tradeoffs; present alternatives only when they materially differ in behavior, cost, complexity, compatibility, or risk.
-4. Order the work into coherent implementation slices. Give each slice an outcome, likely paths or symbols, affected contracts, dependencies, and relevant verification. Avoid file inventories and speculative pseudocode.
-5. Check every success criterion and ensure verification observes the requested behavior. Account for relevant migrations, security, compatibility, rollout constraints, and uncertainty.
+Stop investigating when the approach is actionable and further inspection would not change it. State non-blocking uncertainty; resolve blockers before calling the plan final.
 
 ## Present the plan
 
-Lead with the proposed approach and outcome. Include current behavior only where it explains a constraint or decision, then give the implementation steps and verification. Add risks and open questions only when relevant.
-
-Use the detail the task needs. Do not force a template, repeat the outcome in each section, or describe the planning process.
-
-Resolve blocking questions before presenting a final plan. State non-blocking uncertainty, then stop for approval or revision.
+Lead with the recommendation, then give steps and verification at the level the task needs. Do not force a template or repeat the outcome across sections. Stop for approval or revision. Use `prepare-spec` only when the requested deliverable is a durable handoff.
