@@ -33,7 +33,7 @@ local generation = 0
 local jobs, tasks, timers = {}, {}, {}
 local current, history, stream, servers
 local heartbeat, expiry, expiryQueued
-local borderQueued, borderColor
+local borderQueued, borderWindows = {}, {}
 local lastError
 local workspaceRevision = 0
 local workspaceRevisions = {} -- History queries are independent across native Spaces.
@@ -260,24 +260,68 @@ local function cachedWindow(windows, workspace, key, predicate)
     if window and predicate(window) then return window end
 end
 
-local function refreshBorder()
-    local color = "0x00000000"
-    local window = History.focused(query("windows"))
-    if window and window.is_floating then color = "0xffffb454" end
-    if color == borderColor then return end
-    local _, code = run("/usr/bin/pgrep", { "-x", "borders" }, true)
-    if code ~= 0 then error("JankyBorders is stopped; restart Rift or Hammerspoon") end
-    -- Never pass hidpi on ordinary events: doing so recreates every border.
-    run(bordersCli, { "active_color=" .. color })
-    borderColor = color
+local function setWindowBorder(window, floating)
+    local id = window.window_server_id
+    assert(type(id) == "number" and id > 0 and id % 1 == 0, "Invalid WindowServer ID")
+    -- Keep the global default transparent. JankyBorders handles focus itself,
+    -- using amber only for windows which Rift has identified as floating.
+    -- Never pass hidpi here: it recreates borders and discards their overrides.
+    run(bordersCli, {
+        "apply-to=" .. tostring(id),
+        "active_color=" .. (floating and "0xffffb454" or "0x00000000"),
+        "inactive_color=0x00000000",
+    })
 end
 
-function M.refreshBorder()
-    if not running or borderQueued then return end
-    borderQueued = true
+local function refreshBorder(space, force)
+    if not space then
+        local layout = query("layout")
+        if not layout then return end
+        space = layout.space_id
+    end
+    local workspaces = query("workspaces", space)
+    local _, code = run("/usr/bin/pgrep", { "-x", "borders" }, true)
+    if code ~= 0 then error("JankyBorders is stopped; restart Rift or Hammerspoon") end
+    local seen = {}
+    -- Include inactive virtual workspaces so their floats are configured before
+    -- entry. Keep other native Spaces' records when reconciling this one.
+    for _, workspace in ipairs(workspaces) do
+        for _, window in ipairs(workspace.windows) do
+            local id = window.window_server_id
+            if id then
+                seen[id] = true
+                local floating = window.is_floating == true
+                local previous = borderWindows[id]
+                local same = previous and History.sameId(previous.id, window.id)
+                if (floating and (force or not same or not previous.is_floating))
+                    or (previous and previous.is_floating and not floating) then
+                    setWindowBorder(window, floating)
+                end
+                borderWindows[id] = {
+                    id = window.id, window_server_id = id,
+                    is_floating = floating, space = space,
+                }
+            end
+        end
+    end
+    for id, window in pairs(borderWindows) do
+        if window.space == space and not seen[id] then
+            if window.is_floating then setWindowBorder(window, false) end
+            borderWindows[id] = nil
+        end
+    end
+end
+
+function M.refreshBorder(space, force)
+    if not running or not stream then return end
+    local key = space or "active"
+    local pending = borderQueued[key]
+    if pending then pending.force = pending.force or force; return end
+    pending = { force = force }
+    borderQueued[key] = pending
     enqueue(function()
-        borderQueued = false
-        refreshBorder()
+        borderQueued[key] = nil
+        refreshBorder(space, pending.force)
     end)
 end
 
@@ -314,13 +358,12 @@ local function startBorders()
             sleep(0.05)
         end
     end
-    borderColor = "0x00000000"
-    refreshBorder()
+    borderWindows = {}
+    refreshBorder(nil, true)
 end
 
 local borderEvents = {
-    focused_window_changed = true, workspace_changed = true,
-    windows_changed = true, layout_changed = true,
+    workspace_changed = true, windows_changed = true, layout_changed = true,
 }
 
 local function disconnect()
@@ -364,7 +407,7 @@ local function connect(pids)
                         end)
                         if not ok then disconnect(); error(err) end
                     end
-                    if borderEvents[event.type] then M.refreshBorder() end
+                    if borderEvents[event.type] then M.refreshBorder(event.space_id) end
                 end)
             else
                 log.e("Invalid Rift event: " .. line)
@@ -518,8 +561,23 @@ end
 
 function M.toggleFloat()
     enqueue(function()
-        cli({ "execute", "window", "toggle-float" })
+        local revision, initial = workspaceRevision, focusedId()
+        local windows = query("windows")
+        if revision ~= workspaceRevision or focusedId() ~= initial then return end
+        local window = nativeFocused(windows)
+        if window and window.is_floating and window.window_server_id then
+            -- Hide before tiling, rather than waiting for a layout event to
+            -- remove the former float's per-window amber setting afterward.
+            setWindowBorder(window, false)
+            borderWindows[window.window_server_id] = nil
+            if revision ~= workspaceRevision or focusedId() ~= initial then
+                refreshBorder()
+                return
+            end
+        end
+        local ok, err = pcall(cli, { "execute", "window", "toggle-float" })
         refreshBorder()
+        if not ok then error(err) end
     end)
 end
 
@@ -527,7 +585,14 @@ function M.start()
     if running then return end
     running = true
     enqueue(checkServer)
-    heartbeat = hs.timer.doEvery(2, function() enqueue(checkServer) end)
+    heartbeat = hs.timer.doEvery(2, function()
+        enqueue(function()
+            checkServer()
+            -- apply-to silently ignores windows not yet known to JankyBorders.
+            -- Reapply float overrides to recover from creation/recreation races.
+            M.refreshBorder(nil, true)
+        end)
+    end)
     expiry = hs.timer.doEvery(0.05, function()
         if expiryQueued or not history then return end
         local due = false
@@ -558,13 +623,14 @@ function M.stop()
     for task in pairs(tasks) do task:terminate() end
     -- JankyBorders is an independent daemon, not owned by a Hammerspoon reload.
     jobs, tasks, timers = {}, {}, {}
-    current, expiryQueued, borderQueued = nil, nil, nil
+    current, expiryQueued = nil, nil
+    borderQueued = {}
 end
 
 function M.status()
     return {
         running = running, connected = stream ~= nil, queued = #jobs,
-        busy = current ~= nil, lastError = lastError, borderColor = borderColor,
+        busy = current ~= nil, lastError = lastError, borderWindows = borderWindows,
     }
 end
 
