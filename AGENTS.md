@@ -8,3 +8,4 @@ The relevant directories are symlinked to the appropriate locations for each sys
 - Do not write "tests". If you need to validate certain behavior, use a separate script in a throwaway directory under `$TMPDIR`, keep it outside the repository, and remove it when finished. If you really think a test is necessary, ask the user.
 - Read `README.md` to check what apps are configured and how they work.
 - Do not add anything to the `README.md` on your own. ask the user if you think it could help.
+- no tests. this is not a code repository. If you need to verify certain behavior, write a probe in a temporary directory.

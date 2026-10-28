@@ -49,6 +49,7 @@ Vim is an exception. link to `~/.vim`
 - [Rift](https://github.com/acsandmann/rift/wiki) space manager. used to maintain virtual spaces
 - [Rectangle](https://rectangleapp.com) window manager. used to snap windows to the sides of the screen
 - [Hammerspoon](https://www.hammerspoon.org) scriptable automation tool. can do arbitrary things
+  - right now we use this to add some additional functionalities to rift, such as toggling floating windows.
 - [Zotero](https://www.zotero.org) paper manager
   - [AIdea](https://github.com/Visterainer/aidea-zotero) AI assistant integration for Zotero
   - [Pi research workspace and reader bridge](zotero/README.md): ordinary Pi in
