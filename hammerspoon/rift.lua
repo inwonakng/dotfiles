@@ -36,7 +36,8 @@ local jobs, tasks, timers = {}, {}, {}
 local current, history, stream, servers
 local closeWatcher, lastNativeFocus, closingNativeFocus
 local nativeWindows, inputGuards = {}, {}
-local focusIntent = 0
+local focusIntent, closeRevision = 0, 0
+local workspaceSnapshots = {}
 local heartbeat, expiry, expiryQueued
 local borderQueued, borderWindows = {}, {}
 local lastError
@@ -149,11 +150,28 @@ end
 local function cli(args) return run(riftCli, args) end
 
 local function query(kind, space)
+    local revision = workspaceRevision
     local args = { "query", kind }
     if space then table.insert(args, "--space-id"); table.insert(args, tostring(space)) end
     local output = cli(args)
     local value = hs.json.decode(output)
     assert(value ~= nil or output:match("^%s*null%s*$"), "Invalid Rift JSON: " .. output)
+    if kind == "workspaces" and revision == workspaceRevision then
+        for _, workspace in ipairs(value) do
+            workspaceSnapshots[workspace.id] = {
+                windows = workspace.windows, active = workspace.is_active, revision = revision,
+            }
+            -- Blacklisted apps may receive native focus without a Rift focus
+            -- event. Bind their native observations to confirmed membership too.
+            for _, window in ipairs(workspace.windows) do
+                local record = nativeWindows[window.window_server_id]
+                if record and record.pid == window.id.pid then
+                    record.window, record.workspace = window, workspace.id
+                    record.last_tiled = (cache[workspace.id] or {}).last_tiled
+                end
+            end
+        end
+    end
     return value
 end
 
@@ -365,6 +383,14 @@ local function observeNativeFocus(native)
         closingNativeFocus = (not role or role == "") and lastNativeFocus or nil
     end
     lastNativeFocus = { native = native, id = id, pid = app:pid() }
+    for workspace, snapshot in pairs(workspaceSnapshots) do
+        for _, window in ipairs(snapshot.windows) do
+            if window.window_server_id == id and window.id.pid == lastNativeFocus.pid then
+                lastNativeFocus.window, lastNativeFocus.workspace = window, workspace
+                lastNativeFocus.last_tiled = (cache[workspace] or {}).last_tiled
+            end
+        end
+    end
     nativeWindows[id] = lastNativeFocus
 end
 
@@ -380,46 +406,79 @@ local function restoreAfterClose(native)
     if source == lastNativeFocus then lastNativeFocus = nil end
     if source == closingNativeFocus then closingNativeFocus = nil end
     local closed = history:takeClosed(source.id, source.pid)
+    if not closed and source.window then
+        closed = { window = source.window, workspace = source.workspace, last_tiled = source.last_tiled }
+    end
     if not eligible or not closed or not closed.window.is_floating then return end
+    local snapshot = workspaceSnapshots[closed.workspace]
+    if not snapshot or not snapshot.active or snapshot.revision ~= workspaceRevision then return end
+    closeRevision = closeRevision + 1
     local token, controller, revision = generation, history, workspaceRevision
+    local intent, closing = focusIntent, closeRevision
     -- Observe only while this close is pending; never inspect/store input.
     local guard, inputValid = watchInput()
     if not guard then return end
     local function valid()
         return inputValid() and token == generation and revision == workspaceRevision
+            and intent == focusIntent and closing == closeRevision
     end
-    enqueue(function()
-        local ok, err = pcall(function()
-            -- AX can briefly report window ID 0 before the automatic successor.
-            -- Let that transition settle, but let any new user input win.
-            sleep(0.05)
-            if not valid() then return end
-            local initial, app = focusedId(), frontmostPid()
-            if app ~= source.pid and (not initial or initial <= 0) then return end
-            local function unchanged()
-                return valid() and focusedId() == initial and frontmostPid() == app
-            end
-            -- AX destruction can also precede Rift's membership removal.
-            local deadline = now() + 0.5
-            local windows, workspace
-            repeat
-                if not unchanged() then return end
-                windows, workspace = context()
-                if not unchanged() or workspace ~= closed.workspace then return end
-                if not History.find(windows, closed.window) then break end
-                if now() >= deadline then return end
-                sleep(0.02)
-            until false
-            local available = {}
-            for _, window in ipairs(windows) do
+    local function availableWindows(windows)
+        local available = {}
+        for _, window in ipairs(windows) do
+            -- Rift can still list the confirmed dead source for several events.
+            if not History.sameId(window.id, closed.window.id) then
                 local found, candidate = pcall(nativeWindow, window)
                 if found and candidate:isVisible() and not candidate:isMinimized() then
                     table.insert(available, window)
                 end
             end
-            local target = controller:closeTarget(closed, available)
-            if target and unchanged() then
-                controller:selectGroup(workspace, target, target.is_floating, valid)
+        end
+        return available
+    end
+    -- Do the first native handoff right in the destruction callback. Do not put
+    -- a sleep, CLI round trip, or the existing job backlog in front of it.
+    local handedOff, handoffError = pcall(function()
+        local windows = availableWindows(snapshot.windows)
+        local target = controller:closeTarget(closed, windows)
+        if not target or not valid() then return end
+        local nativeTarget, app = nativeWindow(target)
+        assert(nativeTarget:becomeMain(), "Cannot make close fallback main")
+        assert(app:setFrontmost(false), "Cannot activate close fallback")
+        assert(nativeTarget:raise(), "Cannot raise close fallback")
+        if target.is_floating then stackFloats(windows, target) end
+    end)
+    if not handedOff then log.w("Immediate close handoff: " .. tostring(handoffError)) end
+    local deadline = now() + 1
+    enqueue(function()
+        local ok, err = pcall(function()
+            -- macOS/Rift may deliver their automatic successor after our first
+            -- handoff (including Finder's ID 0 -> tile). This is still the same
+            -- close operation, unless actual input/navigation supersedes it.
+            while valid() do
+                local windows, workspace = context()
+                if not valid() or workspace ~= closed.workspace then return end
+                if now() >= deadline then error("Close focus did not settle on " .. closed.workspace) end
+                local available = availableWindows(windows)
+                local target = controller:closeTarget(closed, available)
+                if not target then return end
+                local removed = not History.find(windows, closed.window)
+                local failures = {}
+                local selected = controller.focus(target, target.is_floating and function(activeWindows)
+                    -- Verification may still query the dead source. Never try
+                    -- to raise it while Rift catches up with AX destruction.
+                    failures = stackFloats(availableWindows(activeWindows), target)
+                    return #failures == 0
+                end or nil, workspace, valid)
+                if #failures > 0 then error("Cannot raise close fallback:\n" .. table.concat(failures, "\n")) end
+                if selected and removed then
+                    controller:remember(workspace, target)
+                    return
+                end
+                -- A native automatic fallback can interrupt focus verification.
+                -- Retry only this confirmed close, with fresh membership.
+                if not valid() then return end
+                if now() >= deadline then error("Close focus did not settle on " .. closed.workspace) end
+                sleep(0.02)
             end
         end)
         stopWatchingInput(guard)
@@ -540,7 +599,7 @@ local function disconnect()
     for guard in pairs(inputGuards) do guard:stop() end
     inputGuards = {}
     lastNativeFocus, closingNativeFocus = nil, nil
-    nativeWindows = {}
+    nativeWindows, workspaceSnapshots = {}, {}
     history, servers = nil, nil
 end
 
