@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 rift_cache_file="$HOME/.cache/rift-windows.json"
+rift_cache_writer="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/rift_window_cache.py"
 rift_windows="[]"
 rift_workspace_id="default"
 
@@ -32,28 +33,11 @@ rift_focus_window() {
 rift_save_cached_window() {
   local key="$1"
   local window="$2"
-  local tmp
-  local current
 
   [[ -z "$window" ]] && return 0
 
-  mkdir -p "$(dirname "$rift_cache_file")"
-  current="$(cat "$rift_cache_file" 2>/dev/null || printf '{}')"
-  tmp="$rift_cache_file.$$"
-
-  if jq -c \
-    --arg workspace_id "$rift_workspace_id" \
-    --arg key "$key" \
-    --argjson window "$window" \
-    'if type == "object" then . else {} end
-     | .[$workspace_id] = (
-         ((.[$workspace_id] // {}) | if type == "object" then . else {} end)
-         + {($key): {id: $window.id, window_server_id: ($window.window_server_id // null)}}
-       )' <<< "$current" > "$tmp"; then
-    mv "$tmp" "$rift_cache_file"
-  else
-    rm -f "$tmp"
-  fi
+  # Merge under the same lock as the persistent focus listener.
+  python3 -B "$rift_cache_writer" "$rift_workspace_id" "$key" "$window"
 }
 
 rift_cached_window() {

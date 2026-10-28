@@ -59,9 +59,10 @@ auto_focus_blacklist = []
 # ]
 
 # Amber border for the focused floating window; tiled and unfocused borders are transparent.
-# Start one border daemon before subscribing. Restart Rift to apply startup changes.
+# Start one border daemon and one focus-history listener. Restart Rift to apply startup changes.
 run_on_start = [
   "bash -lc 'exec bash \"$HOME/.config/rift/scripts/update-floating-border.sh\" --start'",
+  "bash -lc 'exec python3 -B \"$HOME/.config/rift/scripts/workspace-focus.py\"'",
 ]
 
 # Hot Reloading
@@ -578,9 +579,13 @@ AltCtrl = "Alt + Ctrl"
 "Alt + Enter" = { exec = [
   "bash",
   "-lc",
-  "exec bash \"$HOME/.config/rift/scripts/toggle-stack-preserve-focus.sh\"",
+  "exec bash \"$HOME/.config/rift/scripts/layout-preserve-focus.sh\" toggle-stack",
 ] }
-"Alt + Backslash" = "toggle_orientation"
+"Alt + Backslash" = { exec = [
+  "bash",
+  "-lc",
+  "exec bash \"$HOME/.config/rift/scripts/layout-preserve-focus.sh\" toggle-orientation",
+] }
 "AltCtrl + E" = "unjoin_windows"
 
 # Refresh explicitly even when toggling floating leaves the window geometry unchanged.
