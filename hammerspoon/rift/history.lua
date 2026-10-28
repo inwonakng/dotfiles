@@ -25,7 +25,7 @@ end
 function History.new(cache, save, focus, now, stackFloats, nativeFocused)
     return setmetatable({
         cache = cache, save = save, focus = focus, now = now,
-        stackFloats = stackFloats, nativeFocused = nativeFocused, active = {}, pending = {},
+        stackFloats = stackFloats, nativeFocused = nativeFocused, active = {}, pending = {}, recent = {},
     }, History)
 end
 
@@ -33,6 +33,56 @@ function History:remember(workspace, window)
     if not window then return end
     self.save(workspace, "last_focused", window)
     self.save(workspace, window.is_floating and "last_floating" or "last_tiled", window)
+    local recent = self.recent[workspace] or {}
+    self.recent[workspace] = recent
+    for _, records in pairs(self.recent) do
+        for index = #records, 1, -1 do
+            if History.sameId(records[index].window.id, window.id) then table.remove(records, index) end
+        end
+    end
+    table.insert(recent, 1, {
+        window = window, last_tiled = (self.cache[workspace] or {}).last_tiled,
+    })
+end
+
+-- Consume the pre-close observation, even if macOS has already selected another
+-- window. Preserve the tile used before entering floats, not its automatic fallback.
+function History:takeClosed(id, pid)
+    local closed
+    for workspace, recent in pairs(self.recent) do
+        for index = #recent, 1, -1 do
+            local record = recent[index]
+            if record.window.window_server_id == id and record.window.id.pid == pid then
+                record.workspace = workspace
+                closed = closed or record
+                table.remove(recent, index)
+            end
+        end
+    end
+    return closed
+end
+
+function History:closeTarget(closed, windows)
+    local recent = self.recent[closed.workspace] or {}
+    -- Reconcile history against current membership, including moves and retiling.
+    for index = #recent, 1, -1 do
+        if not History.find(windows, recent[index].window) then table.remove(recent, index) end
+    end
+    for _, record in ipairs(recent) do
+        local window = History.find(windows, record.window)
+        if window.is_floating then return window end
+    end
+    local state = self.cache[closed.workspace] or {}
+    local floating = History.find(windows, state.last_floating)
+    if floating and floating.is_floating then return floating end
+    for _, window in ipairs(windows) do
+        if window.is_floating then return window end
+    end
+    local tiled = History.find(windows, closed.last_tiled)
+    if tiled and not tiled.is_floating then return tiled end
+    for _, window in ipairs(windows) do
+        if not window.is_floating then return window end
+    end
 end
 
 function History:seed(space, workspaces)
@@ -70,6 +120,14 @@ function History:enter(space, workspace)
 end
 
 function History:handle(event, workspaces)
+    -- Floating can change without a focus event. Refresh live records without
+    -- dropping a vanished window before its native destruction callback arrives.
+    for _, workspace in ipairs(workspaces) do
+        for _, record in ipairs(self.recent[workspace.id] or {}) do
+            record.window = History.find(workspace.windows, record.window) or record.window
+        end
+    end
+    if event.type ~= "workspace_changed" and event.type ~= "focused_window_changed" then return end
     local space = event.space_id
     local identity = event.workspace_id
     local workspaceId = string.format("VirtualWorkspaceId(%dv%d)", identity.idx, identity.version)

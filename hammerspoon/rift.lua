@@ -7,6 +7,7 @@ require("hs.json")
 require("hs.fs")
 require("hs.logger")
 require("hs.window")
+require("hs.window.filter")
 local History = require("rift.history")
 local M = {}
 local log = hs.logger.new("rift", "info")
@@ -32,6 +33,8 @@ local running = false
 local generation = 0
 local jobs, tasks, timers = {}, {}, {}
 local current, history, stream, servers
+local closeWatcher, lastNativeFocus, closingNativeFocus
+local nativeWindows = {}
 local heartbeat, expiry, expiryQueued
 local borderQueued, borderWindows = {}, {}
 local lastError
@@ -173,9 +176,9 @@ local function nativeFocused(windows)
 end
 
 local function nativeWindow(window)
-    local native = window.window_server_id and hs.window.get(window.window_server_id)
-    local app = native and native:application()
-    assert(app and app:pid() == window.id.pid, "Rift window is no longer available")
+    local app = hs.application.applicationForPID(window.id.pid)
+    local native = app and window.window_server_id and app:getWindow(window.window_server_id)
+    assert(native and app:pid() == window.id.pid, "Rift window is no longer available")
     return native, app
 end
 
@@ -211,12 +214,17 @@ local function focusedId()
     return window and window:id()
 end
 
+local function frontmostPid()
+    local app = hs.application.frontmostApplication()
+    return app and app:pid()
+end
+
 local function focus(window, afterFocus, expectedWorkspace)
-    local revision, initial = workspaceRevision, focusedId()
+    local revision, initial, initialApp = workspaceRevision, focusedId(), frontmostPid()
     local windows, workspace = context()
     -- Queries yield to the event stream. Never apply an old action after a switch
     -- or after the user/app has selected a different native window.
-    if revision ~= workspaceRevision or focusedId() ~= initial
+    if revision ~= workspaceRevision or focusedId() ~= initial or frontmostPid() ~= initialApp
         or (expectedWorkspace and workspace ~= expectedWorkspace) then return false end
     local available = History.find(windows, window)
     if not available then return false, "unavailable" end
@@ -258,6 +266,70 @@ end
 local function cachedWindow(windows, workspace, key, predicate)
     local window = History.find(windows, (cache[workspace] or {})[key])
     if window and predicate(window) then return window end
+end
+
+local function observeNativeFocus(native)
+    local app = native:application()
+    local id = native:id()
+    if not app or not id or id <= 0 then return end
+    -- A successor can be reported before the destruction notification.
+    -- Keep its predecessor only if that AX window is already dead. Moving away
+    -- from a live window is ordinary focus intent, not permission to restore it.
+    if lastNativeFocus and lastNativeFocus.native ~= native then
+        local role = lastNativeFocus.native:role()
+        closingNativeFocus = (not role or role == "") and lastNativeFocus or nil
+    end
+    lastNativeFocus = { native = native, id = id, pid = app:pid() }
+    nativeWindows[id] = lastNativeFocus
+end
+
+local function restoreAfterClose(native)
+    local source
+    -- Destruction callbacks may carry dead AX objects without usable IDs/PIDs.
+    -- Compare the retained native objects instead of querying their properties.
+    for id, record in pairs(nativeWindows) do
+        if record.native == native then source = record; nativeWindows[id] = nil; break end
+    end
+    if not source or not history then return end
+    local eligible = source == lastNativeFocus or source == closingNativeFocus
+    local successor = source == closingNativeFocus and lastNativeFocus
+    if source == lastNativeFocus then lastNativeFocus = nil end
+    if source == closingNativeFocus then closingNativeFocus = nil end
+    local closed = history:takeClosed(source.id, source.pid)
+    if not eligible or not closed or not closed.window.is_floating then return end
+    -- Accept the immediate automatic successor, even in another app, but not an
+    -- unrelated windowless application activation while destruction was queued.
+    if frontmostPid() ~= source.pid and (not successor or successor.pid ~= frontmostPid()
+        or successor.id ~= focusedId()) then return end
+    local token, controller, revision = generation, history, workspaceRevision
+    local initial, app = focusedId(), frontmostPid()
+    local function unchanged()
+        return token == generation and revision == workspaceRevision
+            and focusedId() == initial and frontmostPid() == app
+    end
+    enqueue(function()
+        -- AX destruction can precede Rift's removal. Wait only for this confirmed
+        -- close, and abandon it on newer native focus or workspace intent.
+        local deadline = now() + 0.5
+        local windows, workspace
+        repeat
+            if not unchanged() then return end
+            windows, workspace = context()
+            if not unchanged() or workspace ~= closed.workspace then return end
+            if not History.find(windows, closed.window) then break end
+            if now() >= deadline then return end
+            sleep(0.02)
+        until false
+        local available = {}
+        for _, window in ipairs(windows) do
+            local ok, candidate = pcall(nativeWindow, window)
+            if ok and candidate:isVisible() and not candidate:isMinimized() then
+                table.insert(available, window)
+            end
+        end
+        local target = controller:closeTarget(closed, available)
+        if target and unchanged() then controller:selectGroup(workspace, target, target.is_floating) end
+    end)
 end
 
 local function setWindowBorder(window, floating)
@@ -369,6 +441,9 @@ local borderEvents = {
 local function disconnect()
     generation = generation + 1
     if stream then stream:terminate(); stream = nil end
+    if closeWatcher then closeWatcher:delete(); closeWatcher = nil end
+    lastNativeFocus, closingNativeFocus = nil, nil
+    nativeWindows = {}
     history, servers = nil, nil
 end
 
@@ -399,7 +474,8 @@ local function connect(pids)
                 end
                 enqueue(function()
                     if token ~= generation then return end
-                    if event.type == "workspace_changed" or event.type == "focused_window_changed" then
+                    if event.type == "workspace_changed" or event.type == "focused_window_changed"
+                        or event.type == "windows_changed" or event.type == "layout_changed" then
                         local ok, err = pcall(function()
                             local revision = workspaceRevisions[event.space_id]
                             local workspaces = query("workspaces", event.space_id)
@@ -418,6 +494,11 @@ local function connect(pids)
     assert(stream and stream:start(), "Cannot subscribe to Rift events")
     local layout = query("layout")
     if layout then history:seed(layout.space_id, query("workspaces", layout.space_id)) end
+    closeWatcher = hs.window.filter.new(true)
+    closeWatcher:subscribe(hs.window.filter.windowFocused, observeNativeFocus)
+    closeWatcher:subscribe(hs.window.filter.windowDestroyed, restoreAfterClose)
+    local native = hs.window.focusedWindow()
+    if native then observeNativeFocus(native) end
     enqueue(startBorders)
 end
 
