@@ -10,6 +10,7 @@ ln -snf ~/dotfiles/vim ~/.vim
 ln -snf ~/dotfiles/osx/.latexmkrc ~/.latexmkrc
 ln -snf ~/dotfiles/ipython ~/.ipython
 ln -snf ~/dotfiles/rift ~/.config/rift
+ln -snf ~/dotfiles/hammerspoon ~/.hammerspoon
 ln -snf ~/dotfiles/ghostty ~/.config/ghostty
 ln -snf ~/dotfiles/karabiner ~/.config/karabiner
 ln -snf ~/dotfiles/lazygit ~/.config/lazygit

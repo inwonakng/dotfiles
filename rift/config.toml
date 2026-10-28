@@ -58,12 +58,9 @@ auto_focus_blacklist = []
 #   "rift-cli subscribe cli --event windows_changed --command sh --args -c --args 'sketchybar --trigger rift_windows_changed RIFT_WORKSPACE_NAME=\"$RIFT_WORKSPACE_NAME\" RIFT_WINDOW_COUNT=\"$RIFT_WINDOW_COUNT\"'"
 # ]
 
-# Amber border for the focused floating window; tiled and unfocused borders are transparent.
-# Start one border daemon and one focus-history listener. Restart Rift to apply startup changes.
-run_on_start = [
-  "bash -lc 'exec bash \"$HOME/.config/rift/scripts/update-floating-border.sh\" --start'",
-  "bash -lc 'exec python3 -B \"$HOME/.config/rift/scripts/workspace-focus.py\"'",
-]
+# Custom automation (including focus history and the amber floating border) lives
+# in ~/.hammerspoon/init.lua. It subscribes to Rift and reconnects after restarts.
+run_on_start = []
 
 # Hot Reloading
 # - If true, rift will watch the config file for changes and reload automatically.
@@ -492,9 +489,9 @@ AltCtrl = "Alt + Ctrl"
 "Alt + K" = { move_focus = "up" }
 "Alt + L" = { move_focus = "right" }
 "Alt + E" = { exec = [
-  "sh",
-  "-lc",
-  "exec bash \"$HOME/.config/rift/scripts/focus-finder-windows.sh\"",
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs",
+  "-c",
+  "rift.toggleFinder()",
 ] }
 
 "AltShift + H" = { move_node = "left" }
@@ -577,30 +574,30 @@ AltCtrl = "Alt + Ctrl"
 "AltCtrl + K" = { join_window = "up" }
 
 "Alt + Enter" = { exec = [
-  "bash",
-  "-lc",
-  "exec bash \"$HOME/.config/rift/scripts/layout-preserve-focus.sh\" toggle-stack",
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs",
+  "-c",
+  "rift.layoutPreserveFocus('toggle-stack')",
 ] }
 "Alt + Backslash" = { exec = [
-  "bash",
-  "-lc",
-  "exec bash \"$HOME/.config/rift/scripts/layout-preserve-focus.sh\" toggle-orientation",
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs",
+  "-c",
+  "rift.layoutPreserveFocus('toggle-orientation')",
 ] }
 "AltCtrl + E" = "unjoin_windows"
 
 # Refresh explicitly even when toggling floating leaves the window geometry unchanged.
 "AltShift + F" = { exec = [
-  "bash",
-  "-lc",
-  "rift-cli execute window toggle-float && exec bash \"$HOME/.config/rift/scripts/update-floating-border.sh\"",
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs",
+  "-c",
+  "rift.toggleFloat()",
 ] }
 
 "Alt + Z" = "toggle_fullscreen"
 # "Alt + F" = "toggle_focus_floating"
 "Alt + F" = { exec = [
-  "bash",
-  "-lc",
-  "exec bash \"$HOME/.config/rift/scripts/toggle-floating-window-workspace.sh\"",
+  "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs",
+  "-c",
+  "rift.toggleAllFloating()",
 ] }
 
 # smartly resize windows
