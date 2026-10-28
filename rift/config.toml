@@ -593,7 +593,7 @@ AltCtrl = "Alt + Ctrl"
 ] }
 
 "Alt + Z" = "toggle_fullscreen"
-# "Alt + F" = "toggle_focus_floating"
+# Bring all floats forward, or return directly to the remembered tile.
 "Alt + F" = { exec = [
   "/Applications/Hammerspoon.app/Contents/Frameworks/hs/hs",
   "-c",

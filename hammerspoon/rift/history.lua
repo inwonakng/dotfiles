@@ -31,6 +31,9 @@ end
 
 function History:remember(space, workspace, window)
     self.save(workspace, "last_focused", window)
+    if window and window.is_floating ~= nil then
+        self.save(workspace, window.is_floating and "last_floating" or "last_tiled", window)
+    end
     self.lastFocus[space] = window
 end
 
@@ -43,11 +46,68 @@ function History:seed(space, workspaces)
     end
 end
 
-function History:restore(pending, target, automatic)
+-- Prefer recent focus within the intended group, then the explicit-toggle cache.
+local function groupTarget(windows, state, up)
+    local function matches(window) return window and (window.is_floating == true) == up end
+    local target = History.find(windows, state.last_focused)
+    if matches(target) then return target end
+    target = History.find(windows, state[up and "last_floating" or "last_tiled"])
+    if matches(target) then return target end
+    for _, window in ipairs(windows) do
+        if matches(window) then target = window end
+    end
+    if matches(target) then return target end
+end
+
+function History:target(pending, workspace)
+    local target = History.find(workspace.windows, pending.target)
+    if not target and not pending.requested and pending.floatsUp ~= nil then
+        target = groupTarget(workspace.windows, self.cache[workspace.id] or {}, pending.floatsUp)
+            or History.focused(workspace.windows) or workspace.windows[#workspace.windows]
+    end
+    return target
+end
+
+function History:restore(pending, target, automatic, windows)
     pending.requested = true
     pending.automatic = automatic and automatic.id
     pending.deadline = self.now() + 1
-    self.focus(target)
+    pending.generated = {}
+    local failures = {}
+    local function visit(window)
+        -- Continue past a closed window, but report every CLI/start/timeout error.
+        local ok, err = pcall(self.focus, window)
+        if ok then
+            table.insert(pending.generated, window)
+            pending.target = window
+        else
+            table.insert(failures, tostring(err))
+        end
+    end
+    if pending.floatsUp then
+        for _, window in ipairs(windows) do
+            if window.is_floating and not History.sameId(window.id, target.id) then visit(window) end
+        end
+    end
+    visit(target)
+    if #failures > 0 then
+        -- Successful commands may still have queued focus events to drain. A
+        -- wholly failed operation has no generated events and must not linger.
+        if #pending.generated == 0 then
+            for space, active in pairs(self.pending) do
+                if active == pending then self.pending[space] = nil end
+            end
+        end
+        error("Cannot restore Rift focus:\n" .. table.concat(failures, "\n"), 0)
+    end
+end
+
+function History:selectGroup(workspace, windows, target, up)
+    local pending = { workspace = workspace, target = target, floatsUp = up }
+    for space, active in pairs(self.active) do
+        if active == workspace then self.pending[space] = pending; break end
+    end
+    self:restore(pending, target, History.focused(windows), windows)
 end
 
 function History:handle(event, workspaces)
@@ -63,13 +123,20 @@ function History:handle(event, workspaces)
     if event.type == "workspace_changed" then
         local previous = self.active[space]
         self.active[space] = workspaceId
-        local target = History.find(workspace.windows, (self.cache[workspaceId] or {}).last_focused)
-        -- A window moved with follow takes precedence over older destination focus.
+        local state = self.cache[workspaceId] or {}
+        local target = History.find(workspace.windows, state.last_focused)
+        if state.floats_up ~= nil then
+            target = groupTarget(workspace.windows, state, state.floats_up) or target
+                or History.focused(workspace.windows) or workspace.windows[#workspace.windows]
+        end
+        -- A window moved with follow takes precedence over older destination focus,
+        -- even if it is outside the workspace's explicitly selected group.
         if previous ~= workspaceId then
             target = History.find(workspace.windows, self.lastFocus[space]) or target
         end
         self.pending[space] = {
-            workspace = workspaceId, target = target, deadline = self.now() + 0.2,
+            workspace = workspaceId, target = target, floatsUp = state.floats_up,
+            deadline = self.now() + 0.2,
         }
         return
     end
@@ -80,7 +147,11 @@ function History:handle(event, workspaces)
     local ref = { id = event.window_id }
     for _, ws in ipairs(workspaces) do
         local observed = History.find(ws.windows, ref)
-        if observed then ref.window_server_id = observed.window_server_id; break end
+        if observed then
+            ref.window_server_id = observed.window_server_id
+            ref.is_floating = observed.is_floating == true
+            break
+        end
     end
     local pending = self.pending[space]
     if not History.find(workspace.windows, ref)
@@ -89,8 +160,20 @@ function History:handle(event, workspaces)
         return
     end
     if not pending then self:remember(space, workspaceId, ref); return end
-    local target = History.find(workspace.windows, pending.target)
-    if not target or History.sameId(target.id, ref.id) then
+    -- Group focus commands generate ordered intermediate events. Consume only
+    -- those we issued; a different focus still supersedes automatic restoration.
+    for index, generated in ipairs(pending.generated or {}) do
+        if History.sameId(generated.id, ref.id) then
+            for _ = 1, index do table.remove(pending.generated, 1) end
+            if #pending.generated == 0 then
+                self.pending[space] = nil
+                self:remember(space, workspaceId, ref)
+            end
+            return
+        end
+    end
+    local target = self:target(pending, workspace)
+    if not target or (not pending.floatsUp and History.sameId(target.id, ref.id)) then
         self.pending[space] = nil
         self:remember(space, workspaceId, ref)
         return
@@ -106,7 +189,7 @@ function History:handle(event, workspaces)
     local window = History.focused(workspace.windows)
     if not pending.requested and workspace.is_active and window
         and History.sameId(window.id, ref.id) then
-        self:restore(pending, target, window)
+        self:restore(pending, target, window, workspace.windows)
     end
 end
 
@@ -124,11 +207,11 @@ function History:expire(query)
                 self.pending[space] = nil
             else
                 local window = History.focused(workspace.windows)
-                local target = History.find(workspace.windows, pending.target)
+                local target = self:target(pending, workspace)
                 if not pending.requested and target
-                    and (not window or not History.sameId(window.id, target.id)) then
+                    and (pending.floatsUp or not window or not History.sameId(window.id, target.id)) then
                     -- Empty-workspace round trips may emit no entry-focus event.
-                    self:restore(pending, target, window)
+                    self:restore(pending, target, window, workspace.windows)
                 else
                     self.pending[space] = nil
                     self:remember(space, workspace.id, window)

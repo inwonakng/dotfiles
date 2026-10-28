@@ -38,11 +38,7 @@ local pump
 
 local function now() return hs.timer.absoluteTime() / 1e9 end
 
-local function save(workspace, key, window)
-    cache[workspace] = cache[workspace] or {}
-    cache[workspace][key] = window and {
-        id = window.id, window_server_id = window.window_server_id,
-    } or nil
+local function persist()
     hs.fs.mkdir(home .. "/.cache")
     local temporary = cacheFile .. ".tmp"
     local file = assert(io.open(temporary, "w"))
@@ -51,6 +47,14 @@ local function save(workspace, key, window)
     assert(ok, err)
     assert(closed, closeError)
     assert(os.rename(temporary, cacheFile))
+end
+
+local function save(workspace, key, window)
+    cache[workspace] = cache[workspace] or {}
+    cache[workspace][key] = window and {
+        id = window.id, window_server_id = window.window_server_id,
+    } or nil
+    persist()
 end
 
 local function resume(thread, ...)
@@ -293,18 +297,25 @@ function M.toggleAllFloating()
     enqueue(function()
         local windows, workspace = context()
         local window = History.focused(windows)
-        local wasFloating = window ~= nil and window.is_floating == true
+        local wasFloating = window and window.is_floating == true
+        if not window then wasFloating = (cache[workspace] or {}).floats_up == true end
         if window then save(workspace, wasFloating and "last_floating" or "last_tiled", window) end
         local predicate = function(w) return (w.is_floating == true) ~= wasFloating end
         local target = cachedWindow(windows, workspace,
             wasFloating and "last_tiled" or "last_floating", predicate)
-        local found = false
-        -- Preserve the existing group-toggle behavior during migration. Non-focusing
-        -- raises and pinning are deliberately separate follow-up changes.
-        for _, candidate in ipairs(windows) do
-            if predicate(candidate) then focus(candidate); found = true end
+        if not target then
+            for _, candidate in ipairs(windows) do
+                if predicate(candidate) then target = candidate end
+            end
         end
-        if found and target then focus(target) end
+        if not target then return end
+        local controller = history or History.new(cache, save, focus, now)
+        controller:selectGroup(workspace, windows, target, not wasFloating)
+        -- Commit explicit group intent only after an error-free traversal.
+        -- Generic focus events (including workspace entry) never change it.
+        cache[workspace] = cache[workspace] or {}
+        cache[workspace].floats_up = not wasFloating
+        persist()
     end)
 end
 
