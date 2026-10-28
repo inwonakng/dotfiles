@@ -226,8 +226,10 @@ class FocusHistory:
 
 
 def server_processes() -> str:
+    # macOS pgrep excludes ancestors unless -a is set. Rift itself launches
+    # this listener through run_on_start, so its parent must remain visible.
     return subprocess.run(
-        ["pgrep", "-x", "rift"], check=True, capture_output=True, text=True, timeout=3
+        ["pgrep", "-a", "-x", "rift"], check=True, capture_output=True, text=True, timeout=3
     ).stdout
 
 
