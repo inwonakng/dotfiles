@@ -11,9 +11,32 @@ require("hs.logger")
 local Picker = {}
 Picker.__index = Picker
 local log = hs.logger.new("rift-picker", "info")
+local cardW, previewH, cardH, gap, padding = 208, 110, 148, 8, 10
+local headerH, footerH = 30, 22
+local navigation = {
+    [hs.keycodes.map.h] = { -1, 0 }, [hs.keycodes.map.l] = { 1, 0 },
+    [hs.keycodes.map.j] = { 0, 1 }, [hs.keycodes.map.k] = { 0, -1 },
+}
+
+local function columnCount(count, width)
+    return math.max(1, math.min(4, count, math.floor((width - padding * 2 - 24 + gap) / (cardW + gap))))
+end
+
+local function moveSelection(session, horizontal, vertical)
+    local count = #session.snapshot.entries
+    if vertical == 0 then
+        session.selected = (session.selected - 1 + horizontal) % count + 1
+    else
+        local columns = columnCount(count, hs.screen.mainScreen():frame().w)
+        local column = (session.selected - 1) % columns
+        local row = (math.floor((session.selected - 1) / columns) + vertical) % math.ceil(count / columns)
+        -- Keep the column when possible; clamp to the last card in a short row.
+        session.selected = math.min(row * columns + column + 1, count)
+    end
+end
 
 function Picker.new(request, select)
-    return setmetatable({ request = request, select = select }, Picker)
+    return setmetatable({ request = request, select = select, pressed = {} }, Picker)
 end
 
 function Picker:cancel()
@@ -48,16 +71,14 @@ function Picker:draw()
     if not session or not session.snapshot or session.released then return end
     local entries = session.snapshot.entries
     local screen = hs.screen.mainScreen():frame()
-    local columns = math.max(1, math.min(4, #entries, math.floor((screen.w - 48) / 252)))
+    local columns = columnCount(#entries, screen.w)
     local rows = math.max(1, math.min(2, math.ceil(#entries / columns),
-        math.floor((screen.h - 132) / 194)))
+        math.floor((screen.h - headerH - footerH - 24 + gap) / (cardH + gap))))
     local capacity = columns * rows
     local first = math.floor((session.selected - 1) / capacity) * capacity + 1
     local last = math.min(#entries, first + capacity - 1)
-    local cardW = math.min(240, screen.w - 64)
-    local cardH, gap, padding = 182, 12, 20
     local width = columns * (cardW + gap) - gap + padding * 2
-    local height = rows * (cardH + gap) - gap + 100
+    local height = rows * (cardH + gap) - gap + headerH + footerH
     local frame = { x = screen.x + (screen.w - width) / 2,
         y = screen.y + (screen.h - height) / 2, w = width, h = height }
     if not self.canvas then
@@ -68,46 +89,57 @@ function Picker:draw()
     end
     local elements = {
         { type = "rectangle", action = "fill", fillColor = { white = 0.08, alpha = 0.97 },
-            roundedRectRadii = { xRadius = 18, yRadius = 18 },
+            roundedRectRadii = { xRadius = 14, yRadius = 14 },
             frame = { x = 0, y = 0, w = width, h = height } },
-        text("Workspace " .. session.snapshot.name, padding, 14, width - 130, 22, 14),
-        text(session.selected .. " / " .. #entries, width - 100, 14, 80, 22, 13,
+        text("Workspace " .. session.snapshot.name, padding, 7, width - 80, 18, 12),
+        text(session.selected .. " / " .. #entries, width - 70, 7, 60, 18, 11,
             { white = 0.65 }, "right"),
-        text("Release ⌘ to switch    ·    ⇧Tab to go back    ·    Esc to cancel",
-            padding, height - 32, width - padding * 2, 20, 11, { white = 0.65 }, "center"),
+        text("hjkl / Tab to move · Esc to cancel",
+            padding, height - 17, width - padding * 2, 15, 10, { white = 0.6 }, "center"),
     }
     for index = first, last do
         local entry = entries[index]
         local cell = index - first
         local x = padding + (cell % columns) * (cardW + gap)
-        local y = 48 + math.floor(cell / columns) * (cardH + gap)
+        local y = headerH + math.floor(cell / columns) * (cardH + gap)
         local selected = index == session.selected
+        local cardFrame = { x = x, y = y, w = cardW, h = cardH }
+        local corners = { xRadius = 8, yRadius = 8 }
         table.insert(elements, {
-            type = "rectangle", action = "strokeAndFill",
-            fillColor = { white = selected and 0.23 or 0.13 },
-            strokeColor = selected and { hex = "#8ab4f8" } or { white = 0.22 },
-            strokeWidth = selected and 3 or 1,
-            roundedRectRadii = { xRadius = 10, yRadius = 10 },
-            frame = { x = x, y = y, w = cardW, h = cardH },
+            type = "rectangle", action = "fill", fillColor = { white = selected and 0.22 or 0.13 },
+            roundedRectRadii = corners, frame = cardFrame,
         })
         if entry.preview then
+            local size = entry.preview:size()
+            local scale = math.max(cardW / size.w, previewH / size.h)
+            -- Fill edge-to-edge without stretching. Keep the window's top edge
+            -- visible, crop overflow, and clip the image to the card's corners.
+            table.insert(elements, { type = "rectangle", action = "clip",
+                roundedRectRadii = corners, frame = cardFrame })
+            table.insert(elements, { type = "rectangle", action = "clip",
+                frame = { x = x, y = y, w = cardW, h = previewH } })
             table.insert(elements, { type = "image", image = entry.preview, imageScaling = "scaleProportionally",
-                frame = { x = x + 8, y = y + 8, w = cardW - 16, h = 122 } })
+                frame = { x = x + (cardW - size.w * scale) / 2, y = y, w = size.w * scale, h = size.h * scale } })
+            table.insert(elements, { type = "resetClip" })
         elseif entry.icon then
             table.insert(elements, { type = "image", image = entry.icon,
-                frame = { x = x + (cardW - 64) / 2, y = y + 36, w = 64, h = 64 } })
+                frame = { x = x + (cardW - 48) / 2, y = y + (previewH - 48) / 2, w = 48, h = 48 } })
         else
-            table.insert(elements, text("Preview unavailable", x + 8, y + 57, cardW - 16, 24,
-                12, { white = 0.5 }, "center"))
+            table.insert(elements, text("Preview unavailable", x + 8, y + 47, cardW - 16, 20,
+                11, { white = 0.5 }, "center"))
         end
         if entry.icon then
             table.insert(elements, { type = "image", image = entry.icon,
-                frame = { x = x + 10, y = y + 139, w = 28, h = 28 } })
+                frame = { x = x + 7, y = y + previewH + 8, w = 22, h = 22 } })
         end
-        table.insert(elements, text(entry.window.app_name or "Window", x + 44, y + 134, cardW - 54, 19, 12))
+        table.insert(elements, text(entry.window.app_name or "Window", x + 35, y + previewH + 3, cardW - 42, 17, 11))
         local title = entry.window.title
-        table.insert(elements, text(title and title ~= "" and title or "Untitled", x + 44, y + 153,
-            cardW - 54, 19, 11, { white = 0.65 }))
+        table.insert(elements, text(title and title ~= "" and title or "Untitled", x + 35, y + previewH + 19,
+            cardW - 42, 16, 10, { white = 0.65 }))
+        -- Outline last so the preview never covers the selection highlight.
+        table.insert(elements, { type = "rectangle", action = "stroke",
+            strokeColor = selected and { hex = "#8ab4f8" } or { white = 0.25 },
+            strokeWidth = selected and 2 or 1, roundedRectRadii = corners, frame = cardFrame })
     end
     self.canvas:replaceElements(table.unpack(elements)):show()
     session.first, session.last = first, last
@@ -136,20 +168,23 @@ function Picker:captureNext()
     end
 end
 
+function Picker:navigate(horizontal, vertical)
+    local session = self.session
+    if not session or session.released then return end
+    if session.snapshot then
+        moveSelection(session, horizontal, vertical)
+        self:draw()
+        self:captureNext()
+    else
+        table.insert(session.moves, { horizontal, vertical })
+    end
+end
+
 function Picker:step(direction)
     local session = self.session
     if session and session.released then self:cancel(); session = nil end
-    if session then
-        if session.snapshot then
-            session.selected = (session.selected - 1 + direction) % #session.snapshot.entries + 1
-            self:draw()
-            self:captureNext()
-        else
-            session.delta = session.delta + direction
-        end
-        return
-    end
-    session = { delta = direction, direction = direction }
+    if session then self:navigate(direction, 0); return end
+    session = { direction = direction, moves = {} }
     self.session = session
     local types = hs.eventtap.event.types
     self.keys = hs.eventtap.new({ types.keyDown, types.flagsChanged,
@@ -159,7 +194,13 @@ function Picker:step(direction)
         elseif event:getType() == types.keyDown then
             local code = event:getKeyCode()
             if code == hs.keycodes.map.escape then self:cancel(); return true end
-            if code ~= hs.keycodes.map.tab then self:cancel() end
+            local flags = event:getFlags()
+            -- The persistent shortcut tap owns navigation, including key-up
+            -- suppression. Leave those events for it rather than cancelling.
+            if code ~= hs.keycodes.map.tab
+                and not (navigation[code] and flags.cmd and not flags.alt and not flags.ctrl) then
+                self:cancel()
+            end
         else
             self:cancel()
         end
@@ -181,7 +222,9 @@ function Picker:step(direction)
         if not snapshot or #snapshot.entries == 0 then self:cancel(); return end
         session.snapshot = snapshot
         local origin = (snapshot.focused or session.direction < 0) and 0 or -1
-        session.selected = (origin + session.delta) % #snapshot.entries + 1
+        session.selected = (origin + session.direction) % #snapshot.entries + 1
+        for _, move in ipairs(session.moves) do moveSelection(session, move[1], move[2]) end
+        session.moves = nil
         if session.released or not hs.eventtap.checkKeyboardModifiers().cmd then
             self:finish()
         else
@@ -197,15 +240,22 @@ function Picker:start()
     -- actual Tab events before Dock sees them instead of using hs.hotkey.
     local types = hs.eventtap.event.types
     self.shortcut = hs.eventtap.new({ types.keyDown, types.keyUp }, function(event)
-        if event:getKeyCode() ~= hs.keycodes.map.tab then return false end
+        local code = event:getKeyCode()
         if event:getType() == types.keyUp then
-            if self.tabDown then self.tabDown = nil; return true end
+            if self.pressed[code] then self.pressed[code] = nil; return true end
             return false
         end
         local flags = event:getFlags()
-        if flags.cmd and not flags.alt and not flags.ctrl then
-            self.tabDown = true
+        if not flags.cmd or flags.alt or flags.ctrl then return false end
+        if code == hs.keycodes.map.tab then
+            self.pressed[code] = true
             self:step(flags.shift and -1 or 1)
+            return true
+        end
+        local move = navigation[code]
+        if move and self.session and not self.session.released then
+            self.pressed[code] = true
+            self:navigate(move[1], move[2])
             return true
         end
         return false
@@ -220,7 +270,7 @@ end
 function Picker:stop()
     self:cancel()
     if self.shortcut then self.shortcut:stop(); self.shortcut = nil end
-    self.tabDown = nil
+    self.pressed = {}
 end
 
 function Picker:status()
