@@ -10,5 +10,3 @@ unset LC_ALL
 if [ -f ~/.bashrc ]; then
     source ~/.bashrc
 fi
-
-export PATH='/opt/homebrew/bin':$PATH

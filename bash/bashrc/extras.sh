@@ -305,33 +305,33 @@ fi
 fzf_ctrl_t_transform() {
     local type=Both hidden=off ignored=off command
     case $FZF_PROMPT in
-        Dirs*) type=Dirs ;;
-        Files*) type=Files ;;
+    Dirs*) type=Dirs ;;
+    Files*) type=Files ;;
     esac
     [[ $FZF_PROMPT == *hidden:on* ]] && hidden=on
     [[ $FZF_PROMPT == *ignored:on* ]] && ignored=on
 
     case $FZF_KEY in
-        ctrl-t)
-            case $type in
-                Both) type=Dirs ;;
-                Dirs) type=Files ;;
-                Files) type=Both ;;
-            esac
-            ;;
-        ctrl-o)
-            if [[ $hidden == off ]]; then hidden=on; else hidden=off; fi
-            ;;
-        ctrl-r)
-            if [[ $ignored == off ]]; then ignored=on; else ignored=off; fi
-            ;;
+    ctrl-t)
+        case $type in
+        Both) type=Dirs ;;
+        Dirs) type=Files ;;
+        Files) type=Both ;;
+        esac
+        ;;
+    ctrl-o)
+        if [[ $hidden == off ]]; then hidden=on; else hidden=off; fi
+        ;;
+    ctrl-r)
+        if [[ $ignored == off ]]; then ignored=on; else ignored=off; fi
+        ;;
     esac
 
     command='fd --strip-cwd-prefix --follow'
     case $type in
-        Both) command+=' --type f --type d' ;;
-        Dirs) command+=' --type d' ;;
-        Files) command+=' --type f' ;;
+    Both) command+=' --type f --type d' ;;
+    Dirs) command+=' --type d' ;;
+    Files) command+=' --type f' ;;
     esac
     [[ $hidden == on ]] && command+=' --hidden'
     if [[ $ignored == on ]]; then
