@@ -2,7 +2,8 @@
   "lastChangelogVersion": "1.4.0",
   "theme": "dark",
   "packages": [
-    "git:git@github.com:inwonakng/api-relay-server.git"
+    "git:git@github.com:inwonakng/api-relay-server.git",
+    "git:git@github.com:inwonakng/pi-extensions.git"
   ],
   "defaultTools": [
     "+codemode",
