@@ -35,6 +35,16 @@ case "$action" in
         ;;
 esac
 
+# Put the current session first, preserving the order within each group.
+candidates=$(printf '%s\n' "$candidates" | awk -v current="$session_id" '
+    {
+        split($1, target, ":")
+        if (target[1] == current) print
+        else others = others $0 ORS
+    }
+    END { printf "%s", others }
+')
+
 selection=$(printf '%s\n' "$candidates" | \
     bash "$script_dir/fzf-picker.sh" "$pane_id" "$client_name" \
         --delimiter=' ' --with-nth=2.. --prompt="$prompt")
