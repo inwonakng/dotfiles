@@ -11,6 +11,7 @@ require("hs.window.filter")
 require("hs.eventtap")
 require("hs.screen.watcher")
 require("hs.spaces.watcher")
+require("hs.caffeinate.watcher")
 local History = require("rift.history")
 local Indicator = require("rift.indicator")
 local Picker = require("rift.picker")
@@ -42,17 +43,20 @@ local closeWatcher, lastNativeFocus, closingNativeFocus
 local nativeWindows, inputGuards = {}, {}
 local focusIntent, closeRevision = 0, 0
 local workspaceSnapshots = {}
-local heartbeat, expiry, expiryQueued
+local heartbeat, recoveryTimer, recoveryQueued, wakeWatcher
+local expiry, expiryQueued, persistTimer, cacheDirty
 local indicator, indicatorPending, screenWatcher, spaceWatcher, picker
-local borderQueued, borderWindows = {}, {}
+local borderQueued, borderWindows, borderRetries = {}, {}, {}
 local lastError
 local workspaceRevision = 0
 local workspaceRevisions = {} -- History queries are independent across native Spaces.
-local pump
+local pump, requestRecovery
 
 local function now() return hs.timer.absoluteTime() / 1e9 end
 
 local function persist()
+    if persistTimer then persistTimer:stop(); persistTimer = nil end
+    if not cacheDirty then return end
     hs.fs.mkdir(home .. "/.cache")
     local temporary = cacheFile .. ".tmp"
     local file = assert(io.open(temporary, "w"))
@@ -61,14 +65,31 @@ local function persist()
     assert(ok, err)
     assert(closed, closeError)
     assert(os.rename(temporary, cacheFile))
+    cacheDirty = false
+end
+
+local function schedulePersist()
+    cacheDirty = true
+    if persistTimer then return end
+    -- Bound the delay even during continuous focus changes, rather than
+    -- restarting the timer indefinitely. Memory always has the latest history.
+    persistTimer = hs.timer.doAfter(0.5, function()
+        persistTimer = nil
+        local ok, err = pcall(persist)
+        if not ok then lastError = tostring(err); log.e(lastError) end
+    end)
 end
 
 local function save(workspace, key, window)
     cache[workspace] = cache[workspace] or {}
+    local previous = cache[workspace][key]
+    if (not previous and not window) or (previous and window
+        and History.sameId(previous.id, window.id)
+        and previous.window_server_id == window.window_server_id) then return end
     cache[workspace][key] = window and {
         id = window.id, window_server_id = window.window_server_id,
     } or nil
-    persist()
+    schedulePersist()
 end
 
 local function resume(thread, ...)
@@ -178,6 +199,37 @@ local function query(kind, space)
         end
     end
     return value
+end
+
+-- Only workspace entries with an actual deadline need a wakeup. A pending
+-- entry waiting for native focus (deadline=nil) must not turn into polling.
+local function scheduleExpiry()
+    if expiry then expiry:stop(); expiry = nil end
+    if not running or not history or expiryQueued then return end
+    local deadline
+    for _, pending in pairs(history.pending) do
+        if pending.deadline then deadline = math.min(deadline or math.huge, pending.deadline) end
+    end
+    if not deadline then return end
+    local controller, token = history, generation
+    expiry = hs.timer.doAfter(math.max(0, deadline - now()), function()
+        expiry = nil
+        local pending = {}
+        expiryQueued = pending
+        enqueue(function()
+            if token ~= generation or history ~= controller then return end
+            local ok, err = pcall(function()
+                controller:expire(function(space)
+                    local revision = workspaceRevisions[space]
+                    local workspaces = query("workspaces", space)
+                    return revision == workspaceRevisions[space] and workspaces or {}
+                end)
+            end)
+            if expiryQueued == pending then expiryQueued = nil end
+            if not ok then error(err) end
+            scheduleExpiry()
+        end)
+    end)
 end
 
 function M.refreshIndicator()
@@ -562,7 +614,7 @@ local function refreshBorder(space, force)
     local workspaces = query("workspaces", space)
     local _, code = run("/usr/bin/pgrep", { "-x", "borders" }, true)
     if code ~= 0 then error("JankyBorders is stopped; restart Rift or Hammerspoon") end
-    local seen = {}
+    local seen, retry = {}, false
     -- Include inactive virtual workspaces so their floats are configured before
     -- entry. Keep other native Spaces' records when reconciling this one.
     for _, workspace in ipairs(workspaces) do
@@ -576,6 +628,7 @@ local function refreshBorder(space, force)
                 if (floating and (force or not same or not previous.is_floating))
                     or (previous and previous.is_floating and not floating) then
                     setWindowBorder(window, floating)
+                    retry = retry or floating
                 end
                 borderWindows[id] = {
                     id = window.id, window_server_id = id,
@@ -590,6 +643,28 @@ local function refreshBorder(space, force)
             borderWindows[id] = nil
         end
     end
+    return space, retry
+end
+
+local function refreshBorderWithRetries(space, force)
+    local refreshedSpace, retry = refreshBorder(space, force)
+    if not retry then return end
+    local previous = borderRetries[refreshedSpace]
+    if previous then for _, timer in pairs(previous) do timer:stop() end end
+    local pending, token = {}, generation
+    borderRetries[refreshedSpace] = pending
+    -- apply-to silently ignores windows not yet known to JankyBorders. Retry
+    -- only after applying float settings, not continuously while the Mac is idle.
+    for index, delay in ipairs({ 0.2, 1 }) do
+        pending[index] = hs.timer.doAfter(delay, function()
+            pending[index] = nil
+            enqueue(function()
+                if token ~= generation or borderRetries[refreshedSpace] ~= pending or not stream then return end
+                if index == 2 then borderRetries[refreshedSpace] = nil end
+                refreshBorder(refreshedSpace, true)
+            end)
+        end)
+    end
 end
 
 function M.refreshBorder(space, force)
@@ -598,10 +673,12 @@ function M.refreshBorder(space, force)
     local pending = borderQueued[key]
     if pending then pending.force = pending.force or force; return end
     pending = { force = force }
+    local token = generation
     borderQueued[key] = pending
     enqueue(function()
+        if token ~= generation then return end
         borderQueued[key] = nil
-        refreshBorder(space, pending.force)
+        refreshBorderWithRetries(space, pending.force)
     end)
 end
 
@@ -639,7 +716,7 @@ local function startBorders()
         end
     end
     borderWindows = {}
-    refreshBorder(nil, true)
+    refreshBorderWithRetries(nil, true)
 end
 
 local borderEvents = {
@@ -648,6 +725,12 @@ local borderEvents = {
 
 local function disconnect()
     generation = generation + 1
+    if expiry then expiry:stop(); expiry = nil end
+    expiryQueued = nil
+    for _, pending in pairs(borderRetries) do
+        for _, timer in pairs(pending) do timer:stop() end
+    end
+    borderRetries, borderQueued = {}, {}
     if picker then picker:cancel() end
     indicatorPending = nil
     if indicator then indicator:clear() end
@@ -670,7 +753,10 @@ local function connect(pids)
         stream = nil
         indicator:clear()
         if picker then picker:cancel() end
-        if running then log.w("Rift event stream ended (" .. code .. "): " .. stderr) end
+        if running then
+            log.w("Rift event stream ended (" .. code .. "): " .. stderr)
+            requestRecovery()
+        end
     end, function(_, stdout, stderr)
         if not running or token ~= generation then return false end
         if stderr ~= "" then log.w(stderr) end
@@ -698,7 +784,10 @@ local function connect(pids)
                         local ok, err = pcall(function()
                             local revision = workspaceRevisions[event.space_id]
                             local workspaces = query("workspaces", event.space_id)
-                            if revision == workspaceRevisions[event.space_id] then history:handle(event, workspaces) end
+                            if revision == workspaceRevisions[event.space_id] then
+                                history:handle(event, workspaces)
+                                scheduleExpiry()
+                            end
                         end)
                         if not ok then disconnect(); error(err) end
                     end
@@ -731,6 +820,30 @@ local function checkServer()
         local ok, err = pcall(connect, pids)
         if not ok then disconnect(); error(err) end
     end
+end
+
+-- Coalesce display/wake notifications and never build a recovery backlog if
+-- an action or a slow CLI command already occupies the queue.
+requestRecovery = function()
+    if not running then return end
+    if recoveryQueued then recoveryQueued.dirty = true; return end
+    if recoveryTimer then recoveryTimer:stop() end
+    recoveryTimer = hs.timer.doAfter(0.3, function()
+        recoveryTimer = nil
+        local pending = {}
+        recoveryQueued = pending
+        enqueue(function()
+            local ok, err = pcall(function()
+                checkServer()
+                M.refreshIndicator()
+                -- Slow fallback for missed events or border daemon recreation.
+                M.refreshBorder(nil, true)
+            end)
+            if recoveryQueued == pending then recoveryQueued = nil end
+            if pending.dirty then requestRecovery() end
+            if not ok then error(err) end
+        end)
+    end)
 end
 
 -- A nil selector delegates last-workspace tracking to Rift. Explicit shortcuts
@@ -802,8 +915,10 @@ function M.toggleAllFloating()
         -- Commit explicit group intent only after verified native focus.
         -- Generic focus events (including workspace entry) never change it.
         cache[workspace] = cache[workspace] or {}
-        cache[workspace].floats_up = not wasFloating
-        persist()
+        if cache[workspace].floats_up ~= (not wasFloating) then
+            cache[workspace].floats_up = not wasFloating
+            schedulePersist()
+        end
     end)
 end
 
@@ -875,12 +990,12 @@ function M.toggleFloat()
             setWindowBorder(window, false)
             borderWindows[window.window_server_id] = nil
             if revision ~= workspaceRevision or focusedId() ~= initial then
-                refreshBorder()
+                refreshBorderWithRetries()
                 return
             end
         end
         local ok, err = pcall(cli, { "execute", "window", "toggle-float" })
-        refreshBorder()
+        refreshBorderWithRetries()
         if not ok then error(err) end
     end)
 end
@@ -966,40 +1081,18 @@ function M.start()
     picker:start()
     local function displayChanged()
         picker:cancel()
-        M.refreshIndicator()
+        requestRecovery()
     end
     screenWatcher = hs.screen.watcher.new(displayChanged):start()
     spaceWatcher = hs.spaces.watcher.new(displayChanged):start()
+    wakeWatcher = hs.caffeinate.watcher.new(function(event)
+        if event == hs.caffeinate.watcher.systemDidWake
+            or event == hs.caffeinate.watcher.screensDidWake then displayChanged() end
+    end):start()
     enqueue(checkServer)
-    heartbeat = hs.timer.doEvery(2, function()
-        enqueue(function()
-            checkServer()
-            -- Reconcile after sleep or display changes missed by native watchers.
-            M.refreshIndicator()
-            -- apply-to silently ignores windows not yet known to JankyBorders.
-            -- Reapply float overrides to recover from creation/recreation races.
-            M.refreshBorder(nil, true)
-        end)
-    end)
-    expiry = hs.timer.doEvery(0.05, function()
-        if expiryQueued or not history then return end
-        local due = false
-        for _, pending in pairs(history.pending) do
-            if pending.deadline and now() >= pending.deadline then due = true; break end
-        end
-        if not due then return end
-        expiryQueued = true
-        enqueue(function()
-            expiryQueued = false
-            if history then
-                history:expire(function(space)
-                    local revision = workspaceRevisions[space]
-                    local workspaces = query("workspaces", space)
-                    return revision == workspaceRevisions[space] and workspaces or {}
-                end)
-            end
-        end)
-    end)
+    -- Mach subscriptions can outlive Rift. Keep a slow safety check, while
+    -- stream/display events and bounded border retries handle normal updates.
+    heartbeat = hs.timer.doEvery(60, requestRecovery)
 end
 
 function M.stop()
@@ -1008,15 +1101,18 @@ function M.stop()
     disconnect()
     if screenWatcher then screenWatcher:stop(); screenWatcher = nil end
     if spaceWatcher then spaceWatcher:stop(); spaceWatcher = nil end
+    if wakeWatcher then wakeWatcher:stop(); wakeWatcher = nil end
     if indicator then indicator:delete(); indicator = nil end
     if heartbeat then heartbeat:stop(); heartbeat = nil end
-    if expiry then expiry:stop(); expiry = nil end
+    if recoveryTimer then recoveryTimer:stop(); recoveryTimer = nil end
+    recoveryQueued = nil
     for timer in pairs(timers) do timer:stop() end
     for task in pairs(tasks) do task:terminate() end
     -- JankyBorders is an independent daemon, not owned by a Hammerspoon reload.
     jobs, tasks, timers = {}, {}, {}
     current, expiryQueued = nil, nil
     borderQueued = {}
+    persist() -- Flush any coalesced history before shutdown/reload.
 end
 
 function M.status()
