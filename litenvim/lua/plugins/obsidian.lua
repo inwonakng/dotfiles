@@ -178,30 +178,36 @@ vim.api.nvim_create_user_command("ProjectNotesInit", function()
 end, { desc = "Initialize project notes in an Obsidian vault" })
 vim.keymap.set("n", "<leader>oN", "<cmd>ProjectNotesInit<cr>", { desc = "Initialize project notes" })
 vim.api.nvim_create_user_command("ProjectDailies", function()
-	local current = require("obsidian.api").find_workspace(vim.api.nvim_buf_get_name(0)) or Obsidian.workspace
+	local path = vim.api.nvim_buf_get_name(0)
+	local current = path ~= "" and require("obsidian.api").find_workspace(path) or nil
+	if not current or vim.bo.buftype ~= "" then
+		vim.notify("Project dailies are only available inside an Obsidian vault", vim.log.levels.WARN)
+		return
+	end
 	require("utils.project-notes").pick({ name = current.name, path = tostring(current.root) })
 end, { desc = "Pick a project to open today's daily" })
-vim.keymap.set("n", "<leader>oD", "<cmd>ProjectDailies<cr>", { desc = "Pick project daily" })
-local function update_template_mapping(buffer)
+local function update_vault_mappings(buffer)
 	local path = vim.api.nvim_buf_get_name(buffer)
 	local workspace = path ~= "" and require("obsidian.api").find_workspace(path) or nil
 	if workspace and vim.bo[buffer].buftype == "" then
 		vim.keymap.set("n", "<leader>ot", function()
 			insert_regular_template(workspace)
 		end, { buffer = buffer, desc = "Insert template" })
-		vim.b[buffer].vault_template_mapping = true
-	elseif vim.b[buffer].vault_template_mapping then
+		vim.keymap.set("n", "<leader>oD", "<cmd>ProjectDailies<cr>", { buffer = buffer, desc = "Pick project daily" })
+		vim.b[buffer].vault_mappings = true
+	elseif vim.b[buffer].vault_mappings then
 		vim.keymap.del("n", "<leader>ot", { buffer = buffer })
-		vim.b[buffer].vault_template_mapping = nil
+		vim.keymap.del("n", "<leader>oD", { buffer = buffer })
+		vim.b[buffer].vault_mappings = nil
 	end
 end
 vim.api.nvim_create_autocmd({ "BufEnter", "BufFilePost" }, {
-	group = vim.api.nvim_create_augroup("vault_template_mapping", { clear = true }),
+	group = vim.api.nvim_create_augroup("vault_mappings", { clear = true }),
 	callback = function(event)
-		update_template_mapping(event.buf)
+		update_vault_mappings(event.buf)
 	end,
 })
-update_template_mapping(vim.api.nvim_get_current_buf())
+update_vault_mappings(vim.api.nvim_get_current_buf())
 vim.keymap.set("n", "<leader>od", function()
 	if not vim.g.project_mode then
 		return
