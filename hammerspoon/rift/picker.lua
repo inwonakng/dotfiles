@@ -11,27 +11,79 @@ require("hs.logger")
 local Picker = {}
 Picker.__index = Picker
 local log = hs.logger.new("rift-picker", "info")
-local cardW, previewH, cardH, gap, padding = 208, 110, 148, 8, 10
+local previewH, cardH, gap, padding = 110, 148, 8, 10
 local headerH, footerH = 30, 22
 local navigation = {
     [hs.keycodes.map.h] = { -1, 0 }, [hs.keycodes.map.l] = { 1, 0 },
     [hs.keycodes.map.j] = { 0, 1 }, [hs.keycodes.map.k] = { 0, -1 },
 }
 
-local function columnCount(count, width)
-    return math.max(1, math.min(4, count, math.floor((width - padding * 2 - 24 + gap) / (cardW + gap))))
+local function arrange(session)
+    local screen = hs.screen.mainScreen():frame()
+    local layout = session.layout
+    if layout and layout.screenW == screen.w and layout.screenH == screen.h then return layout end
+    local maxWidth = math.min(856, screen.w - padding * 2 - 24)
+    local rowLimit = math.max(1, math.min(2,
+        math.floor((screen.h - headerH - footerH - 24 + gap) / (cardH + gap))))
+    local rows, positions, pages = { { items = {}, width = 0 } }, {}, {}
+    for index, entry in ipairs(session.snapshot.entries) do
+        -- Use Rift's opening geometry, not asynchronously arriving snapshots,
+        -- so cards don't change width or jump between rows while cycling.
+        local size = entry.window.frame and entry.window.frame.size
+        local ratio = size and size.width > 0 and size.height > 0 and size.width / size.height or 208 / previewH
+        -- Keep extreme portrait/wide windows usable without dominating a row.
+        local width = math.min(maxWidth, math.max(80, math.min(300, math.floor(previewH * ratio + 0.5))))
+        local row = rows[#rows]
+        local spacing = #row.items > 0 and gap or 0
+        if #row.items > 0 and row.width + spacing + width > maxWidth then
+            row = { items = {}, width = 0 }
+            table.insert(rows, row)
+            spacing = 0
+        end
+        positions[index] = { width = width, offset = row.width + spacing, row = #rows }
+        table.insert(row.items, index)
+        row.width = row.width + spacing + width
+    end
+    for rowIndex, row in ipairs(rows) do
+        local pageIndex = math.floor((rowIndex - 1) / rowLimit) + 1
+        local page = pages[pageIndex] or { rows = {}, width = 0 }
+        pages[pageIndex] = page
+        table.insert(page.rows, rowIndex)
+        page.width = math.max(page.width, row.width + padding * 2)
+        row.page = pageIndex
+    end
+    for _, page in ipairs(pages) do
+        page.height = #page.rows * (cardH + gap) - gap + headerH + footerH
+        for rowNumber, rowIndex in ipairs(page.rows) do
+            local row = rows[rowIndex]
+            for _, index in ipairs(row.items) do
+                local position = positions[index]
+                position.page = row.page
+                position.x = (page.width - row.width) / 2 + position.offset
+                position.y = headerH + (rowNumber - 1) * (cardH + gap)
+                -- Screen-relative horizontal centre, also comparable across pages.
+                position.center = position.x + position.width / 2 - page.width / 2
+            end
+        end
+    end
+    layout = { rows = rows, positions = positions, pages = pages, screenW = screen.w, screenH = screen.h }
+    session.layout = layout
+    return layout
 end
 
 local function moveSelection(session, horizontal, vertical)
-    local count = #session.snapshot.entries
     if vertical == 0 then
-        session.selected = (session.selected - 1 + horizontal) % count + 1
+        session.selected = (session.selected - 1 + horizontal) % #session.snapshot.entries + 1
     else
-        local columns = columnCount(count, hs.screen.mainScreen():frame().w)
-        local column = (session.selected - 1) % columns
-        local row = (math.floor((session.selected - 1) / columns) + vertical) % math.ceil(count / columns)
-        -- Keep the column when possible; clamp to the last card in a short row.
-        session.selected = math.min(row * columns + column + 1, count)
+        local layout = arrange(session)
+        local current = layout.positions[session.selected]
+        local row = layout.rows[(current.row - 1 + vertical) % #layout.rows + 1]
+        local closest, distance = session.selected, math.huge
+        for _, index in ipairs(row.items) do
+            local delta = math.abs(layout.positions[index].center - current.center)
+            if delta < distance then closest, distance = index, delta end
+        end
+        session.selected = closest
     end
 end
 
@@ -71,14 +123,11 @@ function Picker:draw()
     if not session or not session.snapshot or session.released then return end
     local entries = session.snapshot.entries
     local screen = hs.screen.mainScreen():frame()
-    local columns = columnCount(#entries, screen.w)
-    local rows = math.max(1, math.min(2, math.ceil(#entries / columns),
-        math.floor((screen.h - headerH - footerH - 24 + gap) / (cardH + gap))))
-    local capacity = columns * rows
-    local first = math.floor((session.selected - 1) / capacity) * capacity + 1
-    local last = math.min(#entries, first + capacity - 1)
-    local width = columns * (cardW + gap) - gap + padding * 2
-    local height = rows * (cardH + gap) - gap + headerH + footerH
+    local layout = arrange(session)
+    local page = layout.pages[layout.positions[session.selected].page]
+    local firstRow, lastRow = layout.rows[page.rows[1]], layout.rows[page.rows[#page.rows]]
+    local first, last = firstRow.items[1], lastRow.items[#lastRow.items]
+    local width, height = page.width, page.height
     local frame = { x = screen.x + (screen.w - width) / 2,
         y = screen.y + (screen.h - height) / 2, w = width, h = height }
     if not self.canvas then
@@ -91,17 +140,17 @@ function Picker:draw()
         { type = "rectangle", action = "fill", fillColor = { white = 0.08, alpha = 0.97 },
             roundedRectRadii = { xRadius = 14, yRadius = 14 },
             frame = { x = 0, y = 0, w = width, h = height } },
-        text("Workspace " .. session.snapshot.name, padding, 7, width - 80, 18, 12),
+        text(width < 240 and session.snapshot.name or "Workspace " .. session.snapshot.name,
+            padding, 7, width - 80, 18, 12),
         text(session.selected .. " / " .. #entries, width - 70, 7, 60, 18, 11,
             { white = 0.65 }, "right"),
-        text("hjkl / Tab to move · Esc to cancel",
+        text(width < 240 and "hjkl · Tab · Esc" or "hjkl / Tab to move · Esc to cancel",
             padding, height - 17, width - padding * 2, 15, 10, { white = 0.6 }, "center"),
     }
     for index = first, last do
         local entry = entries[index]
-        local cell = index - first
-        local x = padding + (cell % columns) * (cardW + gap)
-        local y = headerH + math.floor(cell / columns) * (cardH + gap)
+        local position = layout.positions[index]
+        local x, y, cardW = position.x, position.y, position.width
         local selected = index == session.selected
         local cardFrame = { x = x, y = y, w = cardW, h = cardH }
         local corners = { xRadius = 8, yRadius = 8 }
