@@ -22,4 +22,4 @@ if (previous) {
   const content = await app.vault.cachedRead(previous);
   tR += content.replace(/^---\r?\n[\s\S]*?\r?\n---(?:\r?\n)?/, "");
 }
-%>
+-%>
