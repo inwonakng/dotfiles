@@ -13,6 +13,7 @@ require("hs.screen.watcher")
 require("hs.spaces.watcher")
 local History = require("rift.history")
 local Indicator = require("rift.indicator")
+local Picker = require("rift.picker")
 local M = {}
 local log = hs.logger.new("rift", "info")
 local home = os.getenv("HOME")
@@ -42,7 +43,7 @@ local nativeWindows, inputGuards = {}, {}
 local focusIntent, closeRevision = 0, 0
 local workspaceSnapshots = {}
 local heartbeat, expiry, expiryQueued
-local indicator, indicatorPending, screenWatcher, spaceWatcher
+local indicator, indicatorPending, screenWatcher, spaceWatcher, picker
 local borderQueued, borderWindows = {}, {}
 local lastError
 local workspaceRevision = 0
@@ -647,6 +648,7 @@ local borderEvents = {
 
 local function disconnect()
     generation = generation + 1
+    if picker then picker:cancel() end
     indicatorPending = nil
     if indicator then indicator:clear() end
     if stream then stream:terminate(); stream = nil end
@@ -667,6 +669,7 @@ local function connect(pids)
         if token ~= generation then return end
         stream = nil
         indicator:clear()
+        if picker then picker:cancel() end
         if running then log.w("Rift event stream ended (" .. code .. "): " .. stderr) end
     end, function(_, stdout, stderr)
         if not running or token ~= generation then return false end
@@ -681,6 +684,7 @@ local function connect(pids)
             if type(event) == "table" then
                 -- Observe switches immediately, not after a yielding focus action.
                 if event.type == "workspace_changed" then
+                    if picker then picker:cancel() end
                     workspaceRevision = workspaceRevision + 1
                     workspaceRevisions[event.space_id] = (workspaceRevisions[event.space_id] or 0) + 1
                 end
@@ -881,12 +885,91 @@ function M.toggleFloat()
     end)
 end
 
+local function requestPicker(done)
+    focusIntent = focusIntent + 1
+    local intent, revision, token = focusIntent, workspaceRevision, generation
+    local initial, initialApp = focusedId(), frontmostPid()
+    enqueue(function()
+        local ok, snapshot = pcall(function()
+            if not stream then return end
+            local workspaces = query("workspaces")
+            if intent ~= focusIntent or revision ~= workspaceRevision or token ~= generation
+                or focusedId() ~= initial or frontmostPid() ~= initialApp then return end
+            local active
+            for _, workspace in ipairs(workspaces) do
+                if workspace.is_focused then active = workspace; break end
+                if workspace.is_active and not active then active = workspace end
+            end
+            if not active then return end
+            local entries, seen, icons = {}, {}, {}
+            local function add(window)
+                if not window or seen[window.window_server_id] then return end
+                local available = pcall(nativeWindow, window)
+                if not available then return end
+                seen[window.window_server_id] = true
+                local bundle = window.bundle_id
+                if bundle and icons[bundle] == nil then
+                    icons[bundle] = hs.image.imageFromAppBundle(bundle) or false
+                end
+                table.insert(entries, { window = window, icon = icons[bundle] or nil })
+            end
+            local focused = nativeFocused(active.windows)
+            add(focused)
+            for _, record in ipairs(history and history.recent[active.id] or {}) do
+                add(History.find(active.windows, record.window))
+            end
+            for _, window in ipairs(active.windows) do add(window) end
+            return { entries = entries, workspace = active.id, name = active.name,
+                focused = focused ~= nil, intent = intent, revision = revision, generation = token,
+                initial = initial, initialApp = initialApp }
+        end)
+        done(ok and snapshot or nil)
+        if not ok then error(snapshot) end
+    end)
+end
+
+local function selectPicker(window, snapshot)
+    if not running or not stream then return end
+    local guard, inputValid = watchInput()
+    if not guard then return end
+    local function valid()
+        return inputValid() and snapshot.intent == focusIntent
+            and snapshot.revision == workspaceRevision and snapshot.generation == generation
+    end
+    enqueue(function()
+        local ok, err = pcall(function()
+            if not valid() or focusedId() ~= snapshot.initial or frontmostPid() ~= snapshot.initialApp then return end
+            -- Resolve membership again: a window can close or move while the
+            -- overlay is open. Never focus a stale selection in another workspace.
+            local active
+            for _, workspace in ipairs(query("workspaces")) do
+                if workspace.id == snapshot.workspace and workspace.is_active then active = workspace; break end
+            end
+            if not active or not valid() or focusedId() ~= snapshot.initial
+                or frontmostPid() ~= snapshot.initialApp then return end
+            local member = History.find(active.windows, window)
+            if not member then return end
+            local native = nativeWindow(member)
+            if native:isMinimized() then native:unminimize() end
+            if history then history:selectGroup(active.id, member, member.is_floating, valid) end
+        end)
+        stopWatchingInput(guard)
+        if not ok then error(err) end
+    end)
+end
+
 function M.start()
     if running then return end
     indicator = Indicator.new()
+    picker = Picker.new(requestPicker, selectPicker)
     running = true
-    screenWatcher = hs.screen.watcher.new(M.refreshIndicator):start()
-    spaceWatcher = hs.spaces.watcher.new(M.refreshIndicator):start()
+    picker:start()
+    local function displayChanged()
+        picker:cancel()
+        M.refreshIndicator()
+    end
+    screenWatcher = hs.screen.watcher.new(displayChanged):start()
+    spaceWatcher = hs.spaces.watcher.new(displayChanged):start()
     enqueue(checkServer)
     heartbeat = hs.timer.doEvery(2, function()
         enqueue(function()
@@ -921,6 +1004,7 @@ end
 
 function M.stop()
     running = false
+    if picker then picker:stop(); picker = nil end
     disconnect()
     if screenWatcher then screenWatcher:stop(); screenWatcher = nil end
     if spaceWatcher then spaceWatcher:stop(); spaceWatcher = nil end
@@ -939,7 +1023,7 @@ function M.status()
     return {
         running = running, connected = stream ~= nil, queued = #jobs,
         busy = current ~= nil, lastError = lastError, borderWindows = borderWindows,
-        indicator = indicator and indicator:status(),
+        indicator = indicator and indicator:status(), picker = picker and picker:status(),
     }
 end
 
