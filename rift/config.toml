@@ -79,7 +79,7 @@ hot_reload = true
 # This is the default layout mode if there is nothing else configured
 # in the `workspace_rules` section below.
 # You can set different layouts per workspace using `workspace_rules`.
-mode = "traditional"
+mode = "scrolling"
 
 # Where new windows are inserted by default for every layout:
 # - "next_to_selection": immediately after the selected window
@@ -186,7 +186,7 @@ vertical = 5
 # vertical = 8
 [settings.ui.menu_bar]
 # enable menu bar workspace indicators
-enabled = true
+enabled = false
 # if enabled, it will show all workspaces including empty ones. disabled because this
 # tends to take up too much room in the menubar and then is auto hidden by macos
 show_empty = false
@@ -281,6 +281,8 @@ reapply_app_rules_on_title_change = true
 #   { workspace = "second", layout = "scrolling" }
 # ]
 workspace_rules = [
+  { workspace = "0", layout = "scrolling" },
+  { workspace = "1", layout = "scrolling" },
   { workspace = "M", layout = "scrolling" },
   { workspace = "W", layout = "scrolling" },
   { workspace = "N", layout = "scrolling" },
@@ -682,9 +684,9 @@ AltCtrl = "Alt + Ctrl"
 
 # commands to change the layout engine of the active workspace
 "AltCtrl + 1" = { set_workspace_layout = { mode = "traditional" } }
-"AltCtrl + 2" = { set_workspace_layout = { mode = "bsp" } }
-"AltCtrl + 3" = { set_workspace_layout = { mode = "master_stack" } }
-"AltCtrl + 4" = { set_workspace_layout = { mode = "scrolling" } }
+# "AltCtrl + 2" = { set_workspace_layout = { mode = "bsp" } }
+# "AltCtrl + 3" = { set_workspace_layout = { mode = "master_stack" } }
+"AltCtrl + 2" = { set_workspace_layout = { mode = "scrolling" } }
 
 "AltCtrl + H" = { join_window = "left" }
 "AltCtrl + J" = { join_window = "down" }
@@ -733,7 +735,8 @@ AltCtrl = "Alt + Ctrl"
 # "AltShift + S" = { move_mouse_to_display = 1 }
 # "AltShift + D" = { move_mouse_to_display = "e9a4f5a1-2f8b-45c1-9f4e-5a6b7c8d9e0f" }
 # Focus another display (direction/index/uuid)
-# "AltShift + F" = { focus_display = "right" }
+"Alt + ]" = { focus_display = "right" }
+"Alt + [" = { focus_display = "left" }
 
 # Move a window to a display (by index, UUID, or direction)
 # "AltCtrl + Up" = { move_window_to_display = { selector = "up" } }
