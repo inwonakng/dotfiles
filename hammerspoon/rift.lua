@@ -9,7 +9,10 @@ require("hs.logger")
 require("hs.window")
 require("hs.window.filter")
 require("hs.eventtap")
+require("hs.screen.watcher")
+require("hs.spaces.watcher")
 local History = require("rift.history")
+local Indicator = require("rift.indicator")
 local M = {}
 local log = hs.logger.new("rift", "info")
 local home = os.getenv("HOME")
@@ -39,6 +42,7 @@ local nativeWindows, inputGuards = {}, {}
 local focusIntent, closeRevision = 0, 0
 local workspaceSnapshots = {}
 local heartbeat, expiry, expiryQueued
+local indicator, indicatorPending, screenWatcher, spaceWatcher
 local borderQueued, borderWindows = {}, {}
 local lastError
 local workspaceRevision = 0
@@ -173,6 +177,45 @@ local function query(kind, space)
         end
     end
     return value
+end
+
+function M.refreshIndicator()
+    if not running or not stream then return end
+    if indicatorPending then indicatorPending.dirty = true; return end
+    local pending, token = {}, generation
+    indicatorPending = pending
+    enqueue(function()
+        if token ~= generation then return end
+        pending.dirty = false
+        local ok, err = pcall(function()
+            local displays = query("displays")
+            table.sort(displays, function(a, b)
+                local left, right = a.frame.origin, b.frame.origin
+                if left.x ~= right.x then return left.x < right.x end
+                if left.y ~= right.y then return left.y < right.y end
+                return a.uuid < b.uuid
+            end)
+            local entries = {}
+            for _, display in ipairs(displays) do
+                if display.space then
+                    for _, workspace in ipairs(query("workspace-layout", display.space)) do
+                        if workspace.is_active then
+                            table.insert(entries, {
+                                uuid = display.uuid, name = display.name,
+                                workspace = workspace.name, mode = workspace.layout_mode,
+                            })
+                            break
+                        end
+                    end
+                end
+            end
+            if token == generation and stream and not pending.dirty then indicator:update(entries) end
+        end)
+        if indicatorPending == pending then indicatorPending = nil end
+        if token ~= generation then return end
+        if not ok then indicator:clear(); error(err) end
+        if pending.dirty then M.refreshIndicator() end
+    end)
 end
 
 local function context()
@@ -604,6 +647,8 @@ local borderEvents = {
 
 local function disconnect()
     generation = generation + 1
+    indicatorPending = nil
+    if indicator then indicator:clear() end
     if stream then stream:terminate(); stream = nil end
     if closeWatcher then closeWatcher:delete(); closeWatcher = nil end
     for guard in pairs(inputGuards) do guard:stop() end
@@ -621,6 +666,7 @@ local function connect(pids)
     stream = hs.task.new(riftCli, function(code, _, stderr)
         if token ~= generation then return end
         stream = nil
+        indicator:clear()
         if running then log.w("Rift event stream ended (" .. code .. "): " .. stderr) end
     end, function(_, stdout, stderr)
         if not running or token ~= generation then return false end
@@ -637,6 +683,9 @@ local function connect(pids)
                 if event.type == "workspace_changed" then
                     workspaceRevision = workspaceRevision + 1
                     workspaceRevisions[event.space_id] = (workspaceRevisions[event.space_id] or 0) + 1
+                end
+                if event.type == "workspace_changed" or event.type == "layout_changed" then
+                    M.refreshIndicator()
                 end
                 enqueue(function()
                     if token ~= generation then return end
@@ -658,6 +707,7 @@ local function connect(pids)
         return true
     end, { "subscribe", "mach", "*" })
     assert(stream and stream:start(), "Cannot subscribe to Rift events")
+    M.refreshIndicator()
     local layout = query("layout")
     if layout then history:seed(layout.space_id, query("workspaces", layout.space_id)) end
     closeWatcher = hs.window.filter.new(true)
@@ -833,11 +883,16 @@ end
 
 function M.start()
     if running then return end
+    indicator = Indicator.new()
     running = true
+    screenWatcher = hs.screen.watcher.new(M.refreshIndicator):start()
+    spaceWatcher = hs.spaces.watcher.new(M.refreshIndicator):start()
     enqueue(checkServer)
     heartbeat = hs.timer.doEvery(2, function()
         enqueue(function()
             checkServer()
+            -- Reconcile after sleep or display changes missed by native watchers.
+            M.refreshIndicator()
             -- apply-to silently ignores windows not yet known to JankyBorders.
             -- Reapply float overrides to recover from creation/recreation races.
             M.refreshBorder(nil, true)
@@ -867,6 +922,9 @@ end
 function M.stop()
     running = false
     disconnect()
+    if screenWatcher then screenWatcher:stop(); screenWatcher = nil end
+    if spaceWatcher then spaceWatcher:stop(); spaceWatcher = nil end
+    if indicator then indicator:delete(); indicator = nil end
     if heartbeat then heartbeat:stop(); heartbeat = nil end
     if expiry then expiry:stop(); expiry = nil end
     for timer in pairs(timers) do timer:stop() end
@@ -881,6 +939,7 @@ function M.status()
     return {
         running = running, connected = stream ~= nil, queued = #jobs,
         busy = current ~= nil, lastError = lastError, borderWindows = borderWindows,
+        indicator = indicator and indicator:status(),
     }
 end
 
