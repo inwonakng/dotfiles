@@ -1,6 +1,7 @@
 ---
 name: zotero
-description: "Use when resolving Zotero paper, collection, or tag references (including @z: links), or reading papers, annotations, and notes in the user's library or current Zotero selection. Covers reading and requested note-taking; use zotero-curation for imports or cleanup and project-bibliography for project collections or exports. Not for general web literature search without a Zotero request."
+description: >-
+  Use when resolving Zotero paper, collection, or tag references (including @z: links), or reading papers, annotations, and notes in the user's library or current Zotero selection. Covers reading and requested note-taking; use zotero-curation for imports or cleanup and project-bibliography for project collections or exports. Not for general web literature search without a Zotero request.
 ---
 
 # Zotero access and reading

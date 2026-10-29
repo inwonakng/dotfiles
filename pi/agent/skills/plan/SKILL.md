@@ -1,6 +1,7 @@
 ---
 name: plan
-description: Use when the user requests an implementation plan, a design decision before coding, or a comparison of approaches. Chooses an actionable approach for approval. Not needed just to execute a small understood change. Do not use for explanation alone, review of an existing plan, or a standalone handoff specification.
+description: >-
+  Use when the user requests an implementation plan, a design decision before coding, or a comparison of approaches. Chooses an actionable approach for approval. Not needed just to execute a small understood change. Do not use for explanation alone, review of an existing plan, or a standalone handoff specification.
 ---
 
 # Plan

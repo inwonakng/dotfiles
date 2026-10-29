@@ -1,6 +1,7 @@
 ---
 name: implement
-description: Use when carrying out an explicitly requested or approved change to code, configuration, documents, user data, or external state. Owns execution and verification, not coding style. Do not use for discussion, read-only diagnosis, planning, or explanation alone.
+description: >-
+  Use when carrying out an explicitly requested or approved change to code, configuration, documents, user data, or external state. Do not use for discussion, read-only diagnosis, planning, or explanation alone.
 ---
 
 # Implement

@@ -1,6 +1,7 @@
 ---
 name: prepare-spec
-description: Use when the user asks for a standalone implementation specification, a handoff document for another agent or fresh session, or a durable specification for later implementation. Produces a self-contained spec without implementing it.
+description: >-
+  Use when the user asks for a standalone implementation specification, a handoff document for another agent or fresh session, or a durable specification for later implementation. Produces a self-contained spec without implementing it.
 ---
 
 # Prepare spec

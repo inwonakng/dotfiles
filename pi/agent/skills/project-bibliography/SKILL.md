@@ -1,6 +1,7 @@
 ---
 name: project-bibliography
-description: "Use when finding related work for a project, adding papers to its Zotero collection, grounding project discussion in existing references, synthesizing prior work, reviewing collection relevance or tags, or explicitly exporting its bibliography. Not for unrelated paper searches, standalone paper explanations, routine coding or brainstorming, or metadata-only cleanup."
+description: >-
+  Use when finding related work for a project, adding papers to its Zotero collection, grounding project discussion in existing references, synthesizing prior work, reviewing collection relevance or tags, or explicitly exporting its bibliography. Not for unrelated paper searches, standalone paper explanations, routine coding or brainstorming, or metadata-only cleanup.
 ---
 
 # Project literature workflow

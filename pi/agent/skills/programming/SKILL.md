@@ -1,6 +1,7 @@
 ---
 name: programming
-description: Use when writing, designing, refactoring, or reviewing code. Provides code-quality preferences for structure, types, dependencies, error handling, and behavioral tests. Not needed for prose, ordinary configuration edits, or general execution mechanics.
+description: >-
+  Use when writing, designing, refactoring, or reviewing code. Provides code-quality preferences for structure, types, dependencies, error handling, and behavioral tests.
 ---
 
 # Programming

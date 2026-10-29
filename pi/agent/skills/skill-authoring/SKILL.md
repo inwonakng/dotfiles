@@ -1,6 +1,7 @@
 ---
 name: skill-authoring
-description: Use when creating, editing, or evaluating SKILL.md files or reusable agent workflow prompts. Covers trigger boundaries, concise instructions, and evaluation proportionate to behavioral risk; not general editing mechanics.
+description: >-
+  Use when creating, editing, or evaluating SKILL.md files or reusable agent workflow prompts. Covers trigger boundaries, concise instructions, and evaluation proportionate to behavioral risk; not general editing mechanics.
 ---
 
 # Skill authoring

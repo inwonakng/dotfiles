@@ -1,6 +1,7 @@
 ---
 name: zotero-curation
-description: "Use when importing papers into Zotero, correcting bibliographic metadata, or reviewing duplicates and library cleanup. Verify publication sources and versions before writing. Not for read-only paper explanation or project bibliography export alone."
+description: >-
+  Use when importing papers into Zotero, correcting bibliographic metadata, or reviewing duplicates and library cleanup. Verify publication sources and versions before writing. Not for read-only paper explanation or project bibliography export alone.
 ---
 
 # Zotero curation

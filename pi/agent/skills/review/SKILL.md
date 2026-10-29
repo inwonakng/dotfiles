@@ -1,6 +1,7 @@
 ---
 name: review
-description: Use for an explicitly requested review of a plan, diff, implementation, or branch, or a focused risk-driven review of consequential changes such as security, persisted data, concurrency, or shared interfaces. Not a mandatory phase for every completed edit.
+description: >-
+  Use for an explicitly requested review of a plan, diff, implementation, or branch, or a focused risk-driven review of consequential changes such as security, persisted data, concurrency, or shared interfaces. Not a mandatory phase for every completed edit.
 ---
 
 # Review

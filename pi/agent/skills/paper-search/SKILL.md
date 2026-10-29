@@ -1,6 +1,7 @@
 ---
 name: paper-search
-description: Use when searching for, filtering, or summarizing relevant academic papers. Ensures quality sources by filtering for papers with citations or reputable venues.
+description: >-
+  Use when searching for, filtering, or summarizing relevant academic papers. Ensures quality sources by filtering for papers with citations or reputable venues.
 ---
 
 # Paper search

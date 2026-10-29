@@ -1,6 +1,7 @@
 ---
 name: communication
-description: Use when drafting or substantially editing human-facing prose such as articles, documentation, emails, or presentations. Provides writing-style guidance. Do not load for ordinary conversation, short answers, status updates, code comments, or routine implementation reports.
+description: >-
+  Use when explaining things to the user or working on human-facing prose. Provides guidance for good communication.
 ---
 
 # Communication

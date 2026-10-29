@@ -1,6 +1,7 @@
 ---
 name: debug
-description: Use when diagnosing unexplained failures, regressions, unexpected behavior, performance problems, or a fix that did not work. Do not use for a clear typo or a change whose cause is already established; those can proceed directly to implementation.
+description: >-
+  Use when diagnosing unexplained failures, regressions, unexpected behavior, performance problems, or a fix that did not work. Do not use for a clear typo or a change whose cause is already established; those can proceed directly to implementation.
 ---
 
 # Debug
