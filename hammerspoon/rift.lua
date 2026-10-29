@@ -283,6 +283,19 @@ local function stopWatchingInput(guard)
     inputGuards[guard] = nil
 end
 
+local function setWindowBorder(window, floating)
+    local id = window.window_server_id
+    assert(type(id) == "number" and id > 0 and id % 1 == 0, "Invalid WindowServer ID")
+    -- Keep the global default transparent. JankyBorders handles focus itself,
+    -- using amber only for windows which Rift has identified as floating.
+    -- Never pass hidpi here: it recreates borders and discards their overrides.
+    run(bordersCli, {
+        "apply-to=" .. tostring(id),
+        "active_color=" .. (floating and "0xffffb454" or "0x00000000"),
+        "inactive_color=0x00000000",
+    })
+end
+
 local function focusWindow(window, afterFocus, expectedWorkspace, valid)
     local revision, initial, initialApp = workspaceRevision, focusedId(), frontmostPid()
     local windows, workspace = context()
@@ -307,6 +320,16 @@ local function focusWindow(window, afterFocus, expectedWorkspace, valid)
     local timeoutError = (afterFocus and "Floating window order did not settle for Rift window "
         or "Native focus did not reach Rift window ") .. tostring(window.window_server_id)
     local stacked, verified, reached = false, false, false
+    local function stackAndRefresh(activeWindows)
+        if afterFocus(activeWindows) == false then return false end
+        if revision ~= workspaceRevision or (valid and not valid())
+            or focusedId() ~= id or frontmostPid() ~= window.id.pid then return false end
+        -- AXRaise orders app windows, not JankyBorders' separate windows.
+        -- Reapplying the target's settings also reorders its border. Do this
+        -- before the yielding verification queries leave a stale border visible.
+        setWindowBorder(window, true)
+        return true
+    end
     while true do
         if revision ~= workspaceRevision or (valid and not valid()) then return false end
         local actual = focusedId()
@@ -315,7 +338,7 @@ local function focusWindow(window, afterFocus, expectedWorkspace, valid)
             -- Each batch stays synchronous, but its success is checked against
             -- WindowServer order after yielding, not AXRaise's return value.
             if afterFocus and not stacked then
-                stacked = afterFocus(windows) ~= false
+                stacked = stackAndRefresh(windows)
             end
             if focusedId() ~= id then return false end
             local activeWindows, activeWorkspace = context()
@@ -335,7 +358,7 @@ local function focusWindow(window, afterFocus, expectedWorkspace, valid)
                 verified = true
             else
                 verified = false
-                stacked = afterFocus(activeWindows) ~= false
+                stacked = stackAndRefresh(activeWindows)
                 if focusedId() ~= id then return false end
             end
             windows = activeWindows
@@ -484,19 +507,6 @@ local function restoreAfterClose(native)
         stopWatchingInput(guard)
         if not ok then error(err) end
     end)
-end
-
-local function setWindowBorder(window, floating)
-    local id = window.window_server_id
-    assert(type(id) == "number" and id > 0 and id % 1 == 0, "Invalid WindowServer ID")
-    -- Keep the global default transparent. JankyBorders handles focus itself,
-    -- using amber only for windows which Rift has identified as floating.
-    -- Never pass hidpi here: it recreates borders and discards their overrides.
-    run(bordersCli, {
-        "apply-to=" .. tostring(id),
-        "active_color=" .. (floating and "0xffffb454" or "0x00000000"),
-        "inactive_color=0x00000000",
-    })
 end
 
 local function refreshBorder(space, force)
