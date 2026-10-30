@@ -1,9 +1,31 @@
+-- save the cwd to check if in vault later
+vim.g.nvim_start_cwd = vim.uv.cwd()
+
 local obsidian = require("utils.obsidian")
 local workspaces = obsidian.workspaces()
 
 if vim.tbl_isempty(workspaces) then
 	return
 end
+
+local function find_session_workspace()
+	local cwd = vim.uv.fs_realpath(vim.g.nvim_start_cwd or vim.uv.cwd())
+	if not cwd then
+		return nil
+	end
+
+	for _, workspace in ipairs(workspaces) do
+		local root = vim.uv.fs_realpath(workspace.path)
+		if root and (cwd == root or vim.startswith(cwd, root .. "/")) then
+			return workspace
+		end
+	end
+
+	return nil
+end
+
+-- detech which workspace we are in
+local session_workspace = find_session_workspace()
 
 vim.pack.add({ "https://github.com/obsidian-nvim/obsidian.nvim" })
 
@@ -103,7 +125,12 @@ local function insert_regular_template(workspace)
 	local templates = {}
 	for _, path in ipairs(vim.fn.globpath(tostring(dir), "**/*.md", false, true)) do
 		local name = path:sub(#tostring(dir) + 2)
-		if name ~= "daily.md" and name ~= "default.md" and name ~= "project-notes.md" and name ~= "project-daily.md" then
+		if
+			name ~= "daily.md"
+			and name ~= "default.md"
+			and name ~= "project-notes.md"
+			and name ~= "project-daily.md"
+		then
 			table.insert(templates, name)
 		end
 	end
@@ -120,7 +147,8 @@ end
 
 local function open_daily_note(workspace)
 	local function run(command, ...)
-		local result = vim.system({ obsidian.cli(), "vault=" .. workspace.name, command, ... }, { text = true }):wait(10000)
+		local result = vim.system({ obsidian.cli(), "vault=" .. workspace.name, command, ... }, { text = true })
+			:wait(10000)
 		local output = vim.trim(result.stdout or "")
 		if result.code ~= 0 or output:match("^Error:") then
 			error(
@@ -137,15 +165,17 @@ local function open_daily_note(workspace)
 		obsidian.cli()
 		obsidian.launch(workspace)
 		local relative, last_error
-		if not vim.wait(30000, function()
-			local ready, output = pcall(run, "daily:path")
-			if ready and output ~= "" and not output:find("[\r\n]") and output:match("%.md$") then
-				relative = output
-				return true
-			end
-			last_error = ready and "Obsidian did not return a daily note path" or output
-			return false
-		end, 250) then
+		if
+			not vim.wait(30000, function()
+				local ready, output = pcall(run, "daily:path")
+				if ready and output ~= "" and not output:find("[\r\n]") and output:match("%.md$") then
+					relative = output
+					return true
+				end
+				last_error = ready and "Obsidian did not return a daily note path" or output
+				return false
+			end, 250)
+		then
 			error("Obsidian did not become ready: " .. tostring(last_error))
 		end
 		local path = vim.fs.joinpath(workspace.path, relative)
@@ -177,30 +207,40 @@ vim.api.nvim_create_user_command("ProjectNotesInit", function()
 	require("utils.project-notes").initialize(workspaces)
 end, { desc = "Initialize project notes in an Obsidian vault" })
 vim.keymap.set("n", "<leader>oN", "<cmd>ProjectNotesInit<cr>", { desc = "Initialize project notes" })
+
 vim.api.nvim_create_user_command("ProjectDailies", function()
-	local path = vim.api.nvim_buf_get_name(0)
-	local current = path ~= "" and require("obsidian.api").find_workspace(path) or nil
-	if not current or vim.bo.buftype ~= "" then
-		vim.notify("Project dailies are only available inside an Obsidian vault", vim.log.levels.WARN)
+	if not session_workspace then
+		vim.notify("Neovim was not started inside an Obsidian vault", vim.log.levels.WARN)
 		return
 	end
-	require("utils.project-notes").pick({ name = current.name, path = tostring(current.root) })
+	require("utils.project-notes").pick({
+		name = session_workspace.name,
+		path = session_workspace.path,
+	})
 end, { desc = "Pick a project to open today's daily" })
+
+if session_workspace then
+	vim.keymap.set("n", "<leader>oD", "<cmd>ProjectDailies<cr>", {
+		desc = "Pick project daily",
+	})
+end
+
 local function update_vault_mappings(buffer)
 	local path = vim.api.nvim_buf_get_name(buffer)
 	local workspace = path ~= "" and require("obsidian.api").find_workspace(path) or nil
+
 	if workspace and vim.bo[buffer].buftype == "" then
 		vim.keymap.set("n", "<leader>ot", function()
 			insert_regular_template(workspace)
 		end, { buffer = buffer, desc = "Insert template" })
-		vim.keymap.set("n", "<leader>oD", "<cmd>ProjectDailies<cr>", { buffer = buffer, desc = "Pick project daily" })
-		vim.b[buffer].vault_mappings = true
-	elseif vim.b[buffer].vault_mappings then
+
+		vim.b[buffer].vault_template_mapping = true
+	elseif vim.b[buffer].vault_template_mapping then
 		vim.keymap.del("n", "<leader>ot", { buffer = buffer })
-		vim.keymap.del("n", "<leader>oD", { buffer = buffer })
-		vim.b[buffer].vault_mappings = nil
+		vim.b[buffer].vault_template_mapping = nil
 	end
 end
+
 vim.api.nvim_create_autocmd({ "BufEnter", "BufFilePost" }, {
 	group = vim.api.nvim_create_augroup("vault_mappings", { clear = true }),
 	callback = function(event)
