@@ -34,7 +34,6 @@ local function executable(name)
 end
 
 local riftCli = executable("rift-cli")
-local bordersCli = executable("borders")
 local running = false
 local generation = 0
 local jobs, tasks, timers = {}, {}, {}
@@ -46,7 +45,6 @@ local workspaceSnapshots = {}
 local heartbeat, recoveryTimer, recoveryQueued, wakeWatcher
 local expiry, expiryQueued, persistTimer, cacheDirty
 local indicator, indicatorPending, screenWatcher, spaceWatcher, picker
-local borderQueued, borderWindows, borderRetries = {}, {}, {}
 local lastError
 local workspaceRevision = 0
 local workspaceRevisions = {} -- History queries are independent across native Spaces.
@@ -379,19 +377,6 @@ local function stopWatchingInput(guard)
     inputGuards[guard] = nil
 end
 
-local function setWindowBorder(window, floating)
-    local id = window.window_server_id
-    assert(type(id) == "number" and id > 0 and id % 1 == 0, "Invalid WindowServer ID")
-    -- Keep the global default transparent. JankyBorders handles focus itself,
-    -- using amber only for windows which Rift has identified as floating.
-    -- Never pass hidpi here: it recreates borders and discards their overrides.
-    run(bordersCli, {
-        "apply-to=" .. tostring(id),
-        "active_color=" .. (floating and "0xffffb454" or "0x00000000"),
-        "inactive_color=0x00000000",
-    })
-end
-
 local function focusWindow(window, afterFocus, expectedWorkspace, valid)
     local revision, initial, initialApp = workspaceRevision, focusedId(), frontmostPid()
     local windows, workspace = context()
@@ -420,10 +405,6 @@ local function focusWindow(window, afterFocus, expectedWorkspace, valid)
         if afterFocus(activeWindows) == false then return false end
         if revision ~= workspaceRevision or (valid and not valid())
             or focusedId() ~= id or frontmostPid() ~= window.id.pid then return false end
-        -- AXRaise orders app windows, not JankyBorders' separate windows.
-        -- Reapplying the target's settings also reorders its border. Do this
-        -- before the yielding verification queries leave a stale border visible.
-        setWindowBorder(window, true)
         return true
     end
     while true do
@@ -605,132 +586,10 @@ local function restoreAfterClose(native)
     end)
 end
 
-local function refreshBorder(space, force)
-    if not space then
-        local layout = query("layout")
-        if not layout then return end
-        space = layout.space_id
-    end
-    local workspaces = query("workspaces", space)
-    local _, code = run("/usr/bin/pgrep", { "-x", "borders" }, true)
-    if code ~= 0 then error("JankyBorders is stopped; restart Rift or Hammerspoon") end
-    local seen, retry = {}, false
-    -- Include inactive virtual workspaces so their floats are configured before
-    -- entry. Keep other native Spaces' records when reconciling this one.
-    for _, workspace in ipairs(workspaces) do
-        for _, window in ipairs(workspace.windows) do
-            local id = window.window_server_id
-            if id then
-                seen[id] = true
-                local floating = window.is_floating == true
-                local previous = borderWindows[id]
-                local same = previous and History.sameId(previous.id, window.id)
-                if (floating and (force or not same or not previous.is_floating))
-                    or (previous and previous.is_floating and not floating) then
-                    setWindowBorder(window, floating)
-                    retry = retry or floating
-                end
-                borderWindows[id] = {
-                    id = window.id, window_server_id = id,
-                    is_floating = floating, space = space,
-                }
-            end
-        end
-    end
-    for id, window in pairs(borderWindows) do
-        if window.space == space and not seen[id] then
-            if window.is_floating then setWindowBorder(window, false) end
-            borderWindows[id] = nil
-        end
-    end
-    return space, retry
-end
-
-local function refreshBorderWithRetries(space, force)
-    local refreshedSpace, retry = refreshBorder(space, force)
-    if not retry then return end
-    local previous = borderRetries[refreshedSpace]
-    if previous then for _, timer in pairs(previous) do timer:stop() end end
-    local pending, token = {}, generation
-    borderRetries[refreshedSpace] = pending
-    -- apply-to silently ignores windows not yet known to JankyBorders. Retry
-    -- only after applying float settings, not continuously while the Mac is idle.
-    for index, delay in ipairs({ 0.2, 1 }) do
-        pending[index] = hs.timer.doAfter(delay, function()
-            pending[index] = nil
-            enqueue(function()
-                if token ~= generation or borderRetries[refreshedSpace] ~= pending or not stream then return end
-                if index == 2 then borderRetries[refreshedSpace] = nil end
-                refreshBorder(refreshedSpace, true)
-            end)
-        end)
-    end
-end
-
-function M.refreshBorder(space, force)
-    if not running or not stream then return end
-    local key = space or "active"
-    local pending = borderQueued[key]
-    if pending then pending.force = pending.force or force; return end
-    pending = { force = force }
-    local token = generation
-    borderQueued[key] = pending
-    enqueue(function()
-        if token ~= generation then return end
-        borderQueued[key] = nil
-        refreshBorderWithRetries(space, pending.force)
-    end)
-end
-
-local function startBorders()
-    local uid = run("/usr/bin/id", { "-u" }):match("%d+")
-    local function ready()
-        local bootstrap = run("/bin/launchctl", { "print", "gui/" .. uid })
-        return bootstrap:match("%s git%.felix%.borders%s") ~= nil
-    end
-    local options = {
-        "style=round", "width=5.0", "hidpi=on",
-        "active_color=0x00000000", "inactive_color=0x00000000",
-    }
-    if ready() then
-        run(bordersCli, options)
-    else
-        -- hs.task terminates its children when the Lua state closes. Detach the
-        -- daemon so Hammerspoon reload/quit does not also stop JankyBorders.
-        local args = {
-            "-c", '/usr/bin/nohup "$@" </dev/null >/dev/null 2>&1 & echo "$!"',
-            "rift-borders", bordersCli,
-        }
-        for _, option in ipairs(options) do table.insert(args, option) end
-        local output = run("/bin/sh", args)
-        local pid = tostring(assert(tonumber(output:match("%d+")), "Cannot start JankyBorders"))
-        local deadline = now() + 5
-        while not ready() do
-            local _, code = run("/bin/kill", { "-0", pid }, true)
-            if code ~= 0 then error("JankyBorders exited before becoming ready") end
-            if now() >= deadline then
-                run("/bin/kill", { "-TERM", pid }, true)
-                error("JankyBorders startup timed out")
-            end
-            sleep(0.05)
-        end
-    end
-    borderWindows = {}
-    refreshBorderWithRetries(nil, true)
-end
-
-local borderEvents = {
-    workspace_changed = true, windows_changed = true, layout_changed = true,
-}
-
 local function disconnect()
     generation = generation + 1
     if expiry then expiry:stop(); expiry = nil end
     expiryQueued = nil
-    for _, pending in pairs(borderRetries) do
-        for _, timer in pairs(pending) do timer:stop() end
-    end
-    borderRetries, borderQueued = {}, {}
     if picker then picker:cancel() end
     indicatorPending = nil
     if indicator then indicator:clear() end
@@ -791,7 +650,6 @@ local function connect(pids)
                         end)
                         if not ok then disconnect(); error(err) end
                     end
-                    if borderEvents[event.type] then M.refreshBorder(event.space_id) end
                 end)
             else
                 log.e("Invalid Rift event: " .. line)
@@ -808,7 +666,6 @@ local function connect(pids)
     closeWatcher:subscribe(hs.window.filter.windowDestroyed, restoreAfterClose)
     local native = hs.window.focusedWindow()
     if native then observeNativeFocus(native) end
-    enqueue(startBorders)
 end
 
 local function checkServer()
@@ -836,8 +693,6 @@ requestRecovery = function()
             local ok, err = pcall(function()
                 checkServer()
                 M.refreshIndicator()
-                -- Slow fallback for missed events or border daemon recreation.
-                M.refreshBorder(nil, true)
             end)
             if recoveryQueued == pending then recoveryQueued = nil end
             if pending.dirty then requestRecovery() end
@@ -980,23 +835,7 @@ end
 function M.toggleFloat()
     focusIntent = focusIntent + 1
     enqueue(function()
-        local revision, initial = workspaceRevision, focusedId()
-        local windows = query("windows")
-        if revision ~= workspaceRevision or focusedId() ~= initial then return end
-        local window = nativeFocused(windows)
-        if window and window.is_floating and window.window_server_id then
-            -- Hide before tiling, rather than waiting for a layout event to
-            -- remove the former float's per-window amber setting afterward.
-            setWindowBorder(window, false)
-            borderWindows[window.window_server_id] = nil
-            if revision ~= workspaceRevision or focusedId() ~= initial then
-                refreshBorderWithRetries()
-                return
-            end
-        end
-        local ok, err = pcall(cli, { "execute", "window", "toggle-float" })
-        refreshBorderWithRetries()
-        if not ok then error(err) end
+        cli({ "execute", "window", "toggle-float" })
     end)
 end
 
@@ -1091,7 +930,7 @@ function M.start()
     end):start()
     enqueue(checkServer)
     -- Mach subscriptions can outlive Rift. Keep a slow safety check, while
-    -- stream/display events and bounded border retries handle normal updates.
+    -- stream/display events handle normal updates.
     heartbeat = hs.timer.doEvery(60, requestRecovery)
 end
 
@@ -1108,17 +947,15 @@ function M.stop()
     recoveryQueued = nil
     for timer in pairs(timers) do timer:stop() end
     for task in pairs(tasks) do task:terminate() end
-    -- JankyBorders is an independent daemon, not owned by a Hammerspoon reload.
     jobs, tasks, timers = {}, {}, {}
     current, expiryQueued = nil, nil
-    borderQueued = {}
     persist() -- Flush any coalesced history before shutdown/reload.
 end
 
 function M.status()
     return {
         running = running, connected = stream ~= nil, queued = #jobs,
-        busy = current ~= nil, lastError = lastError, borderWindows = borderWindows,
+        busy = current ~= nil, lastError = lastError,
         indicator = indicator and indicator:status(), picker = picker and picker:status(),
     }
 end
