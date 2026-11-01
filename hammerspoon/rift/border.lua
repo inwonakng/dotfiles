@@ -32,8 +32,9 @@ end
 
 function Border:refresh()
     local window = hs.window.focusedWindow()
-    if not window or not window:isStandard() or not window:isVisible() or window:isFullScreen()
-        or (self.filter and not self.filter:isWindowAllowed(window)) then
+    -- Native focus is authoritative. window.filter's cached Space membership
+    -- can reject the focused window when Rift moves windows between workspaces.
+    if not window or not window:isStandard() or not window:isVisible() or window:isFullScreen() then
         self:clear()
         return
     end
@@ -70,7 +71,7 @@ end
 function Border:start()
     if self.filter then return end
     local events = hs.window.filter
-    self.filter = events.new(true):setCurrentSpace(true)
+    self.filter = events.new(true)
     self.filter:subscribe({
         events.windowFocused, events.windowUnfocused,
         events.windowOnScreen, events.windowNotOnScreen,
