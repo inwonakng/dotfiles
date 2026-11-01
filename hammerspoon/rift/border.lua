@@ -6,7 +6,7 @@ require("hs.uielement.watcher")
 require("hs.timer")
 local Border = {}
 Border.__index = Border
-local width, radius = 2, 26 -- Points; radius is an approximation of native macOS corners.
+local width, radius = 2, 12 -- Points; radius is an approximation of native macOS corners.
 
 function Border.new()
     local canvas = assert(hs.canvas.new({ x = 0, y = 0, w = 1, h = 1 }))
