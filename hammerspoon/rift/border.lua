@@ -58,7 +58,7 @@ function Border:refresh()
     self.canvas:frame(frame)
     self.canvas:replaceElements({
         type = "rectangle", action = "stroke", strokeWidth = width,
-        strokeColor = { red = 1, green = 180 / 255, blue = 84 / 255, alpha = 1 },
+        strokeColor = { red = 122 / 255, green = 217 / 255, blue = 232 / 255, alpha = 1 },
         -- Draw entirely inside the window frame, including at screen edges.
         frame = { x = width / 2, y = width / 2, w = frame.w - width, h = frame.h - width },
         roundedRectRadii = { xRadius = radius - width / 2, yRadius = radius - width / 2 },
