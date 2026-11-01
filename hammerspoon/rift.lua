@@ -14,6 +14,7 @@ require("hs.spaces.watcher")
 require("hs.caffeinate.watcher")
 local History = require("rift.history")
 local Indicator = require("rift.indicator")
+local Border = require("rift.border")
 local Picker = require("rift.picker")
 local M = {}
 local log = hs.logger.new("rift", "info")
@@ -44,7 +45,7 @@ local focusIntent, closeRevision = 0, 0
 local workspaceSnapshots = {}
 local heartbeat, recoveryTimer, recoveryQueued, wakeWatcher
 local expiry, expiryQueued, persistTimer, cacheDirty
-local indicator, indicatorPending, screenWatcher, spaceWatcher, picker
+local indicator, indicatorPending, screenWatcher, spaceWatcher, picker, border
 local lastError
 local workspaceRevision = 0
 local workspaceRevisions = {} -- History queries are independent across native Spaces.
@@ -916,10 +917,13 @@ function M.start()
     if running then return end
     indicator = Indicator.new()
     picker = Picker.new(requestPicker, selectPicker)
+    border = Border.new()
     running = true
     picker:start()
+    border:start()
     local function displayChanged()
         picker:cancel()
+        border:scheduleRefresh()
         requestRecovery()
     end
     screenWatcher = hs.screen.watcher.new(displayChanged):start()
@@ -937,6 +941,7 @@ end
 function M.stop()
     running = false
     if picker then picker:stop(); picker = nil end
+    if border then border:delete(); border = nil end
     disconnect()
     if screenWatcher then screenWatcher:stop(); screenWatcher = nil end
     if spaceWatcher then spaceWatcher:stop(); spaceWatcher = nil end
@@ -957,6 +962,7 @@ function M.status()
         running = running, connected = stream ~= nil, queued = #jobs,
         busy = current ~= nil, lastError = lastError,
         indicator = indicator and indicator:status(), picker = picker and picker:status(),
+        border = border and border:status(),
     }
 end
 
