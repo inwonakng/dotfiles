@@ -152,6 +152,8 @@ set -g history-limit 90000
 # Add truecolor support
 set -g default-terminal "tmux-256color"
 set -as terminal-overrides ',xterm*:Tc:sitm=\E[3m'
+# Keep ordinary control characters unchanged between nested tmux clients.
+set -as terminal-overrides ',tmux-256color:Eneks=\E[>4;1m'
 set -as terminal-overrides ',*:Smulx=\E[4::%p1%dm'  # undercurl support
 set -as terminal-overrides ',*:Setulc=\E[58::2::%p1%{65536}%/%d::%p1%{256}%/%{255}%&%d::%p1%{255}%&%d%;m'  # underscore colors - needs tmux-3.0
 setw -g main-pane-height 40
