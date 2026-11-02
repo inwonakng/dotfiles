@@ -4,6 +4,7 @@ require("hs.window")
 require("hs.window.filter")
 require("hs.uielement.watcher")
 require("hs.timer")
+require("hs.eventtap")
 local Border = {}
 Border.__index = Border
 local width, radius = 2, 12 -- Points; radius is an approximation of native macOS corners.
@@ -31,6 +32,10 @@ function Border:scheduleRefresh()
 end
 
 function Border:refresh()
+    if self.dragging then
+        if hs.eventtap.checkMouseButtons().left then return end
+        self.dragging = nil
+    end
     local window = hs.window.focusedWindow()
     -- Native focus is authoritative. window.filter's cached Space membership
     -- can reject the focused window when Rift moves windows between workspaces.
@@ -49,10 +54,16 @@ function Border:refresh()
         local events = hs.uielement.watcher
         self.watcher = assert(window:newWatcher(function(_, event)
             if event == events.elementDestroyed then self:clear() end
+            if (event == events.windowMoved or event == events.windowResized)
+                and hs.eventtap.checkMouseButtons().left then
+                -- A separate canvas cannot track a native drag smoothly.
+                self.dragging = true
+                self.canvas:hide()
+                return
+            end
             self:scheduleRefresh()
         end))
-        -- window.filter coalesces movement until it has stopped for 0.5 s.
-        -- Watch the focused window directly so the outline also follows drags.
+        -- Observe geometry directly; window.filter coalesces it for 0.5 s.
         self.watcher:start({ events.windowMoved, events.windowResized, events.elementDestroyed })
     end
     self.canvas:frame(frame)
@@ -70,6 +81,13 @@ end
 
 function Border:start()
     if self.filter then return end
+    self.mouseUp = hs.eventtap.new({ hs.eventtap.event.types.leftMouseUp }, function()
+        if self.dragging then
+            self.dragging = nil
+            self:scheduleRefresh()
+        end
+        return false -- Observe release without consuming it.
+    end):start()
     local events = hs.window.filter
     self.filter = events.new(true)
     self.filter:subscribe({
@@ -87,6 +105,7 @@ function Border:start()
 end
 
 function Border:delete()
+    if self.mouseUp then self.mouseUp:stop(); self.mouseUp = nil end
     if self.filter then self.filter:delete(); self.filter = nil end
     if self.pending then self.pending:stop(); self.pending = nil end
     self:clear()
