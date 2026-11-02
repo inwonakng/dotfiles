@@ -14,7 +14,6 @@ Installs Miniconda into the same prefix expected by bash/bashrc/extras.sh.
 
 Default prefixes:
   - mac/non-cluster:       ~/miniconda3
-  - blp|dcs|npl clusters:  ~/scratch/miniconda-{x86,ppc,...}
 
 This script intentionally does not modify ~/.bashrc, ~/.bash_profile, or other
 shell startup files.
@@ -96,25 +95,7 @@ detect_conda_dir() {
         hostname_value="$(hostname 2>/dev/null || true)"
     fi
 
-    if [[ "$hostname_value" =~ (blp|dcs|npl) ]]; then
-        local arch postfix
-        arch="$(detect_cluster_arch)"
-        case "$arch" in
-        x86_64)
-            postfix="x86"
-            ;;
-        ppc64le)
-            postfix="ppc"
-            ;;
-        *)
-            warn "unsupported architecture for cluster setup: $arch"
-            postfix="$arch"
-            ;;
-        esac
-        printf '%s\n' "$HOME/scratch/miniconda-$postfix"
-    else
-        printf '%s\n' "$HOME/miniconda3"
-    fi
+    printf '%s\n' "$HOME/miniconda3"
 }
 
 detect_miniconda_url() {

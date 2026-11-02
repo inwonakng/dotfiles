@@ -11,46 +11,16 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     FZF_DIR=""
     LOCAL_BIN_DIR="$HOME/.local/bin"
     FZF_SCRIPT_FILE="$HOME/.fzf.bash"
-    SCRATCH_NOTE_FILE="$HOME/.cache/scratch.md"
     export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
     export NVM_SYMLINK_CURRENT=true
     export NODE_DEFAULT_DIR="$NVM_DIR/current/bin"
 else
     NVM_DIR="$HOME/.nvm"
-    SCRATCH_NOTE_FILE="$HOME/scratch.md"
 
-    # RPI clusters use shared home directories across multiple architectures, so
-    # keep architecture-specific binaries and conda installs separated there.
-    if [[ "$HOSTNAME" =~ (blp|dcs|npl) ]]; then
-        export http_proxy=http://proxy:8888
-        export https_proxy=$http_proxy
-
-        ARCH=$(uname -i)
-        case $ARCH in
-        x86_64)
-            POSTFIX="x86"
-            # export LD_LIBRARY_PATH="/usr/local/cuda-11.2/targets/x86_64-linux/"
-            ;;
-        ppc64le)
-            POSTFIX="ppc"
-            ;;
-        *)
-            echo "Warning: unsupported architecture for cluster setup: $ARCH" >&2
-            POSTFIX="$ARCH"
-            ;;
-        esac
-
-        CONDA_PARENT_DIR="$HOME/scratch"
-        LOCAL_BIN_DIR="$HOME/.local/bin/$POSTFIX"
-        CONDA_DIR="$CONDA_PARENT_DIR/miniconda-$POSTFIX"
-        FZF_DIR="$HOME/.fzf-$POSTFIX"
-        FZF_SCRIPT_FILE="$HOME/.fzf-$POSTFIX.bash"
-    else
-        LOCAL_BIN_DIR="$HOME/.local/bin"
-        CONDA_DIR="$HOME/miniconda3"
-        FZF_DIR="$HOME/.fzf"
-        FZF_SCRIPT_FILE="$HOME/.fzf.bash"
-    fi
+    LOCAL_BIN_DIR="$HOME/.local/bin"
+    CONDA_DIR="$HOME/miniconda3"
+    FZF_DIR="$HOME/.fzf"
+    FZF_SCRIPT_FILE="$HOME/.fzf.bash"
 
     export PYTHON_DEFAULT_PATH="$CONDA_DIR/envs/scripts/bin"
     export NVM_SYMLINK_CURRENT=true
@@ -227,14 +197,6 @@ if [[ "$(set -o | grep 'emacs\|\bvi\b' | cut -f2 | tr '\n' ':')" != 'off:off:' ]
     bind -x '"\C-o": open_scratch_buffer'
     bind -m vi-insert -x '"\C-o": open_scratch_buffer'
     bind -m vi-command '"v": abort'
-fi
-
-scratch() {
-    IS_TEMP_SESSION=1 $EDITOR $SCRATCH_NOTE_FILE
-}
-if [[ "$(set -o | grep 'emacs\|\bvi\b' | cut -f2 | tr '\n' ':')" != 'off:off:' ]]; then
-    # Binds C-g to execute the 'scratchpad' command and then redraw the prompt.
-    bind '"\C-g": "scratch\n"'
 fi
 
 ###################################
