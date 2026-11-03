@@ -256,9 +256,6 @@ local function watch(session)
         if popup then
             session.popup = popup
             session.popupElement = hs.axuielement.windowElement(popup)
-            local frame = session.window:screen():frame()
-            local w, h = math.min(900, frame.w * 0.8), math.min(550, frame.h * 0.75)
-            popup:setFrame({ x = frame.x + (frame.w - w) / 2, y = frame.y + (frame.h - h) / 2, w = w, h = h })
         elseif session.popupElement and not session.popupElement:isValid() then
             -- Closing the window sends SIGHUP; it never authorizes applying.
             cancel(session)
