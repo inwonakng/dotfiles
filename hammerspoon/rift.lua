@@ -192,7 +192,6 @@ local function query(kind, space)
                 local record = nativeWindows[window.window_server_id]
                 if record and record.pid == window.id.pid then
                     record.window, record.workspace = window, workspace.id
-                    record.last_tiled = (cache[workspace.id] or {}).last_tiled
                 end
             end
         end
@@ -488,7 +487,6 @@ local function observeNativeFocus(native)
         for _, window in ipairs(snapshot.windows) do
             if window.window_server_id == id and window.id.pid == lastNativeFocus.pid then
                 lastNativeFocus.window, lastNativeFocus.workspace = window, workspace
-                lastNativeFocus.last_tiled = (cache[workspace] or {}).last_tiled
             end
         end
     end
@@ -508,9 +506,9 @@ local function restoreAfterClose(native)
     if source == closingNativeFocus then closingNativeFocus = nil end
     local closed = history:takeClosed(source.id, source.pid)
     if not closed and source.window then
-        closed = { window = source.window, workspace = source.workspace, last_tiled = source.last_tiled }
+        closed = { window = source.window, workspace = source.workspace }
     end
-    if not eligible or not closed or not closed.window.is_floating then return end
+    if not eligible or not closed then return end
     local snapshot = workspaceSnapshots[closed.workspace]
     if not snapshot or not snapshot.active or snapshot.revision ~= workspaceRevision then return end
     closeRevision = closeRevision + 1
@@ -536,12 +534,14 @@ local function restoreAfterClose(native)
         end
         return available
     end
+    -- Keep the pre-handoff target while automatic successor events settle.
+    local target = controller:closeTarget(closed, availableWindows(snapshot.windows))
+    if not target then stopWatchingInput(guard); return end
     -- Do the first native handoff right in the destruction callback. Do not put
     -- a sleep, CLI round trip, or the existing job backlog in front of it.
     local handedOff, handoffError = pcall(function()
         local windows = availableWindows(snapshot.windows)
-        local target = controller:closeTarget(closed, windows)
-        if not target or not valid() then return end
+        if not valid() then return end
         local nativeTarget, app = nativeWindow(target)
         assert(nativeTarget:becomeMain(), "Cannot make close fallback main")
         assert(app:setFrontmost(false), "Cannot activate close fallback")
@@ -560,8 +560,9 @@ local function restoreAfterClose(native)
                 if not valid() or workspace ~= closed.workspace then return end
                 if now() >= deadline then error("Close focus did not settle on " .. closed.workspace) end
                 local available = availableWindows(windows)
-                local target = controller:closeTarget(closed, available)
-                if not target then return end
+                local member = History.find(available, target)
+                if not member then return end
+                target = member
                 local removed = not History.find(windows, closed.window)
                 local failures = {}
                 local selected = controller.focus(target, target.is_floating and function(activeWindows)

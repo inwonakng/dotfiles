@@ -40,9 +40,7 @@ function History:remember(workspace, window)
             if History.sameId(records[index].window.id, window.id) then table.remove(records, index) end
         end
     end
-    table.insert(recent, 1, {
-        window = window, last_tiled = (self.cache[workspace] or {}).last_tiled,
-    })
+    table.insert(recent, 1, { window = window })
 end
 
 function History:recentWindow(workspace, windows, predicate)
@@ -55,7 +53,7 @@ function History:recentWindow(workspace, windows, predicate)
 end
 
 -- Consume the pre-close observation, even if macOS has already selected another
--- window. Preserve the tile used before entering floats, not its automatic fallback.
+-- window.
 function History:takeClosed(id, pid)
     local closed
     for workspace, recent in pairs(self.recent) do
@@ -77,21 +75,10 @@ function History:closeTarget(closed, windows)
     for index = #recent, 1, -1 do
         if not History.find(windows, recent[index].window) then table.remove(recent, index) end
     end
-    for _, record in ipairs(recent) do
-        local window = History.find(windows, record.window)
-        if window.is_floating then return window end
-    end
+    -- Focus order wins, regardless of whether a window is floating or tiled.
+    if recent[1] then return History.find(windows, recent[1].window) end
     local state = self.cache[closed.workspace] or {}
-    local floating = History.find(windows, state.last_floating)
-    if floating and floating.is_floating then return floating end
-    for _, window in ipairs(windows) do
-        if window.is_floating then return window end
-    end
-    local tiled = History.find(windows, closed.last_tiled)
-    if tiled and not tiled.is_floating then return tiled end
-    for _, window in ipairs(windows) do
-        if not window.is_floating then return window end
-    end
+    return History.find(windows, state.last_focused)
 end
 
 function History:seed(space, workspaces)
