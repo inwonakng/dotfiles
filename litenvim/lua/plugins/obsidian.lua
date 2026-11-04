@@ -264,6 +264,23 @@ vim.keymap.set("n", "<leader>od", function()
 		vim.notify("no project notes, first link an obsidian project note directory", vim.log.levels.WARN)
 	end
 end, { desc = "Open daily note" })
+if not session_workspace then
+	vim.keymap.set("n", "<leader>ol", function()
+		if not vim.g.project_mode then
+			return
+		end
+		local directory = vim.uv.fs_realpath(vim.fn.getcwd())
+		for _, workspace in ipairs(workspaces) do
+			local root = vim.uv.fs_realpath(workspace.path)
+			if directory and root and (directory == root or directory:sub(1, #root + 1) == root .. "/") then
+				return
+			end
+		end
+		if not require("utils.project-notes").open_logs(workspaces) then
+			vim.notify("no project notes, first link an obsidian project note directory", vim.log.levels.WARN)
+		end
+	end, { desc = "Open project logs" })
+end
 vim.keymap.set("n", "<leader>oo", "<cmd>Obsidian open<cr>", { desc = "Open in Obsidian" })
 vim.keymap.set("n", "<C-CR>", "<cmd>Obsidian follow_link vsp<cr>", { desc = "Follow link in vsplit" })
 vim.keymap.set("n", "<S-CR>", "<cmd>Obsidian follow_link hsplit<cr>", { desc = "Follow link in hsplit" })

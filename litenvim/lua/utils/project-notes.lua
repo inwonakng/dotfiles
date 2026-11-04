@@ -2,12 +2,16 @@ local M = {}
 local uv = vim.uv
 local obsidian = require("utils.obsidian")
 
-local function find_target(workspaces)
+local function find_target(workspaces, symlink_only)
 	local directory = vim.fn.getcwd()
 	local marker = ".notes"
 	while directory do
 		local candidate = vim.fs.joinpath(directory, marker)
-		if uv.fs_lstat(candidate) then
+		local stat = uv.fs_lstat(candidate)
+		if stat then
+			if symlink_only and stat.type ~= "link" then
+				error("Project notes must be a symlink: " .. candidate)
+			end
 			local target = uv.fs_realpath(candidate)
 			if not target or vim.fn.isdirectory(target) ~= 1 then
 				error("Broken or invalid project note directory: " .. candidate)
@@ -100,6 +104,36 @@ function M.open(workspaces)
 			return false
 		end
 		open_buffer(M.ensure_daily(workspace, relative))
+		return true
+	end)
+	if not ok then
+		vim.notify(tostring(handled), vim.log.levels.ERROR)
+		return true
+	end
+	return handled
+end
+
+-- Return false only when cwd has no linked project notes.
+function M.open_logs(workspaces)
+	local ok, handled = pcall(function()
+		local workspace, target = find_target(workspaces, true)
+		if not workspace then
+			return false
+		end
+		local path = vim.fs.joinpath(target, "logs.md")
+		local file, err, code = uv.fs_open(path, "wx", 420) -- 0644, respecting the process umask.
+		if file then
+			local closed, close_error = uv.fs_close(file)
+			if not closed then
+				error("Could not close " .. path .. ": " .. tostring(close_error))
+			end
+		elseif code ~= "EEXIST" then
+			error("Could not create " .. path .. ": " .. tostring(err))
+		end
+		if vim.fn.filereadable(path) ~= 1 then
+			error("Project log is not a readable file: " .. path)
+		end
+		open_buffer(path)
 		return true
 	end)
 	if not ok then
