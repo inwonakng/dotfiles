@@ -121,36 +121,67 @@ end
 local function run(path, args, allowFailure, timeout)
     local thread = coroutine.running()
     local task, watchdog
-    local completed = false
-    local output, errors = {}, {}
-    local function finish(code, stdout, stderr)
+    local completed, cleaned, timedOut = false, false, false
+    local outputFile = os.tmpname()
+    local ok, errorFile = pcall(os.tmpname)
+    if not ok then os.remove(outputFile); error(errorFile) end
+    local function cleanup()
+        if cleaned then return end
+        cleaned = true
+        for _, file in ipairs({ outputFile, errorFile }) do
+            local removed, err = os.remove(file)
+            if not removed then log.w("Cannot remove task output: " .. tostring(err)) end
+        end
+    end
+    local function readOutput(file)
+        local handle = assert(io.open(file, "rb"))
+        local data, err = handle:read("*a")
+        local closed, closeError = handle:close()
+        assert(data, err)
+        assert(closed, closeError)
+        return data
+    end
+    local function finish(code)
         if completed then return end
         completed = true
         if watchdog then watchdog:stop(); timers[watchdog] = nil end
         if task then tasks[task] = nil end
-        -- hs.task can deliver its last streaming chunk after termination. Defer
-        -- resumption so that chunk precedes the unread tail from the exit callback.
+        local captured, stdout, stderr = pcall(function()
+            return readOutput(outputFile), readOutput(errorFile)
+        end)
+        cleanup()
+        if not captured then code, stderr, stdout = -1, tostring(stdout), "" end
+        if timedOut then stderr = "Command timed out: " .. path end
+        -- Leave the native callback before resuming the action coroutine.
         local settled
         settled = hs.timer.doAfter(0, function()
             timers[settled] = nil
-            resume(thread, code, table.concat(output) .. (stdout or ""),
-                table.concat(errors) .. (stderr or ""))
+            resume(thread, code, stdout, stderr)
         end)
         timers[settled] = true
     end
-    task = hs.task.new(path, finish, function(_, stdout, stderr)
-        table.insert(output, stdout or "")
-        table.insert(errors, stderr or "")
-        return true
-    end, args)
-    assert(task, "Cannot create task: " .. path)
-    tasks[task] = true
-    if not task:start() then tasks[task] = nil; error("Cannot start task: " .. path) end
-    task:closeInput()
+    -- hs.task may deliver streamed bytes after its exit callback (even after a
+    -- zero-delay timer). Files give us complete output at exit without filling
+    -- an undrained pipe on large workspace queries. exec preserves termination
+    -- and exit status; positional arguments avoid shell interpolation.
+    local command = { "-c", 'out=$1; err=$2; shift 2; exec "$@" >"$out" 2>"$err"',
+        "rift-task", outputFile, errorFile, path }
+    for _, argument in ipairs(args) do table.insert(command, argument) end
+    local created
+    created, task = pcall(hs.task.new, "/bin/sh", finish, command)
+    if not created then cleanup(); error(task) end
+    if not task then cleanup(); error("Cannot create task: " .. path) end
+    tasks[task] = cleanup
+    if not task:start() then
+        tasks[task] = nil
+        cleanup()
+        error("Cannot start task: " .. path)
+    end
     if timeout ~= false then
         watchdog = hs.timer.doAfter(timeout or 3, function()
+            timedOut = true
             task:terminate()
-            finish(-1, "", "Command timed out: " .. path)
+            finish(-1)
         end)
         timers[watchdog] = true
     end
@@ -962,7 +993,7 @@ function M.stop()
     if recoveryTimer then recoveryTimer:stop(); recoveryTimer = nil end
     recoveryQueued = nil
     for timer in pairs(timers) do timer:stop() end
-    for task in pairs(tasks) do task:terminate() end
+    for task, cleanup in pairs(tasks) do task:terminate(); cleanup() end
     jobs, tasks, timers = {}, {}, {}
     current, expiryQueued = nil, nil
     persist() -- Flush any coalesced history before shutdown/reload.
