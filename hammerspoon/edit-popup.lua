@@ -111,11 +111,24 @@ local function capture()
         or range.location < 0 or range.length < 0 then return nil end
     local selected, before, after, length = textRange(value, range)
     if not selected then return nil end
-    if range.length == 0 then
+    local app = window:application()
+    local emptyWebEditor = false
+    -- Safari exposes an empty ProseMirror paragraph as a newline that cannot be
+    -- selected. Keep it as an AX-only suffix, not text to edit or paste.
+    if value == "\n" and range.location == 0 and range.length == 0
+        and element:attributeValue("AXRole") == "AXTextArea"
+        and app:bundleID() == "com.apple.Safari" then
+        for _, class in ipairs(element:attributeValue("AXDOMClassList") or {}) do
+            if class == "ProseMirror" then emptyWebEditor = true; break end
+        end
+    end
+    if emptyWebEditor then
+        selected, before, after = "", "", value
+    elseif range.length == 0 then
         selected, before, after = value, "", ""
         range = { location = 0, length = length }
     end
-    return { element = element, window = window, app = window:application(),
+    return { element = element, window = window, app = app,
         original = value, range = range, initial = selected, before = before, after = after }
 end
 
@@ -147,7 +160,7 @@ local function paste(session, edited)
     end
     -- An empty input has nothing to select. Some web editors cannot restore an
     -- empty AX selection, even though the same focused element accepts a paste.
-    if session.original ~= "" then
+    if session.range.length > 0 then
         session.element:setAttributeValue("AXSelectedTextRange", session.range)
         local range = session.element:attributeValue("AXSelectedTextRange")
         if not range or range.location ~= session.range.location or range.length ~= session.range.length
