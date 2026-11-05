@@ -314,7 +314,9 @@ local function launch(session)
             local command = table.concat({ "/bin/bash", quote(moduleDirectory .. "/edit-popup.sh"),
                 quote(nvim), quote(moduleDirectory .. "/edit-popup-nvim.lua"), quote(session.directory) }, " ")
             session.launchDeadline = hs.timer.secondsSinceEpoch() + 15
+            -- Ghostty owns initial sizing (grid cells); Rift only floats the popup.
             run("/usr/bin/open", { "-na", ghostty, "--args", "--title=" .. session.title,
+                "--window-width=78", "--window-height=10",
                 "--window-save-state=never", "--quit-after-last-window-closed=true", "--initial-window=true",
                 "--wait-after-command=false", "--confirm-close-surface=false", "--working-directory=" .. session.directory,
                 "-e", "/bin/bash", "-c", command }, function(exit, _, errors)

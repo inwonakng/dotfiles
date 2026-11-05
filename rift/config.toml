@@ -413,8 +413,8 @@ app_rules = [
   { app_id = "com.apple.Safari", title_regex = "^Bitwarden$", floating = true },
   { app_id = "org.mozilla.firefox", workspace = "2" },
   { app_id = "org.mozilla.firefox", title_substring = "Extension: (Bitwarden Password Manager)", floating = true },
-  # Editor popups stay on the current workspace; regular terminals still use 1.
-  { app_id = "com.mitchellh.ghostty", title_regex = "^Hammerspoon Edit Popup ", floating = true, size = { w = 700, h = 200 } },
+  # Ghostty sizes editor popups; Rift floats them on the current workspace.
+  { app_id = "com.mitchellh.ghostty", title_regex = "^Hammerspoon Edit Popup ", floating = true },
   { app_id = "com.mitchellh.ghostty", workspace = "1" },
   { app_id = "com.apple.Notes", workspace = "N" },
   { app_id = "net.sourceforge.skim-app.skim", workspace = "V" },
