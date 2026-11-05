@@ -180,7 +180,10 @@ local function query(kind, space)
     if space then table.insert(args, "--space-id"); table.insert(args, tostring(space)) end
     local output = cli(args)
     local value = hs.json.decode(output)
-    assert(value ~= nil or output:match("^%s*null%s*$"), "Invalid Rift JSON: " .. output)
+    local shape = kind == "layout" and "^%s*{" or "^%s*%["
+    local emptyLayout = kind == "layout" and value == nil and output:match("^%s*null%s*$")
+    assert((type(value) == "table" and output:match(shape)) or emptyLayout,
+        "Invalid Rift response for query " .. kind .. ": " .. output)
     if kind == "workspaces" and revision == workspaceRevision then
         for _, workspace in ipairs(value) do
             workspaceSnapshots[workspace.id] = {
@@ -237,8 +240,7 @@ function M.refreshIndicator()
     indicatorPending = pending
     enqueue(function()
         if token ~= generation then return end
-        pending.dirty = false
-        local ok, err = pcall(function()
+        local function refresh()
             local displays = query("displays")
             table.sort(displays, function(a, b)
                 local left, right = a.frame.origin, b.frame.origin
@@ -261,11 +263,19 @@ function M.refreshIndicator()
                 end
             end
             if token == generation and stream and not pending.dirty then indicator:update(entries) end
-        end)
+        end
+        -- A transient CLI/JSON failure must not remove the last valid icon.
+        -- Retry once; newer events already request their own fresh snapshot.
+        local ok, err
+        for attempt = 1, 2 do
+            pending.dirty = false
+            ok, err = pcall(refresh)
+            if ok or token ~= generation or pending.dirty then break end
+        end
         if indicatorPending == pending then indicatorPending = nil end
         if token ~= generation then return end
-        if not ok then indicator:clear(); error(err) end
         if pending.dirty then M.refreshIndicator() end
+        if not ok then error(err) end
     end)
 end
 
