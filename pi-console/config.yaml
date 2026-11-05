@@ -12,8 +12,6 @@ auto-title:
 server:
   webui:
     enabled: true
-    allowed-origins:
-      - https://pi.hyrax-pollux.ts.net
 
 workspace:
   auto-commit: true
