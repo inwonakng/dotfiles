@@ -145,11 +145,15 @@ local function paste(session, edited)
     if not validTarget(session) or not targetFocused(session) then
         fail(session, "The original input changed or could not be focused. Nothing pasted."); return
     end
-    session.element:setAttributeValue("AXSelectedTextRange", session.range)
-    local range = session.element:attributeValue("AXSelectedTextRange")
-    if not range or range.location ~= session.range.location or range.length ~= session.range.length
-        or not targetFocused(session) or not validTarget(session) then
-        fail(session, "Could not restore the original selection. Nothing pasted."); return
+    -- An empty input has nothing to select. Some web editors cannot restore an
+    -- empty AX selection, even though the same focused element accepts a paste.
+    if session.original ~= "" then
+        session.element:setAttributeValue("AXSelectedTextRange", session.range)
+        local range = session.element:attributeValue("AXSelectedTextRange")
+        if not range or range.location ~= session.range.location or range.length ~= session.range.length
+            or not targetFocused(session) or not validTarget(session) then
+            fail(session, "Could not restore the original selection. Nothing pasted."); return
+        end
     end
     local expected = session.before .. edited .. session.after
     if expected == session.original then
