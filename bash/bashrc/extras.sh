@@ -190,7 +190,37 @@ open_scratch_buffer() {
     rm "$TMP_FILE"
 }
 
-# Bind Ctrl+e to the custom function
+sshr() {
+    local host="$1"
+    local session="${2:-main}"
+    local rc
+
+    if [[ -z "$host" ]]; then
+        echo "Usage: sshr <host> [session]"
+        return 2
+    fi
+
+    while true; do
+        ssh -tt \
+            -o ServerAliveInterval=10 \
+            -o ServerAliveCountMax=2 \
+            -o ConnectTimeout=7 \
+            "$host" \
+            "tmux new-session -A -s '$session'"
+
+        rc=$?
+
+        # Only retry SSH failures
+        if ((rc != 255)); then
+            return "$rc"
+        fi
+
+        echo "Connection lost. Reconnecting in 2s..."
+        sleep 2 || return 130
+    done
+}
+
+# Bind Ctrl+o to the custom function
 if [[ "$(set -o | grep 'emacs\|\bvi\b' | cut -f2 | tr '\n' ':')" != 'off:off:' ]]; then
     # standard output is a tty
     # do interactive initialization
