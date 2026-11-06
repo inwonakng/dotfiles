@@ -192,29 +192,34 @@ open_scratch_buffer() {
 
 sshr() {
     local host="$1"
-    local session="${2:-main}"
+    local session="$2"
     local rc
-
     if [[ -z "$host" ]]; then
         echo "Usage: sshr <host> [session]"
         return 2
     fi
-
     while true; do
-        ssh -tt \
-            -o ServerAliveInterval=10 \
-            -o ServerAliveCountMax=2 \
-            -o ConnectTimeout=7 \
-            "$host" \
-            "tmux new-session -A -s '$session'"
-
+        if [[ -n "$session" ]]; then
+            # Attach to existing tmux session, or create it
+            ssh -tt \
+                -o ServerAliveInterval=10 \
+                -o ServerAliveCountMax=2 \
+                -o ConnectTimeout=7 \
+                "$host" \
+                "tmux new-session -A -s '$session'"
+        else
+            # Regular SSH, no tmux
+            ssh -tt \
+                -o ServerAliveInterval=10 \
+                -o ServerAliveCountMax=2 \
+                -o ConnectTimeout=7 \
+                "$host"
+        fi
         rc=$?
-
-        # Only retry SSH failures
+        # Retry only on SSH connection failure
         if ((rc != 255)); then
             return "$rc"
         fi
-
         echo "Connection lost. Reconnecting in 2s..."
         sleep 2 || return 130
     done
