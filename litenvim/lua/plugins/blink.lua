@@ -99,10 +99,13 @@ cmp.setup({
 	},
 	sources = {
 		transform_items = function(ctx, items)
-			if vim.bo[ctx.bufnr].filetype == "ledger" and require("completion.hledger").in_account(ctx) then
-				return vim.tbl_filter(function(item)
-					return item.source_id == "hledger_accounts"
-				end, items)
+			if vim.bo[ctx.bufnr].filetype == "ledger" then
+				local hledger = require("completion.hledger")
+				if hledger.in_account(ctx) or hledger.in_payee(ctx) then
+					return vim.tbl_filter(function(item)
+						return item.source_id == "hledger_accounts"
+					end, items)
+				end
 			end
 			return items
 		end,
@@ -120,7 +123,7 @@ cmp.setup({
 		},
 		providers = {
 			hledger_accounts = {
-				name = "Hledger Accounts",
+				name = "Hledger",
 				module = "completion.hledger",
 				async = true,
 			},

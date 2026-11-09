@@ -84,6 +84,36 @@ local function parse_accounts(text)
 	return accounts
 end
 
+local function description_start(line)
+	local date = "%d%d%d%d[-/.]%d%d?[-/.]%d%d?"
+	local start_index = line:match("^" .. date .. "=" .. date .. "%s+()")
+		or line:match("^" .. date .. "%s+()")
+	if not start_index then
+		return nil
+	end
+	start_index = start_index + #(line:sub(start_index):match("^[*!]%s*") or "")
+	start_index = start_index + #(line:sub(start_index):match("^%([^)]*%)%s*") or "")
+	return start_index
+end
+
+local function parse_payees(text)
+	local payees = {}
+	for line in (text or ""):gmatch("[^\n]+") do
+		local start_index = description_start(line)
+		if start_index then
+			-- Without a pipe, an older description is not an explicit payee.
+			local payee = line:sub(start_index):match("^([^;|]*)|")
+			if payee then
+				payee = vim.trim(payee)
+				if payee ~= "" then
+					payees[payee] = true
+				end
+			end
+		end
+	end
+	return payees
+end
+
 local function discovered_files(stdout, root_path)
 	local files = {}
 	local seen = {}
@@ -124,10 +154,15 @@ end
 local function build_candidates(root_path, stdout)
 	local aliases = parse_aliases(read_file(root_path))
 	local accounts = {}
+	local payees = {}
 
 	for _, path in ipairs(discovered_files(stdout, root_path)) do
-		for account in pairs(parse_accounts(read_file(path))) do
+		local text = read_file(path)
+		for account in pairs(parse_accounts(text)) do
 			accounts[account] = true
+		end
+		for payee in pairs(parse_payees(text)) do
+			payees[payee] = true
 		end
 	end
 
@@ -167,7 +202,33 @@ local function build_candidates(root_path, stdout)
 	table.sort(candidates, function(a, b)
 		return a.sort_text < b.sort_text
 	end)
-	return candidates
+	local payee_candidates = {}
+	for payee in pairs(payees) do
+		table.insert(payee_candidates, { label = payee, detail = "payee", sort_text = payee })
+	end
+	table.sort(payee_candidates, function(a, b)
+		return a.sort_text < b.sort_text
+	end)
+	return { accounts = candidates, payees = payee_candidates }
+end
+
+local function payee_range(ctx)
+	local start_index = description_start(ctx.line)
+	if not start_index or ctx.pos.col < start_index - 1 then
+		return nil
+	end
+	local delimiter = ctx.line:find("[|;]", start_index) or (#ctx.line + 1)
+	if ctx.pos.col >= delimiter then
+		return nil
+	end
+	local end_col = math.max(ctx.pos.col, #ctx.line:sub(1, delimiter - 1):gsub("%s+$", ""))
+	return {
+		payee = {
+			start = { line = ctx.pos.row, character = start_index - 1 },
+			["end"] = { line = ctx.pos.row, character = end_col },
+		},
+		payee_suffix = ctx.line:sub(end_col + 1, end_col + 1):match("[|;]") and " " or "",
+	}
 end
 
 local function inside_transaction(bufnr, row)
@@ -240,6 +301,10 @@ function M.in_account(ctx)
 	return account_range(ctx) ~= nil
 end
 
+function M.in_payee(ctx)
+	return payee_range(ctx) ~= nil
+end
+
 local source = {}
 
 function source.new()
@@ -272,7 +337,9 @@ function source:get_trigger_characters()
 end
 
 function source:complete(candidates, range, callback)
-	local kind = require("blink.cmp.types").CompletionItemKind.Field
+	local kinds = require("blink.cmp.types").CompletionItemKind
+	local kind = range.payee and kinds.Text or kinds.Field
+	candidates = range.payee and candidates.payees or candidates.accounts
 	local items = {}
 	local full_labels = {}
 	for _, candidate in ipairs(candidates) do
@@ -280,7 +347,7 @@ function source:complete(candidates, range, callback)
 			full_labels[candidate.label] = true
 		end
 	end
-	local nested = range.component.start.character > range.account.start.character
+	local nested = range.component and range.component.start.character > range.account.start.character
 	for _, candidate in ipairs(candidates) do
 		-- At the first level, identical account/component edits need only one entry.
 		if not candidate.component or nested or not full_labels[candidate.label] then
@@ -292,8 +359,8 @@ function source:complete(candidates, range, callback)
 				score_offset = candidate.component and nested and 3 or 0,
 				data = { hledger_component = candidate.component == true },
 				textEdit = {
-					newText = candidate.label,
-					range = candidate.component and range.component or range.account,
+					newText = candidate.label .. (range.payee_suffix or ""),
+					range = range.payee or (candidate.component and range.component or range.account),
 				},
 			})
 		end
@@ -342,7 +409,7 @@ function source:reload(root_path)
 end
 
 function source:get_completions(ctx, callback)
-	local range = account_range(ctx)
+	local range = payee_range(ctx) or account_range(ctx)
 	if not range then
 		callback(empty_response())
 		return
