@@ -36,8 +36,10 @@ extensions from a second package or `extensions` entry.
 Zotero login/completion, the reader tools/plugin, research workspace, and the
 `zotero`, `zotero-curation`, and `project-bibliography` skills now live in
 [zotero-tools](https://github.com/inwonakng/zotero-tools). The global package
-settings load `~/zotero-tools` and exclude the old Zotero registrations from
-cached pi-extensions packages. Keep the zotero-tools checkout available.
+settings load `git:git@github.com:inwonakng/zotero-tools.git` and exclude the old
+Zotero registrations from cached pi-extensions packages. Pi manages the extensions
+and skills together in its own Git checkout; update them with `pi update --extensions`.
+The CLI and workspace links still use the permanent zotero-tools checkout.
 
 Run `bash ~/zotero-tools/scripts/install.sh` for the single installer;
 `scripts/setup/zotero.sh` delegates to it (`ZOTERO_TOOLS_DIR` overrides the

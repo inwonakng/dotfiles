@@ -10,7 +10,7 @@
         "-extensions/zotero-reader.ts"
       ]
     },
-    "~/zotero-tools"
+    "git:git@github.com:inwonakng/zotero-tools.git"
   ],
   "defaultTools": [
     "+codemode",
