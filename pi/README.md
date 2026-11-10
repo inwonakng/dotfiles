@@ -31,38 +31,19 @@ It owns access control, subagents, workspace/history/tree integration, titles,
 notifications, and Codex usage. Do not also load copies of these personal
 extensions from a second package or `extensions` entry.
 
-## Zotero completion
+## Zotero integration
 
-In ordinary Pi, type `@z:` and choose `paper:`, `collection:`, or `tag:`, then
-enter title fragments, authors, citation keys, tags, or a collection name.
-Queries can contain spaces. Tab/Enter accepts a result; Tab can reopen suggestions
-if the menu closes after an unmatched query. Namespace selection inserts the
-prefix without a space; start typing (or press Tab) to list that namespace.
+Zotero login/completion, the reader tools/plugin, research workspace, and the
+`zotero`, `zotero-curation`, and `project-bibliography` skills now live in
+[zotero-tools](https://github.com/inwonakng/zotero-tools). The global package
+settings load `~/zotero-tools` and exclude the old Zotero registrations from
+cached pi-extensions packages. Keep the zotero-tools checkout available.
 
-`agent/extensions/zotero.ts` reads only Zotero's local personal-library API.
-Enable **Settings → Advanced → Allow other applications on this computer to
-communicate with Zotero** and leave Zotero running. Metadata loads on first use,
-is cached only in memory, and refreshes on use after a minute. Failures retry
-after ten seconds and keep any cached suggestions, with an unavailable warning.
-No PDFs, notes, or library writes are loaded by completion. Group libraries are
-not included.
-
-Accepted papers/collections become readable native Zotero links; tags become
-local API tag links carrying the exact tag name (metadata, not a PDF). The brief `zotero` skill uses
-`zotero-tools` to resolve references without automatically loading full PDFs.
-Restart or `/reload` to discover the extension and skill. pi-console has its own
-Blink completion source for the same syntax and reference format; restart the
-console frontend after updating it.
-
-## Zotero research workspace
-
-See [Zotero setup](../zotero/README.md) for the on-demand reader bridge and
-`~/agents/zotero` project configuration. `zotero-reader.ts` registers
-`zotero_context` and `zotero_view` inactive globally; that project's settings enable
-them without changing global providers or credentials. The `zotero`,
-`zotero-curation`, and `project-bibliography` skills also work in ordinary research
-projects. New tag names require confirmation; official proceedings/publisher
-metadata takes precedence over supplied README citation blocks.
+Run `bash ~/zotero-tools/scripts/install.sh` for the single installer;
+`scripts/setup/zotero.sh` delegates to it (`ZOTERO_TOOLS_DIR` overrides the
+checkout location). See [Zotero setup](https://github.com/inwonakng/zotero-tools/blob/main/zotero/README.md)
+for XPI installation and the `~/agents/zotero` workspace. No library data or
+credentials are migrated. Restart Pi/pi-console after setup.
 
 ## Native tool selection
 

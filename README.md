@@ -52,7 +52,7 @@ Vim is an exception. link to `~/.vim`
   - right now we use this to add some additional functionalities to rift, such as toggling floating windows.
 - [Zotero](https://www.zotero.org) paper manager
   - [AIdea](https://github.com/Visterainer/aidea-zotero) AI assistant integration for Zotero
-  - [Pi research workspace and reader bridge](zotero/README.md): ordinary Pi in
+  - [Pi research workspace and reader bridge](https://github.com/inwonakng/zotero-tools/blob/main/zotero/README.md): ordinary Pi in
     `~/agents/zotero`, with on-demand current-paper context and PDF images.
 - [btop](https://github.com/aristocratos/btop) system monitor (top/htop alternative).
 

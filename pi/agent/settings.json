@@ -3,7 +3,14 @@
   "theme": "dark",
   "packages": [
     "git:git@github.com:inwonakng/api-relay-server.git",
-    "git:git@github.com:inwonakng/pi-extensions.git"
+    {
+      "source": "git:git@github.com:inwonakng/pi-extensions.git",
+      "extensions": [
+        "-extensions/zotero.ts",
+        "-extensions/zotero-reader.ts"
+      ]
+    },
+    "~/zotero-tools"
   ],
   "defaultTools": [
     "+codemode",
