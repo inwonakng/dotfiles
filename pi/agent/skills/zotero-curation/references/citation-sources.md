@@ -9,10 +9,11 @@ result. A source's absence or access failure is not proof of rejection.
 
 Check for an official proceedings record first, including for ICLR and COLM.
 If OpenReview is the available official source and its citation/BibTeX export is
-accessible, verify and import that export with `zotero-cli add bibtex`. Do not use
-generic `add url` for OpenReview. Cross-check title, authors, year, and canonical
-forum URL against the record rather than inferring them from arXiv or a repository
-README.
+accessible, verify and import that export with
+`zotero-tools import --file TEMP.bib --commit`. Prefer the verified citation export
+over importing the OpenReview URL directly. Cross-check title, authors, year, and
+canonical forum URL against the record rather than inferring them from arXiv or a
+repository README.
 
 If access or import is blocked, follow [When automated import is blocked](../SKILL.md#when-automated-import-is-blocked).
 Do not initiate OpenReview login, request credentials, or switch API versions as
@@ -70,7 +71,8 @@ Keep preprint identifiers and publication identifiers distinct. A metadata expor
 can omit or mis-map fields; read back the imported Zotero item before declaring
 the metadata corrected.
 
-For a demonstrated Zotero CLI mapping gap, consult the official
+For a demonstrated `zotero-tools` mapping gap, consult the official
 [Zotero Web API documentation](https://www.zotero.org/support/dev/web_api/v3/start)
-and [write requests reference](https://www.zotero.org/support/dev/web_api/v3/write_requests).
-An API fallback changes the transport, not the approved scope or readback duty.
+and [write requests reference](https://www.zotero.org/support/dev/web_api/v3/write_requests),
+then follow the [correction procedure](../SKILL.md#import-or-correct). A mapping gap
+does not expand the approved scope or remove the readback duty.

@@ -26,9 +26,10 @@ separate from printed page labels.
 
 ## Library work
 
-Use the existing `zotero-cli` in web mode for searches, imports, metadata,
-collections, tags, notes, and synced Zotero Storage PDFs on every machine.
-`/zotero-login` configures its shared machine-local credentials. Keep the reader
+Use the owned `zotero-tools` CLI for searches, imports, metadata, collections,
+tags, notes, exports, and cached Zotero Storage PDFs on every machine. It uses
+the Web API; writes preview unless `--commit` is supplied. `/zotero-login`
+continues to configure the shared machine-local credentials. Keep the reader
 bridge local; do not force library commands to localhost or library ID `0`.
 Unsynced desktop changes may not yet be available through the web API.
 New papers require independently retrieved official publication

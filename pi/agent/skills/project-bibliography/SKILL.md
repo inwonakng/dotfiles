@@ -60,6 +60,10 @@ Organize the answer around relevant assumptions, methods, findings, limitations,
 
 Use a small comparison table when it helps. Keep synthesis in the conversation unless the user asks to save it; do not require a spreadsheet, notes database, or export as part of discussion.
 
+## Export only when requested
+
+Use `zotero-tools --library user:ID export --collection KEY --format bibtex --out PATH` (or `group:ID`). Explicit item keys can replace `--collection`; there is no implicit whole-library scope. Exports include all pages of the chosen collection, not its subcollections. The command refuses existing output files unless `--overwrite` is explicitly authorized. Preserve established citation keys and inspect the exported bibliography for missing/conflicting keys.
+
 ## Review relevance and coverage
 
 Trigger: the user requests a collection review or the project's research scope changes. After an addition batch, check the added papers' relevance, overlap, membership, and tags; do not audit the entire collection after every change.

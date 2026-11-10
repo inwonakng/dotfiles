@@ -38,9 +38,10 @@ the model provider.**
 
 ## Setup
 
-You need Zotero **10.0.x**, Pi or pi-console, and `zotero-cli` for library work.
-The setup script below configures the reader integration; it does not install
-those applications.
+You need Zotero **10.0.x**, Pi or pi-console, `uv`, Node/npm, and the owned
+`~/zotero-tools` checkout (or set `ZOTERO_TOOLS_DIR`). The setup script installs
+the `zotero-tools` CLI and configures the reader integration; it does not install
+Zotero or Pi.
 
 ### Build the plugin and link the workspace
 
@@ -57,8 +58,10 @@ The script links the workspace configuration into `~/agents/zotero` and builds:
 ```
 
 It requires `zip`, refuses to replace regular workspace configuration files, and
-does not install the plugin, change your library, or copy credentials. Packaging
-requires no Python, npm dependencies, or PDF packages.
+does not install the plugin, change your library, or copy credentials. CLI
+dependencies are installed with uv. Official Zotero translators are pinned under
+`~/zotero-tools/.vendor/` and launched on demand for resolution/imports, not at
+session startup.
 
 ### Enable the integration in Zotero
 
@@ -74,13 +77,14 @@ The integration has separate tools for library access and the open Zotero reader
 
 | Tool | Purpose |
 | --- | --- |
-| `zotero-cli` | Search the library; read metadata, PDF text, notes, and annotations; perform requested imports, edits, and exports. |
+| `zotero-tools` | Search the library; read metadata, cached PDF text, notes, and annotations; perform requested imports, edits, and exports. |
 | `zotero_context` | Identify the currently selected paper, page, passage, or saved annotations. |
 | `zotero_view` | Show the model a PDF page or crop, such as a figure, table, or equation. |
 
-The reader bridge is read-only. Library changes go through `zotero-cli` and
-require separately authorized local API writes (Zotero 10) or configured web API
-credentials. Setup does not grant write authorization.
+The reader bridge is read-only. Library changes go through `zotero-tools`, use
+configured Web API credentials, and preview unless `--commit` is supplied. Setup
+does not grant authorization to change the library. `/zotero-login` continues to
+use the existing private credential store.
 
 The global skills also work in other research directories without the reader
 bridge:
@@ -91,10 +95,12 @@ bridge:
 
 ### PDF text and images
 
-`zotero-cli read` extracts text automatically; the agent does not need to convert
-the PDF manually. Ordinary CLI reads do not keep a persistent Markdown conversion
-for reuse across commands. The installed CLI has a process-local parse cache and
-a separate transient cache for semantic indexing, not a permanent reading cache.
+`zotero-tools read` extracts text automatically and keeps PDFs and page-indexed
+text in a private persistent cache, shared by `find`, `read`, and `image` across
+commands and sessions. Fresh cache entries require no network access for five
+minutes; `--refresh` validates a known source change immediately. Attachment
+checksums and extractor versions invalidate cached content. The agent does not
+need to re-download or manually convert a paper for each question.
 
 Text extraction can lose equations or visual structure. For those passages, the
 agent can request an image. `zotero_view` renders PDF content directly from Zotero,

@@ -49,7 +49,7 @@ not included.
 
 Accepted papers/collections become readable native Zotero links; tags become
 local API tag links carrying the exact tag name (metadata, not a PDF). The brief `zotero` skill uses
-`zotero-cli --json` to resolve references without automatically loading full PDFs.
+`zotero-tools` to resolve references without automatically loading full PDFs.
 Restart or `/reload` to discover the extension and skill. pi-console has its own
 Blink completion source for the same syntax and reference format; restart the
 console frontend after updating it.
