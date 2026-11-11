@@ -410,6 +410,7 @@ app_rules = [
   { app_id = "com.apple.mail", workspace = "M" },
   { app_id = "com.tinyspeck.slackmacgap", workspace = "M" },
   { app_id = "com.apple.iCal", workspace = "C" },
+  { app_id = "com.apple.Safari", workspace = "0" },
   { app_id = "com.apple.Safari", title_regex = "^Bitwarden$", floating = true },
   { app_id = "org.mozilla.firefox", workspace = "2" },
   { app_id = "org.mozilla.firefox", title_substring = "Extension: (Bitwarden Password Manager)", floating = true },

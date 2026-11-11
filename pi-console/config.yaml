@@ -7,7 +7,7 @@ session-picker:
 
 auto-title:
   provider-models:
-    relay: gpt-5.6-luna
+    relay: [gpt-5.6-luna, "claude/haiku"]
 
 server:
   webui:
