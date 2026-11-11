@@ -18,7 +18,10 @@ local sides = { "top", "bottom", "left", "right" }
 
 local function newStrip()
     local canvas = assert(hs.canvas.new({ x = 0, y = 0, w = 1, h = 1 }))
-    canvas:level("floating"):behaviorAsLabels({ "canJoinAllSpaces", "transient", "ignoresCycle" })
+    -- One level below floating: above normal app windows (including windows
+    -- Rift floats), but below floating panels such as Webex's mini window.
+    -- Sharing their level would put the outline on top whenever it moves.
+    canvas:level(hs.canvas.windowLevels.floating - 1):behaviorAsLabels({ "canJoinAllSpaces", "transient", "ignoresCycle" })
     canvas:clickActivating(false):canvasMouseEvents(false, false, false, false)
     return canvas
 end
