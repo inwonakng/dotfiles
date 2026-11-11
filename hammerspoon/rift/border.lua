@@ -1,4 +1,8 @@
 -- One click-through outline for the native focused window; no border daemon.
+-- Webex shows its multitasking mini window when it considers the meeting
+-- window covered. A window-sized overlay counts as covering, and so do strips
+-- that overlap the window's entire outer edge. Draw four edge strips inset from
+-- the frame so neither the interior nor the outermost edge is overlapped.
 require("hs.canvas")
 require("hs.window")
 require("hs.window.filter")
@@ -8,18 +12,31 @@ require("hs.eventtap")
 local Border = {}
 Border.__index = Border
 local width, radius = 2, 12 -- Points; radius is an approximation of native macOS corners.
+local inset = 1 -- Points left uncovered at the window edge (see header).
 
-function Border.new()
+local sides = { "top", "bottom", "left", "right" }
+
+local function newStrip()
     local canvas = assert(hs.canvas.new({ x = 0, y = 0, w = 1, h = 1 }))
     canvas:level("floating"):behaviorAsLabels({ "canJoinAllSpaces", "transient", "ignoresCycle" })
     canvas:clickActivating(false):canvasMouseEvents(false, false, false, false)
-    return setmetatable({ canvas = canvas }, Border)
+    return canvas
+end
+
+function Border.new()
+    local strips = {}
+    for _, side in ipairs(sides) do strips[side] = newStrip() end
+    return setmetatable({ strips = strips }, Border)
+end
+
+function Border:hide()
+    for _, canvas in pairs(self.strips) do canvas:hide() end
 end
 
 function Border:clear()
     if self.watcher then self.watcher:stop(); self.watcher = nil end
     self.windowId = nil
-    self.canvas:hide()
+    self:hide()
 end
 
 function Border:scheduleRefresh()
@@ -43,7 +60,11 @@ function Border:refresh()
         self:clear()
         return
     end
-    local frame, id = window:frame(), window:id()
+    local native, id = window:frame(), window:id()
+    local frame = {
+        x = native.x + inset, y = native.y + inset,
+        w = native.w - inset * 2, h = native.h - inset * 2,
+    }
     if not id or frame.w <= width * 2 or frame.h <= width * 2 then
         self:clear()
         return
@@ -58,7 +79,7 @@ function Border:refresh()
                 and hs.eventtap.checkMouseButtons().left then
                 -- A separate canvas cannot track a native drag smoothly.
                 self.dragging = true
-                self.canvas:hide()
+                self:hide()
                 return
             end
             self:scheduleRefresh()
@@ -66,17 +87,38 @@ function Border:refresh()
         -- Observe geometry directly; window.filter coalesces it for 0.5 s.
         self.watcher:start({ events.windowMoved, events.windowResized, events.elementDestroyed })
     end
-    self.canvas:frame(frame)
-    self.canvas:replaceElements({
-        type = "rectangle", action = "stroke", strokeWidth = width,
-        strokeColor = { red = 139 / 255, green = 213 / 255, blue = 176 / 255, alpha = 1 },
-        -- Draw entirely inside the window frame, including at screen edges.
-        frame = { x = width / 2, y = width / 2, w = frame.w - width, h = frame.h - width },
-        roundedRectRadii = { xRadius = radius - width / 2, yRadius = radius - width / 2 },
-        trackMouseDown = false, trackMouseUp = false,
-        trackMouseEnterExit = false, trackMouseMove = false,
-    })
-    self.canvas:show()
+    -- Top and bottom strips are tall enough to contain the rounded corners;
+    -- side strips cover only the straight edges between them.
+    local corner = math.min(radius, math.floor(frame.h / 2))
+    local rects = {
+        top = { x = frame.x, y = frame.y, w = frame.w, h = corner },
+        bottom = { x = frame.x, y = frame.y + frame.h - corner, w = frame.w, h = corner },
+        left = { x = frame.x, y = frame.y + corner, w = width, h = frame.h - corner * 2 },
+        right = { x = frame.x + frame.w - width, y = frame.y + corner, w = width, h = frame.h - corner * 2 },
+    }
+    for side, rect in pairs(rects) do
+        local canvas = self.strips[side]
+        if rect.w <= 0 or rect.h <= 0 then
+            canvas:hide()
+        else
+            canvas:frame(rect)
+            -- Each strip draws the full outline in inset-frame coordinates
+            -- and clips to its own bounds, so the strips join seamlessly.
+            canvas:replaceElements({
+                type = "rectangle", action = "stroke", strokeWidth = width,
+                strokeColor = { red = 139 / 255, green = 213 / 255, blue = 176 / 255, alpha = 1 },
+                -- Draw entirely inside the window frame, including at screen edges.
+                frame = {
+                    x = frame.x - rect.x + width / 2, y = frame.y - rect.y + width / 2,
+                    w = frame.w - width, h = frame.h - width,
+                },
+                roundedRectRadii = { xRadius = radius - width / 2, yRadius = radius - width / 2 },
+                trackMouseDown = false, trackMouseUp = false,
+                trackMouseEnterExit = false, trackMouseMove = false,
+            })
+            canvas:show()
+        end
+    end
 end
 
 function Border:start()
@@ -109,7 +151,7 @@ function Border:delete()
     if self.filter then self.filter:delete(); self.filter = nil end
     if self.pending then self.pending:stop(); self.pending = nil end
     self:clear()
-    self.canvas:delete()
+    for _, canvas in pairs(self.strips) do canvas:delete() end
 end
 
 function Border:status()
