@@ -60,15 +60,6 @@ vim.api.nvim_create_autocmd("TextYankPost", {
 	end,
 })
 
--- numi calculator scratch buffer
-vim.filetype.add({ extension = { numi = "numi" } })
-vim.api.nvim_create_autocmd("FileType", {
-	pattern = "numi",
-	callback = function()
-		require("utils.calc-mode").setup(vim.api.nvim_get_current_buf())
-	end,
-})
-
 -- Remove exact entries from quickfix/location lists, not from their source files.
 vim.api.nvim_create_autocmd("FileType", {
 	pattern = "qf",
