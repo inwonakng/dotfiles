@@ -689,6 +689,19 @@ local function connect(pids)
                             if revision == workspaceRevisions[event.space_id] then
                                 history:handle(event, workspaces)
                                 scheduleExpiry()
+                                -- Rift can restore focus after a close without revealing its column.
+                                -- Ignore layout_changed so centering cannot trigger itself.
+                                if event.type ~= "layout_changed" then
+                                    for _, workspace in ipairs(workspaces) do
+                                        if workspace.is_focused and workspace.layout_mode == "scrolling" then
+                                            local window = nativeFocused(workspace.windows)
+                                            if window and not window.is_floating then
+                                                cli({ "execute", "layout", "center-selection" })
+                                            end
+                                            break
+                                        end
+                                    end
+                                end
                             end
                         end)
                         if not ok then disconnect(); error(err) end
