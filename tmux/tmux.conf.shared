@@ -13,7 +13,7 @@ setenv -g PATH "$HOME/.config/tmux/scripts:$PATH"
 
 # Processes that tmux-resurrect should restore
 set -g @resurrect-processes 'pixi uv "~pi-console" sshr'
-set -g @resurrect-hook-post-save-layout 'bash $HOME/dotfiles/tmux/scripts/filter-resurrect-save.sh'
+set -g @resurrect-hook-post-save-layout "bash '$HOME/dotfiles/tmux/scripts/filter-resurrect-save.sh'"
 
 # Enable mouse mode (tmux 2.1 and above)
 set -g mouse on
